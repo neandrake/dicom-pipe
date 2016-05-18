@@ -1,9 +1,7 @@
 extern crate walkdir;
 
 use std::fs::File;
-use std::io::Error;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Error, Read, Seek, Write};
 use std::path::Path;
 
 use walkdir::{DirEntry, WalkDir, WalkDirIterator};
@@ -64,7 +62,7 @@ fn main() {
 	}
 }
 
-fn is_standard_dicom<StreamType: Read>(stream : StreamType) -> Result<bool, Error> {
+fn is_standard_dicom<StreamType: Read + Seek>(stream : StreamType) -> Result<bool, Error> {
 	let filler_size : usize = 128;
 	let preamble_size : usize = 4;
 	let buf_size : usize = filler_size + preamble_size;
