@@ -25,9 +25,9 @@ fn main() {
 										.into_iter();
 	let dir_entries = dirwalker.filter_entry(|e| !is_hidden(e));
 	for entry_res in dir_entries {
-		match do_thing(entry_res) {
+		match open_file_as_dicom_stream(entry_res) {
 			Ok(val) => {
-				println!("Entry is DICOM: {:?}", "BLUH?")
+				
 			},
 			Err(err) => {
 				writeln!(
@@ -40,7 +40,7 @@ fn main() {
 	}
 }
 
-fn do_thing(entry: Result<DirEntry, walkdir::Error>) -> Result<Box<DicomStream>, Error> {
+fn open_file_as_dicom_stream(entry: Result<DirEntry, walkdir::Error>) -> Result<Box<DicomStream>, Error> {
 	let entry: DirEntry = try!(entry);
 	if !entry.file_type().is_file() {
 		return Result::Err(Error::new(ErrorKind::InvalidData, "File is a directory"));
@@ -50,14 +50,14 @@ fn do_thing(entry: Result<DirEntry, walkdir::Error>) -> Result<Box<DicomStream>,
 	let mut fstream: File = try!(File::open(file_path));
 	let is_dcm: bool = try!(is_standard_dicom(&mut fstream));
 	if is_dcm {
+		println!("[INFO] File is DICOM: {:?}", file_path);
 		return Result::Ok(Box::new(fstream));
-		//println!("[INFO] File is DICOM: {:?}", file_path);
 	}
-	//println!("[INFO] File is not DICOM: {:?}", file_path);
-	return Result::Err(Error::new(ErrorKind::InvalidData, "File is not DICOM"));
+	println!("[INFO] File is not DICOM: {:?}", file_path);
+	return Result::Err(Error::new(ErrorKind::InvalidData, format!("File is not DICOM: {:?}", file_path)));
 }
 
-fn is_standard_dicom<StreamType: Read + Seek>(stream : &mut StreamType) -> Result<bool, Error> {
+fn is_standard_dicom(stream : &mut DicomStream) -> Result<bool, Error> {
 	let filler_size : usize = 128;
 	let preamble_size : usize = 4;
 	let buf_size : usize = filler_size + preamble_size;
