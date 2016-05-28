@@ -37,6 +37,7 @@ trait DicomStream : Read + Seek {
 			}
 		}
 		
+		try!(self.seek(SeekFrom::Start(start_pos)));
 		Result::Ok(true)
 	}
 }
@@ -174,8 +175,9 @@ impl DicomStream for TestDicomStream {}
 
 #[test]
 fn test_preamble() {
-	let mut test_stream = TestDicomStream::standard_dicom_preamble();
-	test_stream.is_standard_dicom().expect("should be valid dicom");
+	let mut test_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble();
+	let is_dcm: bool = test_stream.is_standard_dicom().expect("unable to inspect stream");
+	assert_eq!(is_dcm, true);
 }
 
 #[test]
@@ -187,6 +189,10 @@ fn test_parse_known_dicom_files() {
 	let dir_entries = dirwalker_iter.filter_entry(|e| !is_hidden(e));
 	for entry_res in dir_entries {
 		let entry: DirEntry = entry_res.unwrap();
-		open_file_as_dicom_stream(&entry).expect("File is not DICOM");
+		let is_dcm: bool = open_file_as_dicom_stream(&entry)
+			.expect("unable to inspect file")
+			.is_standard_dicom()
+			.expect("unable to inspect file stream");
+		assert_eq!(is_dcm, true);
 	}
 }
