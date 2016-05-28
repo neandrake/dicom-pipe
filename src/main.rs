@@ -113,17 +113,17 @@ struct TestDicomHeader {
 
 impl TestDicomHeader {
 	pub fn valid_dicom_preamble() -> TestDicomHeader {
-		let mut ret = TestDicomHeader {
-			data: vec![0;132],
+		TestDicomHeader {
+			data : {
+				let mut data = vec![0u8;132];
+				data[128] = 'D' as u8;
+				data[129] = 'I' as u8;
+				data[130] = 'C' as u8;
+				data[131] = 'M' as u8;
+				data
+			},
 			pos: 0,
-		};
-		
-		ret.data[128] = 'D' as u8;
-		ret.data[129] = 'I' as u8;
-		ret.data[130] = 'C' as u8;
-		ret.data[131] = 'M' as u8;
-		
-		ret
+		}
 	}
 }
 
