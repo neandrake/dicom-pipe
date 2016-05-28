@@ -14,16 +14,17 @@ trait DicomStream : Read + Seek {
 		let preamble_size : usize = 4;
 		let buf_size : usize = filler_size + preamble_size;
 		
+		// mark the current position, seek to beginning of stream to read preamble, seek back to current position
 		let start_pos : u64 = try!(self.seek(SeekFrom::Current(0)));
-		
+		try!(self.seek(SeekFrom::Start(0)));
 		let mut buffer : Vec<u8> = vec![0;buf_size];
 		try!(self.read_exact(buffer.as_mut_slice()));
+		try!(self.seek(SeekFrom::Start(start_pos)));
 		
 		// check that first 128 bytes are 0, followed by 'D', 'I', 'C', 'M'
 		
 		for n in 0..(filler_size) {
 			if buffer[n] != 0 {
-				try!(self.seek(SeekFrom::Start(start_pos)));
 				return Result::Ok(false);
 			}
 		}
@@ -32,12 +33,10 @@ trait DicomStream : Read + Seek {
 		let slice : &[u8] = &buffer[filler_size..filler_size + preamble_size];
 		for n in 0..preamble_size {
 			if slice[n] != preamble[n] {
-				try!(self.seek(SeekFrom::Start(start_pos)));
 				return Result::Ok(false);
 			}
 		}
 		
-		try!(self.seek(SeekFrom::Start(start_pos)));
 		Result::Ok(true)
 	}
 }
@@ -128,6 +127,20 @@ impl TestDicomStream {
 			pos: 0,
 		}
 	}
+	
+	pub fn invalid_dicom_preamble() -> TestDicomStream {
+		TestDicomStream {
+			data : {
+				let mut data: Vec<u8> = vec![0u8;132];
+				data[128] = 'D' as u8;
+				data[129] = 'O' as u8;
+				data[130] = 'C' as u8;
+				data[131] = 'M' as u8;
+				data
+			},
+			pos: 0,
+		}
+	}
 }
 
 #[cfg(test)]
@@ -174,10 +187,27 @@ impl Seek for TestDicomStream {
 impl DicomStream for TestDicomStream {}
 
 #[test]
-fn test_preamble() {
-	let mut test_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble();
-	let is_dcm: bool = test_stream.is_standard_dicom().expect("unable to inspect stream");
+fn test_preambles() {
+	let mut test_good_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble();
+	let is_dcm: bool = test_good_stream.is_standard_dicom().expect("unable to inspect stream");
 	assert_eq!(is_dcm, true);
+	
+	let mut test_bad_stream: TestDicomStream = TestDicomStream::invalid_dicom_preamble();
+	let is_dcm: bool = test_bad_stream.is_standard_dicom().expect("unable to inspect stream");
+	assert_eq!(is_dcm, false);
+}
+
+#[test]
+fn test_multiple_stddcm_checks_leave_stream_pos_in_place() {
+	let mut test_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble();
+	let start_pos: usize = test_stream.data.len() - 1;
+	test_stream.pos = start_pos;
+	test_stream.is_standard_dicom().expect("unable to inspect stream");
+	let mut end_pos: usize = test_stream.pos;
+	assert_eq!(start_pos, end_pos);
+	test_stream.is_standard_dicom().expect("unable to inspect stream");
+	end_pos = test_stream.pos;
+	assert_eq!(start_pos, end_pos);
 }
 
 #[test]
