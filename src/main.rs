@@ -73,10 +73,10 @@ fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
 	let dir_entries = dirwalker_iter.filter_entry(|e| !is_hidden(e));
 	for entry_res in dir_entries {
 		let entry: DirEntry = try!(entry_res);
-		let dstream_res: Result<Box<DicomStream>, Error> = open_file_as_dicom_stream(entry);
+		let dstream_res: Result<Box<DicomStream>, Error> = open_file_as_dicom_stream(&entry);
 		match dstream_res {
 			Ok(val) => {
-				println!("[INFO] File is DICOM: {:?}", entry.path());
+				println!("[DEBUG] File is DICOM: {:?}", entry.path());
 			},
 			Err(err) => {
 				writeln!(
@@ -90,7 +90,7 @@ fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
 	return Result::Ok(());
 }
 
-fn open_file_as_dicom_stream(entry: DirEntry) -> Result<Box<DicomStream>, Error> {
+fn open_file_as_dicom_stream(entry: &DirEntry) -> Result<Box<DicomStream>, Error> {
 	if !entry.file_type().is_file() {
 		return Result::Err(Error::new(ErrorKind::InvalidData, "File is a directory"));
 	}
@@ -99,10 +99,8 @@ fn open_file_as_dicom_stream(entry: DirEntry) -> Result<Box<DicomStream>, Error>
 	let mut fstream: File = try!(File::open(file_path));
 	let is_dcm: bool = try!(fstream.is_standard_dicom());
 	if is_dcm {
-		println!("[INFO] File is DICOM: {:?}", file_path);
 		return Result::Ok(Box::new(fstream));
 	}
-	println!("[INFO] File is not DICOM: {:?}", file_path);
 	return Result::Err(Error::new(ErrorKind::InvalidData, format!("File is not DICOM: {:?}", file_path)));
 }
 
