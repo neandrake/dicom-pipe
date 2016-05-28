@@ -104,11 +104,60 @@ fn open_file_as_dicom_stream(entry: &DirEntry) -> Result<Box<DicomStream>, Error
 	return Result::Err(Error::new(ErrorKind::InvalidData, format!("File is not DICOM: {:?}", file_path)));
 }
 
+// --- Test
 
+struct TestDicomHeader {
+	data: Vec<u8>,
+	pos: usize,
+}
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-    }
+impl TestDicomHeader {
+	pub fn valid_dicom_preamble() -> TestDicomHeader {
+		let mut ret = TestDicomHeader {
+			data: vec![0;132],
+			pos: 0,
+		};
+		
+		ret.data[128] = 'D' as u8;
+		ret.data[129] = 'I' as u8;
+		ret.data[130] = 'C' as u8;
+		ret.data[131] = 'M' as u8;
+		
+		ret
+	}
+}
+
+impl Read for TestDicomHeader {
+	fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+		
+		Result::Ok(0)
+	}
+}
+
+impl Seek for TestDicomHeader {
+	fn seek(&mut self, pos: SeekFrom) -> Result<u64, Error> {
+		Result::Ok(0)
+	}
+}
+
+impl DicomStream for TestDicomHeader {
+	
+}
+
+#[test]
+fn test_preamble() {
+	
+}
+
+#[test]
+fn test_parse_known_dicom() {
+	let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
+										.min_depth(1)
+										.max_depth(1);
+	let dirwalker_iter: walkdir::Iter = dirwalker.into_iter();
+	let dir_entries = dirwalker_iter.filter_entry(|e| !is_hidden(e));
+	for entry_res in dir_entries {
+		let entry: DirEntry = entry_res.unwrap();
+		open_file_as_dicom_stream(&entry).expect("File is not DICOM");
+	}
 }
