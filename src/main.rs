@@ -141,6 +141,34 @@ impl TestDicomStream {
 			pos: 0,
 		}
 	}
+	
+	pub fn invalid_size_preamble() -> TestDicomStream {
+		TestDicomStream {
+			data : {
+				let mut data: Vec<u8> = vec![0u8;132];
+				data[127] = 'D' as u8;
+				data[128] = 'I' as u8;
+				data[129] = 'C' as u8;
+				data[130] = 'M' as u8;
+				data
+			},
+			pos: 0,
+		}
+	}
+	
+	pub fn standard_dicom_preamble_diff_startpos() -> TestDicomStream {
+		TestDicomStream {
+			data : {
+				let mut data: Vec<u8> = vec![0u8;132];
+				data[128] = 'D' as u8;
+				data[129] = 'I' as u8;
+				data[130] = 'C' as u8;
+				data[131] = 'M' as u8;
+				data
+			},
+			pos: 131,
+		}
+	}
 }
 
 #[cfg(test)]
@@ -195,22 +223,32 @@ fn test_preambles() {
 	let mut test_bad_stream: TestDicomStream = TestDicomStream::invalid_dicom_preamble();
 	let is_dcm: bool = test_bad_stream.is_standard_dicom().expect("unable to inspect stream");
 	assert_eq!(is_dcm, false);
+	
+	let mut test_size_stream: TestDicomStream = TestDicomStream::invalid_size_preamble();
+	let is_dcm: bool = test_size_stream.is_standard_dicom().expect("unable to inspect stream");
+	assert_eq!(is_dcm, false);
+	
+	let mut test_diffpos_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble_diff_startpos();
+	let is_dcm: bool = test_diffpos_stream.is_standard_dicom().expect("unable to inspect stream");
+	assert_eq!(is_dcm, true);
 }
 
 #[test]
 fn test_multiple_stddcm_checks_leave_stream_pos_in_place() {
-	let mut test_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble();
-	let start_pos: usize = test_stream.data.len() - 1;
-	test_stream.pos = start_pos;
+	let mut test_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble_diff_startpos();
+	let start_pos: usize = test_stream.pos;
+	assert!(start_pos != 0);
+	
 	test_stream.is_standard_dicom().expect("unable to inspect stream");
-	let mut end_pos: usize = test_stream.pos;
+	let end_pos: usize = test_stream.pos;
 	assert_eq!(start_pos, end_pos);
+	
 	test_stream.is_standard_dicom().expect("unable to inspect stream");
-	end_pos = test_stream.pos;
+	let end_pos = test_stream.pos;
 	assert_eq!(start_pos, end_pos);
 }
 
-#[test]
+#[test]	// slow
 fn test_parse_known_dicom_files() {
 	let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
 										.min_depth(1)
