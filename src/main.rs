@@ -13,8 +13,6 @@ use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 // duplicated from read::tests::FIXTURE_DATASET1_FOLDER
 static FIXTURE_DATASET1_FOLDER: &'static str = "fixtures/dataset1";
 
-impl DicomStream for File {}
-
 fn main() {
     let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
         .min_depth(1)
@@ -36,7 +34,7 @@ fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
     for entry_res in dir_entries {
         let entry: DirEntry = try!(entry_res);
         let path: &Path = entry.path();
-        let dstream_res: Result<Box<DicomStream>, Error> = read::open_file_as_dicom_stream(&path);
+        let dstream_res: Result<DicomStream<File>, Error> = DicomStream::new_from_path(&path);
         match dstream_res {
             Ok(_) => {
                 println!("[DEBUG] File is DICOM: {:?}", path);
