@@ -111,26 +111,31 @@ impl Seek for TestDicomStream {
 
 #[test]
 fn test_preambles() {
-    let mut test_good_stream: DicomStream<TestDicomStream> = TestDicomStream::standard_dicom_preamble();
+    let mut test_good_stream: DicomStream<TestDicomStream> =
+        TestDicomStream::standard_dicom_preamble();
     let is_dcm: bool = test_good_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, true);
 
-    let mut test_bad_stream: DicomStream<TestDicomStream> = TestDicomStream::invalid_dicom_preamble();
+    let mut test_bad_stream: DicomStream<TestDicomStream> =
+        TestDicomStream::invalid_dicom_preamble();
     let is_dcm: bool = test_bad_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, false);
 
-    let mut test_size_stream: DicomStream<TestDicomStream> = TestDicomStream::invalid_size_preamble();
+    let mut test_size_stream: DicomStream<TestDicomStream> =
+        TestDicomStream::invalid_size_preamble();
     let is_dcm: bool = test_size_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, false);
 
-    let mut test_diffpos_stream: DicomStream<TestDicomStream> = TestDicomStream::standard_dicom_preamble_diff_startpos();
+    let mut test_diffpos_stream: DicomStream<TestDicomStream> =
+        TestDicomStream::standard_dicom_preamble_diff_startpos();
     let is_dcm: bool = test_diffpos_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, true);
 }
 
 #[test]
 fn test_multiple_stddcm_checks_leave_stream_pos_in_place() {
-    let mut test_stream: DicomStream<TestDicomStream> = TestDicomStream::standard_dicom_preamble_diff_startpos();
+    let mut test_stream: DicomStream<TestDicomStream> =
+        TestDicomStream::standard_dicom_preamble_diff_startpos();
     let start_pos: usize = test_stream.stream.pos;
     assert!(start_pos != 0);
 
