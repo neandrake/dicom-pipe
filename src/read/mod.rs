@@ -62,11 +62,3 @@ impl<StreamType: Read + Seek> DicomStream<StreamType> {
         Result::Ok(true)
     }
 }
-
-
-pub fn is_hidden(path: &Path) -> bool {
-    path.file_name()
-        .map(|s| s.to_str().unwrap_or(""))
-        .map(|s| s.starts_with("."))
-        .unwrap_or(false)
-}
