@@ -28,9 +28,16 @@ fn main() {
     }
 }
 
+pub fn is_hidden(path: &Path) -> bool {
+    path.file_name()
+        .map(|s| s.to_str().unwrap_or(""))
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
+}
+
 fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
     let dirwalker_iter: walkdir::Iter = dirwalker.into_iter();
-    let dir_entries = dirwalker_iter.filter_entry(|e| !read::is_hidden(e.path()));
+    let dir_entries = dirwalker_iter.filter_entry(|e| !is_hidden(e.path()));
     for entry_res in dir_entries {
         let entry: DirEntry = try!(entry_res);
         let path: &Path = entry.path();
