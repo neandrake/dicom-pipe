@@ -15,8 +15,8 @@ struct TestDicomStream {
 }
 
 impl TestDicomStream {
-    pub fn standard_dicom_preamble() -> TestDicomStream {
-        TestDicomStream {
+    pub fn standard_dicom_preamble() -> DicomStream<TestDicomStream> {
+        DicomStream::new(TestDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
                 data[128] = 'D' as u8;
@@ -26,11 +26,11 @@ impl TestDicomStream {
                 data
             },
             pos: 0,
-        }
+        })
     }
 
-    pub fn invalid_dicom_preamble() -> TestDicomStream {
-        TestDicomStream {
+    pub fn invalid_dicom_preamble() -> DicomStream<TestDicomStream> {
+        DicomStream::new(TestDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
                 data[128] = 'D' as u8;
@@ -40,11 +40,11 @@ impl TestDicomStream {
                 data
             },
             pos: 0,
-        }
+        })
     }
 
-    pub fn invalid_size_preamble() -> TestDicomStream {
-        TestDicomStream {
+    pub fn invalid_size_preamble() -> DicomStream<TestDicomStream> {
+        DicomStream::new(TestDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
                 data[127] = 'D' as u8;
@@ -54,11 +54,11 @@ impl TestDicomStream {
                 data
             },
             pos: 0,
-        }
+        })
     }
 
-    pub fn standard_dicom_preamble_diff_startpos() -> TestDicomStream {
-        TestDicomStream {
+    pub fn standard_dicom_preamble_diff_startpos() -> DicomStream<TestDicomStream> {
+        DicomStream::new(TestDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
                 data[128] = 'D' as u8;
@@ -68,7 +68,7 @@ impl TestDicomStream {
                 data
             },
             pos: 131,
-        }
+        })
     }
 }
 
@@ -109,40 +109,37 @@ impl Seek for TestDicomStream {
     }
 }
 
-impl DicomStream for TestDicomStream {}
-
 #[test]
 fn test_preambles() {
-    let mut test_good_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble();
+    let mut test_good_stream: DicomStream<TestDicomStream> = TestDicomStream::standard_dicom_preamble();
     let is_dcm: bool = test_good_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, true);
 
-    let mut test_bad_stream: TestDicomStream = TestDicomStream::invalid_dicom_preamble();
+    let mut test_bad_stream: DicomStream<TestDicomStream> = TestDicomStream::invalid_dicom_preamble();
     let is_dcm: bool = test_bad_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, false);
 
-    let mut test_size_stream: TestDicomStream = TestDicomStream::invalid_size_preamble();
+    let mut test_size_stream: DicomStream<TestDicomStream> = TestDicomStream::invalid_size_preamble();
     let is_dcm: bool = test_size_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, false);
 
-    let mut test_diffpos_stream: TestDicomStream =
-        TestDicomStream::standard_dicom_preamble_diff_startpos();
+    let mut test_diffpos_stream: DicomStream<TestDicomStream> = TestDicomStream::standard_dicom_preamble_diff_startpos();
     let is_dcm: bool = test_diffpos_stream.is_standard_dicom().expect("unable to inspect stream");
     assert_eq!(is_dcm, true);
 }
 
 #[test]
 fn test_multiple_stddcm_checks_leave_stream_pos_in_place() {
-    let mut test_stream: TestDicomStream = TestDicomStream::standard_dicom_preamble_diff_startpos();
-    let start_pos: usize = test_stream.pos;
+    let mut test_stream: DicomStream<TestDicomStream> = TestDicomStream::standard_dicom_preamble_diff_startpos();
+    let start_pos: usize = test_stream.stream.pos;
     assert!(start_pos != 0);
 
     test_stream.is_standard_dicom().expect("unable to inspect stream");
-    let end_pos: usize = test_stream.pos;
+    let end_pos: usize = test_stream.stream.pos;
     assert_eq!(start_pos, end_pos);
 
     test_stream.is_standard_dicom().expect("unable to inspect stream");
-    let end_pos = test_stream.pos;
+    let end_pos = test_stream.stream.pos;
     assert_eq!(start_pos, end_pos);
 }
 
@@ -156,7 +153,7 @@ fn test_parse_known_dicom_files() {
     for entry_res in dir_entries {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
-        let is_dcm: bool = ::read::open_file_as_dicom_stream(path)
+        let is_dcm: bool = DicomStream::new_from_path(path)
             .expect("unable to inspect file")
             .is_standard_dicom()
             .expect("unable to inspect file stream");
