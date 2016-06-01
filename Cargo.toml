@@ -5,3 +5,4 @@ authors = ["neandrake <die.drachen@gmail.com>"]
 
 [dependencies]
 walkdir = "0.1.5"
+byteorder = "0.5.2"
