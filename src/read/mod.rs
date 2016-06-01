@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod mock;
 
 use std::fs::File;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
