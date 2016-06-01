@@ -1,6 +1,7 @@
 extern crate walkdir;
 
 mod read;
+mod util;
 
 use read::DicomStream;
 
