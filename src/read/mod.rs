@@ -7,12 +7,14 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 use std::path::Path;
 
-static PREAMBLE_HEADER: usize = 128;
-static PREAMBLE_SIZE: usize = 4;
-static PREAMBLE_STANDARD: [u8; 4] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
+const FILE_PREAMBLE_SIZE: usize = 128;
+static DICOM_PREFIX: [u8; 4] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
 pub struct DicomStream<StreamType> {
     stream: StreamType,
+
+    file_preamble: [u8;128],
+    dicom_prefix: [u8;4],
 }
 
 impl DicomStream<File> {
@@ -34,11 +36,44 @@ impl DicomStream<File> {
 
 impl<StreamType: Read + Seek> DicomStream<StreamType> {
     pub fn new(stream: StreamType) -> DicomStream<StreamType> {
-        DicomStream { stream: stream }
+        DicomStream {
+            stream: stream,
+            file_preamble: [0u8;128],
+            dicom_prefix: [0u8;4],
+        }
+    }
+
+    pub fn read_file_preamble(&mut self) -> Result<(), Error> {
+        let start_pos: u64 = try!(self.stream.seek(SeekFrom::Current(0)));
+        try!(self.stream.seek(SeekFrom::Start(0)));
+        try!(self.stream.read_exact(&mut self.file_preamble));
+        try!(self.stream.seek(SeekFrom::Start(start_pos)));
+        Result::Ok(())
+    }
+
+    pub fn read_dicom_prefix(&mut self) -> Result<(), Error> {
+        let start_pos: u64 = try!(self.stream.seek(SeekFrom::Current(0)));
+        try!(self.stream.seek(SeekFrom::Start(128)));
+        try!(self.stream.read_exact(&mut self.dicom_prefix));
+        try!(self.stream.seek(SeekFrom::Start(start_pos)));
+
+        // check that first 128 bytes are 0, followed by 'D', 'I', 'C', 'M'
+        for n in 0..DICOM_PREFIX.len() {
+            if self.dicom_prefix[n] != DICOM_PREFIX[n] {
+                return Result::Err(Error::new(ErrorKind::InvalidData,
+                                    format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix)));
+            }
+        }
+
+        return Result::Ok(())
+    }
+
+    pub fn read_file_meta(&self) {
+
     }
 
     pub fn is_standard_dicom(&mut self) -> Result<bool, Error> {
-        let buf_size: usize = PREAMBLE_HEADER + PREAMBLE_SIZE;
+        let buf_size: usize = FILE_PREAMBLE_SIZE + DICOM_PREFIX.len();
 
         // mark the current position, seek to beginning of stream to read preamble, seek back to current position
         let start_pos: u64 = try!(self.stream.seek(SeekFrom::Current(0)));
@@ -48,15 +83,15 @@ impl<StreamType: Read + Seek> DicomStream<StreamType> {
         try!(self.stream.seek(SeekFrom::Start(start_pos)));
 
         // check that first 128 bytes are 0, followed by 'D', 'I', 'C', 'M'
-        for n in 0..PREAMBLE_HEADER {
+        for n in 0..FILE_PREAMBLE_SIZE {
             if buffer[n] != 0 {
                 return Result::Ok(false);
             }
         }
 
-        let slice: &[u8] = &buffer[PREAMBLE_HEADER..PREAMBLE_HEADER + PREAMBLE_SIZE];
-        for n in 0..PREAMBLE_SIZE {
-            if slice[n] != PREAMBLE_STANDARD[n] {
+        let slice: &[u8] = &buffer[FILE_PREAMBLE_SIZE..FILE_PREAMBLE_SIZE + DICOM_PREFIX.len()];
+        for n in 0..DICOM_PREFIX.len() {
+            if slice[n] != DICOM_PREFIX[n] {
                 return Result::Ok(false);
             }
         }
