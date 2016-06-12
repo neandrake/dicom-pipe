@@ -18,6 +18,18 @@ impl UID {
             name: name,
         }
     }
+
+    pub fn get_uid(&self) -> &'static str {
+        self.uid
+    }
+
+    pub fn get_ident(&self) -> &'static str {
+        self.ident
+    }
+
+    pub fn get_name(&self) -> &'static str {
+        self.name
+    }
 }
 
 impl PartialEq for UID {
@@ -32,6 +44,21 @@ impl Hash for UID {
     }
 }
 
+/* Tests - Above declarations as there are so many of them */
+
+/// Tests that PartialEq is sanely implemented and relies only on the UID
+#[test]
+pub fn test_diff_instances_eq() {
+    let explicit_vr_le: UID = UID::new(
+        "1.2.840.10008.1.2.1",
+        "Blarf ExplicitVRLittleEndian",
+        "Blarf Explicit VR Little Endian",
+    );
+    assert_eq!(ExplicitVRLittleEndian, &explicit_vr_le);
+    assert_eq!(*ExplicitVRLittleEndian, explicit_vr_le);
+}
+
+/* Declarations */
 
 /// Verification SOP Class - SOP Class, "1.2.840.10008.1.1"
 pub const VerificationSOPClass: &'static UID = &UID {
@@ -45,6 +72,13 @@ pub const ImplicitVRLittleEndian: &'static UID = &UID {
     uid: "1.2.840.10008.1.2",
     ident: "ImplicitVRLittleEndian",
     name: "Implicit VR Little Endian",
+};
+
+/// Implicit VR Big Endian - Transfer Syntax, "1.2.840.113619.5.2"
+pub const ImplicitVRBigEndian: &'static UID = &UID {
+    uid: "1.2.840.113619.5.2",
+    ident: "ImplicitVRBigEndian",
+    name: "Implicit VR Big Endian",
 };
 
 /// Explicit VR Little Endian - Transfer Syntax, "1.2.840.10008.1.2.1"
