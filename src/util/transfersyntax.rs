@@ -8,22 +8,22 @@ use util::uids::UID;
 #[derive(Debug)]
 pub struct TransferSyntax<'uid_lifetime> {
     uid: &'uid_lifetime UID,
-    big_endian: bool,
     explicit_vr: bool,
+    big_endian: bool,
     deflated: bool,
     encapsulated: bool,
 }
 
 impl<'uid_lifetime> TransferSyntax<'uid_lifetime> {
     pub fn new<'new_uid_lifetime>(uid: &'new_uid_lifetime UID,
-        big_endian: bool,
         explicit_vr: bool,
+        big_endian: bool,
         deflated: bool,
         encapsulated: bool) -> TransferSyntax {
         TransferSyntax {
             uid: uid,
-            big_endian: big_endian,
             explicit_vr: explicit_vr,
+            big_endian: big_endian,
             deflated: deflated,
             encapsulated: encapsulated,
         }
@@ -33,12 +33,12 @@ impl<'uid_lifetime> TransferSyntax<'uid_lifetime> {
         self.uid
     }
 
-    pub fn is_big_endian(&self) -> bool {
-        self.big_endian
-    }
-
     pub fn is_explicit_vr(&self) -> bool {
         self.explicit_vr
+    }
+
+    pub fn is_big_endian(&self) -> bool {
+        self.big_endian
     }
 
     pub fn is_deflated(&self) -> bool {
@@ -67,16 +67,65 @@ impl<'uid_lifetime> Hash for TransferSyntax<'uid_lifetime> {
 }
 
 
-pub const ImplicitVRLittleEndian: TransferSyntax<'static> = TransferSyntax {
-    uid: & ::util::uids::ImplicitVRLittleEndian,
-    big_endian: false,
+pub const ImplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+    uid: &::util::uids::ImplicitVRLittleEndian,
     explicit_vr: false,
+    big_endian: false,
     deflated: false,
     encapsulated: false,
 };
 
+pub const ImplicitVRBigEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+    uid: &::util::uids::ImplicitVRBigEndian,
+    explicit_vr: false,
+    big_endian: true,
+    deflated: false,
+    encapsulated: false,
+};
+
+pub const ExplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+    uid: &::util::uids::ExplicitVRLittleEndian,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+pub const ExplicitVRBigEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+    uid: &::util::uids::ExplicitVRBigEndian,
+    explicit_vr: true,
+    big_endian: true,
+    deflated: false,
+    encapsulated: false,
+};
+
+pub const DeflatedExplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+    uid: &::util::uids::DeflatedExplicitVRLittleEndian,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: true,
+    encapsulated: false,
+};
+
+pub const NoPixelData: &'static TransferSyntax<'static> = &TransferSyntax {
+    uid: &::util::uids::NoPixelData,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+pub const NoPixelDataDeflate: &'static TransferSyntax<'static> = &TransferSyntax {
+    uid: &::util::uids::NoPixelDataDeflate,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: true,
+    encapsulated: false,
+};
+
+/// Checks that PartialEq is sanely implemented and relies only on UID
 #[test]
-fn test_diff_ts_instances_eq() {
+fn test_diff_instances_eq() {
     let ts_uid: UID = UID::new(
         "1.2.840.10008.1.2",
         "Blarf ImplicitVRLittleEndian",
@@ -89,5 +138,52 @@ fn test_diff_ts_instances_eq() {
         false,
         false,
     );
-    assert_eq!(ImplicitVRLittleEndian, implicit_vr_le);
+    assert_eq!(ImplicitVRLittleEndian, &implicit_vr_le);
+    assert_eq!(*ImplicitVRLittleEndian, implicit_vr_le);
+}
+
+/// Sanity-check of the pre-defined TransferSyntax's to ensure
+/// that their defined properties reflect the UID's name.
+/// May catch issues with improperly copying over values from definitions.
+#[test]
+fn test_name_vs_properties() {
+    let known_ts: Vec<&TransferSyntax> = vec![
+        ImplicitVRLittleEndian,
+        ImplicitVRBigEndian,
+        ExplicitVRLittleEndian,
+        ExplicitVRBigEndian,
+        DeflatedExplicitVRLittleEndian,
+        NoPixelData,
+        NoPixelDataDeflate,
+    ];
+
+    for ts in known_ts {
+        let contains_little: bool = ts.uid.get_ident().contains("Little");
+        let contains_big: bool = ts.uid.get_ident().contains("Big");
+        let contains_explicit: bool = ts.uid.get_ident().contains("Explicit");
+        let contains_implicit: bool = ts.uid.get_ident().contains("Implicit");
+        let contains_deflate: bool = ts.uid.get_ident().contains("Deflate");
+        let contains_encapsulated: bool = ts.uid.get_ident().contains("Encapsulated");
+
+        if contains_little {
+            assert!(!ts.big_endian);
+        } else if contains_big {
+            assert!(ts.big_endian);
+        } else { 
+            // Currently the defined/known TS's which don't have Big/Little in the name are LittleEndian
+            assert!(!ts.big_endian);
+        }
+
+        if contains_explicit {
+            assert!(ts.explicit_vr);
+        } else if contains_implicit {
+            assert!(!ts.explicit_vr);
+        } else {
+            // Currently the defined/known TS's which don't have Implicit/Explicit in the name are Explicit
+            assert!(ts.explicit_vr);
+        }
+
+        assert_eq!(contains_deflate, ts.deflated);
+        assert_eq!(contains_encapsulated, ts.encapsulated);
+    }
 }
