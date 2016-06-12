@@ -1,10 +1,24 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
 
+use std::hash::{Hash, Hasher};
+
 pub struct UID {
     uid: &'static str,
     ident: &'static str,
     name: &'static str,
+}
+
+impl PartialEq for UID {
+    fn eq(&self, other: &UID) -> bool {
+        self.uid.eq(other.uid)
+    }
+}
+
+impl Hash for UID {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.uid.hash(state);
+    }
 }
 
 
