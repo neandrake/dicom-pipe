@@ -5,7 +5,7 @@ extern crate walkdir;
 mod read;
 mod util;
 
-use read::DicomStream;
+use read::{DicomStream};
 
 use std::fs::File;
 use std::io::{Error, Write};
@@ -24,7 +24,7 @@ fn main() {
         Ok(()) => {}
         Err(err) => {
             writeln!(&mut std::io::stderr(),
-                     "[ERROR] Error accessing directory: {:?}",
+                     "[ERROR] Error parsing directory: {:?}",
                      err)
                 .unwrap();
         }
@@ -46,7 +46,8 @@ fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
         let path: &Path = entry.path();
         let dstream_res: Result<DicomStream<File>, Error> = DicomStream::new_from_path(&path);
         match dstream_res {
-            Ok(_) => {
+            Ok(mut dstream) => {
+                try!(dstream.read_file_meta());
                 println!("[DEBUG] File is DICOM: {:?}", path);
             }
             Err(err) => {

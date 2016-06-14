@@ -1,5 +1,5 @@
 mod bytes;
-mod tags;
-mod transfersyntax;
-mod uids;
-mod vr;
+pub mod tags;
+pub mod transfersyntax;
+pub mod uids;
+pub mod vr;
