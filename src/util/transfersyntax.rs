@@ -7,48 +7,48 @@ use std::hash::{Hash, Hasher};
 use util::uids::UID;
 
 
-pub struct TransferSyntaxLookup<'uid_lt, 'ident_lt> {
-    uid_to_ts: HashMap<&'uid_lt UID, TransferSyntax<'uid_lt>>,
-    ident_to_ts: HashMap<&'ident_lt str, TransferSyntax<'uid_lt>>,
+pub struct TransferSyntaxLookup<'ts_lt> {
+    uid_to_ts: HashMap<&'ts_lt UID, &'ts_lt TransferSyntax<'ts_lt>>,
+    ident_to_ts: HashMap<&'ts_lt str, &'ts_lt TransferSyntax<'ts_lt>>,
 }
 
-impl<'uid_lt, 'ident_lt> TransferSyntaxLookup<'uid_lt, 'ident_lt> {
-    pub fn new<'new_uid_lt, 'new_ident_lt>() -> TransferSyntaxLookup<'new_uid_lt, 'new_ident_lt> {
-        let mut uid_to_ts: HashMap<&UID, TransferSyntax> = HashMap::new();
-        let mut ident_to_ts: HashMap<&str, TransferSyntax> = HashMap::new();
+impl<'ts_lt> TransferSyntaxLookup<'ts_lt> {
+    pub fn new<'new_ts_lt>() -> TransferSyntaxLookup<'new_ts_lt> {
+        let mut uid_to_ts: HashMap<&UID, &TransferSyntax> = HashMap::new();
+        let mut ident_to_ts: HashMap<&str, &TransferSyntax> = HashMap::new();
         
-        uid_to_ts.insert(ImplicitVRLittleEndian.uid, ImplicitVRLittleEndian.clone());
-        ident_to_ts.insert(ImplicitVRLittleEndian.uid.get_ident(), ImplicitVRLittleEndian.clone());
+        uid_to_ts.insert(ImplicitVRLittleEndian.uid, &ImplicitVRLittleEndian);
+        ident_to_ts.insert(ImplicitVRLittleEndian.uid.get_ident(), &ImplicitVRLittleEndian);
         
-        uid_to_ts.insert(ImplicitVRBigEndian.uid, ImplicitVRBigEndian.clone());
-        ident_to_ts.insert(ImplicitVRBigEndian.uid.get_ident(), ImplicitVRBigEndian.clone());
+        uid_to_ts.insert(ImplicitVRBigEndian.uid, &ImplicitVRBigEndian);
+        ident_to_ts.insert(ImplicitVRBigEndian.uid.get_ident(), &ImplicitVRBigEndian);
 
-        uid_to_ts.insert(ExplicitVRLittleEndian.uid, ExplicitVRLittleEndian.clone());
-        ident_to_ts.insert(ExplicitVRLittleEndian.uid.get_ident(), ExplicitVRLittleEndian.clone());
+        uid_to_ts.insert(ExplicitVRLittleEndian.uid, &ExplicitVRLittleEndian);
+        ident_to_ts.insert(ExplicitVRLittleEndian.uid.get_ident(), &ExplicitVRLittleEndian);
 
-        uid_to_ts.insert(ExplicitVRBigEndian.uid, ExplicitVRBigEndian.clone());
-        ident_to_ts.insert(ExplicitVRBigEndian.uid.get_ident(), ExplicitVRBigEndian.clone());
+        uid_to_ts.insert(ExplicitVRBigEndian.uid, &ExplicitVRBigEndian);
+        ident_to_ts.insert(ExplicitVRBigEndian.uid.get_ident(), &ExplicitVRBigEndian);
 
-        uid_to_ts.insert(DeflatedExplicitVRLittleEndian.uid, DeflatedExplicitVRLittleEndian.clone());
-        ident_to_ts.insert(DeflatedExplicitVRLittleEndian.uid.get_ident(), DeflatedExplicitVRLittleEndian.clone());
+        uid_to_ts.insert(DeflatedExplicitVRLittleEndian.uid, &DeflatedExplicitVRLittleEndian);
+        ident_to_ts.insert(DeflatedExplicitVRLittleEndian.uid.get_ident(), &DeflatedExplicitVRLittleEndian);
 
-        uid_to_ts.insert(NoPixelData.uid, NoPixelData.clone());
-        ident_to_ts.insert(NoPixelData.uid.get_ident(), NoPixelData.clone());
+        uid_to_ts.insert(NoPixelData.uid, &NoPixelData);
+        ident_to_ts.insert(NoPixelData.uid.get_ident(), &NoPixelData);
 
-        uid_to_ts.insert(NoPixelDataDeflate.uid, NoPixelDataDeflate.clone());
-        ident_to_ts.insert(NoPixelDataDeflate.uid.get_ident(), NoPixelDataDeflate.clone());
+        uid_to_ts.insert(NoPixelDataDeflate.uid, &NoPixelDataDeflate);
+        ident_to_ts.insert(NoPixelDataDeflate.uid.get_ident(), &NoPixelDataDeflate);
 
-        uid_to_ts.insert(JPEGBaseline1.uid, JPEGBaseline1.clone());
-        ident_to_ts.insert(JPEGBaseline1.uid.get_ident(), JPEGBaseline1.clone());
+        uid_to_ts.insert(JPEGBaseline1.uid, &JPEGBaseline1);
+        ident_to_ts.insert(JPEGBaseline1.uid.get_ident(), &JPEGBaseline1);
 
-        uid_to_ts.insert(JPEGExtended24.uid, JPEGExtended24.clone());
-        ident_to_ts.insert(JPEGExtended24.uid.get_ident(), JPEGExtended24.clone());
+        uid_to_ts.insert(JPEGExtended24.uid, &JPEGExtended24);
+        ident_to_ts.insert(JPEGExtended24.uid.get_ident(), &JPEGExtended24);
 
-        uid_to_ts.insert(JPEGLosslessNonHierarchical14.uid, JPEGLosslessNonHierarchical14.clone());
-        ident_to_ts.insert(JPEGLosslessNonHierarchical14.uid.get_ident(), JPEGLosslessNonHierarchical14.clone());
+        uid_to_ts.insert(JPEGLosslessNonHierarchical14.uid, &JPEGLosslessNonHierarchical14);
+        ident_to_ts.insert(JPEGLosslessNonHierarchical14.uid.get_ident(), &JPEGLosslessNonHierarchical14);
 
-        uid_to_ts.insert(JPEGLossless.uid, JPEGLossless.clone());
-        ident_to_ts.insert(JPEGLossless.uid.get_ident(), JPEGLossless.clone());
+        uid_to_ts.insert(JPEGLossless.uid, &JPEGLossless);
+        ident_to_ts.insert(JPEGLossless.uid.get_ident(), &JPEGLossless);
 
         TransferSyntaxLookup {
             uid_to_ts: uid_to_ts,
@@ -56,30 +56,30 @@ impl<'uid_lt, 'ident_lt> TransferSyntaxLookup<'uid_lt, 'ident_lt> {
         }
     }
 
-    pub fn get_by_uid(&self, uid: &UID) -> Option<&TransferSyntax<'uid_lt>> {
-        self.uid_to_ts.get(uid)
+    pub fn get_by_uid(&self, uid: &UID) -> Option<&TransferSyntax<'ts_lt>> {
+        self.uid_to_ts.get(uid).map(|ts| *ts)
     }
 
-    pub fn get_by_ident(&self, ident: &str) -> Option<&TransferSyntax<'uid_lt>> {
-        self.ident_to_ts.get(ident)
+    pub fn get_by_ident(&self, ident: &str) -> Option<&TransferSyntax<'ts_lt>> {
+        self.ident_to_ts.get(ident).map(|ts| *ts)
     }
 
-    pub fn iter(&self) -> Iter<&UID, TransferSyntax> {
+    pub fn iter(&self) -> Iter<&UID, &TransferSyntax> {
         self.uid_to_ts.iter()
     }
 }
 
-#[derive(Clone, Debug, Eq)]
-pub struct TransferSyntax<'uid_lt> {
-    uid: &'uid_lt UID,
+#[derive(Debug, Eq)]
+pub struct TransferSyntax<'ts_lt> {
+    uid: &'ts_lt UID,
     explicit_vr: bool,
     big_endian: bool,
     deflated: bool,
     encapsulated: bool,
 }
 
-impl<'uid_lt> TransferSyntax<'uid_lt> {
-    pub fn new<'new_uid_lt>(uid: &'new_uid_lt UID,
+impl<'ts_lt> TransferSyntax<'ts_lt> {
+    pub fn new<'new_ts_lt>(uid: &'new_ts_lt UID,
         explicit_vr: bool,
         big_endian: bool,
         deflated: bool,
@@ -93,7 +93,7 @@ impl<'uid_lt> TransferSyntax<'uid_lt> {
         }
     }
 
-    pub fn get_uid(&self) -> &'uid_lt UID {
+    pub fn get_uid(&self) -> &'ts_lt UID {
         self.uid
     }
 
@@ -118,13 +118,13 @@ impl<'uid_lt> TransferSyntax<'uid_lt> {
     }
 }
 
-impl<'uid_lt> PartialEq for TransferSyntax<'uid_lt> {
+impl<'ts_lt> PartialEq for TransferSyntax<'ts_lt> {
     fn eq(&self, other: &TransferSyntax) -> bool {
         self.uid.eq(other.uid)
     }
 }
 
-impl<'uid_lt> Hash for TransferSyntax<'uid_lt> {
+impl<'ts_lt> Hash for TransferSyntax<'ts_lt> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.uid.hash(state);
     }
