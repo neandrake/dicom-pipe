@@ -1,6 +1,15 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
 
+use util::vr::VR;
+
+pub struct Tag {
+    ident: &'static str,
+    vr: &'static VR,
+    tag: u32,
+}
+
+
 /// (0000,0000) VR=UL, VM=1 Command Group Length
 pub const CommandGroupLength: u32 = 0x00000000;
 
