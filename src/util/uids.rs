@@ -3,7 +3,7 @@
 
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Debug, Eq)]
 pub struct UID {
     uid: &'static str,
     ident: &'static str,
