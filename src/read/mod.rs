@@ -106,14 +106,14 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     }
 
     pub fn read_vr(&mut self) -> Result<&'static VR, Error> {
-        let first: u8 = try!(self.stream.read_u8());
-        let second: u8 = try!(self.stream.read_u8());
-        let code: u16 = ((first as u16) << 8) + second as u16;
+        let first_char: u8 = try!(self.stream.read_u8());
+        let second_char: u8 = try!(self.stream.read_u8());
+        let code: u16 = ((first_char as u16) << 8) + second_char as u16;
         VR::code_to_vr(code).ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
     }
 
     pub fn read_value_length(&mut self, vr: &VR) -> Result<u32, Error> {
-        match vr.explicit_vr_header_length {
+        match vr.explicit_vr_header_bytes {
             8 => self.stream.read_u16::<LittleEndian>().map(|n| n as u32),
             12 => {
                 try!(self.stream.read_u16::<LittleEndian>());
