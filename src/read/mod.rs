@@ -5,7 +5,6 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
 
 use std::fmt;
@@ -18,6 +17,7 @@ use util::vr::VR;
 
 const FILE_PREAMBLE_LENGTH: usize = 128;
 const DICOM_PREFIX_LENGTH: usize = 4;
+
 static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
 
@@ -78,6 +78,21 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     #[allow(dead_code)]
     pub fn get_dicom_prefix(&self) -> &[u8;DICOM_PREFIX_LENGTH] {
         &self.dicom_prefix
+    }
+
+    #[cfg(test)]
+    pub fn is_standard_preamble(&self) -> bool {
+        for i in 0..FILE_PREAMBLE_LENGTH {
+            if self.file_preamble[i] != 0 {
+                return false;
+            }
+        }
+        for i in 0..DICOM_PREFIX_LENGTH {
+            if self.dicom_prefix[i] != DICOM_PREFIX[i] {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
