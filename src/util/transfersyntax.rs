@@ -38,6 +38,18 @@ impl<'uid_lt, 'ident_lt> TransferSyntaxLookup<'uid_lt, 'ident_lt> {
         uid_to_ts.insert(NoPixelDataDeflate.uid, NoPixelDataDeflate.clone());
         ident_to_ts.insert(NoPixelDataDeflate.uid.get_ident(), NoPixelDataDeflate.clone());
 
+        uid_to_ts.insert(JPEGBaseline1.uid, JPEGBaseline1.clone());
+        ident_to_ts.insert(JPEGBaseline1.uid.get_ident(), JPEGBaseline1.clone());
+
+        uid_to_ts.insert(JPEGExtended24.uid, JPEGExtended24.clone());
+        ident_to_ts.insert(JPEGExtended24.uid.get_ident(), JPEGExtended24.clone());
+
+        uid_to_ts.insert(JPEGLosslessNonHierarchical14.uid, JPEGLosslessNonHierarchical14.clone());
+        ident_to_ts.insert(JPEGLosslessNonHierarchical14.uid.get_ident(), JPEGLosslessNonHierarchical14.clone());
+
+        uid_to_ts.insert(JPEGLossless.uid, JPEGLossless.clone());
+        ident_to_ts.insert(JPEGLossless.uid.get_ident(), JPEGLossless.clone());
+
         TransferSyntaxLookup {
             uid_to_ts: uid_to_ts,
             ident_to_ts: ident_to_ts,
@@ -174,6 +186,39 @@ pub static NoPixelDataDeflate: TransferSyntax<'static> = TransferSyntax {
     deflated: true,
     encapsulated: false,
 };
+
+pub static JPEGBaseline1: TransferSyntax<'static> = TransferSyntax {
+    uid: &::util::uids::JPEGBaseline1,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+pub static JPEGExtended24: TransferSyntax<'static> = TransferSyntax {
+    uid: &::util::uids::JPEGExtended24,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+pub static JPEGLosslessNonHierarchical14: TransferSyntax<'static> = TransferSyntax {
+    uid: &::util::uids::JPEGLosslessNonHierarchical14,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+pub static JPEGLossless: TransferSyntax<'static> = TransferSyntax {
+    uid: &::util::uids::JPEGLossless,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
 
 /// Checks that PartialEq is sanely implemented and relies only on UID
 #[test]
