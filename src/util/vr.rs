@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 
+use std::hash::{Hash, Hasher};
 
+#[derive(Debug, Eq)]
 pub struct VR {
 	pub ident: &'static str,
 	pub name: &'static str,
@@ -15,44 +17,57 @@ pub struct VR {
 impl VR {
 	pub fn code_to_vr(code: u16) -> Option<&'static VR> {
 		match code {
-			0x4145 => Option::Some(AE),
-			0x4153 => Option::Some(AS),
-			0x4154 => Option::Some(AT),
-			0x4353 => Option::Some(CS),
-			0x4441 => Option::Some(DA),
-			0x4453 => Option::Some(DS),
-			0x4454 => Option::Some(DT),
-			0x4644 => Option::Some(FD),
-			0x464C => Option::Some(FL),
-			0x4953 => Option::Some(IS),
-			0x4C4F => Option::Some(LO),
-			0x4C54 => Option::Some(LT),
-			0x4F42 => Option::Some(OB),
-			0x4F44 => Option::Some(OD),
-			0x4F46 => Option::Some(OF),
-			0x4F4C => Option::Some(OL),
-			0x4F57 => Option::Some(OW),
-			0x504E => Option::Some(PN),
-			0x5348 => Option::Some(SH),
-			0x534C => Option::Some(SL),
-			0x5351 => Option::Some(SQ),
-			0x5353 => Option::Some(SS),
-			0x5354 => Option::Some(ST),
-			0x544D => Option::Some(TM),
-			0x5443 => Option::Some(UC),
-			0x5549 => Option::Some(UI),
-			0x554c => Option::Some(UL),
-			0x544E => Option::Some(UN),
-			0x5452 => Option::Some(UR),
-			0x5553 => Option::Some(US),
-			0x5554 => Option::Some(UT),
+			0x4145 => Option::Some(&AE),
+			0x4153 => Option::Some(&AS),
+			0x4154 => Option::Some(&AT),
+			0x4353 => Option::Some(&CS),
+			0x4441 => Option::Some(&DA),
+			0x4453 => Option::Some(&DS),
+			0x4454 => Option::Some(&DT),
+			0x4644 => Option::Some(&FD),
+			0x464C => Option::Some(&FL),
+			0x4953 => Option::Some(&IS),
+			0x4C4F => Option::Some(&LO),
+			0x4C54 => Option::Some(&LT),
+			0x4F42 => Option::Some(&OB),
+			0x4F44 => Option::Some(&OD),
+			0x4F46 => Option::Some(&OF),
+			0x4F4C => Option::Some(&OL),
+			0x4F57 => Option::Some(&OW),
+			0x504E => Option::Some(&PN),
+			0x5348 => Option::Some(&SH),
+			0x534C => Option::Some(&SL),
+			0x5351 => Option::Some(&SQ),
+			0x5353 => Option::Some(&SS),
+			0x5354 => Option::Some(&ST),
+			0x544D => Option::Some(&TM),
+			0x5443 => Option::Some(&UC),
+			0x5549 => Option::Some(&UI),
+			0x554c => Option::Some(&UL),
+			0x544E => Option::Some(&UN),
+			0x5452 => Option::Some(&UR),
+			0x5553 => Option::Some(&US),
+			0x5554 => Option::Some(&UT),
 			_ => Option::None,
 		}
 	}
 }
 
+impl PartialEq for VR {
+	fn eq(&self, other: &VR) -> bool {
+		self.code.eq(&other.code)
+	}
+}
+
+impl Hash for VR {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		self.code.hash(state)
+	}
+}
+
+
 /// Application Entity (<= 16 chars/u16)
-pub static AE: &'static VR = &VR {
+pub static AE: VR = VR {
 	ident: "AE",
 	name: "Application Entity",
 	code: 0x4145,
@@ -61,7 +76,7 @@ pub static AE: &'static VR = &VR {
 };
 
 /// Age String
-pub static AS: &'static VR = &VR {
+pub static AS: VR = VR {
 	ident: "AS",
 	name: "Age String",
 	code: 0x4153,
@@ -70,7 +85,7 @@ pub static AS: &'static VR = &VR {
 };
 
 /// Attribute Tag
-pub static AT: &'static VR = &VR {
+pub static AT: VR = VR {
 	ident: "AT",
 	name: "Attribute Tag",
 	code: 0x4154,
@@ -79,7 +94,7 @@ pub static AT: &'static VR = &VR {
 };
 
 /// Code String (<= 16 chars/u16)
-pub static CS: &'static VR = &VR {
+pub static CS: VR = VR {
 	ident: "CS",
 	name: "Code String",
 	code: 0x4353,
@@ -88,7 +103,7 @@ pub static CS: &'static VR = &VR {
 };
 
 /// Date
-pub static DA: &'static VR = &VR {
+pub static DA: VR = VR {
 	ident: "DA",
 	name: "Date",
 	code: 0x4441,
@@ -97,7 +112,7 @@ pub static DA: &'static VR = &VR {
 };
 
 /// Decimal String (=> f32)
-pub static DS: &'static VR = &VR {
+pub static DS: VR = VR {
 	ident: "DS",
 	name: "Decimal String",
 	code: 0x4453,
@@ -106,7 +121,7 @@ pub static DS: &'static VR = &VR {
 };
 
 /// Date Time
-pub static DT: &'static VR = &VR {
+pub static DT: VR = VR {
 	ident: "DT",
 	name: "Date Time",
 	code: 0x4454,
@@ -115,7 +130,7 @@ pub static DT: &'static VR = &VR {
 };
 
 /// Floating Point Double (=> f64)
-pub static FD: &'static VR = &VR {
+pub static FD: VR = VR {
 	ident: "FD",
 	name: "Floating Point Double",
 	code: 0x4644,
@@ -124,7 +139,7 @@ pub static FD: &'static VR = &VR {
 };
 
 /// Floating Point Single (=> f32)
-pub static FL: &'static VR = &VR {
+pub static FL: VR = VR {
 	ident: "FL",
 	name: "Floating Point Single",
 	code: 0x464C,
@@ -133,7 +148,7 @@ pub static FL: &'static VR = &VR {
 };
 
 /// Integer String (=> i32)
-pub static IS: &'static VR = &VR {
+pub static IS: VR = VR {
 	ident: "IS",
 	name: "Integer String",
 	code: 0x4953,
@@ -142,7 +157,7 @@ pub static IS: &'static VR = &VR {
 };
 
 /// Long String (<= 64 chars/u16)
-pub static LO: &'static VR = &VR {
+pub static LO: VR = VR {
 	ident: "LO",
 	name: "Long String",
 	code: 0x4C4F,
@@ -151,7 +166,7 @@ pub static LO: &'static VR = &VR {
 };
 
 /// Long Text (<= 10240 chars/u16)
-pub static LT: &'static VR = &VR {
+pub static LT: VR = VR {
 	ident: "LT",
 	name: "Long Text",
 	code: 0x4C54,
@@ -160,7 +175,7 @@ pub static LT: &'static VR = &VR {
 };
 
 /// Other Byte
-pub static OB: &'static VR = &VR {
+pub static OB: VR = VR {
 	ident: "OB",
 	name: "Other Byte",
 	code: 0x4F42,
@@ -169,7 +184,7 @@ pub static OB: &'static VR = &VR {
 };
 
 /// Other Double
-pub static OD: &'static VR = &VR {
+pub static OD: VR = VR {
 	ident: "OD",
 	name: "Other Byte",
 	code: 0x4F44,
@@ -178,7 +193,7 @@ pub static OD: &'static VR = &VR {
 };
 
 /// Other Float
-pub static OF: &'static VR = &VR {
+pub static OF: VR = VR {
 	ident: "OF",
 	name: "Other Float",
 	code: 0x4F46,
@@ -187,7 +202,7 @@ pub static OF: &'static VR = &VR {
 };
 
 /// Other Long
-pub static OL: &'static VR = &VR {
+pub static OL: VR = VR {
 	ident: "OL",
 	name: "Other Long",
 	code: 0x4F4C,
@@ -196,7 +211,7 @@ pub static OL: &'static VR = &VR {
 };
 
 /// Other Word
-pub static OW: &'static VR = &VR {
+pub static OW: VR = VR {
 	ident: "OW",
 	name: "Other Float",
 	code: 0x4F57,
@@ -205,7 +220,7 @@ pub static OW: &'static VR = &VR {
 };
 
 /// Person Name (component group <= 64 chars/u16)
-pub static PN: &'static VR = &VR {
+pub static PN: VR = VR {
 	ident: "PN",
 	name: "Person Name",
 	code: 0x504E,
@@ -214,7 +229,7 @@ pub static PN: &'static VR = &VR {
 };
 
 /// Short String (<= 16 chars/u16)
-pub static SH: &'static VR = &VR {
+pub static SH: VR = VR {
 	ident: "SH",
 	name: "Short String",
 	code: 0x5348,
@@ -223,7 +238,7 @@ pub static SH: &'static VR = &VR {
 };
 
 /// Signed Long (-2147483648..+2147483647)
-pub static SL: &'static VR = &VR {
+pub static SL: VR = VR {
 	ident: "SL",
 	name: "Signed Long",
 	code: 0x534C,
@@ -232,7 +247,7 @@ pub static SL: &'static VR = &VR {
 };
 
 /// Sequence of Items
-pub static SQ: &'static VR = &VR {
+pub static SQ: VR = VR {
 	ident: "SQ",
 	name: "Sequence of Items",
 	code: 0x5351,
@@ -241,7 +256,7 @@ pub static SQ: &'static VR = &VR {
 };
 
 /// Signed Short (-32768..+32767)
-pub static SS: &'static VR = &VR {
+pub static SS: VR = VR {
 	ident: "SS",
 	name: "Signed Short",
 	code: 0x5353,
@@ -250,7 +265,7 @@ pub static SS: &'static VR = &VR {
 };
 
 /// Short Text (<= 1024 chars/u16)
-pub static ST: &'static VR = &VR {
+pub static ST: VR = VR {
 	ident: "ST",
 	name: "Short Text",
 	code: 0x5354,
@@ -259,7 +274,7 @@ pub static ST: &'static VR = &VR {
 };
 
 /// Time
-pub static TM: &'static VR = &VR {
+pub static TM: VR = VR {
 	ident: "TM",
 	name: "Time",
 	code: 0x544D,
@@ -268,7 +283,7 @@ pub static TM: &'static VR = &VR {
 };
 
 /// Unlimited Characters
-pub static UC: &'static VR = &VR {
+pub static UC: VR = VR {
 	ident: "UC",
 	name: "Time",
 	code: 0x5443,
@@ -277,7 +292,7 @@ pub static UC: &'static VR = &VR {
 };
 
 /// Unique Identifier (UID) (<= 64 chars/u16)
-pub static UI: &'static VR = &VR {
+pub static UI: VR = VR {
 	ident: "UI",
 	name: "Unique Identifier (UID)",
 	code: 0x5549,
@@ -286,7 +301,7 @@ pub static UI: &'static VR = &VR {
 };
 
 /// Unsigned Long (0..4294967295)
-pub static UL: &'static VR = &VR {
+pub static UL: VR = VR {
 	ident: "UL",
 	name: "Unsigned Long",
 	code: 0x554C,
@@ -295,7 +310,7 @@ pub static UL: &'static VR = &VR {
 };
 
 /// Unknown
-pub static UN: &'static VR = &VR {
+pub static UN: VR = VR {
 	ident: "UN",
 	name: "Unknown",
 	code: 0x544E,
@@ -304,7 +319,7 @@ pub static UN: &'static VR = &VR {
 };
 
 /// URI/URL
-pub static UR: &'static VR = &VR {
+pub static UR: VR = VR {
 	ident: "UR",
 	name: "Universal Resource Identifier / Universal Resource Locator",
 	code: 0x5452,
@@ -313,7 +328,7 @@ pub static UR: &'static VR = &VR {
 };
 
 /// Unsigned Short (0..65535)
-pub static US: &'static VR = &VR {
+pub static US: VR = VR {
 	ident: "US",
 	name: "Unsigned Short",
 	code: 0x5553,
@@ -322,7 +337,7 @@ pub static US: &'static VR = &VR {
 };
 
 /// Unlimited Text (<= 4294967294 chars/u16)
-pub static UT: &'static VR = &VR {
+pub static UT: VR = VR {
 	ident: "UT",
 	name: "Unlimited Text",
 	code: 0x5554,
