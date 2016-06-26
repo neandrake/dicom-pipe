@@ -5,14 +5,18 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 
+use std::collections::hash_map::HashMap;
 use std::fmt;
 use std::fs::File;
 use std::io::{Error, ErrorKind, Read, Seek};
 use std::path::Path;
 
-use util::tags::TagValue;
+use util::tags;
+use util::transfersyntax;
+use util::transfersyntax::TransferSyntax;
+use util::vr;
 use util::vr::VR;
 
 
@@ -28,11 +32,12 @@ pub struct DicomStream<StreamType> {
     file_preamble: [u8;FILE_PREAMBLE_LENGTH],
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
-    dicom_header: Vec<DicomElement>,
+    file_meta: HashMap<u32, DicomElement>,
+    ts: &'static TransferSyntax<'static>,
 }
 
 pub struct DicomElement {
-    pub tag: TagValue,
+    pub tag: u32,
     pub vr: &'static VR,
     pub vl: u32,
     pub bytes: Vec<u8>,
@@ -47,12 +52,12 @@ impl fmt::Debug for DicomElement {
 impl DicomStream<File> {
     pub fn new_from_path(path: &Path) -> Result<DicomStream<File>, Error> {
         if !path.is_file() {
-            return Result::Err(Error::new(ErrorKind::InvalidData,
+            return Err(Error::new(ErrorKind::InvalidData,
                                           format!("Invalid path: {:?}", path)));
         }
 
         let file: File = try!(File::open(path));
-        Result::Ok::<DicomStream<File>, Error>(DicomStream::new(file))
+        Ok::<DicomStream<File>, Error>(DicomStream::new(file))
     }
 }
 
@@ -62,7 +67,8 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             stream: stream,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
-            dicom_header: Vec::with_capacity(6),
+            file_meta: HashMap::with_capacity(12),
+            ts: &transfersyntax::ExplicitVRLittleEndian,
         }
     }
 
@@ -98,7 +104,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
         try!(self.stream.read_exact(&mut self.file_preamble));
-        Result::Ok(())
+        Ok(())
     }
 
     pub fn read_dicom_prefix(&mut self) -> Result<(), Error> {
@@ -106,34 +112,37 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
 
         for n in 0..DICOM_PREFIX.len() {
             if self.dicom_prefix[n] != DICOM_PREFIX[n] {
-                return Result::Err(Error::new(ErrorKind::InvalidData,
+                return Err(Error::new(ErrorKind::InvalidData,
                                     format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix)));
             }
         }
 
-        return Result::Ok(())
+        return Ok(())
     }
 
-    pub fn read_tag(&mut self) -> Result<TagValue, Error> {
-        let first: u32 = (try!(self.stream.read_u16::<LittleEndian>()) as u32) << 16;
-        let second: u32 = try!(self.stream.read_u16::<LittleEndian>()) as u32;
+    pub fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
+        let first: u32 = (try!(self.stream.read_u16::<Endian>()) as u32) << 16;
+        let second: u32 = try!(self.stream.read_u16::<Endian>()) as u32;
         let result: u32 = first + second;
-        Result::Ok(TagValue::Undefined(result))
+        Ok(result)
     }
 
     pub fn read_vr(&mut self) -> Result<&'static VR, Error> {
         let first_char: u8 = try!(self.stream.read_u8());
         let second_char: u8 = try!(self.stream.read_u8());
         let code: u16 = ((first_char as u16) << 8) + second_char as u16;
-        VR::code_to_vr(code).ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
+        match VR::code_to_vr(code) {
+            Some(vr) => Ok(vr),
+            None => Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
+        }
     }
 
-    pub fn read_value_length(&mut self, vr: &VR) -> Result<u32, Error> {
+    pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: &VR) -> Result<u32, Error> {
         match vr.explicit_vr_header_bytes {
-            8 => self.stream.read_u16::<LittleEndian>().map(|n| n as u32),
+            8 => self.stream.read_u16::<Endian>().map(|n| n as u32),
             12 => {
-                try!(self.stream.read_u16::<LittleEndian>());
-                self.stream.read_u32::<LittleEndian>()
+                try!(self.stream.read_u16::<Endian>());
+                self.stream.read_u32::<Endian>()
             },
             n => Err(Error::new(ErrorKind::InvalidData, format!("Invalid VR Header Length: {:?}", n))),
         }
@@ -142,16 +151,30 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     pub fn read_value_field(&mut self, value_length: u32) -> Result<Vec<u8>, Error> {
         let mut bytes: Vec<u8> = vec![0;value_length as usize];
         try!(self.stream.read_exact(bytes.as_mut_slice()));
-        Result::Ok(bytes)
+        Ok(bytes)
     }
 
     pub fn read_dicom_element(&mut self) -> Result<DicomElement, Error> {
-        let tag: TagValue = try!(self.read_tag());
-        let vr: &VR = try!(self.read_vr());
-        let vl: u32 = try!(self.read_value_length(vr));
+        let tag: u32;
+        let vl: u32;
+        let mut vr: &VR = &vr::UN;
+        if self.ts.is_big_endian() {
+            tag = try!(self.read_tag::<BigEndian>());
+            if self.ts.is_explicit_vr() {
+                vr = try!(self.read_vr());
+            }
+            vl = try!(self.read_value_length::<BigEndian>(vr));    
+        } else {
+            tag = try!(self.read_tag::<LittleEndian>());
+            if self.ts.is_explicit_vr() {
+                vr = try!(self.read_vr());
+            }
+            vl = try!(self.read_value_length::<LittleEndian>(vr));
+        }
+
         let bytes: Vec<u8> = try!(self.read_value_field(vl));
 
-        Result::Ok(DicomElement {
+        Ok(DicomElement {
             tag: tag,
             vr: vr,
             vl: vl,
@@ -163,31 +186,18 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         try!(self.read_file_preamble());
         try!(self.read_dicom_prefix());
 
-        let file_meta_info_group_length: DicomElement = try!(self.read_dicom_element());
-        println!("File Meta Information Group Length: {:?}", file_meta_info_group_length);
+        let mut element: DicomElement = try!(self.read_dicom_element());
+        if element.tag != tags::FileMetaInformationGroupLength.get_tag() {
+            return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", element)));
+        }
 
-        let file_meta_info_version: DicomElement = try!(self.read_dicom_element());
-        println!("File Meta Information Version: {:?}", file_meta_info_version);
+        while element.tag <= tags::PrivateInformation.get_tag() {
+            self.file_meta.insert(element.tag, element);
+            element = try!(self.read_dicom_element());
+        }
 
-        let media_storage_sop_class_uid: DicomElement = try!(self.read_dicom_element());
-        println!("Media Storage SOP Class UID: {:?}", media_storage_sop_class_uid);
+        println!("File Meta Information: {:?}", self.file_meta);
 
-        let media_storage_sop_instance_uid: DicomElement = try!(self.read_dicom_element());
-        println!("Media Storage SOP Instance UID: {:?}", media_storage_sop_instance_uid);
-
-        let transfer_syntax_uid: DicomElement = try!(self.read_dicom_element());
-        println!("Transfer Syntax UID: {:?}", transfer_syntax_uid);
-
-        let implementation_class_uid: DicomElement = try!(self.read_dicom_element());
-        println!("Implementation Class UID: {:?}", implementation_class_uid);
-
-        self.dicom_header.push(file_meta_info_group_length);
-        self.dicom_header.push(file_meta_info_version);
-        self.dicom_header.push(media_storage_sop_class_uid);
-        self.dicom_header.push(media_storage_sop_instance_uid);
-        self.dicom_header.push(transfer_syntax_uid);
-        self.dicom_header.push(implementation_class_uid);
-
-        Result::Ok(())
+        Ok(())
     }
 }
