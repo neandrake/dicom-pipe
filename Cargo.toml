@@ -6,4 +6,4 @@ authors = ["neandrake <die.drachen@gmail.com>"]
 [dependencies]
 byteorder = "0.5"
 encoding = "0.2"
-walkdir = "0.1"
+walkdir = "1"
