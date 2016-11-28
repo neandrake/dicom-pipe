@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use read::DicomStream;
 
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};

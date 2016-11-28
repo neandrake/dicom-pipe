@@ -10,7 +10,7 @@ use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use std::collections::hash_map::HashMap;
 use std::fmt;
 use std::fs::File;
-use std::io::{Error, ErrorKind, Read, Seek};
+use std::io::{Error, ErrorKind, Seek};
 use std::path::Path;
 
 use util::tags;
@@ -56,7 +56,7 @@ impl DicomStream<File> {
                                           format!("Invalid path: {:?}", path)));
         }
 
-        let file: File = try!(File::open(path));
+        let file: File = File::open(path)?;
         Ok::<DicomStream<File>, Error>(DicomStream::new(file))
     }
 }
@@ -103,12 +103,11 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     }
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
-        try!(self.stream.read_exact(&mut self.file_preamble));
-        Ok(())
+        self.stream.read_exact(&mut self.file_preamble)
     }
 
     pub fn read_dicom_prefix(&mut self) -> Result<(), Error> {
-        try!(self.stream.read_exact(&mut self.dicom_prefix));
+        self.stream.read_exact(&mut self.dicom_prefix)?;
 
         for n in 0..DICOM_PREFIX.len() {
             if self.dicom_prefix[n] != DICOM_PREFIX[n] {
@@ -117,19 +116,19 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             }
         }
 
-        return Ok(())
+        Ok(())
     }
 
     pub fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        let first: u32 = (try!(self.stream.read_u16::<Endian>()) as u32) << 16;
-        let second: u32 = try!(self.stream.read_u16::<Endian>()) as u32;
+        let first: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
+        let second: u32 = self.stream.read_u16::<Endian>()? as u32;
         let result: u32 = first + second;
         Ok(result)
     }
 
     pub fn read_vr(&mut self) -> Result<&'static VR, Error> {
-        let first_char: u8 = try!(self.stream.read_u8());
-        let second_char: u8 = try!(self.stream.read_u8());
+        let first_char: u8 = self.stream.read_u8()?;
+        let second_char: u8 = self.stream.read_u8()?;
         let code: u16 = ((first_char as u16) << 8) + second_char as u16;
         match VR::code_to_vr(code) {
             Some(vr) => Ok(vr),
@@ -141,7 +140,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         match vr.explicit_vr_header_bytes {
             8 => self.stream.read_u16::<Endian>().map(|n| n as u32),
             12 => {
-                try!(self.stream.read_u16::<Endian>());
+                self.stream.read_u16::<Endian>()?;
                 self.stream.read_u32::<Endian>()
             },
             n => Err(Error::new(ErrorKind::InvalidData, format!("Invalid VR Header Length: {:?}", n))),
@@ -150,7 +149,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
 
     pub fn read_value_field(&mut self, value_length: u32) -> Result<Vec<u8>, Error> {
         let mut bytes: Vec<u8> = vec![0;value_length as usize];
-        try!(self.stream.read_exact(bytes.as_mut_slice()));
+        self.stream.read_exact(bytes.as_mut_slice())?;
         Ok(bytes)
     }
 
@@ -159,20 +158,20 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         let vl: u32;
         let mut vr: &VR = &vr::UN;
         if self.ts.is_big_endian() {
-            tag = try!(self.read_tag::<BigEndian>());
+            tag = self.read_tag::<BigEndian>()?;
             if self.ts.is_explicit_vr() {
-                vr = try!(self.read_vr());
+                vr = self.read_vr()?;
             }
-            vl = try!(self.read_value_length::<BigEndian>(vr));    
+            vl = self.read_value_length::<BigEndian>(vr)?;
         } else {
-            tag = try!(self.read_tag::<LittleEndian>());
+            tag = self.read_tag::<LittleEndian>()?;
             if self.ts.is_explicit_vr() {
-                vr = try!(self.read_vr());
+                vr = self.read_vr()?;
             }
-            vl = try!(self.read_value_length::<LittleEndian>(vr));
+            vl = self.read_value_length::<LittleEndian>(vr)?;
         }
 
-        let bytes: Vec<u8> = try!(self.read_value_field(vl));
+        let bytes: Vec<u8> = self.read_value_field(vl)?;
 
         Ok(DicomElement {
             tag: tag,
@@ -183,20 +182,18 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     }
 
     pub fn read_file_meta(&mut self) -> Result<(), Error> {
-        try!(self.read_file_preamble());
-        try!(self.read_dicom_prefix());
+        self.read_file_preamble()?;
+        self.read_dicom_prefix()?;
 
-        let mut element: DicomElement = try!(self.read_dicom_element());
+        let mut element: DicomElement = self.read_dicom_element()?;
         if element.tag != tags::FileMetaInformationGroupLength.get_tag() {
             return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", element)));
         }
 
         while element.tag <= tags::PrivateInformation.get_tag() {
             self.file_meta.insert(element.tag, element);
-            element = try!(self.read_dicom_element());
+            element = self.read_dicom_element()?;
         }
-
-        println!("File Meta Information: {:?}", self.file_meta);
 
         Ok(())
     }

@@ -2,6 +2,7 @@ extern crate byteorder;
 extern crate encoding;
 extern crate walkdir;
 
+mod core;
 mod read;
 mod util;
 
@@ -42,12 +43,12 @@ fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
     let dirwalker_iter: walkdir::Iter = dirwalker.into_iter();
     let dir_entries = dirwalker_iter.filter_entry(|e| !is_hidden(e.path()));
     for entry_res in dir_entries {
-        let entry: DirEntry = try!(entry_res);
+        let entry: DirEntry = entry_res?;
         let path: &Path = entry.path();
         let dstream_res: Result<DicomStream<File>, Error> = DicomStream::new_from_path(&path);
         match dstream_res {
             Ok(mut dstream) => {
-                try!(dstream.read_file_meta());
+                dstream.read_file_meta()?;
             }
             Err(err) => {
                 writeln!(&mut std::io::stderr(),

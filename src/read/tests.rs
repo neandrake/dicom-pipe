@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 extern crate walkdir;
 
 use read::DicomStream;
