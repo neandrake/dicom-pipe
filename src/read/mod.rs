@@ -13,11 +13,8 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Seek};
 use std::path::Path;
 
-use util::tags;
-use util::transfersyntax;
-use util::transfersyntax::TransferSyntax;
-use util::vr;
-use util::vr::VR;
+use core::dict::dicom_elements as tags;
+use core::{ts, vr};
 
 
 const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -33,12 +30,12 @@ pub struct DicomStream<StreamType> {
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
     file_meta: HashMap<u32, DicomElement>,
-    ts: &'static TransferSyntax<'static>,
+    ts: &'static ts::TransferSyntax<'static>,
 }
 
 pub struct DicomElement {
     pub tag: u32,
-    pub vr: &'static VR,
+    pub vr: &'static vr::VR,
     pub vl: u32,
     pub bytes: Vec<u8>,
 }
@@ -68,7 +65,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
             file_meta: HashMap::with_capacity(12),
-            ts: &transfersyntax::ExplicitVRLittleEndian,
+            ts: &ts::ExplicitVRLittleEndian,
         }
     }
 
@@ -126,17 +123,17 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         Ok(result)
     }
 
-    pub fn read_vr(&mut self) -> Result<&'static VR, Error> {
+    pub fn read_vr(&mut self) -> Result<&'static vr::VR, Error> {
         let first_char: u8 = self.stream.read_u8()?;
         let second_char: u8 = self.stream.read_u8()?;
         let code: u16 = ((first_char as u16) << 8) + second_char as u16;
-        match VR::code_to_vr(code) {
+        match vr::VR::code_to_vr(code) {
             Some(vr) => Ok(vr),
             None => Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
         }
     }
 
-    pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: &VR) -> Result<u32, Error> {
+    pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: &vr::VR) -> Result<u32, Error> {
         match vr.explicit_vr_header_bytes {
             8 => self.stream.read_u16::<Endian>().map(|n| n as u32),
             12 => {
@@ -156,7 +153,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     pub fn read_dicom_element(&mut self) -> Result<DicomElement, Error> {
         let tag: u32;
         let vl: u32;
-        let mut vr: &VR = &vr::UN;
+        let mut vr: &vr::VR = &vr::UN;
         if self.ts.is_big_endian() {
             tag = self.read_tag::<BigEndian>()?;
             if self.ts.is_explicit_vr() {
