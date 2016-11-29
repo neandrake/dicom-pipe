@@ -7,6 +7,7 @@ use csv::Reader;
 
 use htmltbl2csv::CsvTable;
 
+use std::ascii::AsciiExt;
 use std::fs::File;
 use std::io::{Cursor, Error, ErrorKind, Write};
 use std::path::Path;
@@ -144,10 +145,10 @@ impl TableType {
     /// build script is the root of the project
     pub fn filename(&self) -> Result<&Path, Error> {
         match *self {
-            TableType::DicomElements => Ok(Path::new("src/core/dicom_elements.rs")),
-            TableType::FileMetaElements => Ok(Path::new("src/core/file_meta_elements.rs")),
-            TableType::DirStructureElements => Ok(Path::new("src/core/dir_structure_elements.rs")),
-            TableType::Uids => Ok(Path::new("src/core/uids.rs")),
+            TableType::DicomElements => Ok(Path::new("src/core/dict/dicom_elements.rs")),
+            TableType::FileMetaElements => Ok(Path::new("src/core/dict/file_meta_elements.rs")),
+            TableType::DirStructureElements => Ok(Path::new("src/core/dict/dir_structure_elements.rs")),
+            TableType::Uids => Ok(Path::new("src/core/dict/uids.rs")),
         }
     }
 
@@ -157,7 +158,7 @@ impl TableType {
     /// Such as: 1.2.840.10008.5.1.4.1.​1.​40 and (0018,0061)
     /// So check whether the returned string is empty
     fn sanitize_var_name(var_name: &String) -> String {
-        var_name
+        let sanitized: String = var_name
             .replace(" ", "")
             .replace("(Retired)", "_Retired")
             .replace("(Trial)", "_Trial")
@@ -167,18 +168,36 @@ impl TableType {
             .replace(")", "")
             .replace(".", "")
             .replace("/", "")
+            .replace("[", "")
+            .replace("]", "")
             .replace(":", "_")
-            .replace("&", "_")
+            .replace("&", "_");
+        
+        if sanitized == "_Retired" || sanitized == "_Trial" {
+            return String::new();
+        }
+        
+        if let Some(first_char) = sanitized.chars().next() {
+            if !first_char.is_ascii() || !first_char.is_alphabetic() {
+                return format!("Tag_{}", sanitized);
+            }
+        }
+        sanitized
     }
 
     /// Gets the preamble for the file -- things like `use` statements needed
     pub fn get_codefile_preamble(&self) -> String {
         if self.is_element() {
-"
+"//! This is an auto-generated file. Do not make modifications here.
 
+use core::tag::Tag;
+use core::vm::VM;
+use core::vr;
 ".to_owned()
         } else {
-"
+"//! This is an auto-generated file. Do not make modifications here.
+
+use core::uid::UID;
 ".to_owned()
         }
     }
@@ -225,6 +244,24 @@ pub static {}: UID = UID {{
             return None;
         }
 
+        let vr: &str = element.vr.split_whitespace().next().unwrap();
+        let vr_value: String =
+            if vr == "See" { "None".to_owned() }
+            else { format!("Some(&vr::{})", vr) };
+        
+        let vm: String =
+            if element.vm == "1-n or 1" { "&VM::OneOrMore".to_owned() }
+            else if let Ok(vm_val) = element.vm.parse::<u32>() { format!("&VM::Distinct({})", vm_val) }
+            else {
+                let parts: Vec<&str> = element.vm.split('-').collect::<Vec<&str>>();
+                let start: u32 = parts[0].parse::<u32>().expect(format!("Missing start to VM: {}", element.vm).as_ref());
+                let end: &str = parts[1];
+
+                if end == "n" { format!("&VM::AtLeast({})", start) }
+                else if let Ok(end_val) = end.parse::<u32>() { format!("&VM::AtMost({})", end_val) }
+                else { format!("&VM::MultipleOf({})", start) }
+            };
+
         let code: String = format!(
 "/// {}
 /// 
@@ -234,16 +271,16 @@ pub static {}: UID = UID {{
 pub static {}: Tag = Tag {{
     ident: \"{}\",
     tag: \"{}\",
-    implicit_vr: Some(&vr::{}),
-    vm: \"{}\",
+    implicit_vr: {},
+    vm: {},
     desc: \"{}\",
 }};
 
 ",
             // comment
-            element.name, element.tag, element.vr, element.vm,
+            element.name, element.tag, vr, element.vm,
             // definitions
-            var_name, var_name, element.tag, element.vr, element.vm, element.name);
+            var_name, var_name, element.tag, vr_value, vm, element.name);
 
         Some(code)
     }
