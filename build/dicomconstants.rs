@@ -1,3 +1,27 @@
+//! This is a build script that parses a few of the DICOM standard HTML pages
+//! into Rust code for dcmpipe. It specifies to cargo that it should only be run
+//! if the HTML files in build/dicom_constants_html change. This script automatically
+//! runs as part of `cargo build` due to it being specified in `Cargo.toml`
+//!
+//! I'm not really clear at what point this runs during the build process. According
+//! to the documentation of build scripts it seems that this is only supposed to be
+//! putting generated code in an environment variable `OUT_DIR` which is in the target
+//! directory and not part of the repository. This script places the files it generates
+//! into src/core/dict instead and the resulting files may or may not be compiled
+//! after this script. It seems that sometimes I have to build twice to get changes made
+//! from this file (but not every time).
+//!
+//! This build script depends on htmltbl2csv which is not a published crate. In order
+//! for this to build properly the htmltbl2csv repo should be checked out next to dcmpipe:
+//! ```text
+//! ./dcmpipe/
+//! ./htmltbl2csv
+//! ```
+//!
+//! This also currently relies on a naming scheme of the HTML files in order to
+//! interpret which part of the DICOM standard definitions are being parsed.
+//! See `TableType::from_filename()`
+
 extern crate csv;
 extern crate htmltbl2csv;
 extern crate rustc_serialize;
@@ -158,10 +182,12 @@ impl TableType {
     /// Such as: 1.2.840.10008.5.1.4.1.​1.​40 and (0018,0061)
     /// So check whether the returned string is empty
     fn sanitize_var_name(var_name: &String) -> String {
-        let sanitized: String = var_name
+        let is_retired: bool = var_name.contains("Retired");
+
+        let mut sanitized: String = var_name
             .replace(" ", "")
-            .replace("(Retired)", "_Retired")
-            .replace("(Trial)", "_Trial")
+            .replace("(Retired)", "")
+            .replace("(Trial)", "")
             .replace("-", "")
             .replace(",", "")
             .replace("(", "")
@@ -170,11 +196,25 @@ impl TableType {
             .replace("/", "")
             .replace("[", "")
             .replace("]", "")
-            .replace(":", "_")
-            .replace("&", "_");
+            .replace("&", "_and_")
+            .split(":")
+            .next()
+            .unwrap()
+            .to_owned();
         
-        if sanitized == "_Retired" || sanitized == "_Trial" {
-            return String::new();
+        if sanitized.is_empty() {
+            return sanitized;
+        }
+
+        // I think in general having "Retired" in the tag name is undesired
+        // (see Explicit VR Big Endian (Retired)..)
+        // However if we just remove "(Retired)" then it results in a
+        // few duplicate definitions so we'll add back "_Retired"
+        if is_retired &&
+            (sanitized == "UltrasoundMultiframeImageStorage" ||
+            sanitized == "UltrasoundImageStorage" ||
+            sanitized == "NuclearMedicineImageStorage") {
+            sanitized = format!("{}_Retired", sanitized);
         }
         
         if let Some(first_char) = sanitized.chars().next() {
@@ -190,12 +230,20 @@ impl TableType {
         if self.is_element() {
 "//! This is an auto-generated file. Do not make modifications here.
 
+#![allow(dead_code)]
+#![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
+
 use core::tag::Tag;
 use core::vm::VM;
 use core::vr;
 ".to_owned()
         } else {
 "//! This is an auto-generated file. Do not make modifications here.
+
+#![allow(dead_code)]
+#![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
 
 use core::uid::UID;
 ".to_owned()
@@ -244,6 +292,19 @@ pub static {}: UID = UID {{
             return None;
         }
 
+        let tag_value: u32 =
+            u32::from_str_radix(
+                &element.tag
+                    .replace("(", "")
+                    .replace(")", "")
+                    .replace(",", ""),
+                16)
+            .unwrap_or(0);
+        
+        if tag_value == 0 {
+            return None;
+        }
+
         let vr: &str = element.vr.split_whitespace().next().unwrap();
         let vr_value: String =
             if vr == "See" { "None".to_owned() }
@@ -254,7 +315,7 @@ pub static {}: UID = UID {{
             else if let Ok(vm_val) = element.vm.parse::<u32>() { format!("&VM::Distinct({})", vm_val) }
             else {
                 let parts: Vec<&str> = element.vm.split('-').collect::<Vec<&str>>();
-                let start: u32 = parts[0].parse::<u32>().expect(format!("Missing start to VM: {}", element.vm).as_ref());
+                let start: u32 = parts[0].parse::<u32>().expect(&format!("Missing start to VM: {}", element.vm));
                 let end: &str = parts[1];
 
                 if end == "n" { format!("&VM::AtLeast({})", start) }
@@ -270,7 +331,7 @@ pub static {}: UID = UID {{
 /// - **VM:** {}
 pub static {}: Tag = Tag {{
     ident: \"{}\",
-    tag: \"{}\",
+    tag: 0x{:08X},
     implicit_vr: {},
     vm: {},
     desc: \"{}\",
@@ -280,7 +341,7 @@ pub static {}: Tag = Tag {{
             // comment
             element.name, element.tag, vr, element.vm,
             // definitions
-            var_name, var_name, element.tag, vr_value, vm, element.name);
+            var_name, var_name, tag_value, vr_value, vm, element.name);
 
         Some(code)
     }
