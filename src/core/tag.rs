@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![allow(non_camel_case_types)]
 
 //! DICOM Element
@@ -10,11 +11,11 @@ use std::fmt::{Formatter, LowerHex, Result as FmtResult, UpperHex};
 
 #[derive(Debug, Eq)]
 pub struct Tag {
-    ident: &'static str,
-    tag: u32,
-    implicit_vr: Option<&'static vr::VR>,
-    vm: &'static vm::VM,
-    desc: &'static str,
+    pub ident: &'static str,
+    pub tag: u32,
+    pub implicit_vr: Option<&'static vr::VR>,
+    pub vm: &'static vm::VM,
+    pub desc: &'static str,
 }
 
 impl Tag {

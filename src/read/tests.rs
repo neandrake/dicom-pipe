@@ -64,8 +64,7 @@ fn test_parse_known_dicom_files() {
         let path: &Path = entry.path();
         let mut dstream: DicomStream<File> = DicomStream::new_from_path(path)
             .expect("Unable to read file");
-        dstream.read_file_preamble().expect("Unable to read file preamble");
-        dstream.read_dicom_prefix().expect("Unable to read DICOM prefix");
+        dstream.read_file_meta().expect("Unable to read FileMetaInformation");
         let is_dcm = dstream.is_standard_preamble();
         assert_eq!(is_dcm, true);
     }
