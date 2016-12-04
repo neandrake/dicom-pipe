@@ -1,5 +1,9 @@
 //! This is an auto-generated file. Do not make modifications here.
 
+#![allow(dead_code)]
+#![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
+
 use core::uid::UID;
 /// Verification SOP Class
 /// 
@@ -15,8 +19,8 @@ pub static VerificationSOPClass: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2
 /// - **UID Type:** Transfer Syntax
-pub static ImplicitVRLittleEndian_DefaultTransferSyntaxforDICOM: UID = UID {
-    ident: "ImplicitVRLittleEndian_DefaultTransferSyntaxforDICOM",
+pub static ImplicitVRLittleEndian: UID = UID {
+    ident: "ImplicitVRLittleEndian",
     uid: "1.2.840.10008.1.2",
     name: "Implicit VR Little Endian: Default Transfer Syntax for DICOM",
 };
@@ -45,8 +49,8 @@ pub static DeflatedExplicitVRLittleEndian: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.2
 /// - **UID Type:** Transfer Syntax
-pub static ExplicitVRBigEndian_Retired: UID = UID {
-    ident: "ExplicitVRBigEndian_Retired",
+pub static ExplicitVRBigEndian: UID = UID {
+    ident: "ExplicitVRBigEndian",
     uid: "1.2.840.10008.1.2.2",
     name: "Explicit VR Big Endian (Retired)",
 };
@@ -55,8 +59,8 @@ pub static ExplicitVRBigEndian_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.50
 /// - **UID Type:** Transfer Syntax
-pub static JPEGBaselineProcess1_DefaultTransferSyntaxforLossyJPEG8BitImageCompression: UID = UID {
-    ident: "JPEGBaselineProcess1_DefaultTransferSyntaxforLossyJPEG8BitImageCompression",
+pub static JPEGBaselineProcess1: UID = UID {
+    ident: "JPEGBaselineProcess1",
     uid: "1.2.840.10008.1.2.4.50",
     name: "JPEG Baseline (Process 1): Default Transfer Syntax for Lossy JPEG 8 Bit Image Compression",
 };
@@ -65,8 +69,8 @@ pub static JPEGBaselineProcess1_DefaultTransferSyntaxforLossyJPEG8BitImageCompre
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.51
 /// - **UID Type:** Transfer Syntax
-pub static JPEGExtendedProcess2_4_DefaultTransferSyntaxforLossyJPEG12BitImageCompressionProcess4only: UID = UID {
-    ident: "JPEGExtendedProcess2_4_DefaultTransferSyntaxforLossyJPEG12BitImageCompressionProcess4only",
+pub static JPEGExtendedProcess2_and_4: UID = UID {
+    ident: "JPEGExtendedProcess2_and_4",
     uid: "1.2.840.10008.1.2.4.51",
     name: "JPEG Extended (Process 2 & 4): Default Transfer Syntax for Lossy JPEG 12 Bit Image Compression (Process 4 only)",
 };
@@ -75,8 +79,8 @@ pub static JPEGExtendedProcess2_4_DefaultTransferSyntaxforLossyJPEG12BitImageCom
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.52
 /// - **UID Type:** Transfer Syntax
-pub static JPEGExtendedProcess3_5_Retired: UID = UID {
-    ident: "JPEGExtendedProcess3_5_Retired",
+pub static JPEGExtendedProcess3_and_5: UID = UID {
+    ident: "JPEGExtendedProcess3_and_5",
     uid: "1.2.840.10008.1.2.4.52",
     name: "JPEG Extended (Process 3 & 5) (Retired)",
 };
@@ -85,8 +89,8 @@ pub static JPEGExtendedProcess3_5_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.53
 /// - **UID Type:** Transfer Syntax
-pub static JPEGSpectralSelectionNonHierarchicalProcess6_8_Retired: UID = UID {
-    ident: "JPEGSpectralSelectionNonHierarchicalProcess6_8_Retired",
+pub static JPEGSpectralSelectionNonHierarchicalProcess6_and_8: UID = UID {
+    ident: "JPEGSpectralSelectionNonHierarchicalProcess6_and_8",
     uid: "1.2.840.10008.1.2.4.53",
     name: "JPEG Spectral Selection, Non-Hierarchical (Process 6 & 8) (Retired)",
 };
@@ -95,8 +99,8 @@ pub static JPEGSpectralSelectionNonHierarchicalProcess6_8_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.54
 /// - **UID Type:** Transfer Syntax
-pub static JPEGSpectralSelectionNonHierarchicalProcess7_9_Retired: UID = UID {
-    ident: "JPEGSpectralSelectionNonHierarchicalProcess7_9_Retired",
+pub static JPEGSpectralSelectionNonHierarchicalProcess7_and_9: UID = UID {
+    ident: "JPEGSpectralSelectionNonHierarchicalProcess7_and_9",
     uid: "1.2.840.10008.1.2.4.54",
     name: "JPEG Spectral Selection, Non-Hierarchical (Process 7 & 9) (Retired)",
 };
@@ -105,8 +109,8 @@ pub static JPEGSpectralSelectionNonHierarchicalProcess7_9_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.55
 /// - **UID Type:** Transfer Syntax
-pub static JPEGFullProgressionNonHierarchicalProcess10_12_Retired: UID = UID {
-    ident: "JPEGFullProgressionNonHierarchicalProcess10_12_Retired",
+pub static JPEGFullProgressionNonHierarchicalProcess10_and_12: UID = UID {
+    ident: "JPEGFullProgressionNonHierarchicalProcess10_and_12",
     uid: "1.2.840.10008.1.2.4.55",
     name: "JPEG Full Progression, Non-Hierarchical (Process 10 & 12) (Retired)",
 };
@@ -115,8 +119,8 @@ pub static JPEGFullProgressionNonHierarchicalProcess10_12_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.56
 /// - **UID Type:** Transfer Syntax
-pub static JPEGFullProgressionNonHierarchicalProcess11_13_Retired: UID = UID {
-    ident: "JPEGFullProgressionNonHierarchicalProcess11_13_Retired",
+pub static JPEGFullProgressionNonHierarchicalProcess11_and_13: UID = UID {
+    ident: "JPEGFullProgressionNonHierarchicalProcess11_and_13",
     uid: "1.2.840.10008.1.2.4.56",
     name: "JPEG Full Progression, Non-Hierarchical (Process 11 & 13) (Retired)",
 };
@@ -135,8 +139,8 @@ pub static JPEGLosslessNonHierarchicalProcess14: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.58
 /// - **UID Type:** Transfer Syntax
-pub static JPEGLosslessNonHierarchicalProcess15_Retired: UID = UID {
-    ident: "JPEGLosslessNonHierarchicalProcess15_Retired",
+pub static JPEGLosslessNonHierarchicalProcess15: UID = UID {
+    ident: "JPEGLosslessNonHierarchicalProcess15",
     uid: "1.2.840.10008.1.2.4.58",
     name: "JPEG Lossless, Non-Hierarchical (Process 15) (Retired)",
 };
@@ -145,8 +149,8 @@ pub static JPEGLosslessNonHierarchicalProcess15_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.59
 /// - **UID Type:** Transfer Syntax
-pub static JPEGExtendedHierarchicalProcess16_18_Retired: UID = UID {
-    ident: "JPEGExtendedHierarchicalProcess16_18_Retired",
+pub static JPEGExtendedHierarchicalProcess16_and_18: UID = UID {
+    ident: "JPEGExtendedHierarchicalProcess16_and_18",
     uid: "1.2.840.10008.1.2.4.59",
     name: "JPEG Extended, Hierarchical (Process 16 & 18) (Retired)",
 };
@@ -155,8 +159,8 @@ pub static JPEGExtendedHierarchicalProcess16_18_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.60
 /// - **UID Type:** Transfer Syntax
-pub static JPEGExtendedHierarchicalProcess17_19_Retired: UID = UID {
-    ident: "JPEGExtendedHierarchicalProcess17_19_Retired",
+pub static JPEGExtendedHierarchicalProcess17_and_19: UID = UID {
+    ident: "JPEGExtendedHierarchicalProcess17_and_19",
     uid: "1.2.840.10008.1.2.4.60",
     name: "JPEG Extended, Hierarchical (Process 17 & 19) (Retired)",
 };
@@ -165,8 +169,8 @@ pub static JPEGExtendedHierarchicalProcess17_19_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.61
 /// - **UID Type:** Transfer Syntax
-pub static JPEGSpectralSelectionHierarchicalProcess20_22_Retired: UID = UID {
-    ident: "JPEGSpectralSelectionHierarchicalProcess20_22_Retired",
+pub static JPEGSpectralSelectionHierarchicalProcess20_and_22: UID = UID {
+    ident: "JPEGSpectralSelectionHierarchicalProcess20_and_22",
     uid: "1.2.840.10008.1.2.4.61",
     name: "JPEG Spectral Selection, Hierarchical (Process 20 & 22) (Retired)",
 };
@@ -175,8 +179,8 @@ pub static JPEGSpectralSelectionHierarchicalProcess20_22_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.62
 /// - **UID Type:** Transfer Syntax
-pub static JPEGSpectralSelectionHierarchicalProcess21_23_Retired: UID = UID {
-    ident: "JPEGSpectralSelectionHierarchicalProcess21_23_Retired",
+pub static JPEGSpectralSelectionHierarchicalProcess21_and_23: UID = UID {
+    ident: "JPEGSpectralSelectionHierarchicalProcess21_and_23",
     uid: "1.2.840.10008.1.2.4.62",
     name: "JPEG Spectral Selection, Hierarchical (Process 21 & 23) (Retired)",
 };
@@ -185,8 +189,8 @@ pub static JPEGSpectralSelectionHierarchicalProcess21_23_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.63
 /// - **UID Type:** Transfer Syntax
-pub static JPEGFullProgressionHierarchicalProcess24_26_Retired: UID = UID {
-    ident: "JPEGFullProgressionHierarchicalProcess24_26_Retired",
+pub static JPEGFullProgressionHierarchicalProcess24_and_26: UID = UID {
+    ident: "JPEGFullProgressionHierarchicalProcess24_and_26",
     uid: "1.2.840.10008.1.2.4.63",
     name: "JPEG Full Progression, Hierarchical (Process 24 & 26) (Retired)",
 };
@@ -195,8 +199,8 @@ pub static JPEGFullProgressionHierarchicalProcess24_26_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.64
 /// - **UID Type:** Transfer Syntax
-pub static JPEGFullProgressionHierarchicalProcess25_27_Retired: UID = UID {
-    ident: "JPEGFullProgressionHierarchicalProcess25_27_Retired",
+pub static JPEGFullProgressionHierarchicalProcess25_and_27: UID = UID {
+    ident: "JPEGFullProgressionHierarchicalProcess25_and_27",
     uid: "1.2.840.10008.1.2.4.64",
     name: "JPEG Full Progression, Hierarchical (Process 25 & 27) (Retired)",
 };
@@ -205,8 +209,8 @@ pub static JPEGFullProgressionHierarchicalProcess25_27_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.65
 /// - **UID Type:** Transfer Syntax
-pub static JPEGLosslessHierarchicalProcess28_Retired: UID = UID {
-    ident: "JPEGLosslessHierarchicalProcess28_Retired",
+pub static JPEGLosslessHierarchicalProcess28: UID = UID {
+    ident: "JPEGLosslessHierarchicalProcess28",
     uid: "1.2.840.10008.1.2.4.65",
     name: "JPEG Lossless, Hierarchical (Process 28) (Retired)",
 };
@@ -215,8 +219,8 @@ pub static JPEGLosslessHierarchicalProcess28_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.66
 /// - **UID Type:** Transfer Syntax
-pub static JPEGLosslessHierarchicalProcess29_Retired: UID = UID {
-    ident: "JPEGLosslessHierarchicalProcess29_Retired",
+pub static JPEGLosslessHierarchicalProcess29: UID = UID {
+    ident: "JPEGLosslessHierarchicalProcess29",
     uid: "1.2.840.10008.1.2.4.66",
     name: "JPEG Lossless, Hierarchical (Process 29) (Retired)",
 };
@@ -225,8 +229,8 @@ pub static JPEGLosslessHierarchicalProcess29_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.70
 /// - **UID Type:** Transfer Syntax
-pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1_DefaultTransferSyntaxforLosslessJPEGImageCompression: UID = UID {
-    ident: "JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1_DefaultTransferSyntaxforLosslessJPEGImageCompression",
+pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1: UID = UID {
+    ident: "JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1",
     uid: "1.2.840.10008.1.2.4.70",
     name: "JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1]): Default Transfer Syntax for Lossless JPEG Image Compression",
 };
@@ -725,8 +729,8 @@ pub static WinterColorPaletteSOPInstance: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.9
 /// - **UID Type:** SOP Class
-pub static BasicStudyContentNotificationSOPClass_Retired: UID = UID {
-    ident: "BasicStudyContentNotificationSOPClass_Retired",
+pub static BasicStudyContentNotificationSOPClass: UID = UID {
+    ident: "BasicStudyContentNotificationSOPClass",
     uid: "1.2.840.10008.1.9",
     name: "Basic Study Content Notification SOP Class (Retired)",
 };
@@ -735,8 +739,8 @@ pub static BasicStudyContentNotificationSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.20
 /// - **UID Type:** Transfer Syntax
-pub static Papyrus3ImplicitVRLittleEndian_Retired: UID = UID {
-    ident: "Papyrus3ImplicitVRLittleEndian_Retired",
+pub static Papyrus3ImplicitVRLittleEndian: UID = UID {
+    ident: "Papyrus3ImplicitVRLittleEndian",
     uid: "1.2.840.10008.1.20",
     name: "Papyrus 3 Implicit VR Little Endian (Retired)",
 };
@@ -765,8 +769,8 @@ pub static StorageCommitmentPushModelSOPInstance: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.20.2
 /// - **UID Type:** SOP Class
-pub static StorageCommitmentPullModelSOPClass_Retired: UID = UID {
-    ident: "StorageCommitmentPullModelSOPClass_Retired",
+pub static StorageCommitmentPullModelSOPClass: UID = UID {
+    ident: "StorageCommitmentPullModelSOPClass",
     uid: "1.2.840.10008.1.20.2",
     name: "Storage Commitment Pull Model SOP Class (Retired)",
 };
@@ -775,8 +779,8 @@ pub static StorageCommitmentPullModelSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.20.2.1
 /// - **UID Type:** Well-known SOP Instance
-pub static StorageCommitmentPullModelSOPInstance_Retired: UID = UID {
-    ident: "StorageCommitmentPullModelSOPInstance_Retired",
+pub static StorageCommitmentPullModelSOPInstance: UID = UID {
+    ident: "StorageCommitmentPullModelSOPInstance",
     uid: "1.2.840.10008.1.20.2.1",
     name: "Storage Commitment Pull Model SOP Instance (Retired)",
 };
@@ -905,8 +909,8 @@ pub static DICOMApplicationContextName: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.1.1
 /// - **UID Type:** SOP Class
-pub static DetachedPatientManagementSOPClass_Retired: UID = UID {
-    ident: "DetachedPatientManagementSOPClass_Retired",
+pub static DetachedPatientManagementSOPClass: UID = UID {
+    ident: "DetachedPatientManagementSOPClass",
     uid: "1.2.840.10008.3.1.2.1.1",
     name: "Detached Patient Management SOP Class (Retired)",
 };
@@ -915,8 +919,8 @@ pub static DetachedPatientManagementSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.1.4
 /// - **UID Type:** Meta SOP Class
-pub static DetachedPatientManagementMetaSOPClass_Retired: UID = UID {
-    ident: "DetachedPatientManagementMetaSOPClass_Retired",
+pub static DetachedPatientManagementMetaSOPClass: UID = UID {
+    ident: "DetachedPatientManagementMetaSOPClass",
     uid: "1.2.840.10008.3.1.2.1.4",
     name: "Detached Patient Management Meta SOP Class (Retired)",
 };
@@ -925,8 +929,8 @@ pub static DetachedPatientManagementMetaSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.2.1
 /// - **UID Type:** SOP Class
-pub static DetachedVisitManagementSOPClass_Retired: UID = UID {
-    ident: "DetachedVisitManagementSOPClass_Retired",
+pub static DetachedVisitManagementSOPClass: UID = UID {
+    ident: "DetachedVisitManagementSOPClass",
     uid: "1.2.840.10008.3.1.2.2.1",
     name: "Detached Visit Management SOP Class (Retired)",
 };
@@ -935,8 +939,8 @@ pub static DetachedVisitManagementSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.3.1
 /// - **UID Type:** SOP Class
-pub static DetachedStudyManagementSOPClass_Retired: UID = UID {
-    ident: "DetachedStudyManagementSOPClass_Retired",
+pub static DetachedStudyManagementSOPClass: UID = UID {
+    ident: "DetachedStudyManagementSOPClass",
     uid: "1.2.840.10008.3.1.2.3.1",
     name: "Detached Study Management SOP Class (Retired)",
 };
@@ -945,8 +949,8 @@ pub static DetachedStudyManagementSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.3.2
 /// - **UID Type:** SOP Class
-pub static StudyComponentManagementSOPClass_Retired: UID = UID {
-    ident: "StudyComponentManagementSOPClass_Retired",
+pub static StudyComponentManagementSOPClass: UID = UID {
+    ident: "StudyComponentManagementSOPClass",
     uid: "1.2.840.10008.3.1.2.3.2",
     name: "Study Component Management SOP Class (Retired)",
 };
@@ -985,8 +989,8 @@ pub static ModalityPerformedProcedureStepNotificationSOPClass: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.5.1
 /// - **UID Type:** SOP Class
-pub static DetachedResultsManagementSOPClass_Retired: UID = UID {
-    ident: "DetachedResultsManagementSOPClass_Retired",
+pub static DetachedResultsManagementSOPClass: UID = UID {
+    ident: "DetachedResultsManagementSOPClass",
     uid: "1.2.840.10008.3.1.2.5.1",
     name: "Detached Results Management SOP Class (Retired)",
 };
@@ -995,8 +999,8 @@ pub static DetachedResultsManagementSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.5.4
 /// - **UID Type:** Meta SOP Class
-pub static DetachedResultsManagementMetaSOPClass_Retired: UID = UID {
-    ident: "DetachedResultsManagementMetaSOPClass_Retired",
+pub static DetachedResultsManagementMetaSOPClass: UID = UID {
+    ident: "DetachedResultsManagementMetaSOPClass",
     uid: "1.2.840.10008.3.1.2.5.4",
     name: "Detached Results Management Meta SOP Class (Retired)",
 };
@@ -1005,8 +1009,8 @@ pub static DetachedResultsManagementMetaSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.5.5
 /// - **UID Type:** Meta SOP Class
-pub static DetachedStudyManagementMetaSOPClass_Retired: UID = UID {
-    ident: "DetachedStudyManagementMetaSOPClass_Retired",
+pub static DetachedStudyManagementMetaSOPClass: UID = UID {
+    ident: "DetachedStudyManagementMetaSOPClass",
     uid: "1.2.840.10008.3.1.2.5.5",
     name: "Detached Study Management Meta SOP Class (Retired)",
 };
@@ -1015,8 +1019,8 @@ pub static DetachedStudyManagementMetaSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.3.1.2.6.1
 /// - **UID Type:** SOP Class
-pub static DetachedInterpretationManagementSOPClass_Retired: UID = UID {
-    ident: "DetachedInterpretationManagementSOPClass_Retired",
+pub static DetachedInterpretationManagementSOPClass: UID = UID {
+    ident: "DetachedInterpretationManagementSOPClass",
     uid: "1.2.840.10008.3.1.2.6.1",
     name: "Detached Interpretation Management SOP Class (Retired)",
 };
@@ -1075,8 +1079,8 @@ pub static BasicColorImageBoxSOPClass: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.4.2
 /// - **UID Type:** SOP Class
-pub static ReferencedImageBoxSOPClass_Retired: UID = UID {
-    ident: "ReferencedImageBoxSOPClass_Retired",
+pub static ReferencedImageBoxSOPClass: UID = UID {
+    ident: "ReferencedImageBoxSOPClass",
     uid: "1.2.840.10008.5.1.1.4.2",
     name: "Referenced Image Box SOP Class (Retired)",
 };
@@ -1095,8 +1099,8 @@ pub static BasicGrayscalePrintManagementMetaSOPClass: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.9.1
 /// - **UID Type:** Meta SOP Class
-pub static ReferencedGrayscalePrintManagementMetaSOPClass_Retired: UID = UID {
-    ident: "ReferencedGrayscalePrintManagementMetaSOPClass_Retired",
+pub static ReferencedGrayscalePrintManagementMetaSOPClass: UID = UID {
+    ident: "ReferencedGrayscalePrintManagementMetaSOPClass",
     uid: "1.2.840.10008.5.1.1.9.1",
     name: "Referenced Grayscale Print Management Meta SOP Class (Retired)",
 };
@@ -1175,8 +1179,8 @@ pub static BasicColorPrintManagementMetaSOPClass: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.18.1
 /// - **UID Type:** Meta SOP Class
-pub static ReferencedColorPrintManagementMetaSOPClass_Retired: UID = UID {
-    ident: "ReferencedColorPrintManagementMetaSOPClass_Retired",
+pub static ReferencedColorPrintManagementMetaSOPClass: UID = UID {
+    ident: "ReferencedColorPrintManagementMetaSOPClass",
     uid: "1.2.840.10008.5.1.1.18.1",
     name: "Referenced Color Print Management Meta SOP Class (Retired)",
 };
@@ -1205,8 +1209,8 @@ pub static PresentationLUTSOPClass: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.24
 /// - **UID Type:** SOP Class
-pub static ImageOverlayBoxSOPClass_Retired: UID = UID {
-    ident: "ImageOverlayBoxSOPClass_Retired",
+pub static ImageOverlayBoxSOPClass: UID = UID {
+    ident: "ImageOverlayBoxSOPClass",
     uid: "1.2.840.10008.5.1.1.24",
     name: "Image Overlay Box SOP Class (Retired)",
 };
@@ -1215,8 +1219,8 @@ pub static ImageOverlayBoxSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.24.1
 /// - **UID Type:** SOP Class
-pub static BasicPrintImageOverlayBoxSOPClass_Retired: UID = UID {
-    ident: "BasicPrintImageOverlayBoxSOPClass_Retired",
+pub static BasicPrintImageOverlayBoxSOPClass: UID = UID {
+    ident: "BasicPrintImageOverlayBoxSOPClass",
     uid: "1.2.840.10008.5.1.1.24.1",
     name: "Basic Print Image Overlay Box SOP Class (Retired)",
 };
@@ -1225,8 +1229,8 @@ pub static BasicPrintImageOverlayBoxSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.25
 /// - **UID Type:** Well-known Print Queue SOP Instance
-pub static PrintQueueSOPInstance_Retired: UID = UID {
-    ident: "PrintQueueSOPInstance_Retired",
+pub static PrintQueueSOPInstance: UID = UID {
+    ident: "PrintQueueSOPInstance",
     uid: "1.2.840.10008.5.1.1.25",
     name: "Print Queue SOP Instance (Retired)",
 };
@@ -1235,8 +1239,8 @@ pub static PrintQueueSOPInstance_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.26
 /// - **UID Type:** SOP Class
-pub static PrintQueueManagementSOPClass_Retired: UID = UID {
-    ident: "PrintQueueManagementSOPClass_Retired",
+pub static PrintQueueManagementSOPClass: UID = UID {
+    ident: "PrintQueueManagementSOPClass",
     uid: "1.2.840.10008.5.1.1.26",
     name: "Print Queue Management SOP Class (Retired)",
 };
@@ -1245,8 +1249,8 @@ pub static PrintQueueManagementSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.27
 /// - **UID Type:** SOP Class
-pub static StoredPrintStorageSOPClass_Retired: UID = UID {
-    ident: "StoredPrintStorageSOPClass_Retired",
+pub static StoredPrintStorageSOPClass: UID = UID {
+    ident: "StoredPrintStorageSOPClass",
     uid: "1.2.840.10008.5.1.1.27",
     name: "Stored Print Storage SOP Class (Retired)",
 };
@@ -1255,8 +1259,8 @@ pub static StoredPrintStorageSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.29
 /// - **UID Type:** SOP Class
-pub static HardcopyGrayscaleImageStorageSOPClass_Retired: UID = UID {
-    ident: "HardcopyGrayscaleImageStorageSOPClass_Retired",
+pub static HardcopyGrayscaleImageStorageSOPClass: UID = UID {
+    ident: "HardcopyGrayscaleImageStorageSOPClass",
     uid: "1.2.840.10008.5.1.1.29",
     name: "Hardcopy Grayscale Image Storage SOP Class (Retired)",
 };
@@ -1265,8 +1269,8 @@ pub static HardcopyGrayscaleImageStorageSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.30
 /// - **UID Type:** SOP Class
-pub static HardcopyColorImageStorageSOPClass_Retired: UID = UID {
-    ident: "HardcopyColorImageStorageSOPClass_Retired",
+pub static HardcopyColorImageStorageSOPClass: UID = UID {
+    ident: "HardcopyColorImageStorageSOPClass",
     uid: "1.2.840.10008.5.1.1.30",
     name: "Hardcopy Color Image Storage SOP Class (Retired)",
 };
@@ -1275,8 +1279,8 @@ pub static HardcopyColorImageStorageSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.31
 /// - **UID Type:** SOP Class
-pub static PullPrintRequestSOPClass_Retired: UID = UID {
-    ident: "PullPrintRequestSOPClass_Retired",
+pub static PullPrintRequestSOPClass: UID = UID {
+    ident: "PullPrintRequestSOPClass",
     uid: "1.2.840.10008.5.1.1.31",
     name: "Pull Print Request SOP Class (Retired)",
 };
@@ -1285,8 +1289,8 @@ pub static PullPrintRequestSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.1.32
 /// - **UID Type:** Meta SOP Class
-pub static PullStoredPrintManagementMetaSOPClass_Retired: UID = UID {
-    ident: "PullStoredPrintManagementMetaSOPClass_Retired",
+pub static PullStoredPrintManagementMetaSOPClass: UID = UID {
+    ident: "PullStoredPrintManagementMetaSOPClass",
     uid: "1.2.840.10008.5.1.1.32",
     name: "Pull Stored Print Management Meta SOP Class (Retired)",
 };
@@ -1585,8 +1589,8 @@ pub static MultiframeTrueColorSecondaryCaptureImageStorage: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.8
 /// - **UID Type:** SOP Class
-pub static StandaloneOverlayStorage_Retired: UID = UID {
-    ident: "StandaloneOverlayStorage_Retired",
+pub static StandaloneOverlayStorage: UID = UID {
+    ident: "StandaloneOverlayStorage",
     uid: "1.2.840.10008.5.1.4.1.1.8",
     name: "Standalone Overlay Storage (Retired)",
 };
@@ -1595,8 +1599,8 @@ pub static StandaloneOverlayStorage_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.9
 /// - **UID Type:** SOP Class
-pub static StandaloneCurveStorage_Retired: UID = UID {
-    ident: "StandaloneCurveStorage_Retired",
+pub static StandaloneCurveStorage: UID = UID {
+    ident: "StandaloneCurveStorage",
     uid: "1.2.840.10008.5.1.4.1.1.9",
     name: "Standalone Curve Storage (Retired)",
 };
@@ -1605,8 +1609,8 @@ pub static StandaloneCurveStorage_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.9.1
 /// - **UID Type:** SOP Class
-pub static WaveformStorageTrial_Retired: UID = UID {
-    ident: "WaveformStorageTrial_Retired",
+pub static WaveformStorageTrial: UID = UID {
+    ident: "WaveformStorageTrial",
     uid: "1.2.840.10008.5.1.4.1.1.9.1",
     name: "Waveform Storage - Trial (Retired)",
 };
@@ -1705,8 +1709,8 @@ pub static RespiratoryWaveformStorage: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.10
 /// - **UID Type:** SOP Class
-pub static StandaloneModalityLUTStorage_Retired: UID = UID {
-    ident: "StandaloneModalityLUTStorage_Retired",
+pub static StandaloneModalityLUTStorage: UID = UID {
+    ident: "StandaloneModalityLUTStorage",
     uid: "1.2.840.10008.5.1.4.1.1.10",
     name: "Standalone Modality LUT Storage (Retired)",
 };
@@ -1715,8 +1719,8 @@ pub static StandaloneModalityLUTStorage_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.11
 /// - **UID Type:** SOP Class
-pub static StandaloneVOILUTStorage_Retired: UID = UID {
-    ident: "StandaloneVOILUTStorage_Retired",
+pub static StandaloneVOILUTStorage: UID = UID {
+    ident: "StandaloneVOILUTStorage",
     uid: "1.2.840.10008.5.1.4.1.1.11",
     name: "Standalone VOI LUT Storage (Retired)",
 };
@@ -1835,8 +1839,8 @@ pub static EnhancedXRFImageStorage: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.12.3
 /// - **UID Type:** SOP Class
-pub static XRayAngiographicBiPlaneImageStorage_Retired: UID = UID {
-    ident: "XRayAngiographicBiPlaneImageStorage_Retired",
+pub static XRayAngiographicBiPlaneImageStorage: UID = UID {
+    ident: "XRayAngiographicBiPlaneImageStorage",
     uid: "1.2.840.10008.5.1.4.1.1.12.3",
     name: "X-Ray Angiographic Bi-Plane Image Storage (Retired)",
 };
@@ -2035,8 +2039,8 @@ pub static SurfaceScanPointCloudStorage: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.77.1
 /// - **UID Type:** SOP Class
-pub static VLImageStorageTrial_Retired: UID = UID {
-    ident: "VLImageStorageTrial_Retired",
+pub static VLImageStorageTrial: UID = UID {
+    ident: "VLImageStorageTrial",
     uid: "1.2.840.10008.5.1.4.1.1.77.1",
     name: "VL Image Storage - Trial (Retired)",
 };
@@ -2045,8 +2049,8 @@ pub static VLImageStorageTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.77.2
 /// - **UID Type:** SOP Class
-pub static VLMultiframeImageStorageTrial_Retired: UID = UID {
-    ident: "VLMultiframeImageStorageTrial_Retired",
+pub static VLMultiframeImageStorageTrial: UID = UID {
+    ident: "VLMultiframeImageStorageTrial",
     uid: "1.2.840.10008.5.1.4.1.1.77.2",
     name: "VL Multi-frame Image Storage - Trial (Retired)",
 };
@@ -2315,8 +2319,8 @@ pub static CornealTopographyMapStorage: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.88.1
 /// - **UID Type:** SOP Class
-pub static TextSRStorageTrial_Retired: UID = UID {
-    ident: "TextSRStorageTrial_Retired",
+pub static TextSRStorageTrial: UID = UID {
+    ident: "TextSRStorageTrial",
     uid: "1.2.840.10008.5.1.4.1.1.88.1",
     name: "Text SR Storage - Trial (Retired)",
 };
@@ -2325,8 +2329,8 @@ pub static TextSRStorageTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.88.2
 /// - **UID Type:** SOP Class
-pub static AudioSRStorageTrial_Retired: UID = UID {
-    ident: "AudioSRStorageTrial_Retired",
+pub static AudioSRStorageTrial: UID = UID {
+    ident: "AudioSRStorageTrial",
     uid: "1.2.840.10008.5.1.4.1.1.88.2",
     name: "Audio SR Storage - Trial (Retired)",
 };
@@ -2335,8 +2339,8 @@ pub static AudioSRStorageTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.88.3
 /// - **UID Type:** SOP Class
-pub static DetailSRStorageTrial_Retired: UID = UID {
-    ident: "DetailSRStorageTrial_Retired",
+pub static DetailSRStorageTrial: UID = UID {
+    ident: "DetailSRStorageTrial",
     uid: "1.2.840.10008.5.1.4.1.1.88.3",
     name: "Detail SR Storage - Trial (Retired)",
 };
@@ -2345,8 +2349,8 @@ pub static DetailSRStorageTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.88.4
 /// - **UID Type:** SOP Class
-pub static ComprehensiveSRStorageTrial_Retired: UID = UID {
-    ident: "ComprehensiveSRStorageTrial_Retired",
+pub static ComprehensiveSRStorageTrial: UID = UID {
+    ident: "ComprehensiveSRStorageTrial",
     uid: "1.2.840.10008.5.1.4.1.1.88.4",
     name: "Comprehensive SR Storage - Trial (Retired)",
 };
@@ -2555,8 +2559,8 @@ pub static LegacyConvertedEnhancedPETImageStorage: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.129
 /// - **UID Type:** SOP Class
-pub static StandalonePETCurveStorage_Retired: UID = UID {
-    ident: "StandalonePETCurveStorage_Retired",
+pub static StandalonePETCurveStorage: UID = UID {
+    ident: "StandalonePETCurveStorage",
     uid: "1.2.840.10008.5.1.4.1.1.129",
     name: "Standalone PET Curve Storage (Retired)",
 };
@@ -2845,8 +2849,8 @@ pub static StudyRootQueryRetrieveInformationModelGET: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.2.3.1
 /// - **UID Type:** SOP Class
-pub static PatientStudyOnlyQueryRetrieveInformationModelFIND_Retired: UID = UID {
-    ident: "PatientStudyOnlyQueryRetrieveInformationModelFIND_Retired",
+pub static PatientStudyOnlyQueryRetrieveInformationModelFIND: UID = UID {
+    ident: "PatientStudyOnlyQueryRetrieveInformationModelFIND",
     uid: "1.2.840.10008.5.1.4.1.2.3.1",
     name: "Patient/Study Only Query/Retrieve Information Model - FIND (Retired)",
 };
@@ -2855,8 +2859,8 @@ pub static PatientStudyOnlyQueryRetrieveInformationModelFIND_Retired: UID = UID 
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.2.3.2
 /// - **UID Type:** SOP Class
-pub static PatientStudyOnlyQueryRetrieveInformationModelMOVE_Retired: UID = UID {
-    ident: "PatientStudyOnlyQueryRetrieveInformationModelMOVE_Retired",
+pub static PatientStudyOnlyQueryRetrieveInformationModelMOVE: UID = UID {
+    ident: "PatientStudyOnlyQueryRetrieveInformationModelMOVE",
     uid: "1.2.840.10008.5.1.4.1.2.3.2",
     name: "Patient/Study Only Query/Retrieve Information Model - MOVE (Retired)",
 };
@@ -2865,8 +2869,8 @@ pub static PatientStudyOnlyQueryRetrieveInformationModelMOVE_Retired: UID = UID 
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.2.3.3
 /// - **UID Type:** SOP Class
-pub static PatientStudyOnlyQueryRetrieveInformationModelGET_Retired: UID = UID {
-    ident: "PatientStudyOnlyQueryRetrieveInformationModelGET_Retired",
+pub static PatientStudyOnlyQueryRetrieveInformationModelGET: UID = UID {
+    ident: "PatientStudyOnlyQueryRetrieveInformationModelGET",
     uid: "1.2.840.10008.5.1.4.1.2.3.3",
     name: "Patient/Study Only Query/Retrieve Information Model - GET (Retired)",
 };
@@ -2945,8 +2949,8 @@ pub static ModalityWorklistInformationModelFIND: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.32
 /// - **UID Type:** Meta SOP Class
-pub static GeneralPurposeWorklistManagementMetaSOPClass_Retired: UID = UID {
-    ident: "GeneralPurposeWorklistManagementMetaSOPClass_Retired",
+pub static GeneralPurposeWorklistManagementMetaSOPClass: UID = UID {
+    ident: "GeneralPurposeWorklistManagementMetaSOPClass",
     uid: "1.2.840.10008.5.1.4.32",
     name: "General Purpose Worklist Management Meta SOP Class (Retired)",
 };
@@ -2955,8 +2959,8 @@ pub static GeneralPurposeWorklistManagementMetaSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.32.1
 /// - **UID Type:** SOP Class
-pub static GeneralPurposeWorklistInformationModelFIND_Retired: UID = UID {
-    ident: "GeneralPurposeWorklistInformationModelFIND_Retired",
+pub static GeneralPurposeWorklistInformationModelFIND: UID = UID {
+    ident: "GeneralPurposeWorklistInformationModelFIND",
     uid: "1.2.840.10008.5.1.4.32.1",
     name: "General Purpose Worklist Information Model - FIND (Retired)",
 };
@@ -2965,8 +2969,8 @@ pub static GeneralPurposeWorklistInformationModelFIND_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.32.2
 /// - **UID Type:** SOP Class
-pub static GeneralPurposeScheduledProcedureStepSOPClass_Retired: UID = UID {
-    ident: "GeneralPurposeScheduledProcedureStepSOPClass_Retired",
+pub static GeneralPurposeScheduledProcedureStepSOPClass: UID = UID {
+    ident: "GeneralPurposeScheduledProcedureStepSOPClass",
     uid: "1.2.840.10008.5.1.4.32.2",
     name: "General Purpose Scheduled Procedure Step SOP Class (Retired)",
 };
@@ -2975,8 +2979,8 @@ pub static GeneralPurposeScheduledProcedureStepSOPClass_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.32.3
 /// - **UID Type:** SOP Class
-pub static GeneralPurposePerformedProcedureStepSOPClass_Retired: UID = UID {
-    ident: "GeneralPurposePerformedProcedureStepSOPClass_Retired",
+pub static GeneralPurposePerformedProcedureStepSOPClass: UID = UID {
+    ident: "GeneralPurposePerformedProcedureStepSOPClass",
     uid: "1.2.840.10008.5.1.4.32.3",
     name: "General Purpose Performed Procedure Step SOP Class (Retired)",
 };
@@ -2995,8 +2999,8 @@ pub static InstanceAvailabilityNotificationSOPClass: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.1
 /// - **UID Type:** SOP Class
-pub static RTBeamsDeliveryInstructionStorageTrial_Retired: UID = UID {
-    ident: "RTBeamsDeliveryInstructionStorageTrial_Retired",
+pub static RTBeamsDeliveryInstructionStorageTrial: UID = UID {
+    ident: "RTBeamsDeliveryInstructionStorageTrial",
     uid: "1.2.840.10008.5.1.4.34.1",
     name: "RT Beams Delivery Instruction Storage - Trial (Retired)",
 };
@@ -3005,8 +3009,8 @@ pub static RTBeamsDeliveryInstructionStorageTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.2
 /// - **UID Type:** SOP Class
-pub static RTConventionalMachineVerificationTrial_Retired: UID = UID {
-    ident: "RTConventionalMachineVerificationTrial_Retired",
+pub static RTConventionalMachineVerificationTrial: UID = UID {
+    ident: "RTConventionalMachineVerificationTrial",
     uid: "1.2.840.10008.5.1.4.34.2",
     name: "RT Conventional Machine Verification - Trial (Retired)",
 };
@@ -3015,8 +3019,8 @@ pub static RTConventionalMachineVerificationTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.3
 /// - **UID Type:** SOP Class
-pub static RTIonMachineVerificationTrial_Retired: UID = UID {
-    ident: "RTIonMachineVerificationTrial_Retired",
+pub static RTIonMachineVerificationTrial: UID = UID {
+    ident: "RTIonMachineVerificationTrial",
     uid: "1.2.840.10008.5.1.4.34.3",
     name: "RT Ion Machine Verification - Trial (Retired)",
 };
@@ -3025,8 +3029,8 @@ pub static RTIonMachineVerificationTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.4
 /// - **UID Type:** Service Class
-pub static UnifiedWorklistandProcedureStepServiceClassTrial_Retired: UID = UID {
-    ident: "UnifiedWorklistandProcedureStepServiceClassTrial_Retired",
+pub static UnifiedWorklistandProcedureStepServiceClassTrial: UID = UID {
+    ident: "UnifiedWorklistandProcedureStepServiceClassTrial",
     uid: "1.2.840.10008.5.1.4.34.4",
     name: "Unified Worklist and Procedure Step Service Class - Trial (Retired)",
 };
@@ -3035,8 +3039,8 @@ pub static UnifiedWorklistandProcedureStepServiceClassTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.4.1
 /// - **UID Type:** SOP Class
-pub static UnifiedProcedureStepPushSOPClassTrial_Retired: UID = UID {
-    ident: "UnifiedProcedureStepPushSOPClassTrial_Retired",
+pub static UnifiedProcedureStepPushSOPClassTrial: UID = UID {
+    ident: "UnifiedProcedureStepPushSOPClassTrial",
     uid: "1.2.840.10008.5.1.4.34.4.1",
     name: "Unified Procedure Step - Push SOP Class - Trial (Retired)",
 };
@@ -3045,8 +3049,8 @@ pub static UnifiedProcedureStepPushSOPClassTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.4.2
 /// - **UID Type:** SOP Class
-pub static UnifiedProcedureStepWatchSOPClassTrial_Retired: UID = UID {
-    ident: "UnifiedProcedureStepWatchSOPClassTrial_Retired",
+pub static UnifiedProcedureStepWatchSOPClassTrial: UID = UID {
+    ident: "UnifiedProcedureStepWatchSOPClassTrial",
     uid: "1.2.840.10008.5.1.4.34.4.2",
     name: "Unified Procedure Step - Watch SOP Class - Trial (Retired)",
 };
@@ -3055,8 +3059,8 @@ pub static UnifiedProcedureStepWatchSOPClassTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.4.3
 /// - **UID Type:** SOP Class
-pub static UnifiedProcedureStepPullSOPClassTrial_Retired: UID = UID {
-    ident: "UnifiedProcedureStepPullSOPClassTrial_Retired",
+pub static UnifiedProcedureStepPullSOPClassTrial: UID = UID {
+    ident: "UnifiedProcedureStepPullSOPClassTrial",
     uid: "1.2.840.10008.5.1.4.34.4.3",
     name: "Unified Procedure Step - Pull SOP Class - Trial (Retired)",
 };
@@ -3065,8 +3069,8 @@ pub static UnifiedProcedureStepPullSOPClassTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.34.4.4
 /// - **UID Type:** SOP Class
-pub static UnifiedProcedureStepEventSOPClassTrial_Retired: UID = UID {
-    ident: "UnifiedProcedureStepEventSOPClassTrial_Retired",
+pub static UnifiedProcedureStepEventSOPClassTrial: UID = UID {
+    ident: "UnifiedProcedureStepEventSOPClassTrial",
     uid: "1.2.840.10008.5.1.4.34.4.4",
     name: "Unified Procedure Step - Event SOP Class - Trial (Retired)",
 };
