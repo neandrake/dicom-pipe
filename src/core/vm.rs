@@ -3,6 +3,7 @@
 
 //! Value Multiplicity
 
+/// Value Multiplicity
 #[derive(Debug, PartialEq, Eq)]
 pub enum VM {
     /// A set number of items: 1, 2, 3, 4, 6, 9, 16, etc.
