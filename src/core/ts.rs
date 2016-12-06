@@ -10,28 +10,28 @@ use std::hash::{Hash, Hasher};
 
 
 #[derive(Debug, Eq)]
-pub struct TransferSyntax<'ts> {
-    pub uid: &'ts UID,
+pub struct TransferSyntax {
+    pub uid: &'static UID,
     pub explicit_vr: bool,
     pub big_endian: bool,
     pub deflated: bool,
     pub encapsulated: bool,
 }
 
-impl<'ts> PartialEq for TransferSyntax<'ts> {
+impl PartialEq for TransferSyntax {
     fn eq(&self, other: &TransferSyntax) -> bool {
         self.uid.eq(other.uid)
     }
 }
 
-impl<'ts> Hash for TransferSyntax<'ts> {
+impl Hash for TransferSyntax {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.uid.hash(state);
     }
 }
 
-impl<'ts> TransferSyntax<'ts> {
-    pub fn new(uid: &UID,
+impl TransferSyntax {
+    pub fn new(uid: &'static UID,
         explicit_vr: bool,
         big_endian: bool,
         deflated: bool,
@@ -45,7 +45,7 @@ impl<'ts> TransferSyntax<'ts> {
         }
     }
 
-    pub fn get_uid(&self) -> &'ts UID {
+    pub fn get_uid(&self) -> &UID {
         self.uid
     }
 
