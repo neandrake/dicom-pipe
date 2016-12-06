@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 
-//! DICOM Element
+//! DICOM Data Elements
 
 use core::{vm, vr};
 
@@ -9,12 +9,19 @@ use std::hash::{Hash, Hasher};
 use std::fmt::{Formatter, LowerHex, Result as FmtResult, UpperHex};
 
 
+/// DICOM Data Element (Tag)
 #[derive(Debug, Eq)]
 pub struct Tag {
+    /// Some identifier or name, useful for lookup (no spaces - matches definition/name in code)
     pub ident: &'static str,
+    /// The tag value
     pub tag: u32,
+    /// The default VR which should be used to read this tag -- used for ImplicitVR
+    /// This should maybe be a Vec<&VR> instead as a handful of tags can use several
     pub implicit_vr: Option<&'static vr::VR>,
+    /// The value multiplicity -- how many values this tag can have
     pub vm: &'static vm::VM,
+    /// Long name or description
     pub desc: &'static str,
 }
 

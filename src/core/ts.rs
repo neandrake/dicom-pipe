@@ -8,13 +8,18 @@ use core::uid::UID;
 
 use std::hash::{Hash, Hasher};
 
-
+/// Transfer Syntax
 #[derive(Debug, Eq)]
 pub struct TransferSyntax {
+    /// The UID of the Transfer Syntax
     pub uid: &'static UID,
+    /// If Native Encoding, whether this encodes with ExplicitVR or ImplicitVR
     pub explicit_vr: bool,
+    /// If Native Encoding, whether this encodes using BigEndian or LittleEndian
     pub big_endian: bool,
+    /// -- unsure
     pub deflated: bool,
+    /// Whether this is Native Encoding or Encapsulated/Compressed
     pub encapsulated: bool,
 }
 
