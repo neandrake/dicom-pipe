@@ -5,6 +5,7 @@
 #![allow(non_upper_case_globals)]
 
 use core::uid::UID;
+
 /// Verification SOP Class
 /// 
 /// - **UID:** 1.2.840.10008.1.1
