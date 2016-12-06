@@ -4,7 +4,6 @@
 
 //! Transfer Syntax UIDs
 
-use core::dict::uids;
 use core::uid::UID;
 
 use std::hash::{Hash, Hasher};
@@ -12,11 +11,11 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Eq)]
 pub struct TransferSyntax<'ts> {
-    uid: &'ts UID,
-    explicit_vr: bool,
-    big_endian: bool,
-    deflated: bool,
-    encapsulated: bool,
+    pub uid: &'ts UID,
+    pub explicit_vr: bool,
+    pub big_endian: bool,
+    pub deflated: bool,
+    pub encapsulated: bool,
 }
 
 impl<'ts> PartialEq for TransferSyntax<'ts> {
@@ -70,68 +69,3 @@ impl<'ts> TransferSyntax<'ts> {
         !self.deflated && !self.encapsulated
     }
 }
-
-
-pub static ImplicitVRLittleEndian: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::ImplicitVRLittleEndian,
-    explicit_vr: false,
-    big_endian: false,
-    deflated: false,
-    encapsulated: false,
-};
-
-pub static ExplicitVRLittleEndian: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::ExplicitVRLittleEndian,
-    explicit_vr: true,
-    big_endian: false,
-    deflated: false,
-    encapsulated: false,
-};
-
-pub static ExplicitVRBigEndian: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::ExplicitVRBigEndian,
-    explicit_vr: true,
-    big_endian: true,
-    deflated: false,
-    encapsulated: false,
-};
-
-pub static DeflatedExplicitVRLittleEndian: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::DeflatedExplicitVRLittleEndian,
-    explicit_vr: true,
-    big_endian: false,
-    deflated: true,
-    encapsulated: false,
-};
-
-pub static JPEGBaselineProcess1: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::JPEGBaselineProcess1,
-    explicit_vr: true,
-    big_endian: false,
-    deflated: false,
-    encapsulated: false,
-};
-
-pub static JPEGExtendedProcess2_and_4: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::JPEGExtendedProcess2_and_4,
-    explicit_vr: true,
-    big_endian: false,
-    deflated: false,
-    encapsulated: false,
-};
-
-pub static JPEGLosslessNonHierarchicalProcess14: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::JPEGLosslessNonHierarchicalProcess14,
-    explicit_vr: true,
-    big_endian: false,
-    deflated: false,
-    encapsulated: false,
-};
-
-pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1: TransferSyntax<'static> = TransferSyntax {
-    uid: &uids::JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1,
-    explicit_vr: true,
-    big_endian: false,
-    deflated: false,
-    encapsulated: false,
-};

@@ -1,7 +1,8 @@
 //! This is a build script that parses a few of the DICOM standard HTML pages
-//! into Rust code for dcmpipe. It specifies to cargo that it should only be run
-//! if the HTML files in build/dicom_constants_html change. This script automatically
-//! runs as part of `cargo build` due to it being specified in `Cargo.toml`
+//! into Rust code for DICOM constants. It specifies to cargo that it should
+//! only be run if the HTML files in build/dicom_constants_html change. This
+//! script automatically runs as part of `cargo build` due to it being
+//! specified in `Cargo.toml`
 //!
 //! I'm not really clear at what point this runs during the build process. According
 //! to the documentation of build scripts it seems that this is only supposed to be
@@ -82,6 +83,7 @@ fn print_rerun_if_changed(files: &[DirEntry]) -> Result<(), Error> {
 /// Processes the HTML files in the given directory into CSV
 /// the converts the CSV format into code, writing files into src/core/
 fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
+    let mut transfer_syntaxes: String = String::new();
     for entry in files {
         let path: &Path = entry.path();
         let path_str: &str = path.to_str().unwrap();
@@ -116,20 +118,35 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
                 if let Some(code) = table_type.process_uid(&uid) {
                     defns.push_str(&code);
                 }
+                if uid.uid_type == "Transfer Syntax" {
+                    if let Some(code) = table_type.process_transfer_syntax(&uid) {
+                        transfer_syntaxes.push_str(&code);
+                    }
+                }
             }
         }
 
-        let mut out_rs_file: File = File::create(table_type.filename()?)?;
-        let preamble: String = table_type.get_codefile_preamble();
+        save_codefile(&table_type, &defns)?;
+    }
 
-        out_rs_file.write_all(&preamble.into_bytes())?;
-        out_rs_file.write_all(&defns.into_bytes())?;
-        out_rs_file.flush()?;
-        out_rs_file.sync_all()?;
+    if !transfer_syntaxes.is_empty() {
+        save_codefile(&TableType::TransferSyntaxes, &transfer_syntaxes)?;
     }
 
     Ok(())
 }
+
+fn save_codefile(table_type: &TableType, code: &str) -> Result<(), Error> {
+    let mut out_rs_file: File = File::create(table_type.filename()?)?;
+    let preamble: String = table_type.get_codefile_preamble();
+
+    out_rs_file.write_all(&preamble.into_bytes())?;
+    out_rs_file.write_all(code.as_bytes())?;
+    out_rs_file.flush()?;
+    out_rs_file.sync_all()?;
+    Ok(())
+}
+
 
 /// The different tables we parse out of the HTML/CSV
 #[derive(Eq, PartialEq, Debug)]
@@ -138,6 +155,7 @@ enum TableType {
     FileMetaElements,
     DirStructureElements,
     Uids,
+    TransferSyntaxes,
 }
 
 impl TableType {
@@ -148,6 +166,7 @@ impl TableType {
     /// - "Part6.Ch7" => FileMetaElements
     /// - "Part6.Ch8" => DirStructureElements
     /// - "Part6.ChA" => Uids
+    /// - Transfer Syntaxes are defined within the Uids table
     pub fn from_filename(path_str: &str) -> Option<TableType> {
         if path_str.contains("Part6.Ch6") { Some(TableType::DicomElements) }
         else if path_str.contains("Part6.Ch7") { Some(TableType::FileMetaElements) }
@@ -159,7 +178,7 @@ impl TableType {
     /// Whether this type is parsing as an element (Tag) or uid (...UID)
     pub fn is_element(&self) -> bool {
         match *self {
-            TableType::Uids => false,
+            TableType::Uids | TableType::TransferSyntaxes => false,
             _ => true
         }
     }
@@ -173,6 +192,7 @@ impl TableType {
             TableType::FileMetaElements => Ok(Path::new("src/core/dict/file_meta_elements.rs")),
             TableType::DirStructureElements => Ok(Path::new("src/core/dict/dir_structure_elements.rs")),
             TableType::Uids => Ok(Path::new("src/core/dict/uids.rs")),
+            TableType::TransferSyntaxes => Ok(Path::new("src/core/dict/transfer_syntaxes.rs")),
         }
     }
 
@@ -237,6 +257,17 @@ impl TableType {
 use core::tag::Tag;
 use core::vm::VM;
 use core::vr;
+
+".to_owned()
+        } else if *self == TableType::Uids {
+"//! This is an auto-generated file. Do not make modifications here.
+
+#![allow(dead_code)]
+#![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
+
+use core::uid::UID;
+
 ".to_owned()
         } else {
 "//! This is an auto-generated file. Do not make modifications here.
@@ -245,17 +276,15 @@ use core::vr;
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-use core::uid::UID;
+use core::dict::uids;
+use core::ts::TransferSyntax;
+
 ".to_owned()
         }
     }
 
     /// Processes a UID entry from CSV and returns the bit of code for it
     pub fn process_uid(&self, uid: &Uid) -> Option<String> {
-        if self.is_element() {
-            return None;
-        }
-
         let var_name: String = TableType::sanitize_var_name(&uid.name);
         if var_name.is_empty() {
             return None;
@@ -281,12 +310,55 @@ pub static {}: UID = UID {{
         Some(code)
     }
 
-    /// Processes an element entry from CSV and returns the bit of code for it
-    pub fn process_element(&self, element: &DataElement) -> Option<String> {
-        if !self.is_element() {
+    /// Processes a UID entry from CSV as a TransferSyntax and returns the bit of code for it
+    pub fn process_transfer_syntax(&self, uid: &Uid) -> Option<String> {
+        let var_name: String = TableType::sanitize_var_name(&uid.name);
+        if var_name.is_empty() {
             return None;
         }
 
+        let var_uid: String = format!("&uids::{}", var_name);
+        let explicit_vr_val: String =
+            if var_name.contains("Explicit") { "true" } else { "false" }.to_owned();
+        
+        let big_endian_val: String =
+            if var_name.contains("BigEndian") { "true" } else { "false" }.to_owned();
+        
+        let deflated_val: String =
+            if var_name.contains("Deflated") { "true"} else { "false" }.to_owned();
+
+        // This assumes if it doesn't state "implicit" or "explicit" then it would be encapsulated
+        // Due to this excerpt from the DICOM standard (Part 5 section 8.2): 
+        // "Pixel data conveyed in the Pixel Data (7FE0,0010) may be sent either
+        // in a Native (uncompressed) Format or in an Encapsulated Format (e.g., compressed)
+        // defined outside the DICOM standard.""
+        
+        let encapsulated_val: String =
+            if !var_name.contains("Explicit") && !var_name.contains("Implicit") { "true" } else { "false" }.to_owned();
+
+        let code: String = format!(
+"/// {}
+/// 
+/// - **UID:** {}
+pub static {}: TransferSyntax<'static> = TransferSyntax {{
+    uid: {},
+    explicit_vr: {},
+    big_endian: {},
+    deflated: {},
+    encapsulated: {},
+}};
+
+",
+            // comment
+            uid.name, uid.value, var_name,
+            // definitions
+            var_uid, explicit_vr_val, big_endian_val, deflated_val, encapsulated_val);
+
+        Some(code)
+    }
+
+    /// Processes an element entry from CSV and returns the bit of code for it
+    pub fn process_element(&self, element: &DataElement) -> Option<String> {
         let var_name: String = TableType::sanitize_var_name(&element.keyword);
         if var_name.is_empty() {
             return None;
