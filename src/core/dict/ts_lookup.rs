@@ -15,15 +15,15 @@ pub struct TransferSyntaxLookup {
 
 impl TransferSyntaxLookup {
 	pub fn by_ident(&self, ident: &str) -> Option<&'static TransferSyntax> {
-		ident_to_ts.get(ident).map(|ts| *ts)
+		self.ident_to_ts.get(ident).map(|ts| *ts)
 	}
 
 	pub fn by_id(&self, id: &str) -> Option<&'static TransferSyntax> {
-		id_to_ts.get(id).map(|ts| *ts)
+		self.id_to_ts.get(id).map(|ts| *ts)
 	}
 
 	pub fn by_uid(&self, uid: &UID) -> Option<&'static TransferSyntax> {
-		uid_to_ts.get(uid).map(|ts| *ts)
+		self.uid_to_ts.get(uid).map(|ts| *ts)
 	}
 
 	pub fn new() -> TransferSyntaxLookup {
@@ -204,7 +204,7 @@ impl TransferSyntaxLookup {
 		uid_to_ts.insert(&uids::Papyrus3ImplicitVRLittleEndian, &ts::Papyrus3ImplicitVRLittleEndian);
 
 
-		TransferSyntax {
+		TransferSyntaxLookup {
 			ident_to_ts: ident_to_ts,
 			id_to_ts: id_to_ts,
 			uid_to_ts: uid_to_ts,
