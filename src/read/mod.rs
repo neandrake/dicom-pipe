@@ -7,17 +7,19 @@ mod mock;
 
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
 
-use std::collections::hash_map::HashMap;
-use std::fmt;
-use std::fs::File;
-use std::io::{Error, ErrorKind, Seek};
-use std::path::Path;
-
 use core::dict::file_meta_elements as fme;
 use core::dict::transfer_syntaxes as ts;
 use core::lookup::Lookup;
 use core::ts::TransferSyntax;
 use core::vr;
+
+use std::collections::hash_map::HashMap;
+use std::fmt;
+use std::fs::File;
+use std::io::{Error, ErrorKind, Seek};
+use std::path::Path;
+use std::string;
+
 
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -198,10 +200,24 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
             None => return Err(Error::new(ErrorKind::InvalidData, "No tag to read"))
         };
 
+        let mut transfer_syntax: &TransferSyntax = &ts::ImplicitVRLittleEndian;
         loop {    
-            let element = self.read_dicom_element::<LittleEndian>()?;
+            let element: DicomElement = self.read_dicom_element::<LittleEndian>()?;
             if element.tag == fme::TransferSyntaxUID.tag {
-                // TODO: lookup the TransferSyntax by UID and switch it out for this element's ts
+                // strip out the padding bytes for the tag being read
+                // TODO: this filtering is generally not correct as it's only padded
+                // at the end of the value. Need to find a fast/easy way to remove trailing 0's
+                let ts_uid_bytes: Vec<u8> = element.bytes.iter()
+                    .filter(|b: &&u8| **b != vr::UI.padding)
+                    .map(|b: &u8| *b)
+                    .collect::<Vec<u8>>();
+
+                let ts_uid: String = String::from_utf8(ts_uid_bytes)
+                    .map_err(|e: string::FromUtf8Error| Error::new(ErrorKind::InvalidData, e))?;
+
+                if let Some(ts) = self.lookup.ts_by_id(&ts_uid) {
+                    transfer_syntax = ts;
+                }
             }
             self.file_meta.insert(element.tag, element);
 
@@ -214,6 +230,11 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
             }
             break;
         }
+
+        // don't set the transfer syntax until after reading all FileMeta, otherwise it 
+        // will attempt to read remaining FME tags as different syntax than ExplicitVRLittleEndian (which is required)
+        self.ts = transfer_syntax;
+
         Ok(())
     }
 }

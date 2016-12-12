@@ -17,8 +17,8 @@ impl TagLookup {
 		self.ident_to_elem.get(ident).map(|tag| *tag)
 	}
 
-	pub fn by_tag(&self, tag: &u32) -> Option<&'static Tag> {
-		self.tag_to_elem.get(tag).map(|tag| *tag)
+	pub fn by_tag(&self, tag: u32) -> Option<&'static Tag> {
+		self.tag_to_elem.get(&tag).map(|tag| *tag)
 	}
 
 	pub fn new() -> TagLookup {
