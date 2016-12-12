@@ -5,11 +5,12 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-use byteorder::{ByteOrder, LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 
 use core::dict::file_meta_elements as fme;
 use core::dict::transfer_syntaxes as ts;
 use core::lookup::Lookup;
+use core::tag::Tag;
 use core::ts::TransferSyntax;
 use core::vr;
 
@@ -19,7 +20,6 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Seek};
 use std::path::Path;
 use std::string;
-
 
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -152,7 +152,15 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
         Ok(bytes)
     }
 
-    pub fn read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<DicomElement, Error> {
+    pub fn read_dicom_element(&mut self) -> Result<DicomElement, Error> {
+        if self.ts.big_endian {
+            self._read_dicom_element::<BigEndian>()
+        } else {
+            self._read_dicom_element::<LittleEndian>()
+        }
+    }
+
+    fn _read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<DicomElement, Error> {
         let tag: u32;
         match self.tag_peek {
             Some(read_tag) => tag = read_tag,
@@ -161,12 +169,14 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
 
         // Clear `self.tag_peek` so subsequent calls will read the next tag value
         self.tag_peek = None;
-
-        // TODO: lookup Tag from tag value and use the default implicit VR
-        let mut vr: &vr::VR = &vr::UN;
-        if self.ts.is_explicit_vr() {
-            vr = self.read_vr()?;
-        }
+        
+        let vr: &vr::VR = if self.ts.explicit_vr {
+            self.read_vr()?
+        } else {
+            self.lookup.tag_by_tag(tag)
+                .and_then(|read_tag: &Tag| read_tag.implicit_vr)
+                .unwrap_or(&vr::UN)
+        };
 
         let vl: u32 = self.read_value_length::<Endian>(vr)?;
         let bytes: Vec<u8> = self.read_value_field(vl)?;
@@ -202,7 +212,7 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
 
         let mut transfer_syntax: &TransferSyntax = &ts::ImplicitVRLittleEndian;
         loop {    
-            let element: DicomElement = self.read_dicom_element::<LittleEndian>()?;
+            let element: DicomElement = self.read_dicom_element()?;
             if element.tag == fme::TransferSyntaxUID.tag {
                 // strip out the padding bytes for the tag being read
                 // TODO: this filtering is generally not correct as it's only padded
