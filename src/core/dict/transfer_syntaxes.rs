@@ -59,7 +59,7 @@ pub static JPEGBaselineProcess1: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Extended (Process 2 & 4): Default Transfer Syntax for Lossy JPEG 12 Bit Image Compression (Process 4 only)
@@ -70,7 +70,7 @@ pub static JPEGExtendedProcess2_and_4: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Extended (Process 3 & 5) (Retired)
@@ -81,7 +81,7 @@ pub static JPEGExtendedProcess3_and_5: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Spectral Selection, Non-Hierarchical (Process 6 & 8) (Retired)
@@ -92,7 +92,7 @@ pub static JPEGSpectralSelectionNonHierarchicalProcess6_and_8: TransferSyntax = 
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Spectral Selection, Non-Hierarchical (Process 7 & 9) (Retired)
@@ -103,7 +103,7 @@ pub static JPEGSpectralSelectionNonHierarchicalProcess7_and_9: TransferSyntax = 
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Full Progression, Non-Hierarchical (Process 10 & 12) (Retired)
@@ -114,7 +114,7 @@ pub static JPEGFullProgressionNonHierarchicalProcess10_and_12: TransferSyntax = 
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Full Progression, Non-Hierarchical (Process 11 & 13) (Retired)
@@ -125,7 +125,7 @@ pub static JPEGFullProgressionNonHierarchicalProcess11_and_13: TransferSyntax = 
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Lossless, Non-Hierarchical (Process 14)
@@ -136,7 +136,7 @@ pub static JPEGLosslessNonHierarchicalProcess14: TransferSyntax = TransferSyntax
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Lossless, Non-Hierarchical (Process 15) (Retired)
@@ -147,7 +147,7 @@ pub static JPEGLosslessNonHierarchicalProcess15: TransferSyntax = TransferSyntax
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Extended, Hierarchical (Process 16 & 18) (Retired)
@@ -158,7 +158,7 @@ pub static JPEGExtendedHierarchicalProcess16_and_18: TransferSyntax = TransferSy
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Extended, Hierarchical (Process 17 & 19) (Retired)
@@ -169,7 +169,7 @@ pub static JPEGExtendedHierarchicalProcess17_and_19: TransferSyntax = TransferSy
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Spectral Selection, Hierarchical (Process 20 & 22) (Retired)
@@ -180,7 +180,7 @@ pub static JPEGSpectralSelectionHierarchicalProcess20_and_22: TransferSyntax = T
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Spectral Selection, Hierarchical (Process 21 & 23) (Retired)
@@ -191,7 +191,7 @@ pub static JPEGSpectralSelectionHierarchicalProcess21_and_23: TransferSyntax = T
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Full Progression, Hierarchical (Process 24 & 26) (Retired)
@@ -202,7 +202,7 @@ pub static JPEGFullProgressionHierarchicalProcess24_and_26: TransferSyntax = Tra
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Full Progression, Hierarchical (Process 25 & 27) (Retired)
@@ -213,7 +213,7 @@ pub static JPEGFullProgressionHierarchicalProcess25_and_27: TransferSyntax = Tra
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Lossless, Hierarchical (Process 28) (Retired)
@@ -224,7 +224,7 @@ pub static JPEGLosslessHierarchicalProcess28: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Lossless, Hierarchical (Process 29) (Retired)
@@ -235,7 +235,7 @@ pub static JPEGLosslessHierarchicalProcess29: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1]): Default Transfer Syntax for Lossless JPEG Image Compression
@@ -246,7 +246,7 @@ pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValu
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG-LS Lossless Image Compression
@@ -257,7 +257,7 @@ pub static JPEGLSLosslessImageCompression: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG-LS Lossy (Near-Lossless) Image Compression
@@ -268,7 +268,7 @@ pub static JPEGLSLossyNearLosslessImageCompression: TransferSyntax = TransferSyn
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG 2000 Image Compression (Lossless Only)
@@ -279,7 +279,7 @@ pub static JPEG2000ImageCompressionLosslessOnly: TransferSyntax = TransferSyntax
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG 2000 Image Compression
@@ -290,7 +290,7 @@ pub static JPEG2000ImageCompression: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG 2000 Part 2 Multi-component Image Compression (Lossless Only)
@@ -301,7 +301,7 @@ pub static JPEG2000Part2MulticomponentImageCompressionLosslessOnly: TransferSynt
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPEG 2000 Part 2 Multi-component Image Compression
@@ -312,7 +312,7 @@ pub static JPEG2000Part2MulticomponentImageCompression: TransferSyntax = Transfe
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPIP Referenced
@@ -323,7 +323,7 @@ pub static JPIPReferenced: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// JPIP Referenced Deflate
@@ -333,8 +333,8 @@ pub static JPIPReferencedDeflate: TransferSyntax = TransferSyntax {
 	uid: &uids::JPIPReferencedDeflate,
 	explicit_vr: false,
 	big_endian: false,
-	deflated: false,
-	encapsulated: true,
+	deflated: true,
+	encapsulated: false,
 };
 
 /// MPEG2 Main Profile / Main Level
@@ -345,7 +345,7 @@ pub static MPEG2MainProfileMainLevel: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// MPEG2 Main Profile / High Level
@@ -356,7 +356,7 @@ pub static MPEG2MainProfileHighLevel: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// MPEG-4 AVC/H.264 High Profile / Level 4.1
@@ -367,7 +367,7 @@ pub static MPEG4AVCH264HighProfileLevel41: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1
@@ -378,7 +378,7 @@ pub static MPEG4AVCH264BDcompatibleHighProfileLevel41: TransferSyntax = Transfer
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video
@@ -389,7 +389,7 @@ pub static MPEG4AVCH264HighProfileLevel42For2DVideo: TransferSyntax = TransferSy
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video
@@ -400,7 +400,7 @@ pub static MPEG4AVCH264HighProfileLevel42For3DVideo: TransferSyntax = TransferSy
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2
@@ -411,7 +411,7 @@ pub static MPEG4AVCH264StereoHighProfileLevel42: TransferSyntax = TransferSyntax
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// HEVC/H.265 Main Profile / Level 5.1
@@ -422,7 +422,7 @@ pub static HEVCH265MainProfileLevel51: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// HEVC/H.265 Main 10 Profile / Level 5.1
@@ -433,7 +433,7 @@ pub static HEVCH265Main10ProfileLevel51: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// RLE Lossless
@@ -444,7 +444,7 @@ pub static RLELossless: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// RFC 2557 MIME encapsulation
@@ -455,7 +455,7 @@ pub static RFC2557MIMEencapsulation: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// XML Encoding
@@ -466,7 +466,7 @@ pub static XMLEncoding: TransferSyntax = TransferSyntax {
 	explicit_vr: false,
 	big_endian: false,
 	deflated: false,
-	encapsulated: true,
+	encapsulated: false,
 };
 
 /// Papyrus 3 Implicit VR Little Endian (Retired)
