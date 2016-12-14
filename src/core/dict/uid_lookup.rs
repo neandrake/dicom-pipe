@@ -6,8 +6,8 @@ use core::uid::UID;
 use std::collections::hash_map::HashMap;
 
 pub struct UidLookup {
-	ident_to_uid: HashMap<&'static str, &'static UID>,
-	id_to_uid: HashMap<&'static str, &'static UID>,
+	pub ident_to_uid: HashMap<&'static str, &'static UID>,
+	pub id_to_uid: HashMap<&'static str, &'static UID>,
 }
 
 impl UidLookup {

@@ -8,8 +8,8 @@ use core::tag::Tag;
 use std::collections::hash_map::HashMap;
 
 pub struct TagLookup {
-	ident_to_elem: HashMap<&'static str, &'static Tag>,
-	tag_to_elem: HashMap<u32, &'static Tag>,
+	pub ident_to_elem: HashMap<&'static str, &'static Tag>,
+	pub tag_to_elem: HashMap<u32, &'static Tag>,
 }
 
 impl TagLookup {

@@ -195,8 +195,8 @@ use core::tag::Tag;
 use std::collections::hash_map::HashMap;
 
 pub struct TagLookup {{
-\tident_to_elem: HashMap<&'static str, &'static Tag>,
-\ttag_to_elem: HashMap<u32, &'static Tag>,
+\tpub ident_to_elem: HashMap<&'static str, &'static Tag>,
+\tpub tag_to_elem: HashMap<u32, &'static Tag>,
 }}
 
 impl TagLookup {{
@@ -233,8 +233,8 @@ use core::uid::UID;
 use std::collections::hash_map::HashMap;
 
 pub struct UidLookup {{
-\tident_to_uid: HashMap<&'static str, &'static UID>,
-\tid_to_uid: HashMap<&'static str, &'static UID>,
+\tpub ident_to_uid: HashMap<&'static str, &'static UID>,
+\tpub id_to_uid: HashMap<&'static str, &'static UID>,
 }}
 
 impl UidLookup {{
@@ -272,9 +272,9 @@ use core::uid::UID;
 use std::collections::hash_map::HashMap;
 
 pub struct TransferSyntaxLookup {{
-\tident_to_ts: HashMap<&'static str, &'static TransferSyntax>,
-\tid_to_ts: HashMap<&'static str, &'static TransferSyntax>,
-\tuid_to_ts: HashMap<&'static UID, &'static TransferSyntax>,
+\tpub ident_to_ts: HashMap<&'static str, &'static TransferSyntax>,
+\tpub id_to_ts: HashMap<&'static str, &'static TransferSyntax>,
+\tpub uid_to_ts: HashMap<&'static UID, &'static TransferSyntax>,
 }}
 
 impl TransferSyntaxLookup {{
@@ -480,11 +480,13 @@ pub static {}: UID = UID {{
         let explicit_vr_val: String =
             if var_name.contains("Explicit") { "true" } else { "false" }.to_owned();
         
+        // Part 5 section 7.3
+        // All unretired Transfer Syntaxes in DICOM require the use of Little Endian Byte Ordering.
         let big_endian_val: String =
             if var_name.contains("BigEndian") { "true" } else { "false" }.to_owned();
         
         let deflated_val: String =
-            if var_name.contains("Deflated") { "true"} else { "false" }.to_owned();
+            if var_name.contains("Deflate") { "true"} else { "false" }.to_owned();
 
         // This assumes if it doesn't state "implicit" or "explicit" then it would be encapsulated
         // Due to this excerpt from the DICOM standard (Part 5 section 8.2): 
@@ -493,7 +495,7 @@ pub static {}: UID = UID {{
         // defined outside the DICOM standard.""
         
         let encapsulated_val: String =
-            if !var_name.contains("Explicit") && !var_name.contains("Implicit") { "true" } else { "false" }.to_owned();
+            if var_name.contains("Encapsulate") { "true" } else { "false" }.to_owned();
 
         let code: String = format!(
 "/// {}
