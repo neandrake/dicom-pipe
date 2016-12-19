@@ -6,6 +6,8 @@ dependencies = [
  "csv 0.14.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "encoding 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
  "htmltbl2csv 0.1.0",
+ "phf 0.7.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "phf_codegen 0.7.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

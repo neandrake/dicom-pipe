@@ -1,15 +1,13 @@
-extern crate byteorder;
-
-#[cfg(test)]
-mod tests;
 #[cfg(test)]
 mod mock;
+#[cfg(test)]
+mod tests;
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 
 use core::dict::file_meta_elements as fme;
+use core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
 use core::dict::transfer_syntaxes as ts;
-use core::lookup::Lookup;
 use core::tag::Tag;
 use core::ts::TransferSyntax;
 use core::vr;
@@ -28,7 +26,7 @@ pub const DICOM_PREFIX_LENGTH: usize = 4;
 pub static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
 
-pub struct DicomStream<'lookup, StreamType> {
+pub struct DicomStream<StreamType> {
     stream: StreamType,
 
     file_preamble: [u8;FILE_PREAMBLE_LENGTH],
@@ -39,8 +37,6 @@ pub struct DicomStream<'lookup, StreamType> {
 
     // To allow peeking the next tag without fully reading the next element 
     tag_peek: Option<u32>,
-
-    lookup: &'lookup Lookup,
 }
 
 pub struct DicomElement {
@@ -56,20 +52,20 @@ impl fmt::Debug for DicomElement {
     }
 }
 
-impl<'lookup> DicomStream<'lookup, File> {
-    pub fn new_from_path(path: &Path, lookup: &'lookup Lookup) -> Result<DicomStream<'lookup, File>, Error> {
+impl DicomStream<File> {
+    pub fn new_from_path(path: &Path) -> Result<DicomStream<File>, Error> {
         if !path.is_file() {
             return Err(Error::new(ErrorKind::InvalidData,
                                           format!("Invalid path: {:?}", path)));
         }
 
         let file: File = File::open(path)?;
-        Ok::<DicomStream<File>, Error>(DicomStream::new(file, lookup))
+        Ok::<DicomStream<File>, Error>(DicomStream::new(file))
     }
 }
 
-impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> {
-    pub fn new(stream: StreamType, lookup: &'lookup Lookup) -> DicomStream<'lookup, StreamType> {
+impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
+    pub fn new(stream: StreamType) -> DicomStream<StreamType> {
         DicomStream {
             stream: stream,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
@@ -77,7 +73,6 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
             file_meta: HashMap::with_capacity(12),
             ts: &ts::ExplicitVRLittleEndian,
             tag_peek: None,
-            lookup: lookup,
         }
     }
 
@@ -173,8 +168,8 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
         let vr: &vr::VR = if self.ts.explicit_vr {
             self.read_vr()?
         } else {
-            self.lookup.tag_by_tag(tag)
-                .and_then(|read_tag: &Tag| read_tag.implicit_vr)
+            TAG_BY_VALUE.get(&tag)
+                .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
                 .unwrap_or(&vr::UN)
         };
 
@@ -224,8 +219,9 @@ impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> 
 
                 let ts_uid: String = String::from_utf8(ts_uid_bytes)
                     .map_err(|e: string::FromUtf8Error| Error::new(ErrorKind::InvalidData, e))?;
-
-                if let Some(ts) = self.lookup.ts_by_id(&ts_uid) {
+                
+                let ts_uid_str: &str = ts_uid.as_ref();
+                if let Some(ts) = TS_BY_ID.get(ts_uid_str) {
                     transfer_syntax = ts;
                 }
             }

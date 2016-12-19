@@ -7,10 +7,12 @@ build = "build/buildconstants.rs"
 [dependencies]
 byteorder = "0.5"
 encoding = "0.2"
+phf = "0.7"
 walkdir = "1"
 
 [build-dependencies]
 csv = "0.14"
 htmltbl2csv = { path = "../htmltbl2csv", version = "0.1" }
+phf_codegen = "0.7"
 rustc-serialize = "0.3"
 walkdir = "1"
