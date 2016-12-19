@@ -15,7 +15,7 @@ use core::vr;
 use std::collections::hash_map::HashMap;
 use std::fmt;
 use std::fs::File;
-use std::io::{Error, ErrorKind, Seek};
+use std::io::{Cursor, Error, ErrorKind, Seek};
 use std::path::Path;
 use std::string;
 
@@ -37,6 +37,8 @@ pub struct DicomStream<StreamType> {
 
     // To allow peeking the next tag without fully reading the next element 
     tag_peek: Option<u32>,
+
+    bytes_read: usize,
 }
 
 pub struct DicomElement {
@@ -73,6 +75,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             file_meta: HashMap::with_capacity(12),
             ts: &ts::ExplicitVRLittleEndian,
             tag_peek: None,
+            bytes_read: 0usize,
         }
     }
 
@@ -89,11 +92,14 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     }
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
-        self.stream.read_exact(&mut self.file_preamble)
+        self.stream.read_exact(&mut self.file_preamble)?;
+        self.bytes_read += self.file_preamble.len();
+        Ok(())
     }
 
     pub fn read_dicom_prefix(&mut self) -> Result<(), Error> {
         self.stream.read_exact(&mut self.dicom_prefix)?;
+        self.bytes_read += self.dicom_prefix.len();
 
         for n in 0..DICOM_PREFIX.len() {
             if self.dicom_prefix[n] != DICOM_PREFIX[n] {
@@ -117,6 +123,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         let second: u32 = self.stream.read_u16::<Endian>()? as u32;
         let result: u32 = first + second;
         self.tag_peek = Some(result);
+        self.bytes_read += 4;
         Ok(result)
     }
 
@@ -124,6 +131,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         let first_char: u8 = self.stream.read_u8()?;
         let second_char: u8 = self.stream.read_u8()?;
         let code: u16 = ((first_char as u16) << 8) + second_char as u16;
+        self.bytes_read += 2;
         match vr::VR::code_to_vr(code) {
             Some(vr) => Ok(vr),
             None => Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
@@ -131,19 +139,22 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     }
 
     pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: &vr::VR) -> Result<u32, Error> {
-        match vr.explicit_vr_header_bytes {
+        let vl: u32 = match vr.explicit_vr_header_bytes {
             8 => self.stream.read_u16::<Endian>().map(|n| n as u32),
             12 => {
                 self.stream.read_u16::<Endian>()?;
                 self.stream.read_u32::<Endian>()
             },
             n => Err(Error::new(ErrorKind::InvalidData, format!("Invalid VR Header Length: {:?}", n))),
-        }
+        }?;
+        self.bytes_read += vr.explicit_vr_header_bytes as usize;
+        Ok(vl)
     }
 
     pub fn read_value_field(&mut self, value_length: u32) -> Result<Vec<u8>, Error> {
         let mut bytes: Vec<u8> = vec![0;value_length as usize];
         self.stream.read_exact(bytes.as_mut_slice())?;
+        self.bytes_read += value_length as usize;
         Ok(bytes)
     }
 
@@ -190,23 +201,23 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         self.read_file_preamble()?;
         self.read_dicom_prefix()?;
 
-        // All FileMetaInformation fields are encoded as LittleEndian
-        // But reading the TransferSyntax should swap the 
+        let bytes_read_before_fme: usize = self.bytes_read;
 
-        // In theory the value of the FileMetaInformationGroupLength tells us
-        // how many more bytes to read to reach the end of the File Meta tags
-        self.read_tag::<LittleEndian>()?;
-        match self.tag_peek {
-            Some(read_tag) => {
-                if read_tag != fme::FileMetaInformationGroupLength.tag {
-                    return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:08X}", read_tag)))
-                }
-            },
-            None => return Err(Error::new(ErrorKind::InvalidData, "No tag to read"))
-        };
+        // All FileMetaInformation fields are encoded as LittleEndian
+
+        // The FileMetaInformationGroupLength is required first element and
+        // tells us how many bytes to reach end of FileMetaInformation
+        let fmi_grouplength: DicomElement = self.read_dicom_element()?;
+        if fmi_grouplength.tag != fme::FileMetaInformationGroupLength.tag {
+            return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", fmi_grouplength)))
+        }
+
+        // TODO: this reading of bytes as u32 should be part of VR (and remove padding)
+        let mut fmi_grouplength_rdr: Cursor<Vec<u8>> = Cursor::new(fmi_grouplength.bytes);
+        let fme_bytes: usize = fmi_grouplength_rdr.read_u32::<LittleEndian>()? as usize;
 
         let mut transfer_syntax: &TransferSyntax = &ts::ImplicitVRLittleEndian;
-        loop {    
+        while self.bytes_read - bytes_read_before_fme < fme_bytes {    
             let element: DicomElement = self.read_dicom_element()?;
             if element.tag == fme::TransferSyntaxUID.tag {
                 // strip out the padding bytes for the tag being read
@@ -226,15 +237,6 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
                 }
             }
             self.file_meta.insert(element.tag, element);
-
-            // Peek the next tag, all tags in 0002,xxxx are reserved for FileMetaInformation
-            self.read_tag::<LittleEndian>()?;
-            if let Some(read_tag) = self.tag_peek {
-                if read_tag < 0x0003_0000 {
-                    continue;
-                }
-            }
-            break;
         }
 
         // don't set the transfer syntax until after reading all FileMeta, otherwise it 
