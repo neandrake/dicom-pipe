@@ -6,7 +6,7 @@ extern crate walkdir;
 use byteorder::ReadBytesExt;
 
 use read::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
-use read::{DicomElement, DicomStream};
+use read::DicomStream;
 use read::mock::MockDicomStream;
 
 use std::fs::File;
@@ -75,7 +75,6 @@ fn test_parse_known_dicom_files() {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
 
-
         let mut dstream: DicomStream<File> = DicomStream::new_from_path(path, )
             .expect("Unable to read file");
 
@@ -84,8 +83,9 @@ fn test_parse_known_dicom_files() {
         let is_dcm = is_standard_preamble(&dstream);
         assert!(is_dcm);
 
-        let element: DicomElement = dstream.read_dicom_element()
-            .expect("Unable to read element");
+        // Ability to read dicom element after FileMetaInformation
+        // means that we interpret the transfer syntax properly
+        dstream.read_dicom_element().expect("Unable to read element");
     }
 }
 
