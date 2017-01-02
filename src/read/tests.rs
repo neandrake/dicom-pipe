@@ -5,8 +5,8 @@ extern crate walkdir;
 
 use byteorder::ReadBytesExt;
 
-use read::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
-use read::DicomStream;
+use read::dcmelement::DicomElement;
+use read::dcmstream::{DicomStream, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::mock::MockDicomStream;
 
 use std::fs::File;
@@ -61,7 +61,7 @@ fn test_failure_to_read_preamble() {
         MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
     test_stream.read_file_preamble()
         .expect("This should fail to read preamble due to not enough data");
-    let start_pos: usize = test_stream.stream.pos;
+    let start_pos: usize = test_stream.get_stream().pos;
     assert!(start_pos != 0);
 }
 
@@ -83,9 +83,10 @@ fn test_parse_known_dicom_files() {
         let is_dcm = is_standard_preamble(&dstream);
         assert!(is_dcm);
 
-        // Ability to read dicom element after FileMetaInformation
+        // Ability to read dicom elements after FileMetaInformation
         // means that we interpret the transfer syntax properly
-        dstream.read_dicom_element().expect("Unable to read element");
+        let elem: DicomElement = dstream.read_dicom_element().expect("Unable to read element");
+        println!("Read Element: {:?}", elem);
     }
 }
 
@@ -93,12 +94,12 @@ fn test_parse_known_dicom_files() {
 fn is_standard_preamble<StreamType>(stream: &DicomStream<StreamType>) -> bool
     where StreamType: ReadBytesExt + Seek {
     for i in 0..FILE_PREAMBLE_LENGTH {
-        if stream.file_preamble[i] != 0 {
+        if stream.get_file_preamble()[i] != 0 {
             return false;
         }
     }
     for i in 0..DICOM_PREFIX_LENGTH {
-        if stream.dicom_prefix[i] != DICOM_PREFIX[i] {
+        if stream.get_dicom_prefix()[i] != DICOM_PREFIX[i] {
             return false;
         }
     }
