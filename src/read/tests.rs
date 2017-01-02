@@ -85,7 +85,13 @@ fn test_parse_known_dicom_files() {
 
         // Ability to read dicom elements after FileMetaInformation
         // means that we interpret the transfer syntax properly
-        let elem: DicomElement = dstream.read_dicom_element().expect("Unable to read element");
+        let mut elem: DicomElement = dstream.read_dicom_element().expect("Unable to read first element");
+        println!("Read Element: {:?}", elem);
+
+        elem = dstream.read_dicom_element().expect("Unable to read second element");
+        println!("Read Element: {:?}", elem);
+
+        elem = dstream.read_dicom_element().expect("Unable to read third element");
         println!("Read Element: {:?}", elem);
     }
 }
