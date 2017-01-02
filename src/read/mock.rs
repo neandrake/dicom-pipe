@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use read::DicomStream;
+use read::dcmstream::DicomStream;
 
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
