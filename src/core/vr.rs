@@ -18,7 +18,7 @@ pub struct VR {
 	pub padding: u8,
 
 	/// If this VR is encoded explicitly, then depending on VR there might be a 2-byte padding after the VR encoding
-	/// Part 5 Ch 7.1.3:
+	/// Part 5 Ch 7.1.2:
 	/// For VRs of OB, OD, OF, OL, OW, SQ, UC, UR, UT or UN the 16 bits
 	/// following the two byte VR Field are reserved for use by later
 	/// versions of the DICOM Standard. These reserved bytes shall be

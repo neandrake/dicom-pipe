@@ -5,7 +5,8 @@ use core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
 use core::dict::transfer_syntaxes as ts;
 use core::tag::Tag;
 use core::ts::TransferSyntax;
-use core::vl::{from_value_length, ValueLength};
+use core::vl;
+use core::vl::ValueLength;
 use core::vr;
 
 use read::dcmelement::DicomElement;
@@ -133,7 +134,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             value_length = self.stream.read_u32::<Endian>()?;
             self.bytes_read += 4;
         }
-        Ok(from_value_length(value_length))
+        Ok(vl::from_value_length(value_length))
     }
 
     pub fn read_value_field(&mut self, vl: &ValueLength) -> Result<Vec<u8>, Error> {
