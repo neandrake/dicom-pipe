@@ -9,11 +9,15 @@ use core::vl;
 use core::vl::ValueLength;
 use core::vr;
 
+use encoding::types::EncodingRef;
+use encoding::all::WINDOWS_1252;
+
 use read::dcmelement::DicomElement;
+use read::tagstop::TagStop;
 
 use std::collections::hash_map::HashMap;
 use std::fs::File;
-use std::io::{Cursor, Error, ErrorKind};
+use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::string;
 
@@ -24,19 +28,19 @@ pub const DICOM_PREFIX_LENGTH: usize = 4;
 pub static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
 
-pub struct DicomStream<StreamType> {
+pub struct DicomStream<StreamType: ReadBytesExt> {
     stream: StreamType,
+    bytes_read: usize,
 
     file_preamble: [u8;FILE_PREAMBLE_LENGTH],
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
-    file_meta: HashMap<u32, DicomElement>,
+    elements: HashMap<u32, DicomElement>,
     ts: &'static TransferSyntax,
+    cs: EncodingRef,
 
     // To allow peeking the next tag without fully reading the next element 
     tag_peek: Option<u32>,
-
-    bytes_read: usize,
 }
 
 impl DicomStream<File> {
@@ -55,12 +59,13 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     pub fn new(stream: StreamType) -> DicomStream<StreamType> {
         DicomStream {
             stream: stream,
+            bytes_read: 0usize,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
-            file_meta: HashMap::with_capacity(12),
+            elements: HashMap::with_capacity(64),
             ts: &ts::ExplicitVRLittleEndian,
+            cs: WINDOWS_1252 as EncodingRef,
             tag_peek: None,
-            bytes_read: 0usize,
         }
     }
 
@@ -76,6 +81,16 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         &self.dicom_prefix
     }
 
+    pub fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
+        self.elements.get(&tag)
+            .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
+    }
+
+    pub fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
+        self.elements.get_mut(&tag)
+            .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
+    }
+
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
         self.stream.read_exact(&mut self.file_preamble)?;
         self.bytes_read += self.file_preamble.len();
@@ -89,7 +104,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         for n in 0..DICOM_PREFIX.len() {
             if self.dicom_prefix[n] != DICOM_PREFIX[n] {
                 return Err(Error::new(ErrorKind::InvalidData,
-                                    format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix)));
+                    format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix)));
             }
         }
 
@@ -102,7 +117,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     /// return the previously peek'd value until `self.tag_peek` is cleared.
     pub fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         if self.tag_peek != None {
-            return self.tag_peek.ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to read next tag")));
+            return self.tag_peek
+                .ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to read next tag")));
         }
         let first: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
         self.bytes_read += 2;
@@ -168,7 +184,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
     }
 
-    pub fn read_dicom_element(&mut self) -> Result<DicomElement, Error> {
+    pub fn read_dicom_element(&mut self) -> Result<u32, Error> {
         if self.ts.big_endian {
             self._read_dicom_element::<BigEndian>()
         } else {
@@ -176,7 +192,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
     }
 
-    fn _read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<DicomElement, Error> {
+    fn _read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         let tag: u32 = match self.tag_peek {
             Some(read_tag) => read_tag,
             None => self.read_tag::<Endian>()?,
@@ -191,12 +207,10 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         //println!("Read VL: {:?}", vl);
         let bytes: Vec<u8> = self.read_value_field(&vl)?;
 
-        Ok(DicomElement {
-            tag: tag,
-            vr: vr,
-            vl: vl,
-            bytes: bytes,
-        })
+        let element: DicomElement = DicomElement::new(tag, vr, vl, bytes);
+
+        self.elements.insert(tag, element);
+        Ok(tag)
     }
 
     pub fn read_file_meta(&mut self) -> Result<(), Error> {
@@ -211,23 +225,25 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
         // The FileMetaInformationGroupLength is required first element and
         // tells us how many bytes to reach end of FileMetaInformation
-        let fmi_grouplength: DicomElement = self.read_dicom_element()?;
-        if fmi_grouplength.tag != fme::FileMetaInformationGroupLength.tag {
-            return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", fmi_grouplength)))
+        let fme_bytes: usize;
+        let fmi_grouplength_tag: u32 = self.read_dicom_element()?;
+        if fmi_grouplength_tag != fme::FileMetaInformationGroupLength.tag {
+            return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", fmi_grouplength_tag)))
+        } else {
+            let fmi_grouplength: &mut DicomElement = self.get_element_mut(fmi_grouplength_tag)?;
+            // TODO: this reading of bytes as u32 should be part of VR (and remove padding)
+            fme_bytes = fmi_grouplength.get_value_mut().read_u32::<LittleEndian>()? as usize;
         }
 
-        // TODO: this reading of bytes as u32 should be part of VR (and remove padding)
-        let mut fmi_grouplength_rdr: Cursor<Vec<u8>> = Cursor::new(fmi_grouplength.bytes);
-        let fme_bytes: usize = fmi_grouplength_rdr.read_u32::<LittleEndian>()? as usize;
-
-        let mut transfer_syntax: &TransferSyntax = &ts::ImplicitVRLittleEndian;
+        let mut transfer_syntax: &TransferSyntax = self.ts;
         while self.bytes_read - bytes_read_before_fme < fme_bytes {    
-            let element: DicomElement = self.read_dicom_element()?;
-            if element.tag == fme::TransferSyntaxUID.tag {
+            let element_tag: u32 = self.read_dicom_element()?;
+            if element_tag == fme::TransferSyntaxUID.tag {
+                let element: &DicomElement = self.get_element(element_tag)?;
                 // strip out the padding bytes for the tag being read
                 // TODO: this filtering is generally not correct as it's only padded
                 // at the end of the value. Need to find a fast/easy way to remove trailing 0's
-                let ts_uid_bytes: Vec<u8> = element.bytes.iter()
+                let ts_uid_bytes: Vec<u8> = element.get_value().get_ref().iter()
                     .filter(|b: &&u8| **b != vr::UI.padding)
                     .map(|b: &u8| *b)
                     .collect::<Vec<u8>>();
@@ -240,13 +256,28 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
                     transfer_syntax = ts;
                 }
             }
-            self.file_meta.insert(element.tag, element);
         }
 
         // don't set the transfer syntax until after reading all FileMeta, otherwise it 
         // will attempt to read remaining FME tags as different syntax than ExplicitVRLittleEndian (which is required)
         self.ts = transfer_syntax;
 
+        Ok(())
+    }
+
+    pub fn read_until(&mut self, tagstop: TagStop) -> Result<(), Error> {
+        let mut still_loop: bool = true;
+
+        while still_loop {
+            let element_tag: u32 = self.read_dicom_element()?;
+
+            still_loop = match tagstop {
+                TagStop::EndOfStream => true,
+                TagStop::BeforeTag(before_tag) => element_tag < before_tag,
+                TagStop::AfterTag(after_tag) => element_tag <= after_tag,
+                TagStop::AfterBytePos(byte_pos) => self.bytes_read < byte_pos,
+            }
+        }
         Ok(())
     }
 }

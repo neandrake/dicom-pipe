@@ -75,7 +75,7 @@ fn test_parse_known_dicom_files() {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
 
-        let mut dstream: DicomStream<File> = DicomStream::new_from_path(path, )
+        let mut dstream: DicomStream<File> = DicomStream::new_from_path(path)
             .expect("Unable to read file");
 
         dstream.read_file_meta()
@@ -84,15 +84,15 @@ fn test_parse_known_dicom_files() {
         assert!(is_dcm);
 
         // Ability to read dicom elements after FileMetaInformation
-        // means that we interpret the transfer syntax properly
-        let mut elem: DicomElement = dstream.read_dicom_element().expect("Unable to read first element");
-        println!("Read Element: {:?}", elem);
-
-        elem = dstream.read_dicom_element().expect("Unable to read second element");
-        println!("Read Element: {:?}", elem);
-
-        elem = dstream.read_dicom_element().expect("Unable to read third element");
-        println!("Read Element: {:?}", elem);
+        // means that we interpret the transfer syntax properly, as
+        // the fixtures are implicit VR (FMI is encoded as explicit)
+        for i in 0..3 {
+            let elem_tag: u32 = dstream.read_dicom_element()
+                .expect(&format!("Unable to read element {} tag", i));
+            let elem: &DicomElement = dstream.get_element(elem_tag)
+                .expect(&format!("Unable to read element {}: {:08X}", i, elem_tag));
+            println!("Read Element {}, {:08X}: {:?}", i, elem_tag, elem);
+        }
     }
 }
 
