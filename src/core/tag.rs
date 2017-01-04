@@ -3,11 +3,13 @@
 
 //! DICOM Data Elements
 
-use core::{vm, vr};
+use core::vm::VMRef;
+use core::vr::VRRef;
 
 use std::hash::{Hash, Hasher};
 use std::fmt::{Formatter, LowerHex, Result as FmtResult, UpperHex};
 
+pub type TagRef = &'static Tag;
 
 /// DICOM Data Element (Tag)
 #[derive(Debug, Eq)]
@@ -18,9 +20,9 @@ pub struct Tag {
     pub tag: u32,
     /// The default VR which should be used to read this tag -- used for ImplicitVR
     /// This should maybe be a Vec<&VR> instead as a handful of tags can use several
-    pub implicit_vr: Option<&'static vr::VR>,
+    pub implicit_vr: Option<VRRef>,
     /// The value multiplicity -- how many values this tag can have
-    pub vm: &'static vm::VM,
+    pub vm: VMRef,
     /// Long name or description
     pub desc: &'static str,
 }
@@ -34,12 +36,12 @@ impl Tag {
         self.tag
     }
 
-    pub fn get_implicit_vr(&self) -> Option<&'static vr::VR> {
+    pub fn get_implicit_vr(&self) -> Option<VRRef> {
         self.implicit_vr
     }
 
-    pub fn get_vm(&self) -> &'static vm::VM {
-        &self.vm
+    pub fn get_vm(&self) -> VMRef {
+        self.vm
     }
 }
 

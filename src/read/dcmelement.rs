@@ -1,19 +1,19 @@
 use core::dict::lookup::TAG_BY_VALUE;
 use core::vl::ValueLength;
-use core::vr;
+use core::vr::VRRef;
 
 use std::fmt;
 use std::io::Cursor;
 
 pub struct DicomElement {
     pub tag: u32,
-    pub vr: &'static vr::VR,
+    pub vr: VRRef,
     pub vl: ValueLength,
     value: Cursor<Vec<u8>>,
 }
 
 impl DicomElement {
-    pub fn new(tag: u32, vr: &'static vr::VR, vl: ValueLength, value: Vec<u8>) -> DicomElement {
+    pub fn new(tag: u32, vr: VRRef, vl: ValueLength, value: Vec<u8>) -> DicomElement {
         DicomElement {
             tag: tag,
             vr: vr,

@@ -5,12 +5,12 @@ use core::dict::dir_structure_elements as dse;
 use core::dict::file_meta_elements as fme;
 use core::dict::uids;
 use core::dict::transfer_syntaxes as ts;
-use core::tag::Tag;
-use core::ts::TransferSyntax;
-use core::uid::UID;
+use core::tag::TagRef;
+use core::ts::TSRef;
+use core::uid::UIDRef;
 
 
-pub static TAG_BY_IDENT: ::phf::Map<&'static str, &'static Tag> = ::phf::Map {
+pub static TAG_BY_IDENT: ::phf::Map<&'static str, TagRef> = ::phf::Map {
     key: 1897749892740154578,
     disps: ::phf::Slice::Static(&[
         (0, 8),
@@ -4950,7 +4950,7 @@ pub static TAG_BY_IDENT: ::phf::Map<&'static str, &'static Tag> = ::phf::Map {
     ]),
 };
 
-pub static TAG_BY_VALUE: ::phf::Map<u32, &'static Tag> = ::phf::Map {
+pub static TAG_BY_VALUE: ::phf::Map<u32, TagRef> = ::phf::Map {
     key: 1897749892740154578,
     disps: ::phf::Slice::Static(&[
         (0, 48),
@@ -9890,7 +9890,7 @@ pub static TAG_BY_VALUE: ::phf::Map<u32, &'static Tag> = ::phf::Map {
     ]),
 };
 
-pub static TS_BY_IDENT: ::phf::Map<&'static str, &'static TransferSyntax> = ::phf::Map {
+pub static TS_BY_IDENT: ::phf::Map<&'static str, TSRef> = ::phf::Map {
     key: 5621513170501782519,
     disps: ::phf::Slice::Static(&[
         (0, 39),
@@ -9950,7 +9950,7 @@ pub static TS_BY_IDENT: ::phf::Map<&'static str, &'static TransferSyntax> = ::ph
     ]),
 };
 
-pub static TS_BY_ID: ::phf::Map<&'static str, &'static TransferSyntax> = ::phf::Map {
+pub static TS_BY_ID: ::phf::Map<&'static str, TSRef> = ::phf::Map {
     key: 1897749892740154578,
     disps: ::phf::Slice::Static(&[
         (0, 8),
@@ -10010,7 +10010,7 @@ pub static TS_BY_ID: ::phf::Map<&'static str, &'static TransferSyntax> = ::phf::
     ]),
 };
 
-pub static UID_BY_IDENT: ::phf::Map<&'static str, &'static UID> = ::phf::Map {
+pub static UID_BY_IDENT: ::phf::Map<&'static str, UIDRef> = ::phf::Map {
     key: 1897749892740154578,
     disps: ::phf::Slice::Static(&[
         (0, 252),
@@ -10482,7 +10482,7 @@ pub static UID_BY_IDENT: ::phf::Map<&'static str, &'static UID> = ::phf::Map {
     ]),
 };
 
-pub static UID_BY_ID: ::phf::Map<&'static str, &'static UID> = ::phf::Map {
+pub static UID_BY_ID: ::phf::Map<&'static str, UIDRef> = ::phf::Map {
     key: 9603444721912725599,
     disps: ::phf::Slice::Static(&[
         (0, 6),
