@@ -4,10 +4,11 @@ use core::dict::file_meta_elements as fme;
 use core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
 use core::dict::transfer_syntaxes as ts;
 use core::tag::Tag;
-use core::ts::TransferSyntax;
+use core::ts::TSRef;
 use core::vl;
 use core::vl::ValueLength;
 use core::vr;
+use core::vr::{code_to_vr, VRRef};
 
 use encoding::types::EncodingRef;
 use encoding::all::WINDOWS_1252;
@@ -36,7 +37,7 @@ pub struct DicomStream<StreamType: ReadBytesExt> {
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
     elements: HashMap<u32, DicomElement>,
-    ts: &'static TransferSyntax,
+    ts: TSRef,
     cs: EncodingRef,
 
     // To allow peeking the next tag without fully reading the next element 
@@ -129,7 +130,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         Ok(result)
     }
 
-    pub fn read_vr(&mut self, tag: u32) -> Result<&'static vr::VR, Error> {
+    pub fn read_vr(&mut self, tag: u32) -> Result<VRRef, Error> {
         if self.ts.explicit_vr {
             let first_char: u8 = self.stream.read_u8()?;
             self.bytes_read += 1;
@@ -137,7 +138,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             self.bytes_read += 1;
 
             let code: u16 = ((first_char as u16) << 8) + second_char as u16;
-            match vr::VR::code_to_vr(code) {
+            match code_to_vr(code) {
                 Some(vr) => Ok(vr),
                 None => Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
             }
@@ -148,7 +149,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
     }
 
-    pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: &vr::VR) -> Result<ValueLength, Error> {
+    pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: VRRef) -> Result<ValueLength, Error> {
         let value_length: u32;
         if self.ts.explicit_vr {
             if vr.has_explicit_2byte_pad {
@@ -201,7 +202,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         self.tag_peek = None;
         
         //println!("Read Tag: {}", tag);
-        let vr: &vr::VR = self.read_vr(tag)?;
+        let vr: VRRef = self.read_vr(tag)?;
         //println!("Read VR: {:?}", vr);
         let vl: ValueLength = self.read_value_length::<Endian>(vr)?;
         //println!("Read VL: {:?}", vl);
@@ -235,7 +236,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             fme_bytes = fmi_grouplength.get_value_mut().read_u32::<LittleEndian>()? as usize;
         }
 
-        let mut transfer_syntax: &TransferSyntax = self.ts;
+        let mut transfer_syntax: TSRef = self.ts;
         while self.bytes_read - bytes_read_before_fme < fme_bytes {    
             let element_tag: u32 = self.read_dicom_element()?;
             if element_tag == fme::TransferSyntaxUID.tag {

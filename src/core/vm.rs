@@ -3,6 +3,8 @@
 
 //! Value Multiplicity
 
+pub type VMRef = &'static VM;
+
 /// Value Multiplicity
 #[derive(Debug, PartialEq, Eq)]
 pub enum VM {

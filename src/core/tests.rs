@@ -8,7 +8,7 @@ use core::dict::transfer_syntaxes as ts;
 use core::dict::uids;
 use core::tag::Tag;
 use core::ts::TransferSyntax;
-use core::uid::UID;
+use core::uid::UIDRef;
 
 #[test]
 pub fn test_tags_lookup() {
@@ -57,10 +57,10 @@ pub fn test_transfer_syntaxes_lookup() {
 
 #[test]
 pub fn test_uids_lookup() {
-	let ctis_by_ident: &UID = UID_BY_IDENT.get("CTImageStorage").expect("UID not found");
+	let ctis_by_ident: UIDRef = UID_BY_IDENT.get("CTImageStorage").expect("UID not found");
 	assert_eq!(ctis_by_ident, &uids::CTImageStorage);
 
-	let ctis_by_id: &UID = UID_BY_ID.get("1.2.840.10008.5.1.4.1.1.2").expect("UID not found");
+	let ctis_by_id: UIDRef = UID_BY_ID.get("1.2.840.10008.5.1.4.1.1.2").expect("UID not found");
 	assert_eq!(ctis_by_id, &uids::CTImageStorage);
 }
 

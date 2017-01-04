@@ -5,6 +5,8 @@
 
 use std::hash::{Hash, Hasher};
 
+pub type UIDRef = &'static UID;
+
 /// Unique Identifiers
 #[derive(Debug, Eq)]
 pub struct UID {

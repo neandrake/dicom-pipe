@@ -4,15 +4,17 @@
 
 //! Transfer Syntax UIDs
 
-use core::uid::UID;
+use core::uid::UIDRef;
 
 use std::hash::{Hash, Hasher};
+
+pub type TSRef = &'static TransferSyntax;
 
 /// Transfer Syntax
 #[derive(Debug, Eq)]
 pub struct TransferSyntax {
     /// The UID of the Transfer Syntax
-    pub uid: &'static UID,
+    pub uid: UIDRef,
     /// If Native Encoding, whether this encodes with ExplicitVR or ImplicitVR
     pub explicit_vr: bool,
     /// If Native Encoding, whether this encodes using BigEndian or LittleEndian
@@ -36,7 +38,7 @@ impl Hash for TransferSyntax {
 }
 
 impl TransferSyntax {
-    pub fn new(uid: &'static UID,
+    pub fn new(uid: UIDRef,
         explicit_vr: bool,
         big_endian: bool,
         deflated: bool,
@@ -50,7 +52,7 @@ impl TransferSyntax {
         }
     }
 
-    pub fn get_uid(&self) -> &UID {
+    pub fn get_uid(&self) -> UIDRef {
         self.uid
     }
 
