@@ -1,5 +1,6 @@
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 
+use core::dict::dicom_elements as tags;
 use core::dict::file_meta_elements as fme;
 use core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
 use core::dict::transfer_syntaxes as ts;
@@ -10,12 +11,14 @@ use core::vl::ValueLength;
 use core::vr;
 use core::vr::{code_to_vr, VRRef};
 
-use encoding::types::EncodingRef;
 use encoding::all::WINDOWS_1252;
+use encoding::types::{DecoderTrap, EncodingRef};
+use encoding::label::encoding_from_whatwg_label;
 
 use read::dcmelement::DicomElement;
 use read::tagstop::TagStop;
 
+use std::ascii::AsciiExt;
 use std::collections::hash_map::HashMap;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
@@ -28,6 +31,7 @@ pub const DICOM_PREFIX_LENGTH: usize = 4;
 
 pub static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
+pub static DEFAULT_CHARACTER_SET: EncodingRef = WINDOWS_1252 as EncodingRef;
 
 pub struct DicomStream<StreamType: ReadBytesExt> {
     stream: StreamType,
@@ -90,6 +94,14 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     pub fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
         self.elements.get_mut(&tag)
             .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
+    }
+
+    pub fn get_encoder(&self, element: &DicomElement) -> EncodingRef {
+        if element.vr.decode_text_with_replaced_cs() {
+            self.cs
+        } else {
+            DEFAULT_CHARACTER_SET
+        }
     }
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
@@ -271,7 +283,43 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
         while still_loop {
             let element_tag: u32 = self.read_dicom_element()?;
+            let mut new_cs: Option<String> = None;
+            {   // `self` cannot be borrowed while we retain the reference to this element
+                let element: &DicomElement = self.get_element(element_tag)?;
 
+                if element.tag == tags::SpecificCharacterSet.tag {
+                    let decoder: EncodingRef = self.get_encoder(element);
+                    let new_cs_str: String = decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
+                        .map_err(|e| Error::new(ErrorKind::InvalidData, e.into_owned()))?;
+                    new_cs = Some(new_cs_str);
+                }
+            }
+
+            // TODO: There are options for what to do if we can't support the character repertoire
+            // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
+            if let Some(mut cs_label) = new_cs {
+                // Change the lookup key into format that the encoding package and recognize
+                cs_label = cs_label
+                    .chars()
+                    .map(|c: char| {
+                        match c {
+                            '_' => '-',
+                            ' ' => '-',
+                            a => a.to_ascii_lowercase(),
+                        }
+                    })
+                    .collect::<String>();
+                    // TODO: I think this also needs to remove padding characters
+                if let Some(cs) = encoding_from_whatwg_label(&cs_label) {
+                    self.cs = cs;
+                } else {
+                    return Err(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {}", cs_label)));
+                }
+            }
+
+            // TODO: This should have a test.
+            // Current `EndOfStream` doesn't work right as we will continue to try reading
+            // elements past the end of the stream
             still_loop = match tagstop {
                 TagStop::EndOfStream => true,
                 TagStop::BeforeTag(before_tag) => element_tag < before_tag,

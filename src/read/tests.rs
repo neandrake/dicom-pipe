@@ -5,9 +5,11 @@ extern crate walkdir;
 
 use byteorder::ReadBytesExt;
 
-use read::dcmelement::DicomElement;
+use core::dict::dicom_elements as tags;
+
 use read::dcmstream::{DicomStream, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::mock::MockDicomStream;
+use read::tagstop::TagStop;
 
 use std::fs::File;
 use std::io::Seek;
@@ -86,13 +88,8 @@ fn test_parse_known_dicom_files() {
         // Ability to read dicom elements after FileMetaInformation
         // means that we interpret the transfer syntax properly, as
         // the fixtures are implicit VR (FMI is encoded as explicit)
-        for i in 0..3 {
-            let elem_tag: u32 = dstream.read_dicom_element()
-                .expect(&format!("Unable to read element {} tag", i));
-            let elem: &DicomElement = dstream.get_element(elem_tag)
-                .expect(&format!("Unable to read element {}: {:08X}", i, elem_tag));
-            println!("Read Element {}, {:08X}: {:?}", i, elem_tag, elem);
-        }
+        dstream.read_until(TagStop::BeforeTag(tags::PixelData.tag))
+            .expect("Error reading elements");
     }
 }
 

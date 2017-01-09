@@ -28,6 +28,36 @@ pub struct VR {
 	pub has_explicit_2byte_pad: bool,
 }
 
+impl VR {
+	/// Part 5, Ch 6.1.2.3:
+	/// Data Elements of the following VR can have their character repertoire
+	/// replaced via the Specific Character Set element. Other textual VRs
+	/// should use the default (ISO IR 100 / ISO 8859)
+	/// - SH (Short String)
+	/// - LO (Long String)
+	/// - UC (Unlimited Characters)
+	/// - ST (Short Text)
+	/// - LT (Long Text)
+	/// - UT (Unlimited Text)
+	/// - PN (Person Name)
+	///
+	/// This replacement character repertoire does not apply to other textual
+	/// Value Representations (AE and CS).
+	pub fn decode_text_with_replaced_cs(&self) -> bool {
+		if *self == self::SH
+			|| *self == self::LO
+			|| *self == self::UC
+			|| *self == self::ST
+			|| *self == self::LT
+			|| *self == self::UT
+			|| *self == self::PN {
+			true
+		} else {
+			false
+		}
+	}
+}
+
 impl PartialEq for VR {
 	fn eq(&self, other: &VR) -> bool {
 		self.code.eq(&other.code)
@@ -39,6 +69,7 @@ impl Hash for VR {
 		self.code.hash(state)
 	}
 }
+
 
 pub fn code_to_vr(code: u16) -> Option<&'static VR> {
 	match code {
