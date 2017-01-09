@@ -39,6 +39,6 @@ impl fmt::Debug for DicomElement {
             format!("{:08X}", self.tag)
         };
 
-        write!(f, "DicomElement {{ tag: {}  vr: {}  vl: {:?} }}", tag_display, self.vr.ident, self.vl)
+        write!(f, "DicomElement {{ tag: {}, vr: {}, vl: {:?} }}", tag_display, self.vr.ident, self.vl)
     }
 }
