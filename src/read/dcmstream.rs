@@ -19,6 +19,7 @@ use read::dcmelement::DicomElement;
 use read::tagstop::TagStop;
 
 use std::ascii::AsciiExt;
+use std::borrow::Cow;
 use std::collections::hash_map::HashMap;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
@@ -283,35 +284,37 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         while still_loop {
             let element_tag: u32 = self.read_dicom_element()?;
             let mut new_cs: Option<String> = None;
-            {   // `self` cannot be borrowed while we retain the reference to this element
-                let element: &DicomElement = self.get_element(element_tag)?;
 
+            // `self` cannot be borrowed while we retain the reference to the element
+            // which means that we can't modify self.cs while we read the value of the element
+            if let Ok(element) = self.get_element(element_tag) {
                 if element.tag == tags::SpecificCharacterSet.tag {
                     let decoder: EncodingRef = self.get_text_codec(element);
-                    let new_cs_str: String = decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
-                        .map_err(|e| Error::new(ErrorKind::InvalidData, e.into_owned()))?;
-                    new_cs = Some(new_cs_str);
+                    // Change the lookup key into format that the encoding package and recognize
+                    // TODO: I think this also needs to remove padding characters
+                    new_cs = Some(
+                        decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
+                        .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+                        .iter()
+                        .flat_map(|s| s.chars())
+                        .map(|c: char| {
+                            match c {
+                                '_' => '-',
+                                ' ' => '-',
+                                a => a.to_ascii_lowercase(),
+                            }
+                        })
+                        .collect::<String>()
+                    );
                 }
             }
 
-            // TODO: There are options for what to do if we can't support the character repertoire
-            // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
-            if let Some(mut cs_label) = new_cs {
-                // Change the lookup key into format that the encoding package and recognize
-                cs_label = cs_label
-                    .chars()
-                    .map(|c: char| {
-                        match c {
-                            '_' => '-',
-                            ' ' => '-',
-                            a => a.to_ascii_lowercase(),
-                        }
-                    })
-                    .collect::<String>();
-                    // TODO: I think this also needs to remove padding characters
-                if let Some(cs) = encoding_from_whatwg_label(&cs_label) {
-                    self.cs = cs;
+            if let Some(cs_label) = new_cs {
+                if let Some(new_encoding) = encoding_from_whatwg_label(&cs_label) {
+                    self.cs = new_encoding;
                 } else {
+                    // TODO: There are options for what to do if we can't support the character repertoire
+                    // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
                     return Err(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {}", cs_label)));
                 }
             }
