@@ -104,33 +104,6 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
     }
 
-    pub fn read_specific_character_set(&self) -> Result<EncodingRef, Error> {
-        if let Ok(element) = self.get_element(tags::SpecificCharacterSet.tag) {
-            let decoder: EncodingRef = self.get_text_codec(element);
-            // Change the lookup key into format that the encoding package and recognize
-            // TODO: I think this also needs to remove padding characters
-            let new_cs: String = decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
-                .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
-                .iter()
-                .flat_map(|s| s.chars())
-                .map(|c: char| {
-                    match c {
-                        '_' => '-',
-                        ' ' => '-',
-                        a => a.to_ascii_lowercase(),
-                    }
-                })
-                .collect::<String>();
-
-            // TODO: There are options for what to do if we can't support the character repertoire
-            // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
-            return encoding_from_whatwg_label(&new_cs)
-                .ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {:?}", &new_cs)));
-        }
-
-        Err(Error::new(ErrorKind::InvalidData, format!("DicomStream does not have SpecificCharacterSet")))
-    }
-
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
         self.stream.read_exact(&mut self.file_preamble)?;
         self.bytes_read += self.file_preamble.len();
@@ -253,6 +226,53 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         Ok(tag)
     }
 
+    pub fn parse_transfer_syntax(&self) -> Result<TSRef, Error> {
+        let element: &DicomElement = self.get_element(fme::TransferSyntaxUID.tag)?;
+        // strip out the padding bytes for the tag being read
+        // TODO: this filtering is generally not correct as it's only padded
+        // at the end of the value. Need to find a fast/easy way to remove trailing 0's
+        let ts_uid_bytes: Vec<u8> = element.get_value().get_ref().iter()
+            .filter(|b: &&u8| **b != vr::UI.padding)
+            .map(|b: &u8| *b)
+            .collect::<Vec<u8>>();
+
+        let ts_uid: String = String::from_utf8(ts_uid_bytes)
+            .map_err(|e: string::FromUtf8Error| Error::new(ErrorKind::InvalidData, e))?;
+        
+        let ts_uid_str: &str = ts_uid.as_ref();
+        TS_BY_ID
+            .get(ts_uid_str)
+            .map(|tsref: &TSRef| *tsref)
+            .ok_or(Error::new(ErrorKind::InvalidData, format!("Unknown TransferSyntax: {}", ts_uid_str)))
+    }
+
+    pub fn parse_specific_character_set(&self) -> Result<EncodingRef, Error> {
+        if let Ok(element) = self.get_element(tags::SpecificCharacterSet.tag) {
+            let decoder: EncodingRef = self.get_text_codec(element);
+            // Change the lookup key into format that the encoding package and recognize
+            // TODO: I think this also needs to remove padding characters
+            let new_cs: String = decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
+                .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+                .iter()
+                .flat_map(|s| s.chars())
+                .map(|c: char| {
+                    match c {
+                        '_' => '-',
+                        ' ' => '-',
+                        a => a.to_ascii_lowercase(),
+                    }
+                })
+                .collect::<String>();
+
+            // TODO: There are options for what to do if we can't support the character repertoire
+            // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
+            return encoding_from_whatwg_label(&new_cs)
+                .ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {:?}", &new_cs)));
+        }
+
+        Err(Error::new(ErrorKind::InvalidData, format!("DicomStream does not have SpecificCharacterSet")))
+    }
+
     pub fn read_file_meta(&mut self) -> Result<(), Error> {
         // This is required for "well-formed" DICOM files however it's not 100% required
         // so somehow detect reading of FileMetaInformationGroupLength maybe?
@@ -279,22 +299,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         while self.bytes_read - bytes_read_before_fme < fme_bytes {    
             let element_tag: u32 = self.read_dicom_element()?;
             if element_tag == fme::TransferSyntaxUID.tag {
-                let element: &DicomElement = self.get_element(element_tag)?;
-                // strip out the padding bytes for the tag being read
-                // TODO: this filtering is generally not correct as it's only padded
-                // at the end of the value. Need to find a fast/easy way to remove trailing 0's
-                let ts_uid_bytes: Vec<u8> = element.get_value().get_ref().iter()
-                    .filter(|b: &&u8| **b != vr::UI.padding)
-                    .map(|b: &u8| *b)
-                    .collect::<Vec<u8>>();
-
-                let ts_uid: String = String::from_utf8(ts_uid_bytes)
-                    .map_err(|e: string::FromUtf8Error| Error::new(ErrorKind::InvalidData, e))?;
-                
-                let ts_uid_str: &str = ts_uid.as_ref();
-                if let Some(ts) = TS_BY_ID.get(ts_uid_str) {
-                    transfer_syntax = ts;
-                }
+                transfer_syntax = self.parse_transfer_syntax()?;
             }
         }
 
@@ -312,7 +317,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             let element_tag: u32 = self.read_dicom_element()?;
 
             if element_tag == tags::SpecificCharacterSet.tag {
-                self.cs = self.read_specific_character_set()?;
+                self.cs = self.parse_specific_character_set()?;
             }
 
             // TODO: This should have a test.
