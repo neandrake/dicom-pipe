@@ -35,7 +35,8 @@ impl DicomElement {
         &mut self.value
     }
 
-    /// All character string AE's
+    /// All character string AE's -- subsequent interpretation of String is necessary based on VR
+    /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     pub fn parse_string(&self, cs: EncodingRef) -> Result<String, Error> {
         let data: &Vec<u8> = self.get_value().get_ref();
         cs.decode(data, DecoderTrap::Strict)
