@@ -96,7 +96,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 
     pub fn get_text_codec(&self, element: &DicomElement) -> EncodingRef {
-        match element.vr.decode_text_with_replaced_cs() {
+        match element.vr.decode_text_with_replaced_cs {
             true => self.cs,
             false => DEFAULT_CHARACTER_SET,
         }

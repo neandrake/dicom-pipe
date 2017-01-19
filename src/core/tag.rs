@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
-
 //! DICOM Data Elements
 
 use core::vm::VMRef;

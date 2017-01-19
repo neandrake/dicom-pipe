@@ -1,11 +1,11 @@
-//#![allow(dead_code)]
-#![allow(non_camel_case_types)]
-
 //! Value Multiplicity
 
 pub type VMRef = &'static VM;
 
 /// Value Multiplicity
+/// Part 5, Ch 6.4:
+/// Data Elements with a VR of OB, OD, OF, OL, OW, OB, SQ, UN or UR
+/// shall always have a Value Multiplicity of one.
 #[derive(Debug, PartialEq, Eq)]
 pub enum VM {
     /// A set number of items: 1, 2, 3, 4, 6, 9, 16, etc.
