@@ -1,3 +1,5 @@
+//! Value Length
+
 use std::fmt;
 
 pub const IMPLICIT_VL_VALUE: u32 = 0xFFFFFFFF;
