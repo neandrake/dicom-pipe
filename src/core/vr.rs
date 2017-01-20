@@ -2,7 +2,7 @@
 
 use std::hash::{Hash, Hasher};
 
-/// The BACKSLASH used to delimit character string values, `\`
+/// The BACKSLASH used to delimit multi-value character string values, `\`
 pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
 
 pub type VRRef = &'static VR;
@@ -157,7 +157,7 @@ pub static AE: VR = VR {
 ///
 /// # Character Repertoire
 ///
-/// `"0"`-`"9"`, `"D"`, `"W"`, `"M"`, `"Y"` of Default Character Repertoire
+/// `'0'`-`'9'`, `D`, `W`, `M`, `Y` of Default Character Repertoire
 ///
 /// # Length of Value
 ///
@@ -215,8 +215,8 @@ pub static AT: VR = VR {
 ///
 /// # Character Repertoire
 ///
-/// Uppercase characters, `"0"`-`"9"`, the SPACE character,
-/// and underscore `"_"`, of the Default Character Repertoire
+/// Uppercase characters, `'0'`-`'9'`, the SPACE character,
+/// and underscore `_`, of the Default Character Repertoire
 ///
 /// # Length of Value
 ///
@@ -258,11 +258,11 @@ pub static CS: VR = VR {
 ///
 /// # Character Repertoire
 ///
-/// `"0"`-`"9"` of Default Character Repertoire
+/// `'0'`-`'9'` of Default Character Repertoire
 ///
 /// ## Notes
 /// In the context of a Query with range matching (see PS3.4), the character
-/// `"-"` is allowed, and a trailing SPACE character is allowed for padding.
+/// `-` is allowed, and a trailing SPACE character is allowed for padding.
 ///
 /// # Length of Value
 ///
@@ -288,9 +288,9 @@ pub static DA: VR = VR {
 ///
 /// A string of characters representing either a fixed point number or
 /// a floating point number. A fixed point number shall contain only the
-/// characters 0-9 with an optional leading `"+"` or `"-"` and an optional
-/// `"."` to mark the decimal point. A floating point number shall be
-/// conveyed as defined in ANSI X3.9, with an `"E"` or `"e"` to indicate the start
+/// characters 0-9 with an optional leading `+` or `-` and an optional
+/// `.` to mark the decimal point. A floating point number shall be
+/// conveyed as defined in ANSI X3.9, with an `E` or `e` to indicate the start
 /// of the exponent. Decimal Strings may be padded with leading or trailing
 /// spaces. Embedded spaces are not allowed.
 ///
@@ -302,7 +302,7 @@ pub static DA: VR = VR {
 ///
 /// # Character Repertoire
 ///
-/// `"0"`-`"9"`, `"+"`, `"-"`, `"E"`, `"e"`, `"."` and the SPACE character
+/// `'0'`-`'9'`, `+`, `-`, `E`, `e`, `.` and the SPACE character
 /// of Default Character Repertoire
 ///
 /// # Length of Value
@@ -341,7 +341,7 @@ pub static DS: VR = VR {
 /// &ZZXX is an optional suffix for offset from Coordinated Universal
 /// Time (UTC), where
 ///
-/// - & = `"+"` or `"-"`, and
+/// - & = `+` or `-`, and
 /// - ZZ = Hours, and
 /// - XX = Minutes of offset.
 /// 
@@ -352,7 +352,7 @@ pub static DS: VR = VR {
 /// "0000" since "2400" would violate the hour range.
 /// 
 /// The Fractional Second component, if present, shall contain 1 to 6 digits.
-/// If Fractional Second is unspecified the preceding `"."` shall not be
+/// If Fractional Second is unspecified the preceding `.` shall not be
 /// included. The offset suffix, if present, shall contain 4 digits. The
 /// string may be padded with trailing SPACE characters. Leading and embedded
 /// spaces are not allowed.
@@ -386,7 +386,7 @@ pub static DS: VR = VR {
 ///
 /// # Character Repertoire
 ///
-/// `"0"`-`"9"`, `"+"`, `"-"`, `"."` and the SPACE character of Default
+/// `'0'`-`'9'`, `+`, `-`, `.` and the SPACE character of Default
 /// Character Repertoire
 ///
 /// # Length of Value
@@ -459,15 +459,15 @@ pub static FL: VR = VR {
 /// # Definition
 ///
 /// A string of characters representing an Integer in base-10 (decimal),
-/// shall contain only the characters 0 - 9, with an optional leading `"+"`
-/// or `"-"`. It may be padded with leading and/or trailing spaces. Embedded
+/// shall contain only the characters 0 - 9, with an optional leading `+`
+/// or `-`. It may be padded with leading and/or trailing spaces. Embedded
 /// spaces are not allowed.
 ///
-/// The integer, n, represented shall be in the range: (-2^31) <= n <= (2^31 - 1).
+/// The integer, n, represented shall be in the range: -2^31 <= n <= 2^31 - 1.
 ///
 /// # Character Repertoire
 ///
-/// `"0"`-`"9"`, `"+"`, `"-"` and the SPACE character of Default Character
+/// `'0'`-`'9'`, `+`, `-` and the SPACE character of Default Character
 /// Repertoire
 ///
 /// # Length of Value
@@ -838,7 +838,7 @@ pub static SS: VR = VR {
 /// the Graphic Character set and the Control Characters, CR, LF, FF, and ESC.
 /// It may be padded with trailing spaces, which may be ignored, but leading
 /// spaces are considered to be significant. Data Elements with this VR shall
-/// not be multi-valued and therefore character code 5CH (the BACKSLASH `"\"`
+/// not be multi-valued and therefore character code 5CH (the BACKSLASH `\`
 /// in ISO-IR 6) may be used.
 ///
 /// # Character Repertoire
@@ -901,10 +901,10 @@ pub static ST: VR = VR {
 ///
 /// # Character Repertoire
 ///
-/// `"0"`-`"9"`, `"."` and the SPACE character of Default Character Repertoire
+/// `'0'`-`'9'`, `.` and the SPACE character of Default Character Repertoire
 ///
 /// In the context of a Query with range matching (see PS3.4), the character
-/// `"-"` is allowed.
+/// `-` is allowed.
 ///
 /// # Length of Value
 ///
@@ -925,7 +925,7 @@ pub static TM: VR = VR {
 /// # Definition
 ///
 /// A character string that may be of unlimited length that may be padded with
-/// trailing spaces. The character code 5CH (the BACKSLASH `"\"` in ISO-IR 6)
+/// trailing spaces. The character code 5CH (the BACKSLASH `\` in ISO-IR 6)
 /// shall not be present, as it is used as the delimiter between values in
 /// multiple valued data elements. The string shall not have Control
 /// Characters except for ESC.
@@ -933,7 +933,7 @@ pub static TM: VR = VR {
 /// # Character Repertoire
 ///
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
-/// character code 5CH (the BACKSLASH `"\"` in ISO-IR 6), and all Control
+/// character code 5CH (the BACKSLASH `\` in ISO-IR 6), and all Control
 /// Characters except ESC when used for ISO 2022 escape sequences.
 ///
 /// # Length of Value
@@ -953,7 +953,7 @@ pub static UC: VR = VR {
 ///
 /// A character string containing a UID that is used to uniquely identify a
 /// wide variety of items. The UID is a series of numeric components separated
-/// by the period `"."` character. If a Value Field containing one or more UIDs
+/// by the period `.` character. If a Value Field containing one or more UIDs
 /// is an odd number of bytes in length, the Value Field shall be padded with
 /// a single trailing NULL (00H) character to ensure that the Value Field is an
 /// even number of bytes in length. See Part 5, Ch 9 and Part 5, Annex B for a
@@ -961,7 +961,7 @@ pub static UC: VR = VR {
 ///
 /// # Character Repertoire
 ///
-/// `"0"`-`"9"`, `"."` of Default Character Repertoire
+/// `'0'`-`'9'`, `.` of Default Character Repertoire
 ///
 /// # Length of Value
 ///
@@ -1095,7 +1095,7 @@ pub static US: VR = VR {
 /// the Graphic Character set and the Control Characters, CR, LF, FF, and ESC.
 /// It may be padded with trailing spaces, which may be ignored, but leading
 /// spaces are considered to be significant. Data Elements with this VR shall
-/// not be multi-valued and therefore character code 5CH (the BACKSLASH `"\"`
+/// not be multi-valued and therefore character code 5CH (the BACKSLASH `\`
 /// in ISO-IR 6) may be used.
 ///
 /// # Character Repertoire
