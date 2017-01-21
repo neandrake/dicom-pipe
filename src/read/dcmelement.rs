@@ -17,6 +17,21 @@ pub struct DicomElement {
     value: Cursor<Vec<u8>>,
 }
 
+impl fmt::Debug for DicomElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let tag_upper: u32 = self.tag >> 16;
+        let tag_lower: u32 = self.tag & 0x0000FFFF;
+
+        let tag_display: String = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
+            format!("{}", tag.ident)
+        } else {
+            format!("{{Unknown Tag}}")
+        };
+
+        write!(f, "({:04X},{:04X}) {} {}", tag_upper, tag_lower, self.vr.ident, tag_display)
+    }
+}
+
 impl DicomElement {
     pub fn new(tag: u32, vr: VRRef, vl: ValueLength, value: Vec<u8>) -> DicomElement {
         DicomElement {
@@ -160,17 +175,5 @@ impl DicomElement {
         let result: u16 = self.value.read_u16::<Endian>()?;
         self.value.set_position(0);
         Ok(result)
-    }
-}
-
-impl fmt::Debug for DicomElement {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let tag_display: String = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
-            format!("{}", tag.ident)
-        } else {
-            format!("{:08X}", self.tag)
-        };
-
-        write!(f, "DicomElement {{ tag: {}, vr: {}, vl: {:?} }}", tag_display, self.vr.ident, self.vl)
     }
 }

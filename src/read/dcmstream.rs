@@ -85,6 +85,10 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         &self.dicom_prefix
     }
 
+    pub fn get_ts(&self) -> TSRef {
+        self.ts
+    }
+
     pub fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
         self.elements.get(&tag)
             .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
@@ -138,6 +142,19 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         let result: u32 = first + second;
         self.tag_peek = Some(result);
         Ok(result)
+    }
+
+    pub fn read_next_tag(&mut self) -> Result<u32, Error> {
+        self.tag_peek.map_or_else(
+            || {
+                if self.ts.big_endian {
+                    self.read_tag::<BigEndian>()
+                } else {
+                    self.read_tag::<LittleEndian>()
+                }
+            },
+            |read_tag: u32| Ok(read_tag)
+        )
     }
 
     pub fn read_vr(&mut self, tag: u32) -> Result<VRRef, Error> {
@@ -196,11 +213,17 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 
     pub fn read_dicom_element(&mut self) -> Result<u32, Error> {
-        if self.ts.big_endian {
-            self._read_dicom_element::<BigEndian>()
+        let element_tag: u32 = if self.ts.big_endian {
+            self._read_dicom_element::<BigEndian>()?
         } else {
-            self._read_dicom_element::<LittleEndian>()
+            self._read_dicom_element::<LittleEndian>()?
+        };
+
+        if element_tag == tags::SpecificCharacterSet.tag {
+            self.cs = self.parse_specific_character_set()?;
         }
+
+        Ok(element_tag)
     }
 
     fn _read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
@@ -267,7 +290,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         Err(Error::new(ErrorKind::InvalidData, format!("DicomStream does not have SpecificCharacterSet")))
     }
 
-    pub fn read_file_meta(&mut self) -> Result<(), Error> {
+    pub fn read_file_meta<F>(&mut self, each: F) -> Result<(), Error>
+        where F: Fn(&DicomElement) {
         // This is required for "well-formed" DICOM files however it's not 100% required
         // so somehow detect reading of FileMetaInformationGroupLength maybe?
         self.read_file_preamble()?;
@@ -295,6 +319,9 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             if element_tag == fme::TransferSyntaxUID.tag {
                 transfer_syntax = self.parse_transfer_syntax()?;
             }
+
+            let element: &DicomElement = self.get_element(element_tag)?;
+            each(element);
         }
 
         // don't set the transfer syntax until after reading all FileMeta, otherwise it 
@@ -304,26 +331,34 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         Ok(())
     }
 
-    pub fn read_until(&mut self, tagstop: TagStop) -> Result<(), Error> {
-        let mut still_loop: bool = true;
-
-        while still_loop {
+    pub fn read_until<F>(&mut self, tagstop: TagStop, each: F) -> Result<(), Error>
+        where F: Fn(&DicomElement) {
+        while !self.is_at_tag_stop(&tagstop)? {
             let element_tag: u32 = self.read_dicom_element()?;
 
             if element_tag == tags::SpecificCharacterSet.tag {
                 self.cs = self.parse_specific_character_set()?;
             }
 
-            // TODO: This should have a test.
-            // Current `EndOfStream` doesn't work right as we will continue to try reading
-            // elements past the end of the stream
-            still_loop = match tagstop {
-                TagStop::EndOfStream => true,
-                TagStop::BeforeTag(before_tag) => element_tag < before_tag,
-                TagStop::AfterTag(after_tag) => element_tag <= after_tag,
-                TagStop::AfterBytePos(byte_pos) => self.bytes_read < byte_pos,
-            }
+            let element: &DicomElement = self.get_element(element_tag)?;
+            each(element);
         }
         Ok(())
+    }
+
+    // TODO: This should have a test.
+    // Current `EndOfStream` doesn't work right as we will continue to try reading
+    // elements past the end of the stream
+    pub fn is_at_tag_stop(&mut self, tagstop: &TagStop) -> Result<bool, Error> {
+        let element_tag: u32 = self.read_next_tag()?;
+
+        let is_at_tag_stop: bool = match *tagstop {
+            TagStop::EndOfStream => false,
+            TagStop::BeforeTag(before_tag) => element_tag >= before_tag,
+            TagStop::AfterTag(after_tag) => element_tag > after_tag,
+            TagStop::AfterBytePos(byte_pos) => self.bytes_read >= byte_pos,
+        };
+
+        Ok(is_at_tag_stop)
     }
 }
