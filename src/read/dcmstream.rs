@@ -9,7 +9,7 @@ use core::ts::TSRef;
 use core::vl;
 use core::vl::ValueLength;
 use core::vr;
-use core::vr::{code_to_vr, VRRef};
+use core::vr::{VR, VRRef};
 
 use encoding::all::WINDOWS_1252;
 use encoding::types::EncodingRef;
@@ -148,7 +148,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             self.bytes_read += 1;
 
             let code: u16 = ((first_char as u16) << 8) + second_char as u16;
-            match code_to_vr(code) {
+            match VR::from_code(code) {
                 Some(vr) => Ok(vr),
                 None => Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
             }
