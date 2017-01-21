@@ -20,7 +20,7 @@ pub struct VR {
 
 	/// Which value is used to pad the encoded value to achieve an even length
 	/// Part 5, Ch 6.2:
-	/// 
+	///
 	/// - Values with VRs constructed of character strings, except
 	/// in the case of the VR UI, shall be padded with SPACE characters
 	/// (20H, in the Default Character Repertoire).
@@ -269,7 +269,7 @@ pub static CS: VR = VR {
 /// # Length of Value
 ///
 /// 8 bytes fixed
-/// 
+///
 /// ## Notes
 ///
 /// In the context of a Query (PS3.4) with range matching the length
@@ -327,7 +327,7 @@ pub static DS: VR = VR {
 /// A concatenated date-time character string in the format:
 ///
 /// YYYYMMDDHHMMSS.FFFFFF&ZZXX
-/// 
+///
 /// The components of this string, from left to right, are
 ///
 /// - YYYY = Year,
@@ -336,39 +336,39 @@ pub static DS: VR = VR {
 /// - HH = Hour (range "00" - "23"),
 /// - MM = Minute (range "00" - "59"),
 /// - SS = Second (range "00" - "60").
-/// 
+///
 /// FFFFFF = Fractional Second contains a fractional part of a second as
 /// small as 1 millionth of a second (range "000000" - "999999").
-/// 
+///
 /// &ZZXX is an optional suffix for offset from Coordinated Universal
 /// Time (UTC), where
 ///
 /// - & = `+` or `-`, and
 /// - ZZ = Hours, and
 /// - XX = Minutes of offset.
-/// 
+///
 /// The year, month, and day shall be interpreted as a date of the
 /// Gregorian calendar system.
-/// 
+///
 /// A 24-hour clock is used. Midnight shall be represented by only
 /// "0000" since "2400" would violate the hour range.
-/// 
+///
 /// The Fractional Second component, if present, shall contain 1 to 6 digits.
 /// If Fractional Second is unspecified the preceding `.` shall not be
 /// included. The offset suffix, if present, shall contain 4 digits. The
 /// string may be padded with trailing SPACE characters. Leading and embedded
 /// spaces are not allowed.
-/// 
+///
 /// A component that is omitted from the string is termed a null component.
 /// Trailing null components of Date Time indicate that the value is not
 /// precise to the precision of those components. The YYYY component shall
 /// not be null. Non-trailing null components are prohibited. The optional
 /// suffix is not considered as a component.
-/// 
+///
 /// A Date Time value without the optional suffix is interpreted to be in
 /// the local time zone of the application creating the Data Element, unless
 /// explicitly specified by the Timezone Offset From UTC (0008,0201).
-/// 
+///
 /// UTC offsets are calculated as "local time minus UTC". The offset for a
 /// Date Time value in UTC shall be +0000.
 ///
@@ -396,7 +396,7 @@ pub static DS: VR = VR {
 /// 26 bytes maximum
 ///
 /// ## Notes
-/// 
+///
 /// In the context of a Query with range matching (see PS3.4), the length is
 /// 54 bytes maximum.
 pub static DT: VR = VR {
