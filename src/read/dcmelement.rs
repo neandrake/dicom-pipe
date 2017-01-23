@@ -1,10 +1,14 @@
 use byteorder::{ByteOrder, ReadBytesExt};
 
 use core::dict::lookup::TAG_BY_VALUE;
+use core::tag::Tag;
 use core::vl::ValueLength;
+use core::vr;
 use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 
 use encoding::types::{DecoderTrap, EncodingRef};
+
+use read::dcmstream::DEFAULT_CHARACTER_SET;
 
 use std::borrow::Cow;
 use std::fmt;
@@ -19,16 +23,15 @@ pub struct DicomElement {
 
 impl fmt::Debug for DicomElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let tag_upper: u32 = self.tag >> 16;
-        let tag_lower: u32 = self.tag & 0x0000FFFF;
+        let tag_num: String = Tag::format_tag_to_display(self.tag);
 
-        let tag_display: String = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
+        let tag_name: String = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
             format!("{}", tag.ident)
         } else {
             format!("{{Unknown Tag}}")
         };
 
-        write!(f, "({:04X},{:04X}) {} {}", tag_upper, tag_lower, self.vr.ident, tag_display)
+        write!(f, "{} {} {}", tag_num, self.vr.ident, tag_name)
     }
 }
 
@@ -175,5 +178,62 @@ impl DicomElement {
         let result: u16 = self.value.read_u16::<Endian>()?;
         self.value.set_position(0);
         Ok(result)
+    }
+
+    pub fn fmt_string_value<Endian: ByteOrder>(&mut self) -> Result<String, Error> {
+        if self.value.get_ref().len() == 0 {
+            return Ok("[EMPTY VALUE]".into());
+        }
+        if self.vr == &vr::AE || self.vr == &vr::AS || self.vr == &vr::CS || self.vr == &vr::DA
+            || self.vr == &vr::DS || self.vr == &vr::DT || self.vr == &vr::IS || self.vr == &vr::LO
+            || self.vr == &vr::LT || self.vr == &vr::PN || self.vr == &vr::SH || self.vr == &vr::ST
+            || self.vr == &vr::TM || self.vr == &vr::UC || self.vr == &vr::UI || self.vr == &vr::UR
+            || self.vr == &vr::UT {
+                Ok(self.parse_string(DEFAULT_CHARACTER_SET)?)
+        } else if self.vr == &vr::AT {
+            Ok(Tag::format_tag_to_display(self.parse_attribute::<Endian>()?))
+        } else if self.vr == &vr::FL {
+            Ok(format!("{}", self.parse_f32::<Endian>()?))
+        } else if self.vr == &vr::OF {
+            let values: Vec<f32> = self.parse_f32s::<Endian>()?;
+            let mut string_values: String = String::new();
+            for value in values {
+                string_values.push_str(&format!("{} / ", value));
+            }
+            Ok(string_values)
+        } else if self.vr == &vr::FD {
+            Ok(format!("{}", self.parse_f64::<Endian>()?))
+        } else if self.vr == &vr::OD {
+            let values: Vec<f64> = self.parse_f64s::<Endian>()?;
+            let mut string_values: String = String::new();
+            for value in values {
+                string_values.push_str(&format!("{} / ", value));
+            }
+            Ok(string_values)
+        } else if self.vr == &vr::SS {
+            Ok(format!("{}", self.parse_i16::<Endian>()?))
+        } else if self.vr == &vr::OW {
+            let values: Vec<i16> = self.parse_i16s::<Endian>()?;
+            let mut string_values: String = String::new();
+            for value in values {
+                string_values.push_str(&format!("{} / ", value));
+            }
+            Ok(string_values)
+        } else if self.vr == &vr::SL {
+            Ok(format!("{}", self.parse_i32::<Endian>()?))
+        } else if self.vr == &vr::OL {
+            let values: Vec<i32> = self.parse_i32s::<Endian>()?;
+            let mut string_values: String = String::new();
+            for value in values {
+                string_values.push_str(&format!("{} / ", value));
+            }
+            Ok(string_values)
+        } else if self.vr == &vr::UL {
+            Ok(format!("{}", self.parse_u32::<Endian>()?))
+        } else if self.vr == &vr::US {
+            Ok(format!("{}", self.parse_u16::<Endian>()?))
+        } else {
+            Ok(format!("UNKNOWN VR: {}", self.vr.ident))
+        }
     }
 }
