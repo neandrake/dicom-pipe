@@ -13,7 +13,7 @@ use read::mock::MockDicomStream;
 use read::tagstop::TagStop;
 
 use std::fs::File;
-use std::io::{Seek, stdout, Write};
+use std::io::Seek;
 use std::path::Path;
 
 use walkdir::{DirEntry, WalkDir};
@@ -75,8 +75,7 @@ fn test_parse_known_dicom_files() {
     println!("\n# Dicom-File-Format File\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}", dstream.get_ts().uid.ident);
     dstream.read_file_meta(|ds: &mut DicomStream<File>, element_tag: u32| {
             if let Ok(strval) = ds.print_element(element_tag) {
-                writeln!(&mut stdout(), "{}", strval)
-                    .expect("Failed printing to stdout");
+                println!("{}", strval);
             } else {
                 panic!("Unable to print element");
             }
@@ -96,8 +95,7 @@ fn test_parse_known_dicom_files() {
         TagStop::BeforeTag(read_until_before_tag.tag),
         |ds: &mut DicomStream<File>, element_tag: u32| {
             if let Ok(strval) = ds.print_element(element_tag) {
-                writeln!(&mut stdout(), "{}", strval)
-                    .expect("Failed printing to stdout");
+                println!("{}", strval);
             } else {
                 panic!("Unable to print element");
             }
@@ -134,7 +132,7 @@ fn get_first_file_stream() -> DicomStream<File> {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
 
-        let mut dstream: DicomStream<File> = DicomStream::new_from_path(path)
+        let dstream: DicomStream<File> = DicomStream::new_from_path(path)
             .expect(&format!("Unable to read file: {:?}", path));
         
         return dstream;

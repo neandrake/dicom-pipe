@@ -8,11 +8,10 @@ use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 
 use encoding::types::{DecoderTrap, EncodingRef};
 
-use read::dcmstream::DEFAULT_CHARACTER_SET;
-
 use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
+
 
 pub struct DicomElement {
     pub tag: u32,
@@ -53,10 +52,14 @@ impl DicomElement {
         &mut self.value
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.value.get_ref().len() == 0
+    }
+
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     pub fn parse_string(&self, cs: EncodingRef) -> Result<String, Error> {
-        let data: &Vec<u8> = self.get_value().get_ref();
+        let data: &[u8] = self.get_string_bytes_without_padding();
         cs.decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
     }
@@ -64,7 +67,7 @@ impl DicomElement {
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     pub fn parse_strings(&self, cs: EncodingRef) -> Result<Vec<String>, Error> {
-        let data: &Vec<u8> = self.get_value().get_ref();
+        let data: &[u8] = self.get_string_bytes_without_padding();
         cs.decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
             .map(|multivalue: String| {
@@ -73,6 +76,35 @@ impl DicomElement {
                     .map(|singlevalue: &str| singlevalue.to_owned())
                     .collect::<Vec<String>>()
             })
+    }
+
+    /// Gets the bytes for the string removing the last padding character if necessary.
+    /// Whether or not a padding character has been used is dependent on the VR type,
+    /// specifically whether the VR states if trailing padding is significant
+    fn get_string_bytes_without_padding(&self) -> &[u8] {
+        let data: &[u8] = self.get_value().get_ref();
+
+        let mut rindex: usize = data.len() - 1;
+        let mut lindex: usize = 0;
+        if self.vr.should_trim_trailing_space {
+            while rindex >= lindex {
+                if data[rindex] == 0x20 {
+                    rindex = rindex - 1;
+                } else {
+                    break;
+                }
+            }
+        }
+        if self.vr.should_trim_leading_space {
+            while lindex < rindex {
+                if data[lindex] == 0x20 {
+                    lindex = lindex + 1;
+                } else {
+                    break;
+                }
+            }
+        }
+        &data[lindex .. (rindex + 1)]
     }
 
     /// AT
@@ -180,16 +212,18 @@ impl DicomElement {
         Ok(result)
     }
 
-    pub fn fmt_string_value<Endian: ByteOrder>(&mut self) -> Result<String, Error> {
-        if self.value.get_ref().len() == 0 {
+    pub fn fmt_string_value<Endian: ByteOrder>(&mut self, cs: EncodingRef) -> Result<String, Error> {
+        if self.is_empty() {
             return Ok("[EMPTY VALUE]".into());
         }
-        if self.vr == &vr::AE || self.vr == &vr::AS || self.vr == &vr::CS || self.vr == &vr::DA
-            || self.vr == &vr::DS || self.vr == &vr::DT || self.vr == &vr::IS || self.vr == &vr::LO
-            || self.vr == &vr::LT || self.vr == &vr::PN || self.vr == &vr::SH || self.vr == &vr::ST
-            || self.vr == &vr::TM || self.vr == &vr::UC || self.vr == &vr::UI || self.vr == &vr::UR
-            || self.vr == &vr::UT {
-                Ok(self.parse_string(DEFAULT_CHARACTER_SET)?)
+        if self.vr.is_character_string {
+            Ok(self.parse_strings(cs)?
+                .iter_mut()
+                .map(|val: &mut String| {
+                    format!("\"{}\"", val)
+                })
+                .collect::<Vec<String>>()
+                .join(", "))
         } else if self.vr == &vr::AT {
             Ok(Tag::format_tag_to_display(self.parse_attribute::<Endian>()?))
         } else if self.vr == &vr::FL {
