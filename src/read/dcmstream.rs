@@ -11,7 +11,6 @@ use core::vl::ValueLength;
 use core::vr;
 use core::vr::{VR, VRRef};
 
-use encoding::all::WINDOWS_1252;
 use encoding::types::EncodingRef;
 use encoding::label::encoding_from_whatwg_label;
 
@@ -29,8 +28,6 @@ pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
 
 pub static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
-
-pub static DEFAULT_CHARACTER_SET: EncodingRef = WINDOWS_1252 as EncodingRef;
 
 pub struct DicomStream<StreamType: ReadBytesExt> {
     stream: StreamType,
@@ -68,7 +65,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
             elements: HashMap::with_capacity(64),
             ts: &ts::ExplicitVRLittleEndian,
-            cs: WINDOWS_1252 as EncodingRef,
+            cs: vr::DEFAULT_CHARACTER_SET,
             tag_peek: None,
         }
     }
@@ -97,13 +94,6 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     pub fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
         self.elements.get_mut(&tag)
             .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
-    }
-
-    pub fn get_text_codec(&self, element: &DicomElement) -> EncodingRef {
-        match element.vr.decode_text_with_replaced_cs {
-            true => self.cs,
-            false => DEFAULT_CHARACTER_SET,
-        }
     }
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
@@ -250,7 +240,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     pub fn parse_transfer_syntax(&self) -> Result<TSRef, Error> {
         let element: &DicomElement = self.get_element(fme::TransferSyntaxUID.tag)?;
         
-        let mut ts_uid: String = element.parse_string(DEFAULT_CHARACTER_SET)?;
+        let mut ts_uid: String = element.parse_string(vr::DEFAULT_CHARACTER_SET)?;
 
         if let Some(last_char) = ts_uid.chars().last() {
             if last_char == char::from(vr::UI.padding) {
@@ -267,7 +257,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
     pub fn parse_specific_character_set(&self) -> Result<EncodingRef, Error> {
         if let Ok(element) = self.get_element(tags::SpecificCharacterSet.tag) {
-            let decoder: EncodingRef = self.get_text_codec(element);
+            let decoder: EncodingRef = element.vr.get_proper_cs(self.cs);
             // Change the lookup key into format that the encoding package and recognize
             let new_cs: String = element.parse_string(decoder)
                 .iter()
@@ -362,7 +352,9 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
     pub fn print_element(&mut self, element_tag: u32) -> Result<String, Error> {
         let is_big_endian: bool = self.ts.big_endian;
+
         let elem: &mut DicomElement = self.get_element_mut(element_tag)?;
+        let cs: EncodingRef = elem.vr.get_proper_cs(self.cs);
         let tag_num: String = Tag::format_tag_to_display(elem.tag);
 
         let tag_name: String = if let Some(tag) = TAG_BY_VALUE.get(&elem.tag) {
@@ -371,10 +363,14 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             format!("{{Unknown Tag}}")
         };
 
+        if elem.is_empty() {
+            return Ok(format!("{} {} {} [EMPTY]", tag_num, elem.vr.ident, tag_name));
+        }
+        
         let tag_value: String = if is_big_endian {
-            elem.fmt_string_value::<BigEndian>()?
+            elem.fmt_string_value::<BigEndian>(cs)?
         } else {
-            elem.fmt_string_value::<LittleEndian>()?
+            elem.fmt_string_value::<LittleEndian>(cs)?
         };
 
         Ok(format!("{} {} {} => {}", tag_num, elem.vr.ident, tag_name, tag_value))
