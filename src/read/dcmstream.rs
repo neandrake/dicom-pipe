@@ -15,10 +15,10 @@ use encoding::types::EncodingRef;
 use encoding::label::encoding_from_whatwg_label;
 
 use read::dcmelement::DicomElement;
+use read::elementcontainer::{ElementCache, ElementContainer};
 use read::tagstop::TagStop;
 
 use std::ascii::AsciiExt;
-use std::collections::hash_map::HashMap;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
@@ -36,7 +36,7 @@ pub struct DicomStream<StreamType: ReadBytesExt> {
     file_preamble: [u8;FILE_PREAMBLE_LENGTH],
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
-    elements: HashMap<u32, DicomElement>,
+    elements: ElementCache,
     ts: TSRef,
     cs: EncodingRef,
 
@@ -63,7 +63,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             bytes_read: 0usize,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
-            elements: HashMap::with_capacity(64),
+            elements: ElementCache::new(),
             ts: &ts::ExplicitVRLittleEndian,
             cs: vr::DEFAULT_CHARACTER_SET,
             tag_peek: None,
@@ -84,16 +84,6 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
     pub fn get_ts(&self) -> TSRef {
         self.ts
-    }
-
-    pub fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
-        self.elements.get(&tag)
-            .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
-    }
-
-    pub fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
-        self.elements.get_mut(&tag)
-            .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
     }
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
@@ -203,17 +193,11 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 
     pub fn read_dicom_element(&mut self) -> Result<u32, Error> {
-        let element_tag: u32 = if self.ts.big_endian {
-            self._read_dicom_element::<BigEndian>()?
+        if self.ts.big_endian {
+            self._read_dicom_element::<BigEndian>()
         } else {
-            self._read_dicom_element::<LittleEndian>()?
-        };
-
-        if element_tag == tags::SpecificCharacterSet.tag {
-            self.cs = self.parse_specific_character_set()?;
+            self._read_dicom_element::<LittleEndian>()
         }
-
-        Ok(element_tag)
     }
 
     fn _read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
@@ -233,7 +217,12 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
         let element: DicomElement = DicomElement::new(tag, vr, vl, bytes);
 
-        self.elements.insert(tag, element);
+        self.elements.set_element(tag, element);
+
+        if tag == tags::SpecificCharacterSet.tag {
+            self.cs = self.parse_specific_character_set()?;
+        }
+
         Ok(tag)
     }
 
@@ -374,5 +363,68 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         };
 
         Ok(format!("{} {} {} => {}", tag_num, elem.vr.ident, tag_name, tag_value))
+    }
+}
+
+impl<StreamType: ReadBytesExt> ElementContainer for DicomStream<StreamType> {
+    fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
+        self.elements.get_element(tag)
+    }
+
+    fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
+        self.elements.get_element_mut(tag)
+    }
+
+    fn get_string(&mut self, tag: u32, cs: EncodingRef) -> Result<&String, Error> {
+        self.elements.get_string(tag, cs)
+    }
+
+    fn get_strings(&mut self, tag: u32, cs: EncodingRef) -> Result<&Vec<String>, Error> {
+        self.elements.get_strings(tag, cs)
+    }
+
+    fn get_f32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f32, Error> {
+        self.elements.get_f32::<Endian>(tag)
+    }
+
+    fn get_f32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f32>, Error> {
+        self.elements.get_f32s::<Endian>(tag)
+    }
+
+    fn get_f64<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f64, Error> {
+        self.elements.get_f64::<Endian>(tag)
+    }
+
+    fn get_f64s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f64>, Error> {
+        self.elements.get_f64s::<Endian>(tag)
+    }
+
+    fn get_i16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i16, Error> {
+        self.elements.get_i16::<Endian>(tag)
+    }
+
+    fn get_i16s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i16>, Error> {
+        self.elements.get_i16s::<Endian>(tag)
+    }
+
+    fn get_i32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i32, Error> {
+        self.elements.get_i32::<Endian>(tag)
+    }
+
+    fn get_i32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i32>, Error> {
+        self.elements.get_i32s::<Endian>(tag)
+    }
+
+    fn get_u16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u16, Error> {
+        self.elements.get_u16::<Endian>(tag)
+    }
+
+    fn get_u32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u32, Error> {
+        self.elements.get_u32::<Endian>(tag)
+    }
+
+
+    fn set_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement> {
+        self.elements.set_element(tag, element)
     }
 }
