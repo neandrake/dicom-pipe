@@ -12,6 +12,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
 
+static MAX_BYTES_DISPLAY: usize = 16;
 
 pub struct DicomElement {
     pub tag: u32,
@@ -267,7 +268,18 @@ impl DicomElement {
         } else if self.vr == &vr::US {
             Ok(format!("{}", self.parse_u16::<Endian>()?))
         } else {
-            Ok(format!("UNKNOWN VR: {}", self.vr.ident))
+            let byte_vec: &Vec<u8> = self.value.get_ref();
+            if byte_vec.len() <= MAX_BYTES_DISPLAY {
+                Ok(format!("{:?}", byte_vec))
+            } else {
+                let byte_display: String = byte_vec
+                    .iter()
+                    .take(MAX_BYTES_DISPLAY)
+                    .map(|val: &u8| format!("{}", val))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                Ok(format!("[{}, ..]", byte_display))
+            }
         }
     }
 }
