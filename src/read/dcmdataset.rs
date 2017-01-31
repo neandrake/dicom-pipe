@@ -10,7 +10,7 @@ use std::collections::hash_map::{Entry, HashMap};
 use std::io::{Error, ErrorKind};
 
 
-pub trait ElementContainer {
+pub trait DicomDataSetContainer {
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error>;
     fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error>;
     fn get_string(&mut self, tag: u32, cs: EncodingRef) -> Result<&String, Error>;
@@ -26,11 +26,11 @@ pub trait ElementContainer {
     fn get_u16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u16, Error>;
     fn get_u32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u32, Error>;
 
-    fn set_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement>;
+    fn put_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement>;
 }
 
 
-pub struct ElementCache {
+pub struct DicomDataSet {
     elements: HashMap<u32, DicomElement>,
 
     strings: HashMap<u32, String>,
@@ -52,9 +52,9 @@ pub struct ElementCache {
     uints: HashMap<u32, u32>,
 }
 
-impl ElementCache {
-    pub fn new() -> ElementCache {
-        ElementCache {
+impl DicomDataSet {
+    pub fn new() -> DicomDataSet {
+        DicomDataSet {
             elements: HashMap::new(),
 
             strings: HashMap::new(),
@@ -78,7 +78,7 @@ impl ElementCache {
     }
 }
 
-impl ElementContainer for ElementCache {
+impl DicomDataSetContainer for DicomDataSet {
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
         self.elements.get(&tag)
             .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", Tag::format_tag_to_display(tag))))
@@ -94,7 +94,7 @@ impl ElementContainer for ElementCache {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(elem) = self.elements.get(&tag) {
+                if let Some(ref mut elem) = self.elements.get_mut(&tag) {
                     let value: String = elem.parse_string(cs)?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -108,7 +108,7 @@ impl ElementContainer for ElementCache {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(elem) = self.elements.get(&tag) {
+                if let Some(ref mut elem) = self.elements.get_mut(&tag) {
                     let value: Vec<String> = elem.parse_strings(cs)?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -257,7 +257,7 @@ impl ElementContainer for ElementCache {
         Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
     }
 
-    fn set_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement> {
+    fn put_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement> {
         self.elements.insert(tag, element)
     }
 }
