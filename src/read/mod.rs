@@ -1,6 +1,6 @@
+pub mod dcmdataset;
 pub mod dcmelement;
 pub mod dcmstream;
-pub mod elementcontainer;
 pub mod tagstop;
 
 #[cfg(test)]
