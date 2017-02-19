@@ -3,7 +3,7 @@
 extern crate byteorder;
 extern crate walkdir;
 
-use byteorder::ReadBytesExt;
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 
 use core::dict::dicom_elements as tags;
 use core::tag::TagRef;
@@ -103,14 +103,20 @@ fn test_parse_known_dicom_files() {
         .expect(&format!("Error reading elements"));
     
     // read_until() should have stopped just prior to reading PixelData
-    let next_tag: u32 = dstream.read_next_tag()
-        .expect("Unable to read next tag");
+    let next_tag: u32 = if dstream.get_ts().big_endian {
+        dstream.read_next_tag::<BigEndian>()
+    } else {
+        dstream.read_next_tag::<LittleEndian>()
+    }.expect("Unable to read next tag");
     assert_eq!(next_tag, read_until_before_tag.tag);
     println!("Next Tag: {}", read_until_before_tag.ident);
 
     // subsequent call to read_next_tag() should not advance reading elements
-    let next_tag: u32 = dstream.read_next_tag()
-        .expect("Unable to read next tag");
+    let next_tag: u32 = if dstream.get_ts().big_endian {
+        dstream.read_next_tag::<BigEndian>()
+    } else {
+        dstream.read_next_tag::<LittleEndian>()
+    }.expect("Unable to read next tag");
     assert_eq!(next_tag, read_until_before_tag.tag);
 
     // read_until() being given the same tag to read until should not

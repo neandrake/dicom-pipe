@@ -10,7 +10,7 @@ use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 
 use encoding::types::{DecoderTrap, EncodingRef};
 
-use read::dcmdataset::DicomDataSet;
+use read::dcmitem::DicomItem;
 
 use std::borrow::Cow;
 use std::fmt;
@@ -18,46 +18,6 @@ use std::io::{Cursor, Error, ErrorKind, Read};
 
 static MAX_BYTES_DISPLAY: usize = 16;
 
-
-pub struct DicomItem {
-    pub tag: u32,
-    pub vl: ValueLength,
-    value: Cursor<Vec<u8>>,
-
-    dataset: DicomDataSet,
-}
-
-impl DicomItem {
-    pub fn new(tag: u32, vl: ValueLength, value: Vec<u8>) -> DicomItem {
-        DicomItem {
-            tag: tag,
-            vl: vl,
-            value: Cursor::new(value),
-
-            dataset: DicomDataSet::new(),
-        }
-    }
-
-    pub fn get_value(&self) -> &Cursor<Vec<u8>> {
-        &self.value
-    }
-
-    pub fn get_value_mut(&mut self) -> &mut Cursor<Vec<u8>> {
-        &mut self.value
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.value.get_ref().len() == 0
-    }
-
-    pub fn get_dataset(&self) -> &DicomDataSet {
-        &self.dataset
-    }
-
-    pub fn get_dataset_mut(&mut self) -> &mut DicomDataSet {
-        &mut self.dataset
-    }
-}
 
 pub struct DicomElement {
     pub tag: u32,
@@ -106,6 +66,15 @@ impl DicomElement {
 
     pub fn is_empty(&self) -> bool {
         self.value.get_ref().len() == 0
+    }
+
+    fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
+        if let Some(last_tag) = self.tag_peek {
+            return Ok(last_tag);
+        }
+        let value: u32 = self.parse_attribute::<Endian>()?;
+        self.tag_peek = Some(value);
+        Ok(value)
     }
 
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
@@ -274,10 +243,10 @@ impl DicomElement {
     pub fn parse_sequence<Endian: ByteOrder>(&mut self) -> Result<Vec<DicomItem>, Error> {
         let mut items: Vec<DicomItem> = Vec::new();
         loop {
-            let tag: u32 = match self.tag_peek {
-                Some(read_tag) => read_tag,
-                None => self.read_tag::<Endian>()?,
-            };
+            let tag: u32 = self.read_tag::<Endian>()?;
+            if tag != tags::Item.tag {
+                return Err(Error::new(ErrorKind::InvalidData, format!("Expected Item element when parsing as SQ but instead found: {}", tag)));
+            }
 
             let vl: ValueLength = self.read_item_value_length::<Endian>()?;
             let bytes: Vec<u8> = self.read_item_value_field(&vl)?;
@@ -288,20 +257,19 @@ impl DicomElement {
 
             items.push(DicomItem::new(tag, vl, bytes));
 
-            if tag == tags::SequenceDelimitationItem.tag || tag == tags::ItemDelimitationItem.tag {
+            // if the sequence delimiter tag was just read then it's the end of the sequence
+            if tag == tags::SequenceDelimitationItem.tag {
                 break;
+            }
+
+            // if there's no more data to read then it's the end of the sequence
+            if let ValueLength::Explicit(len) = self.vl {
+                if self.value.position() == len as u64 {
+                    break;
+                }
             }
         }
         Ok(items)
-    }
-
-    fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        if let Some(last_tag) = self.tag_peek {
-            return Ok(last_tag);
-        }
-        let value: u32 = self.parse_attribute::<Endian>()?;
-        self.tag_peek = Some(value);
-        Ok(value)
     }
 
     fn read_item_value_length<Endian: ByteOrder>(&mut self) -> Result<ValueLength, Error> {
@@ -322,7 +290,7 @@ impl DicomElement {
                 // TODO: Read until Sequence Delimitation Item
                 // Part 5 Ch. 7.1.3
                 // The Value Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value Field.
-                Err(Error::new(ErrorKind::Other, format!("Reading values of undefined length not yet supported")))
+                unimplemented!();
             },
         }
     }
