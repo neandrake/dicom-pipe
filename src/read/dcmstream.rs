@@ -292,7 +292,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             .as_ref();
 
         if ts_uid.ends_with(char::from(vr::UI.padding)) {
-            ts_uid = unsafe { ts_uid.slice_unchecked(0, ts_uid.len() - 1) };
+            ts_uid = &ts_uid[0..ts_uid.len() - 1];
         }
 
         TS_BY_ID
