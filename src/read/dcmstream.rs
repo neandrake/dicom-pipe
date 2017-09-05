@@ -52,7 +52,7 @@ impl DicomStream<File> {
         }
 
         let file: File = File::open(path)?;
-        Ok::<DicomStream<File>, Error>(DicomStream::new(file))
+        Ok(DicomStream::new(file))
     }
 }
 

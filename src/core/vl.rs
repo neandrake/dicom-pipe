@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-pub const IMPLICIT_VL_VALUE: u32 = 0xFFFFFFFF;
+const UNDEFINED_LENGTH: u32 = 0xFFFF_FFFF;
 
 pub enum ValueLength {
     UndefinedLength,
@@ -19,7 +19,7 @@ impl fmt::Debug for ValueLength {
 }
 
 pub fn from_value_length(vl: u32) -> ValueLength {
-    if vl == IMPLICIT_VL_VALUE {
+    if vl == UNDEFINED_LENGTH {
         ValueLength::UndefinedLength
     } else {
         ValueLength::Explicit(vl)

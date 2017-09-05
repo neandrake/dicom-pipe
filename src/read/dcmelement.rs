@@ -264,7 +264,7 @@ impl DicomElement {
 
             // if there's no more data to read then it's the end of the sequence
             if let ValueLength::Explicit(len) = self.vl {
-                if self.value.position() == len as u64 {
+                if self.value.position() == (len as u64) - 1 {
                     break;
                 }
             }
