@@ -333,14 +333,10 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         let tag_num: String = Tag::format_tag_to_display(elem.tag);
 
         let tag_name: String = if let Some(tag) = TAG_BY_VALUE.get(&elem.tag) {
-            format!("{}", tag.ident)
+            tag.ident.to_owned()
         } else {
-            format!("{{Unknown Tag}}")
+            "{{Unknown Tag}}".to_owned()
         };
-
-        if elem.is_empty() {
-            return Ok(format!("{} {} {} [EMPTY]", tag_num, elem.vr.ident, tag_name));
-        }
         
         let tag_value: String = if is_big_endian {
             elem.fmt_string_value::<BigEndian>(cs)?
