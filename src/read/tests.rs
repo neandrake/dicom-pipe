@@ -7,7 +7,9 @@ use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 
 use core::dict::dicom_elements as tags;
 use core::tag::TagRef;
+use core::vr::DEFAULT_CHARACTER_SET;
 
+use read::dcmdataset::DicomDataSetContainer;
 use read::dcmstream::{DicomStream, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::mock::MockDicomStream;
 use read::tagstop::TagStop;
@@ -80,7 +82,7 @@ fn test_parse_known_dicom_files() {
                 panic!("Unable to print element");
             }
         })
-        .expect(&format!("Unable to read FileMetaInformation"));
+        .expect("Unable to read FileMetaInformation");
 
     let is_dcm = is_standard_preamble(&dstream);
     assert!(is_dcm);
@@ -100,7 +102,7 @@ fn test_parse_known_dicom_files() {
                 panic!("Unable to print element");
             }
         })
-        .expect(&format!("Error reading elements"));
+        .expect("Error reading elements");
     
     // read_until() should have stopped just prior to reading PixelData
     let next_tag: u32 = if dstream.get_ts().big_endian {
@@ -126,7 +128,19 @@ fn test_parse_known_dicom_files() {
         |_ds: &mut DicomStream<File>, _element_tag: u32| {
             panic!("Should not read additional elements");
         })
-        .expect(&format!("Error reading elements"));
+        .expect("Error reading elements");
+    
+    // repeated calls to retrieve the same tag value should return the same value
+    {
+        let specific_charset: &String = dstream.get_string(tags::SpecificCharacterSet.tag, DEFAULT_CHARACTER_SET)
+            .expect("Should have read a charset");
+        assert_eq!("ISO_IR 100", *specific_charset);
+    }
+    {
+        let specific_charset: &String = dstream.get_string(tags::SpecificCharacterSet.tag, DEFAULT_CHARACTER_SET)
+            .expect("Should have read a charset");
+        assert_eq!("ISO_IR 100", *specific_charset);
+    }
 }
 
 fn get_first_file_stream() -> DicomStream<File> {
