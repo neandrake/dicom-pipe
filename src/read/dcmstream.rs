@@ -200,7 +200,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
         let element: DicomElement = DicomElement::new(tag, vr, vl, bytes);
 
-        self.root_dataset.put_element(tag, element);
+        self.put_element(tag, element);
 
         if tag == tags::SpecificCharacterSet.tag {
             self.cs = self.parse_specific_character_set()?;
@@ -227,9 +227,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         if fmi_grouplength_tag != fme::FileMetaInformationGroupLength.tag {
             return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", fmi_grouplength_tag)))
         } else {
-            let fmi_grouplength: &mut DicomElement = self.get_element_mut(fmi_grouplength_tag)?;
             // TODO: this reading of bytes as u32 should be part of VR (and remove padding)
-            fme_bytes = fmi_grouplength.get_value_mut().read_u32::<LittleEndian>()? as usize;
+            fme_bytes = *self.get_u32::<LittleEndian>(fmi_grouplength_tag)? as usize;
         }
 
         let mut transfer_syntax: TSRef = self.ts;
@@ -302,10 +301,10 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 
     fn parse_specific_character_set(&mut self) -> Result<EncodingRef, Error> {
-        if let Ok(ref mut element) = self.get_element_mut(tags::SpecificCharacterSet.tag) {
-            let decoder: EncodingRef = element.vr.get_proper_cs(self.cs);
+        if let Some(ref vr) = tags::SpecificCharacterSet.implicit_vr {
+            let decoder: EncodingRef = vr.get_proper_cs(self.cs);
             // Change the lookup key into format that the encoding package and recognize
-            let new_cs: String = element.parse_string(decoder)
+            let new_cs: String = self.get_string(tags::SpecificCharacterSet.tag, decoder)
                 .iter()
                 .flat_map(|s| s.chars())
                 .map(|c: char| {
@@ -323,7 +322,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
                 .ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {:?}", &new_cs)));
         }
 
-        Err(Error::new(ErrorKind::InvalidData, format!("DicomStream does not have SpecificCharacterSet")))
+        Err(Error::new(ErrorKind::InvalidData, format!("No VR associated with SpecificCharacterSet")))
     }
 
     pub fn print_element(&mut self, element_tag: u32) -> Result<String, Error> {
@@ -353,6 +352,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 }
 
+/// Allows treating this stream as a dataset by delegating to the root dataset
 impl<StreamType: ReadBytesExt> DicomDataSetContainer for DicomStream<StreamType> {
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
         self.root_dataset.get_element(tag)
