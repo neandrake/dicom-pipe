@@ -4,6 +4,7 @@ use encoding::all::WINDOWS_1252;
 use encoding::types::EncodingRef;
 
 use std::hash::{Hash, Hasher};
+use std::fmt;
 
 /// The BACKSLASH used to delimit multi-value character string values, `\`
 pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
@@ -13,7 +14,7 @@ pub static DEFAULT_CHARACTER_SET: EncodingRef = WINDOWS_1252 as EncodingRef;
 pub type VRRef = &'static VR;
 
 /// Value Representation
-#[derive(Debug, Eq)]
+#[derive(Eq)]
 pub struct VR {
 	/// The two-letter identifer, "AE", "IS", etc.
 	pub ident: &'static str,
@@ -82,6 +83,12 @@ impl PartialEq for VR {
 impl Hash for VR {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.code.hash(state)
+	}
+}
+
+impl fmt::Debug for VR {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", self.ident)
 	}
 }
 
