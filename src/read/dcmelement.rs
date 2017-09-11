@@ -1,20 +1,18 @@
 use byteorder::{ByteOrder, ReadBytesExt};
 
-use core::dict::dicom_elements as tags;
 use core::dict::lookup::TAG_BY_VALUE;
 use core::tag::Tag;
-use core::vl;
 use core::vl::ValueLength;
 use core::vr;
 use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 
 use encoding::types::{DecoderTrap, EncodingRef};
 
-use read::dcmitem::DicomItem;
+use read::dcmdataset::{DicomDataSet, DicomDataSetContainer};
 
 use std::borrow::Cow;
 use std::fmt;
-use std::io::{Cursor, Error, ErrorKind, Read};
+use std::io::{Cursor, Error, ErrorKind};
 
 static MAX_BYTES_DISPLAY: usize = 16;
 
@@ -24,10 +22,10 @@ pub struct DicomElement {
     pub tag: u32,
     pub vr: VRRef,
     pub vl: ValueLength,
-    value: Cursor<Vec<u8>>,
 
     bytes_read: usize,
-    tag_peek: Option<u32>,
+    value: Cursor<Vec<u8>>,
+    items: DicomDataSet,
 }
 
 /// A nice user-readable display of the element such as
@@ -36,10 +34,10 @@ impl fmt::Debug for DicomElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let tag_num: String = Tag::format_tag_to_display(self.tag);
 
-        let tag_name: String = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
-            format!("{}", tag.ident)
+        let tag_name: &str = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
+            &tag.ident
         } else {
-            "{{Unknown Tag}}".to_owned()
+            "{{Unknown Tag}}"
         };
 
         write!(f, "{} {} {}", tag_num, self.vr.ident, tag_name)
@@ -52,10 +50,10 @@ impl DicomElement {
             tag: tag,
             vr: vr,
             vl: vl,
-            value: Cursor::new(value),
 
             bytes_read: 0_usize,
-            tag_peek: None,
+            value: Cursor::new(value),
+            items: DicomDataSet::new(),
         }
     }
 
@@ -67,6 +65,10 @@ impl DicomElement {
         &mut self.value
     }
 
+    pub fn add_item(&mut self, index: u32, item: DicomElement) -> Option<DicomElement> {
+        self.items.put_element(index, item)
+    }
+
     /// Resets the internal byte stream to be parsed from the beginning
     fn reset_value_read(&mut self) {
         self.bytes_read = 0;
@@ -76,17 +78,6 @@ impl DicomElement {
     /// Returns whether the the size of the value for this element is zero
     pub fn is_empty(&self) -> bool {
         self.value.get_ref().len() == 0
-    }
-
-    /// Returns the previous tag/attribute that was parsed from the value of this element,
-    /// or if no previous tag was parses the attribute from the current position in the stream
-    fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        if let Some(last_tag) = self.tag_peek {
-            return Ok(last_tag);
-        }
-        let value: u32 = self.read_attribute::<Endian>()?;
-        self.tag_peek = Some(value);
-        Ok(value)
     }
 
     /// Parses the remainder of the value of this element as a string using the given encoding
@@ -266,64 +257,6 @@ impl DicomElement {
         let result: u16 = self.value.read_u16::<Endian>()?;
         self.bytes_read += 2;
         Ok(result)
-    }
-
-    /// Parses the remainder of the value for this element as a sequence of elements
-    /// Associated VRs: SQ
-    pub fn read_sequence<Endian: ByteOrder>(&mut self) -> Result<Vec<DicomItem>, Error> {
-        let mut items: Vec<DicomItem> = Vec::new();
-        loop {
-            let tag: u32 = self.read_tag::<Endian>()?;
-            if tag != tags::Item.tag {
-                return Err(Error::new(ErrorKind::InvalidData, format!("Expected Item element when parsing as SQ but instead found: {}", tag)));
-            }
-
-            let vl: ValueLength = self.read_item_value_length::<Endian>()?;
-            let bytes: Vec<u8> = self.read_item_value_field(&vl)?;
-
-            // clear `self.tag_peek` as we've now read the entire element and the next
-            // read should advance to the next tag
-            self.tag_peek = None;
-
-            items.push(DicomItem::new(tag, vl, bytes));
-
-            // if the sequence delimiter tag was just read then it's the end of the sequence
-            if tag == tags::SequenceDelimitationItem.tag {
-                break;
-            }
-
-            // if there's no more data to read then it's the end of the sequence
-            if let ValueLength::Explicit(len) = self.vl {
-                if self.value.position() == (len as u64) - 1 {
-                    break;
-                }
-            }
-        }
-        Ok(items)
-    }
-
-    /// Parses the next 4 bytes as an unsigned 32bit integer value length
-    fn read_item_value_length<Endian: ByteOrder>(&mut self) -> Result<ValueLength, Error> {
-        let value_length: u32 = self.read_u32::<Endian>()?;
-        Ok(vl::from_value_length(value_length))
-    }
-
-    /// Extracts the next set of bytes. The number of bytes returned is based on the given value length
-    fn read_item_value_field(&mut self, vl: &ValueLength) -> Result<Vec<u8>, Error> {
-        match *vl {
-            ValueLength::Explicit(value_length) => {
-                let mut bytes: Vec<u8> = vec![0;value_length as usize];
-                self.value.read_exact(bytes.as_mut_slice())?;
-                self.bytes_read += value_length as usize;
-                Ok(bytes)
-            },
-            ValueLength::UndefinedLength => {
-                // TODO: Read until Sequence Delimitation Item
-                // Part 5 Ch. 7.1.3
-                // The Value Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value Field.
-                unimplemented!("Undefined length values not yet implemented");
-            },
-        }
     }
 
     /// Formats the value of this element as a string based on the VR
