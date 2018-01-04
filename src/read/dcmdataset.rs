@@ -141,7 +141,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: f32 = elem.read_f32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -155,7 +155,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: Vec<f32> = elem.read_f32s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -169,7 +169,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: f64 = elem.read_f64::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -183,7 +183,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: Vec<f64> = elem.read_f64s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -197,7 +197,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: i16 = elem.read_i16::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -211,7 +211,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: Vec<i16> = elem.read_i16s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -225,7 +225,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: i32 = elem.read_i32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -239,7 +239,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: Vec<i32> = elem.read_i32s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -253,7 +253,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: u16 = elem.read_u16::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
@@ -267,7 +267,7 @@ impl DicomDataSetContainer for DicomDataSet {
         match entry {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                if let Some(mut elem) = self.elements.get_mut(&tag) {
+                if let Some(elem) = self.elements.get_mut(&tag) {
                     let value: u32 = elem.read_u32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
