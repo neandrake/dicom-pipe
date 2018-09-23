@@ -33,7 +33,6 @@ use csv::Reader;
 
 use htmltbl2csv::CsvTable;
 
-use std::ascii::AsciiExt;
 use std::fs::File;
 use std::io::{BufWriter, Cursor, Error, ErrorKind, Write};
 use std::path::Path;

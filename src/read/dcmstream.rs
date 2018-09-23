@@ -18,7 +18,6 @@ use read::dcmdataset::{DicomDataSet, DicomDataSetContainer};
 use read::dcmelement::DicomElement;
 use read::tagstop::TagStop;
 
-use std::ascii::AsciiExt;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
