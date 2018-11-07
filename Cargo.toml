@@ -1,18 +1,6 @@
-[package]
-name = "dcmpipe"
-version = "0.1.0"
-authors = ["neandrake <die.drachen@gmail.com>"]
-build = "build/buildconstants.rs"
-
-[dependencies]
-byteorder = "1"
-encoding = "0.2"
-phf = "0.7"
-walkdir = "1"
-
-[build-dependencies]
-csv = "0.15"
-htmltbl2csv = { path = "../htmltbl2csv", version = "0.1" }
-phf_codegen = "0.7"
-rustc-serialize = "0.3"
-walkdir = "1"
+[workspace]
+members = [
+    "cli",
+    "lib",
+    "dict"
+]
