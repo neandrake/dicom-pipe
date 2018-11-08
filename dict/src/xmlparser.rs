@@ -230,7 +230,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                     }
                 }
                 Ok(Event::End(ref e)) => {
-                    let local_name = e.local_name();
+                    let local_name: &[u8] = e.local_name();
                     match self.state {
                         XmlDicomReadingState::Off => {},
                         _ => if local_name == b"tr" {
