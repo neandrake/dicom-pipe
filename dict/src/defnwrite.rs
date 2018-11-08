@@ -50,6 +50,60 @@ use core::uid::UID;
 
 ";
 
+macro_rules! uid_definition {
+    ($($args:tt)*) => {
+        format!("/// {}
+/// 
+/// - **UID:** {}
+/// - **UID Type:** {}
+pub static {}: UID = UID {{
+\tident: \"{}\",
+\tuid: \"{}\",
+\tname: \"{}\",
+}};
+
+", $($args)*)
+    };
+}
+
+macro_rules! transfer_syntax_definition {
+    ($($args:tt)*) => {
+        format!(
+"/// {}
+/// 
+/// - **UID:** {}
+pub static {}: TransferSyntax = TransferSyntax {{
+\tuid: {},
+\texplicit_vr: {},
+\tbig_endian: {},
+\tdeflated: {},
+\tencapsulated: {},
+}};
+
+", $($args)*)
+    };
+}
+
+macro_rules! dicom_element_definition {
+    ($($args:tt)*) => {
+        format!(
+"/// {}
+/// 
+/// - **Tag:** {}
+/// - **VR:** {}
+/// - **VM:** {}
+pub static {}: Tag = Tag {{
+\tident: \"{}\",
+\ttag: 0x{:08X},
+\timplicit_vr: {},
+\tvm: {},
+\tdesc: \"{}\",
+}};
+
+", $($args)*)
+    };
+}
+
 pub fn process_xml_file(file: File, folder: &Path) -> Result<(), Error> {
     let bufread: BufReader<File> = BufReader::new(file);
     let xml_definitions: Vec<XmlDicomDefinition> = XmlDicomDefinitionIterator::new(bufread)
@@ -179,22 +233,8 @@ fn process_uid(uid: &XmlDicomUid, ident_lookup: &mut phf_codegen::Map<String>, i
         String::new()
     };
     
-    let code: String = format!(
-"/// {}
-/// 
-/// - **UID:** {}
-/// - **UID Type:** {}
-pub static {}: UID = UID {{
-\tident: \"{}\",
-\tuid: \"{}\",
-\tname: \"{}\",
-}};
-
-",
-        // comment
-        uid.name, uid.value, comment_uid_type,
-        // definitions
-        var_name, var_name, uid.value, uid.name);
+    let code: String = uid_definition!(uid.name, uid.value, comment_uid_type,   // comment placeholders
+                                        var_name, var_name, uid.value, uid.name);   // field placeholders
     
     let var_name_key: String = var_name.clone();
     ident_lookup.entry(var_name_key, &format!("&uids::{}", var_name));
@@ -233,24 +273,8 @@ fn process_transfer_syntax(uid: &XmlDicomUid, ident_lookup: &mut phf_codegen::Ma
     let encapsulated_val: String =
         if var_name.contains("Encapsulate") { "true" } else { "false" }.to_owned();
 
-    let code: String = format!(
-"/// {}
-/// 
-/// - **UID:** {}
-pub static {}: TransferSyntax = TransferSyntax {{
-\tuid: {},
-\texplicit_vr: {},
-\tbig_endian: {},
-\tdeflated: {},
-\tencapsulated: {},
-}};
-
-",
-        // comment
-        uid.name, uid.value, var_name,
-        // definitions
-        var_uid, explicit_vr_val, big_endian_val, deflated_val, encapsulated_val);
-    
+    let code: String = transfer_syntax_definition!(uid.name, uid.value, var_name,   // comment placeholders
+                                                    var_uid, explicit_vr_val, big_endian_val, deflated_val, encapsulated_val);  // field placeholders
     let var_name_key: String = var_name.clone();
     ident_lookup.entry(var_name_key, &format!("&ts::{}", var_name));
     let id_val_lookup: String = uid.value.clone();
@@ -297,25 +321,8 @@ fn process_element(element: &XmlDicomElement, dict: &str, ident_lookup: &mut phf
             else { format!("&VM::MultipleOf({})", start) }
         };
 
-    let code: String = format!(
-"/// {}
-/// 
-/// - **Tag:** {}
-/// - **VR:** {}
-/// - **VM:** {}
-pub static {}: Tag = Tag {{
-\tident: \"{}\",
-\ttag: 0x{:08X},
-\timplicit_vr: {},
-\tvm: {},
-\tdesc: \"{}\",
-}};
-
-",
-        // comment
-        element.name, element.tag, vr, element.vm,
-        // definitions
-        var_name, var_name, tag_value, vr_value, vm, element.name);
+    let code: String = dicom_element_definition!(element.name, element.tag, vr, element.vm,  // comment placeholders
+                                                var_name, var_name, tag_value, vr_value, vm, element.name);  // field placeholders
     
     let var_name_key: String = var_name.clone();
     ident_lookup.entry(var_name_key, &format!("&{}{}", dict, var_name));
