@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Error, Write};
 use std::path::{Path, PathBuf};
+
 use xmlparser::{XmlDicomDefinition, XmlDicomElement, XmlDicomUid, XmlDicomDefinitionIterator, XmlDicomDefinitionResult};
 
 static LOOKUP_PREAMBLE: &'static str = "//! This is an auto-generated file. Do not make modifications here.

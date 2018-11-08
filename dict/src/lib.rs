@@ -6,4 +6,4 @@ extern crate serde;
 extern crate serde_derive;
 
 pub mod defnwrite;
-mod xmlparser;
+pub mod xmlparser;
