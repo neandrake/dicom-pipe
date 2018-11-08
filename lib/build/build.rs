@@ -4,8 +4,9 @@ use dcmpipe_dict::defnwrite;
 use std::fs::File;
 use std::path::Path;
 
+// This file was downloaded from
+// http://dicom.nema.org/medical/dicom/current/source/docbook/part06/part06.xml
 static DICOM_CONSTANTS_HTML_FILE: &'static str = "build/dicom_xml/part06.xml";
-static DEFAULT_LOCATION: &'static str = "http://dicom.nema.org/medical/dicom/current/source/docbook/part06/part06.xml";
 
 fn main() {
     /// In theory this instructs cargo that this build script doesn't need run
