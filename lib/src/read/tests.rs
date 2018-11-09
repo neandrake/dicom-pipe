@@ -20,7 +20,7 @@ use std::path::Path;
 
 use self::walkdir::{DirEntry, WalkDir};
 
-static FIXTURE_DATASET1_FOLDER: &'static str = "fixtures/dataset1";
+static FIXTURE_DATASET1_FOLDER: &'static str = "../fixtures/dataset1";
 
 #[test]
 fn test_good_preamble() {
@@ -66,7 +66,7 @@ fn test_failure_to_read_preamble() {
         MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
     test_stream.read_file_preamble()
         .expect("This should fail to read preamble due to not enough data");
-    let start_pos: usize = test_stream.get_stream().pos;
+    let start_pos: u64 = test_stream.get_stream().position();
     assert!(start_pos != 0);
 }
 
