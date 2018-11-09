@@ -58,7 +58,6 @@ impl<StreamType: Seek + ReadBytesExt> DicomStream<StreamType> {
     pub fn new(stream: StreamType) -> DicomStream<StreamType> {
         DicomStream {
             stream: stream,
-            bytes_read: 0usize,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
             root_dataset: DicomDataSet::new(),
