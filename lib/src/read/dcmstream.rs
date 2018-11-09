@@ -19,7 +19,7 @@ use read::dcmelement::DicomElement;
 use read::tagstop::TagStop;
 
 use std::fs::File;
-use std::io::{Cursor, Error, ErrorKind};
+use std::io::{Error, ErrorKind, Seek, SeekFrom};
 use std::path::Path;
 
 
@@ -28,9 +28,8 @@ pub const DICOM_PREFIX_LENGTH: usize = 4;
 
 pub static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
-pub struct DicomStream<StreamType: ReadBytesExt> {
-    stream: Cursor<StreamType>,
-    bytes_read: usize,
+pub struct DicomStream<StreamType: Seek + ReadBytesExt> {
+    stream: StreamType,
 
     file_preamble: [u8;FILE_PREAMBLE_LENGTH],
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
@@ -55,10 +54,10 @@ impl DicomStream<File> {
     }
 }
 
-impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
+impl<StreamType: Seek + ReadBytesExt> DicomStream<StreamType> {
     pub fn new(stream: StreamType) -> DicomStream<StreamType> {
         DicomStream {
-            stream: Cursor::new(stream),
+            stream: stream,
             bytes_read: 0usize,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
@@ -69,7 +68,11 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
     }
 
-    pub fn get_stream(&self) -> &Cursor<StreamType> {
+    pub fn position(&mut self) -> Result<u64, Error> {
+        self.stream.seek(SeekFrom::Current(0))
+    }
+
+    pub fn get_stream(&self) -> &StreamType {
         &self.stream
     }
 
@@ -86,14 +89,12 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
-        self.stream.get_mut().read_exact(&mut self.file_preamble)?;
-        self.bytes_read += self.file_preamble.len();
+        self.stream.read_exact(&mut self.file_preamble)?;
         Ok(())
     }
 
     pub fn read_dicom_prefix(&mut self) -> Result<(), Error> {
-        self.stream.get_mut().read_exact(&mut self.dicom_prefix)?;
-        self.bytes_read += self.dicom_prefix.len();
+        self.stream.read_exact(&mut self.dicom_prefix)?;
 
         for n in 0..DICOM_PREFIX.len() {
             if self.dicom_prefix[n] != DICOM_PREFIX[n] {
@@ -113,10 +114,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         if let Some(last_tag) = self.tag_peek {
             return Ok(last_tag);
         }
-        let first: u32 = (self.stream.get_mut().read_u16::<Endian>()? as u32) << 16;
-        self.bytes_read += 2;
-        let second: u32 = self.stream.get_mut().read_u16::<Endian>()? as u32;
-        self.bytes_read += 2;
+        let first: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
+        let second: u32 = self.stream.read_u16::<Endian>()? as u32;
         let result: u32 = first + second;
         self.tag_peek = Some(result);
         Ok(result)
@@ -133,10 +132,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
     fn read_vr(&mut self, tag: u32) -> Result<VRRef, Error> {
         if self.ts.explicit_vr {
-            let first_char: u8 = self.stream.get_mut().read_u8()?;
-            self.bytes_read += 1;
-            let second_char: u8 = self.stream.get_mut().read_u8()?;
-            self.bytes_read += 1;
+            let first_char: u8 = self.stream.read_u8()?;
+            let second_char: u8 = self.stream.read_u8()?;
 
             let code: u16 = ((first_char as u16) << 8) + second_char as u16;
             match VR::from_code(code) {
@@ -160,18 +157,13 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         let value_length: u32;
         if self.ts.explicit_vr {
             if vr.has_explicit_2byte_pad {
-                self.stream.get_mut().read_u16::<Endian>()?;
-                self.bytes_read += 2;
-
-                value_length = self.stream.get_mut().read_u32::<Endian>()?;
-                self.bytes_read += 4;
+                self.stream.read_u16::<Endian>()?;
+                value_length = self.stream.read_u32::<Endian>()?;
             } else {
-                value_length = self.stream.get_mut().read_u16::<Endian>()? as u32;
-                self.bytes_read += 2;
+                value_length = self.stream.read_u16::<Endian>()? as u32;
             }
         } else {
-            value_length = self.stream.get_mut().read_u32::<Endian>()?;
-            self.bytes_read += 4;
+            value_length = self.stream.read_u32::<Endian>()?;
         }
         Ok(vl::from_value_length(value_length))
     }
@@ -180,8 +172,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         match *vl {
             ValueLength::Explicit(value_length) => {
                 let mut bytes: Vec<u8> = vec![0;value_length as usize];
-                self.stream.get_mut().read_exact(bytes.as_mut_slice())?;
-                self.bytes_read += value_length as usize;
+                self.stream.read_exact(bytes.as_mut_slice())?;
                 Ok(bytes)
             },
             ValueLength::UndefinedLength => {
@@ -224,13 +215,13 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         self.read_file_preamble()?;
         self.read_dicom_prefix()?;
 
-        let bytes_read_before_fme: usize = self.bytes_read;
+        let pos_before_fme: u64 = self.position()?;
 
         // All FileMetaInformation fields are encoded as LittleEndian
 
         // The FileMetaInformationGroupLength is required first element and
         // tells us how many bytes to reach end of FileMetaInformation
-        let fme_bytes: usize;
+        let fme_bytes: u64;
         let fmi_grouplength: DicomElement = self.read_dicom_element::<LittleEndian>()?;
         let fmi_grouplength_tag: u32 = fmi_grouplength.tag;
         if fmi_grouplength_tag != fme::FileMetaInformationGroupLength.tag {
@@ -239,11 +230,13 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
 
         self.put_element(fmi_grouplength_tag, fmi_grouplength);
-        fme_bytes = *self.get_u32::<LittleEndian>(fmi_grouplength_tag)? as usize;
+        fme_bytes = *self.get_u32::<LittleEndian>(fmi_grouplength_tag)? as u64;
         each(self, fmi_grouplength_tag);
 
-        while self.bytes_read - bytes_read_before_fme < fme_bytes {
+        let mut pos: u64 = self.position()?;
+        while pos - pos_before_fme < fme_bytes {
             let element: DicomElement = self.read_dicom_element::<LittleEndian>()?;
+            pos = self.position()?;
             let element_tag: u32 = element.tag;
             self.put_element(element_tag, element);
             each(self, element_tag);
@@ -312,7 +305,10 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             TagStop::EndOfStream => false,
             TagStop::BeforeTag(before_tag) => element_tag >= before_tag,
             TagStop::AfterTag(after_tag) => element_tag > after_tag,
-            TagStop::AfterBytePos(byte_pos) => self.bytes_read >= byte_pos,
+            TagStop::AfterBytePos(byte_pos) => {
+                let pos: u64 = self.position()?;
+                pos >= byte_pos
+            },
         };
 
         Ok(is_at_tag_stop)
@@ -382,7 +378,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 }
 
 /// Allows treating this stream as a dataset by delegating to the root dataset
-impl<StreamType: ReadBytesExt> DicomDataSetContainer for DicomStream<StreamType> {
+impl<StreamType: Seek + ReadBytesExt> DicomDataSetContainer for DicomStream<StreamType> {
     fn contains_element(&self, tag: u32) -> bool {
         self.root_dataset.contains_element(tag)
     }

@@ -12,5 +12,5 @@ pub enum TagStop {
     /// Read all tag elements up to specified number of bytes have been read.
     /// If the byte position is in the middle of an element then bytes from
     /// that stream will continue to be read until the elment is fully parsed.
-    AfterBytePos(usize),
+    AfterBytePos(u64),
 }
