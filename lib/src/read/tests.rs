@@ -3,14 +3,10 @@
 extern crate byteorder;
 extern crate walkdir;
 
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use byteorder::ReadBytesExt;
 
 use core::dict::dicom_elements as tags;
-use core::tag::TagRef;
-use core::vr::DEFAULT_CHARACTER_SET;
-
-use read::dcmdataset::DicomDataSetContainer;
-use read::dcmstream::{DicomStream, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
+use read::dcmiterator::{DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::mock::MockDicomStream;
 use read::tagstop::TagStop;
 
@@ -24,110 +20,92 @@ static FIXTURE_DATASET1_FOLDER: &'static str = "../fixtures/dataset1";
 
 #[test]
 fn test_good_preamble() {
-    let mut test_good_stream: DicomStream<MockDicomStream> =
+    let mut test_good_iter: DicomStreamParser<MockDicomStream> =
         MockDicomStream::standard_dicom_preamble();
-    test_good_stream.read_file_preamble()
-        .expect("Unable to read file preamble");
-    test_good_stream.read_dicom_prefix()
-        .expect("Unable to read DICOM prefix");
-    let is_dcm: bool = is_standard_preamble(&test_good_stream);
+
+    // reads the preamble, prefix, and first element
+    let _ = test_good_iter.next()
+        .expect("Value should be Some Error");
+
+    let is_dcm: bool = is_standard_preamble(&test_good_iter);
     assert_eq!(is_dcm, true);
 }
 
 #[test]
 fn test_nonzero_preamble() {
-    let mut test_size_stream: DicomStream<MockDicomStream> =
+    let mut test_size_iter: DicomStreamParser<MockDicomStream> =
         MockDicomStream::nonzero_preamble();
-    test_size_stream.read_file_preamble()
-        .expect("Unable to read file preamble");
-    test_size_stream.read_dicom_prefix()
-        .expect("Unable to read DICOM prefix");
-    let is_dcm: bool = is_standard_preamble(&test_size_stream);
+
+    // reads the preamble, prefix, and first element
+    let _ = test_size_iter.next()
+        .expect("Value should be Some Error");
+
+    let is_dcm: bool = is_standard_preamble(&test_size_iter);
     assert_eq!(is_dcm, false);
 }
 
 #[test]
 #[should_panic(expected = "Invalid DICOM Prefix")]
 fn test_bad_dicom_prefix() {
-    let mut test_bad_stream: DicomStream<MockDicomStream> =
+    let mut test_bad_iter: DicomStreamParser<MockDicomStream> =
         MockDicomStream::invalid_dicom_prefix();
-    test_bad_stream.read_file_preamble()
-        .expect("Unable to read file preamble");
-    test_bad_stream.read_dicom_prefix()
+
+    // reads the preamble, prefix, and first element
+    let _ = test_bad_iter.next()
+        .expect("Value should be Some Error")
         .expect("This should fail to read a valid prefix");
-    let is_dcm: bool = is_standard_preamble(&test_bad_stream);
+
+    let is_dcm: bool = is_standard_preamble(&test_bad_iter);
     assert_eq!(is_dcm, false);
 }
 
 #[test]
 #[should_panic(expected = "failed to fill whole buffer")]
 fn test_failure_to_read_preamble() {
-    let mut test_stream: DicomStream<MockDicomStream> =
+    let mut test_iter: DicomStreamParser<MockDicomStream> =
         MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
-    test_stream.read_file_preamble()
+
+    // reads the preamble, prefix, and first element
+    let _first_elem = test_iter.next()
+        .expect("Value should be Some Error")
         .expect("This should fail to read preamble due to not enough data");
-    let start_pos: u64 = test_stream.position()
-        .expect("Unable to determine stream position");
-    assert!(start_pos != 0);
+
+    // should record zero bytes read since the first attempt to read into buffer should fail to fill
+    let start_pos: u64 = test_iter.bytes_read();
+    assert_eq!(start_pos, 0);
 }
 
 #[test]	// slow
 fn test_parse_known_dicom_files() {
-    let mut dstream: DicomStream<File> = get_first_file_stream();
-    
-    dstream.read_file_meta()
-        .expect("Unable to read FileMetaInformation");
+    let tagstop: u32 = tags::PixelData.tag;
+    let mut dicom_iter: DicomStreamParser<File> = get_first_file_stream(TagStop::BeforeTag(tagstop));
 
-    let is_dcm = is_standard_preamble(&dstream);
+    let _first_elem = dicom_iter.next()
+        .expect("Unable to read first element")
+        .expect("Unable to read first element");
+
+    let is_dcm = is_standard_preamble(&dicom_iter);
     assert!(is_dcm);
+
+    while let Some(_) = dicom_iter.next() {
+        // read elements while iterator returns non-None
+    }
 
     // Ability to read dicom elements after FileMetaInformation
     // means that we interpret the transfer syntax properly, as
     // the fixtures are implicit VR (FMI is encoded as explicit)
 
-    let read_until_before_tag: TagRef = &tags::PixelData;
-    dstream.read_until(TagStop::BeforeTag(read_until_before_tag.tag))
-        .expect("Error reading elements");
-    
-    // read_until() should have stopped just prior to reading PixelData
-    let next_tag: u32 = if dstream.get_ts().big_endian {
-        dstream.read_next_tag::<BigEndian>()
-    } else {
-        dstream.read_next_tag::<LittleEndian>()
-    }.expect("Unable to read next tag");
-    assert_eq!(next_tag, read_until_before_tag.tag);
+    // subsequent item should not advance reading elements
+    let next_elem = dicom_iter.next();
+    assert!(next_elem.is_none());
 
-    // subsequent call to read_next_tag() should not advance reading elements
-    let next_tag: u32 = if dstream.get_ts().big_endian {
-        dstream.read_next_tag::<BigEndian>()
-    } else {
-        dstream.read_next_tag::<LittleEndian>()
-    }.expect("Unable to read next tag");
-    assert_eq!(next_tag, read_until_before_tag.tag);
-
-    // read_until() being given the same tag to read until should not
-    // read any elements
-    dstream.read_until_on_each(
-        TagStop::BeforeTag(read_until_before_tag.tag),
-        |_ds: &mut DicomStream<File>, _element_tag: u32| {
-            panic!("Should not read additional elements");
-        })
-        .expect("Error reading elements");
-    
-    // repeated calls to retrieve the same tag value should return the same value
-    {
-        let specific_charset: &String = dstream.get_string(tags::SpecificCharacterSet.tag, DEFAULT_CHARACTER_SET)
-            .expect("Should have read a charset");
-        assert_eq!("ISO_IR 100", *specific_charset);
-    }
-    {
-        let specific_charset: &String = dstream.get_string(tags::SpecificCharacterSet.tag, DEFAULT_CHARACTER_SET)
-            .expect("Should have read a charset");
-        assert_eq!("ISO_IR 100", *specific_charset);
-    }
+    // the iterator
+    let stopped_at_tag = dicom_iter.partial_tag()
+        .expect("Iteration should have stopped after reading the PixelData tag");
+    assert_eq!(tagstop, stopped_at_tag);
 }
 
-fn get_first_file_stream() -> DicomStream<File> {
+fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
     let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
         .min_depth(1)
         .max_depth(1);
@@ -136,9 +114,11 @@ fn get_first_file_stream() -> DicomStream<File> {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
 
-        let dstream: DicomStream<File> = DicomStream::new_from_path(path)
-            .expect(&format!("Unable to read file: {:?}", path));
-        
+        let file: File = File::open(path)
+            .expect(&format!("Unable to open file: {:?}", path));
+
+        let dstream: DicomStreamParser<File> = DicomStreamParser::new(file, tagstop);
+
         return dstream;
     }
 
@@ -146,7 +126,7 @@ fn get_first_file_stream() -> DicomStream<File> {
 }
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'
-fn is_standard_preamble<StreamType>(stream: &DicomStream<StreamType>) -> bool
+fn is_standard_preamble<StreamType>(stream: &DicomStreamParser<StreamType>) -> bool
     where StreamType: ReadBytesExt + Seek {
     for i in 0..FILE_PREAMBLE_LENGTH {
         if stream.get_file_preamble()[i] != 0 {
