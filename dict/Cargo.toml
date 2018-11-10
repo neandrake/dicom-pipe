@@ -6,10 +6,6 @@ authors = ["neandrake <die.drachen@gmail.com>"]
 [dependencies]
 quick-xml = "0.13"
 phf_codegen = "0.7"
-rustc-serialize = "0.3"
-walkdir = "2.2"
-serde = "1.0"
-serde_derive = "1.0"
 
 [lib]
 name="dcmpipe_dict"

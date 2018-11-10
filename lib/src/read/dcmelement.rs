@@ -1,20 +1,19 @@
 use byteorder::{ByteOrder, ReadBytesExt};
 
-use core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
+use core::dict::lookup::TAG_BY_VALUE;
 use core::tag::Tag;
 use core::vl::ValueLength;
 use core::vr;
 use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 
-use encoding::types::{DecoderTrap, EncodingRef};
+use encoding::types::DecoderTrap;
 
 use read::dcmdataset::{DicomDataSet, DicomDataSetContainer};
+use read::CSRef;
 
 use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
-
-static MAX_BYTES_DISPLAY: usize = 16;
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
@@ -46,9 +45,9 @@ impl fmt::Debug for DicomElement {
 impl DicomElement {
     pub fn new(tag: u32, vr: VRRef, vl: ValueLength, value: Vec<u8>) -> DicomElement {
         DicomElement {
-            tag: tag,
-            vr: vr,
-            vl: vl,
+            tag,
+            vr,
+            vl,
 
             value: Cursor::new(value),
             items: DicomDataSet::new(),
@@ -81,7 +80,7 @@ impl DicomElement {
     /// Associated VRs:
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    pub fn read_string(&mut self, cs: EncodingRef) -> Result<String, Error> {
+    pub fn parse_string(&mut self, cs: CSRef) -> Result<String, Error> {
         let is_ui: bool = self.vr == &vr::UI;
         let is_char_str: bool = self.vr.is_character_string;
         let padding: u8 = self.vr.padding;
@@ -109,7 +108,7 @@ impl DicomElement {
     /// Associated VRs:
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    pub fn read_strings(&mut self, cs: EncodingRef) -> Result<Vec<String>, Error> {
+    pub fn parse_strings(&mut self, cs: CSRef) -> Result<Vec<String>, Error> {
         let is_ui: bool = self.vr == &vr::UI;
         let is_char_str: bool = self.vr.is_character_string;
         let padding: u8 = self.vr.padding;
@@ -174,7 +173,7 @@ impl DicomElement {
 
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
-    pub fn read_attribute<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
+    pub fn parse_attribute<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         self.reset_value_read();
         let first: u32 = (self.value.read_u16::<Endian>()? as u32) << 16;
         let second: u32 = self.value.read_u16::<Endian>()? as u32;
@@ -184,7 +183,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a 32bit floating point
     /// Associated VRs: FL
-    pub fn read_f32<Endian: ByteOrder>(&mut self) -> Result<f32, Error> {
+    pub fn parse_f32<Endian: ByteOrder>(&mut self) -> Result<f32, Error> {
         self.reset_value_read();
         let result: f32 = self.value.read_f32::<Endian>()?;
         Ok(result)
@@ -192,7 +191,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: OF
-    pub fn read_f32s<Endian: ByteOrder>(&mut self) -> Result<Vec<f32>, Error> {
+    pub fn parse_f32s<Endian: ByteOrder>(&mut self) -> Result<Vec<f32>, Error> {
         self.reset_value_read();
         let num_bytes: usize = self.value.get_ref().len();
         let num_floats: usize = num_bytes / 4;
@@ -206,7 +205,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a 64bit floating point
     /// Associated VRs: FD
-    pub fn read_f64<Endian: ByteOrder>(&mut self) -> Result<f64, Error> {
+    pub fn parse_f64<Endian: ByteOrder>(&mut self) -> Result<f64, Error> {
         self.reset_value_read();
         let result: f64 = self.value.read_f64::<Endian>()?;
         Ok(result)
@@ -214,7 +213,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: OD
-    pub fn read_f64s<Endian: ByteOrder>(&mut self) -> Result<Vec<f64>, Error> {
+    pub fn parse_f64s<Endian: ByteOrder>(&mut self) -> Result<Vec<f64>, Error> {
         self.reset_value_read();
         let num_bytes: usize = self.value.get_ref().len();
         let num_doubles: usize = num_bytes / 8;
@@ -228,7 +227,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a signed 16bit integer
     /// Associated VRs: SS
-    pub fn read_i16<Endian: ByteOrder>(&mut self) -> Result<i16, Error> {
+    pub fn parse_i16<Endian: ByteOrder>(&mut self) -> Result<i16, Error> {
         self.reset_value_read();
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
         let result: i16 = self.value.read_i16::<Endian>()?;
@@ -237,7 +236,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: OW
-    pub fn read_i16s<Endian: ByteOrder>(&mut self) -> Result<Vec<i16>, Error> {
+    pub fn parse_i16s<Endian: ByteOrder>(&mut self) -> Result<Vec<i16>, Error> {
         self.reset_value_read();
         let num_bytes: usize = self.value.get_ref().len();
         let num_words: usize = num_bytes / 4;
@@ -251,7 +250,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a signed 32bit integer
     /// Associated VRs: SL
-    pub fn read_i32<Endian: ByteOrder>(&mut self) -> Result<i32, Error> {
+    pub fn parse_i32<Endian: ByteOrder>(&mut self) -> Result<i32, Error> {
         self.reset_value_read();
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
         let result: i32 = self.value.read_i32::<Endian>()?;
@@ -260,7 +259,7 @@ impl DicomElement {
 
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: OL
-    pub fn read_i32s<Endian: ByteOrder>(&mut self) -> Result<Vec<i32>, Error> {
+    pub fn parse_i32s<Endian: ByteOrder>(&mut self) -> Result<Vec<i32>, Error> {
         self.reset_value_read();
         let num_bytes: usize = self.value.get_ref().len();
         let num_longs: usize = num_bytes / 4;
@@ -274,7 +273,7 @@ impl DicomElement {
 
     /// Parses the value for this element as an unsigned 32bit integer
     /// Associated VRs: UL
-    pub fn read_u32<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
+    pub fn parse_u32<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         self.reset_value_read();
         let result: u32 = self.value.read_u32::<Endian>()?;
         Ok(result)
@@ -282,88 +281,9 @@ impl DicomElement {
 
     /// Parses the value for this element as an unsigned 16bit integer
     /// Associated VRs: US
-    pub fn read_u16<Endian: ByteOrder>(&mut self) -> Result<u16, Error> {
+    pub fn parse_u16<Endian: ByteOrder>(&mut self) -> Result<u16, Error> {
         self.reset_value_read();
         let result: u16 = self.value.read_u16::<Endian>()?;
         Ok(result)
-    }
-
-    /// Formats the value of this element as a string based on the VR
-    /// TODO: This re-parses the value! This should probably not be here?
-    pub fn fmt_string_value<Endian: ByteOrder>(&mut self, cs: EncodingRef) -> Result<String, Error> {
-        if self.is_empty() {
-            return Ok("<EMPTY VALUE>".to_owned());
-        }
-        if self.vr == &vr::AT {
-            Ok(Tag::format_tag_to_display(self.read_attribute::<Endian>()?))
-        } else if self.vr == &vr::FL {
-            Ok(format!("{}", self.read_f32::<Endian>()?))
-        } else if self.vr == &vr::OF {
-            let values: Vec<f32> = self.read_f32s::<Endian>()?;
-            let mut string_values: String = String::new();
-            for value in values {
-                string_values.push_str(&format!("{} / ", value));
-            }
-            Ok(string_values)
-        } else if self.vr == &vr::FD {
-            Ok(format!("{}", self.read_f64::<Endian>()?))
-        } else if self.vr == &vr::OD {
-            let values: Vec<f64> = self.read_f64s::<Endian>()?;
-            let mut string_values: String = String::new();
-            for value in values {
-                string_values.push_str(&format!("{} / ", value));
-            }
-            Ok(string_values)
-        } else if self.vr == &vr::SS {
-            Ok(format!("{}", self.read_i16::<Endian>()?))
-        } else if self.vr == &vr::OW {
-            let values: Vec<i16> = self.read_i16s::<Endian>()?;
-            let mut string_values: String = String::new();
-            for value in values {
-                string_values.push_str(&format!("{} / ", value));
-            }
-            Ok(string_values)
-        } else if self.vr == &vr::SL {
-            Ok(format!("{}", self.read_i32::<Endian>()?))
-        } else if self.vr == &vr::OL {
-            let values: Vec<i32> = self.read_i32s::<Endian>()?;
-            let mut string_values: String = String::new();
-            for value in values {
-                string_values.push_str(&format!("{} / ", value));
-            }
-            Ok(string_values)
-        } else if self.vr == &vr::UI {
-            let str_val: String = self.read_string(cs)?;
-            if let Some(uid) = UID_BY_ID.get(str_val.as_str()) {
-                Ok(format!("{} ({})", str_val, uid.name))
-            } else {
-                Ok(str_val)
-            }
-        } else if self.vr == &vr::UL {
-            Ok(format!("{}", self.read_u32::<Endian>()?))
-        } else if self.vr == &vr::US {
-            Ok(format!("{}", self.read_u16::<Endian>()?))
-        } else if self.vr.is_character_string {
-            Ok(self.read_strings(cs)?
-                .iter_mut()
-                .map(|val: &mut String| {
-                    format!("\"{}\"", val)
-                })
-                .collect::<Vec<String>>()
-                .join(", "))
-        } else {
-            let byte_vec: &Vec<u8> = self.value.get_ref();
-            if byte_vec.len() <= MAX_BYTES_DISPLAY {
-                Ok(format!("{:?}", byte_vec))
-            } else {
-                let byte_display: String = byte_vec
-                    .iter()
-                    .take(MAX_BYTES_DISPLAY)
-                    .map(|val: &u8| format!("{}", val))
-                    .collect::<Vec<String>>()
-                    .join(", ");
-                Ok(format!("[{}, ..]", byte_display))
-            }
-        }
     }
 }

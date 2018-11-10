@@ -5,3 +5,4 @@ authors = ["neandrake <die.drachen@gmail.com>"]
 
 [dependencies]
 dcmpipe_lib = { path = "../lib", version = "0.1" }
+byteorder = "1"
