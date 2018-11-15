@@ -45,7 +45,7 @@ fn main() {
         }
         let mut elem: DicomElement = elem.unwrap();
         if prev_was_file_meta && elem.tag > 0x0002FFFF {
-            println!("\n\n# Dicom-Data-Set\n# Used TransferSyntax: {}", dicom_iter.get_ts().uid.ident);
+            println!("\n# Dicom-Data-Set\n# Used TransferSyntax: {}", dicom_iter.get_ts().uid.ident);
             prev_was_file_meta = false;
         }
         let printed: Result<String, Error> = print_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs());
@@ -77,7 +77,6 @@ fn print_element(element: &mut DicomElement, ts: TSRef, cs: CSRef) -> Result<Str
 }
 
 /// Formats the value of this element as a string based on the VR
-/// TODO: This re-parses the value! This should probably not be here?
 fn fmt_string_value<Endian: ByteOrder>(elem: &mut DicomElement, cs: CSRef) -> Result<String, Error> {
     if elem.is_empty() {
         return Ok("<EMPTY VALUE>".to_owned());
