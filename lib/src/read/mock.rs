@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use read::dcmiterator::DicomStreamParser;
 use read::tagstop::TagStop;
 

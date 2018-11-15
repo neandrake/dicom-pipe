@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use core::dict::dicom_elements as tags;
 use core::dict::dir_structure_elements as dse;
 use core::dict::file_meta_elements as fme;

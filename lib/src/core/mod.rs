@@ -6,4 +6,5 @@ pub mod vl;
 pub mod vm;
 pub mod vr;
 
+#[cfg(test)]
 mod tests;
