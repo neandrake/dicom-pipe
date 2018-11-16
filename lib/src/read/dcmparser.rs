@@ -1,5 +1,5 @@
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
-
+use core::dcmelement::DicomElement;
 use core::dict::dicom_elements as tags;
 use core::dict::file_meta_elements as fme;
 use core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
@@ -10,13 +10,9 @@ use core::vl;
 use core::vl::ValueLength;
 use core::vr;
 use core::vr::{VR, VRRef};
-
 use encoding::label::encoding_from_whatwg_label;
-
-use read::dcmelement::DicomElement;
 use read::tagstop::TagStop;
 use read::CSRef;
-
 use std::io::{Error, ErrorKind};
 
 

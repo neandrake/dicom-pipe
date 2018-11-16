@@ -1,6 +1,5 @@
-use read::dcmiterator::DicomStreamParser;
+use read::dcmparser::DicomStreamParser;
 use read::tagstop::TagStop;
-
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
 pub struct MockDicomStream {

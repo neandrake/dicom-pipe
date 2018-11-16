@@ -1,16 +1,11 @@
 use byteorder::{ByteOrder, ReadBytesExt};
-
 use core::dict::lookup::TAG_BY_VALUE;
 use core::tag::Tag;
 use core::vl::ValueLength;
 use core::vr;
 use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
-
 use encoding::types::DecoderTrap;
-
-use read::dcmdataset::{DicomDataSet, DicomDataSetContainer};
 use read::CSRef;
-
 use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
@@ -23,7 +18,6 @@ pub struct DicomElement {
     pub vl: ValueLength,
 
     value: Cursor<Vec<u8>>,
-    items: DicomDataSet,
 }
 
 /// A nice user-readable display of the element such as
@@ -35,7 +29,7 @@ impl fmt::Debug for DicomElement {
         let tag_name: &str = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
             &tag.ident
         } else {
-            "{{Unknown Tag}}"
+            "<Private Tag>"
         };
 
         write!(f, "{} {} {}", tag_num, self.vr.ident, tag_name)
@@ -50,7 +44,6 @@ impl DicomElement {
             vl,
 
             value: Cursor::new(value),
-            items: DicomDataSet::new(),
         }
     }
 
@@ -60,10 +53,6 @@ impl DicomElement {
 
     pub fn get_value_mut(&mut self) -> &mut Cursor<Vec<u8>> {
         &mut self.value
-    }
-
-    pub fn add_item(&mut self, index: u32, item: DicomElement) -> Option<DicomElement> {
-        self.items.put_element(index, item)
     }
 
     /// Resets the internal byte stream to be parsed from the beginning

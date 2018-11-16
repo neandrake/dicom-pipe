@@ -2,17 +2,15 @@ extern crate byteorder;
 extern crate dcmpipe_lib;
 
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
-
-use dcmpipe_lib::read::dcmelement::DicomElement;
-use dcmpipe_lib::read::dcmiterator::DicomStreamParser;
-use dcmpipe_lib::read::tagstop::TagStop;
-use dcmpipe_lib::read::CSRef;
+use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dict::dicom_elements as tags;
 use dcmpipe_lib::core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
 use dcmpipe_lib::core::tag::Tag;
 use dcmpipe_lib::core::ts::TSRef;
 use dcmpipe_lib::core::vr;
-
+use dcmpipe_lib::read::dcmparser::DicomStreamParser;
+use dcmpipe_lib::read::tagstop::TagStop;
+use dcmpipe_lib::read::CSRef;
 use std::env;
 use std::fs::File;
 use std::io::Error;
