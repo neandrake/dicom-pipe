@@ -1,6 +1,4 @@
-pub mod dcmdataset;
-pub mod dcmelement;
-pub mod dcmiterator;
+pub mod dcmparser;
 pub mod tagstop;
 
 #[cfg(test)]
