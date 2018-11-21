@@ -162,19 +162,19 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
 
     /// Reads a tag attribute from the stream
     fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        let first: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
+        let group_number: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
         self.bytes_read += 2;
-        let second: u32 = self.stream.read_u16::<Endian>()? as u32;
+        let element_number: u32 = self.stream.read_u16::<Endian>()? as u32;
         self.bytes_read += 2;
-        let result: u32 = first + second;
-        Ok(result)
+        let tag: u32 = group_number + element_number;
+        Ok(tag)
     }
 
     /// Reads the remainder of the dicom element from the stream.
     /// This assumes that just prior to calling this `self.read_tag()` was called
     /// and the result is passed as parameter here.
     fn read_dicom_element<Endian: ByteOrder>(&mut self, tag: u32, force_explicit: bool) -> Result<DicomElement, Error> {
-        let vr: VRRef = self.read_vr(tag, force_explicit)?;
+        let vr: VRRef = self.read_vr::<Endian>(tag, force_explicit)?;
         let vl: ValueLength = self.read_value_length::<Endian>(vr, force_explicit)?;
         let bytes: Vec<u8> = self.read_value_field(&vl)?;
         Ok(DicomElement::new(tag, vr, vl, bytes))
@@ -184,7 +184,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// the transfer syntax specified from the stream is used to determine if the VR
     /// should be read explicitly or implicitly determined from the dataset dictionary.
     /// If `force_explicit` is true then the VR is explicitly read from the stream.
-    fn read_vr(&mut self, tag: u32, force_explicit: bool) -> Result<VRRef, Error> {
+    fn read_vr<Endian: ByteOrder>(&mut self, tag: u32, force_explicit: bool) -> Result<VRRef, Error> {
         if force_explicit || self.ts.explicit_vr {
             let first_char: u8 = self.stream.read_u8()?;
             self.bytes_read += 1;
@@ -192,14 +192,21 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             self.bytes_read += 1;
 
             let code: u16 = ((first_char as u16) << 8) + second_char as u16;
-            match VR::from_code(code) {
-                Some(vr) => Ok(vr),
+            let vr: VRRef = match VR::from_code(code) {
+                Some(vr) => vr,
                 None => {
-                    Ok(&::core::vr::UN)
+                    &::core::vr::UN
                     // TODO: Log an error but still use UN?
                     //Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
                 }
+            };
+
+            if vr.has_explicit_2byte_pad {
+                self.stream.read_u16::<Endian>()?;
+                self.bytes_read += 2;
             }
+
+            Ok(vr)
         } else {
             TAG_BY_VALUE.get(&tag)
                 .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
@@ -216,8 +223,6 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
         let value_length: u32;
         if force_explicit || self.ts.explicit_vr {
             if vr.has_explicit_2byte_pad {
-                self.stream.read_u16::<Endian>()?;
-                self.bytes_read += 2;
                 value_length = self.stream.read_u32::<Endian>()?;
                 self.bytes_read += 4;
             } else {

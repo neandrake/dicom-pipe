@@ -46,16 +46,25 @@ fn main() {
             println!("\n# Dicom-Data-Set\n# Used TransferSyntax: {}", dicom_iter.get_ts().uid.ident);
             prev_was_file_meta = false;
         }
-        let printed: Result<String, Error> = print_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs());
+        let printed: Result<Option<String>, Error> = fmt_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs());
         if let Err(e) = printed {
             panic!(format!("{:?}", e));
         }
-        let printed = printed.unwrap();
+        let printed: Option<String> = printed.unwrap();
+        if let None = printed {
+            continue;
+        }
+        let printed: String = printed.unwrap();
         println!("{}", printed);
     }
 }
 
-fn print_element(element: &mut DicomElement, ts: TSRef, cs: CSRef) -> Result<String, Error> {
+fn fmt_element(element: &mut DicomElement, ts: TSRef, cs: CSRef) -> Result<Option<String>, Error> {
+    if element.tag & 0xFFFF == 0 {
+        // Group Length tags are deprecated, see note on Ch 5 Part 7.2
+        return Ok(None);
+    }
+
     let tag_num: String = Tag::format_tag_to_display(element.tag);
     let tag_name: &str = if let Some(tag) = TAG_BY_VALUE.get(&element.tag) {
         tag.ident
@@ -71,7 +80,7 @@ fn print_element(element: &mut DicomElement, ts: TSRef, cs: CSRef) -> Result<Str
         fmt_string_value::<LittleEndian>(element, cs)?
     };
 
-    Ok(format!("{} {} {} => {}", tag_num, vr, tag_name, tag_value))
+    Ok(Some(format!("{} {} {} => {}", tag_num, vr, tag_name, tag_value)))
 }
 
 /// Formats the value of this element as a string based on the VR
