@@ -1,4 +1,3 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use crate::core::dcmelement::DicomElement;
 use crate::core::dict::dicom_elements as tags;
 use crate::core::dict::file_meta_elements as fme;
@@ -9,18 +8,17 @@ use crate::core::ts::TSRef;
 use crate::core::vl;
 use crate::core::vl::ValueLength;
 use crate::core::vr;
-use crate::core::vr::{VR, VRRef};
-use encoding::label::encoding_from_whatwg_label;
+use crate::core::vr::{VRRef, VR};
 use crate::read::tagstop::TagStop;
 use crate::read::CSRef;
+use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
+use encoding::label::encoding_from_whatwg_label;
 use std::io::{Error, ErrorKind};
-
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
 
-pub static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
-
+pub static DICOM_PREFIX: [u8; DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
 /// The different parsing behaviors of the stream
 enum DicomParseState {
@@ -56,11 +54,11 @@ pub struct DicomStreamParser<StreamType: ReadBytesExt> {
 
     /// The file preamble read from the stream. This may only be present when parsing from files
     /// and may need to be skipped when reading from network or elsewhere.
-    file_preamble: [u8;FILE_PREAMBLE_LENGTH],
+    file_preamble: [u8; FILE_PREAMBLE_LENGTH],
 
     /// The prefix of the stream. Not yet clear if this is always expected to be present depending
     /// on which media format (file, network, etc.) the dicom object is being read from.
-    dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
+    dicom_prefix: [u8; DICOM_PREFIX_LENGTH],
 
     /// The number of bytes read just after having read the `FileMetaInformationGroupLength`. This
     /// is used to determine how many bytes to continue parsing until we switch to reading regular
@@ -106,8 +104,8 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             tagstop,
 
             bytes_read: 0,
-            file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
-            dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
+            file_preamble: [0u8; FILE_PREAMBLE_LENGTH],
+            dicom_prefix: [0u8; DICOM_PREFIX_LENGTH],
             fmi_start: 0,
             fmi_grouplength: 0,
             tag_last_read: 0,
@@ -173,7 +171,11 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// Reads the remainder of the dicom element from the stream.
     /// This assumes that just prior to calling this `self.read_tag()` was called
     /// and the result is passed as parameter here.
-    fn read_dicom_element<Endian: ByteOrder>(&mut self, tag: u32, force_explicit: bool) -> Result<DicomElement, Error> {
+    fn read_dicom_element<Endian: ByteOrder>(
+        &mut self,
+        tag: u32,
+        force_explicit: bool,
+    ) -> Result<DicomElement, Error> {
         let vr: VRRef = self.read_vr::<Endian>(tag, force_explicit)?;
         let vl: ValueLength = self.read_value_length::<Endian>(vr, force_explicit)?;
         let bytes: Vec<u8> = self.read_value_field(&vl)?;
@@ -184,7 +186,11 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// the transfer syntax specified from the stream is used to determine if the VR
     /// should be read explicitly or implicitly determined from the dataset dictionary.
     /// If `force_explicit` is true then the VR is explicitly read from the stream.
-    fn read_vr<Endian: ByteOrder>(&mut self, tag: u32, force_explicit: bool) -> Result<VRRef, Error> {
+    fn read_vr<Endian: ByteOrder>(
+        &mut self,
+        tag: u32,
+        force_explicit: bool,
+    ) -> Result<VRRef, Error> {
         if force_explicit || self.ts.explicit_vr {
             let first_char: u8 = self.stream.read_u8()?;
             self.bytes_read += 1;
@@ -208,18 +214,26 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
 
             Ok(vr)
         } else {
-            TAG_BY_VALUE.get(&tag)
+            TAG_BY_VALUE
+                .get(&tag)
                 .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
                 .or(Some(&crate::core::vr::UN))
                 // TODO: Log an error but still use UN?
-                .ok_or(Error::new(ErrorKind::InvalidData, format!("ImplicitVR TS but VR is unknown for tag: {}", tag)))
+                .ok_or(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("ImplicitVR TS but VR is unknown for tag: {}", tag),
+                ))
         }
     }
 
     /// Reads a Value Length attribute from the stream. If `force_explicit` is false then
     /// the transfer syntax specified from the stream is used to determine how to read the attribute
     /// otherwise it forces reading as explicit VR definition.
-    fn read_value_length<Endian: ByteOrder>(&mut self, vr: VRRef, force_explicit: bool) -> Result<ValueLength, Error> {
+    fn read_value_length<Endian: ByteOrder>(
+        &mut self,
+        vr: VRRef,
+        force_explicit: bool,
+    ) -> Result<ValueLength, Error> {
         let value_length: u32;
         if force_explicit || self.ts.explicit_vr {
             if vr.has_explicit_2byte_pad {
@@ -240,17 +254,17 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     fn read_value_field(&mut self, vl: &ValueLength) -> Result<Vec<u8>, Error> {
         match *vl {
             ValueLength::Explicit(value_length) => {
-                let mut bytes: Vec<u8> = vec![0;value_length as usize];
+                let mut bytes: Vec<u8> = vec![0; value_length as usize];
                 self.stream.read_exact(bytes.as_mut_slice())?;
                 self.bytes_read += value_length as u64;
                 Ok(bytes)
-            },
+            }
             ValueLength::UndefinedLength => {
                 // TODO: Read until Sequence Delimitation Item
                 // Part 5 Ch. 7.1.3
                 // The Value Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value Field.
                 unimplemented!();
-            },
+            }
         }
     }
 
@@ -262,7 +276,10 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
         self.ts = TS_BY_ID
             .get::<str>(ts_uid.as_ref())
             .map(|tsref: &TSRef| *tsref)
-            .ok_or(Error::new(ErrorKind::InvalidData, format!("Unknown TransferSyntax: {:?}", ts_uid)))?;
+            .ok_or(Error::new(
+                ErrorKind::InvalidData,
+                format!("Unknown TransferSyntax: {:?}", ts_uid),
+            ))?;
 
         Ok(())
     }
@@ -278,30 +295,33 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
         if let Some(ref vr) = tags::SpecificCharacterSet.implicit_vr {
             let decoder: CSRef = vr.get_proper_cs(self.cs);
             // Change the lookup key into format that the encoding package and recognize
-            let new_cs: String = element.parse_string(decoder)
+            let new_cs: String = element
+                .parse_string(decoder)
                 .iter()
                 .flat_map(|s| s.chars())
-                .map(|c: char| {
-                    match c {
-                        '_' => '-',
-                        ' ' => '-',
-                        a => a.to_ascii_lowercase(),
-                    }
+                .map(|c: char| match c {
+                    '_' => '-',
+                    ' ' => '-',
+                    a => a.to_ascii_lowercase(),
                 })
                 .collect::<String>();
 
             // TODO: There are options for what to do if we can't support the character repertoire
             // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
-            self.cs = encoding_from_whatwg_label(&new_cs)
-                .ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {:?}", &new_cs)))?;
+            self.cs = encoding_from_whatwg_label(&new_cs).ok_or(Error::new(
+                ErrorKind::InvalidData,
+                format!("Unable to determine Specific Character Set: {:?}", &new_cs),
+            ))?;
 
             return Ok(());
         }
 
-        Err(Error::new(ErrorKind::InvalidData, format!("No VR associated with SpecificCharacterSet")))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("No VR associated with SpecificCharacterSet"),
+        ))
     }
 }
-
 
 type DicomElementResult = Result<DicomElement, Error>;
 
@@ -325,7 +345,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     }
                     self.bytes_read += self.file_preamble.len() as u64;
                     self.state = DicomParseState::Prefix;
-                },
+                }
                 DicomParseState::Prefix => {
                     let result: Result<(), Error> = self.stream.read_exact(&mut self.dicom_prefix);
                     if let Err(e) = result {
@@ -335,13 +355,15 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
 
                     for n in 0..DICOM_PREFIX.len() {
                         if self.dicom_prefix[n] != DICOM_PREFIX[n] {
-                            return Some(Err(Error::new(ErrorKind::InvalidData,
-                                                       format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix))));
+                            return Some(Err(Error::new(
+                                ErrorKind::InvalidData,
+                                format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix),
+                            )));
                         }
                     }
 
                     self.state = DicomParseState::GroupLength;
-                },
+                }
                 DicomParseState::GroupLength => {
                     let tag: Result<u32, Error> = if let Some(partial_tag) = self.partial_tag {
                         Ok(partial_tag)
@@ -364,18 +386,25 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     }
 
                     if tag != fme::FileMetaInformationGroupLength.tag {
-                        return Some(Err(Error::new(ErrorKind::InvalidData,
-                                                   format!("Expected FileMetaInformationGroupLength but read: {:?}", Tag::format_tag_to_display(tag)))));
+                        return Some(Err(Error::new(
+                            ErrorKind::InvalidData,
+                            format!(
+                                "Expected FileMetaInformationGroupLength but read: {:?}",
+                                Tag::format_tag_to_display(tag)
+                            ),
+                        )));
                     }
 
-                    let grouplength: DicomElementResult = self.read_dicom_element::<LittleEndian>(tag, true);
+                    let grouplength: DicomElementResult =
+                        self.read_dicom_element::<LittleEndian>(tag, true);
                     if grouplength.is_err() {
                         return Some(grouplength);
                     }
 
                     let mut grouplength: DicomElement = grouplength.unwrap();
 
-                    let grouplength_val: Result<u32, Error> = grouplength.parse_u32::<LittleEndian>();
+                    let grouplength_val: Result<u32, Error> =
+                        grouplength.parse_u32::<LittleEndian>();
                     if let Err(e) = grouplength_val {
                         return Some(Err(e));
                     }
@@ -386,7 +415,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     self.partial_tag = None;
 
                     return Some(Ok(grouplength));
-                },
+                }
                 DicomParseState::FileMeta => {
                     let tag: Result<u32, Error> = if let Some(partial_tag) = self.partial_tag {
                         Ok(partial_tag)
@@ -408,7 +437,8 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         return Some(Err(e));
                     }
 
-                    let element: DicomElementResult = self.read_dicom_element::<LittleEndian>(tag, true);
+                    let element: DicomElementResult =
+                        self.read_dicom_element::<LittleEndian>(tag, true);
                     if element.is_err() {
                         return Some(element);
                     }
@@ -428,7 +458,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     self.partial_tag = None;
 
                     return Some(Ok(element));
-                },
+                }
                 DicomParseState::Element => {
                     let tag: Result<u32, Error> = if let Some(partial_tag) = self.partial_tag {
                         Ok(partial_tag)
@@ -471,7 +501,8 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
 
                     let mut element: DicomElement = element.unwrap();
                     if element.tag == tags::SpecificCharacterSet.tag {
-                        let result: Result<(), Error> = self.parse_specific_character_set(&mut element);
+                        let result: Result<(), Error> =
+                            self.parse_specific_character_set(&mut element);
                         if let Err(e) = result {
                             return Some(Err(e));
                         }
@@ -480,7 +511,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     self.partial_tag = None;
 
                     return Some(Ok(element));
-                },
+                }
             }
         }
     }

@@ -1,5 +1,3 @@
-
-
 /// TagStop specifies the stopping point at which parsing of a DICOM stream
 /// should end.
 pub enum TagStop {

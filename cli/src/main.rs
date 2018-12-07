@@ -1,7 +1,7 @@
 extern crate byteorder;
 extern crate dcmpipe_lib;
 
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dict::dicom_elements as tags;
 use dcmpipe_lib::core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
@@ -29,11 +29,14 @@ fn main() {
         panic!(format!("Invalid path: {:?}", path));
     }
 
-    let file: File = File::open(path)
-        .expect(&format!("Unable to open file: {:?}", path));
+    let file: File = File::open(path).expect(&format!("Unable to open file: {:?}", path));
 
-    let mut dicom_iter: DicomStreamParser<File> = DicomStreamParser::new(file, TagStop::BeforeTag(tags::PixelData.tag));
-    println!("\n# Dicom-File-Format File\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}", dicom_iter.get_ts().uid.ident);
+    let mut dicom_iter: DicomStreamParser<File> =
+        DicomStreamParser::new(file, TagStop::BeforeTag(tags::PixelData.tag));
+    println!(
+        "\n# Dicom-File-Format File\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}",
+        dicom_iter.get_ts().uid.ident
+    );
 
     let mut prev_was_file_meta: bool = true;
 
@@ -43,10 +46,14 @@ fn main() {
         }
         let mut elem: DicomElement = elem.unwrap();
         if prev_was_file_meta && elem.tag > 0x0002FFFF {
-            println!("\n# Dicom-Data-Set\n# Used TransferSyntax: {}", dicom_iter.get_ts().uid.ident);
+            println!(
+                "\n# Dicom-Data-Set\n# Used TransferSyntax: {}",
+                dicom_iter.get_ts().uid.ident
+            );
             prev_was_file_meta = false;
         }
-        let printed: Result<Option<String>, Error> = fmt_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs());
+        let printed: Result<Option<String>, Error> =
+            fmt_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs());
         if let Err(e) = printed {
             panic!(format!("{:?}", e));
         }
@@ -80,11 +87,17 @@ fn fmt_element(element: &mut DicomElement, ts: TSRef, cs: CSRef) -> Result<Optio
         fmt_string_value::<LittleEndian>(element, cs)?
     };
 
-    Ok(Some(format!("{} {} {} => {}", tag_num, vr, tag_name, tag_value)))
+    Ok(Some(format!(
+        "{} {} {} => {}",
+        tag_num, vr, tag_name, tag_value
+    )))
 }
 
 /// Formats the value of this element as a string based on the VR
-fn fmt_string_value<Endian: ByteOrder>(elem: &mut DicomElement, cs: CSRef) -> Result<String, Error> {
+fn fmt_string_value<Endian: ByteOrder>(
+    elem: &mut DicomElement,
+    cs: CSRef,
+) -> Result<String, Error> {
     if elem.is_empty() {
         return Ok("<EMPTY VALUE>".to_owned());
     }
@@ -92,25 +105,31 @@ fn fmt_string_value<Endian: ByteOrder>(elem: &mut DicomElement, cs: CSRef) -> Re
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
     if elem.vr == &vr::AT {
-        str_vals.push(Tag::format_tag_to_display(elem.parse_attribute::<Endian>()?));
+        str_vals.push(Tag::format_tag_to_display(
+            elem.parse_attribute::<Endian>()?,
+        ));
     } else if elem.vr == &vr::FL || elem.vr == &vr::OF {
         sep = " / ";
-        elem.parse_f32s::<Endian>()?.into_iter()
+        elem.parse_f32s::<Endian>()?
+            .into_iter()
             .map(|val: f32| format!("{:.2}", val))
             .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::FD || elem.vr == &vr::OD {
         sep = " / ";
-        elem.parse_f64s::<Endian>()?.into_iter()
+        elem.parse_f64s::<Endian>()?
+            .into_iter()
             .map(|val: f64| format!("{:.2}", val))
             .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::SS || elem.vr == &vr::OW {
         sep = " / ";
-        elem.parse_i16s::<Endian>()?.into_iter()
+        elem.parse_i16s::<Endian>()?
+            .into_iter()
             .map(|val: i16| format!("{}", val))
             .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::SL || elem.vr == &vr::OL {
         sep = " / ";
-        elem.parse_i32s::<Endian>()?.into_iter()
+        elem.parse_i32s::<Endian>()?
+            .into_iter()
             .map(|val: i32| format!("{}", val))
             .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::UI {
@@ -125,12 +144,14 @@ fn fmt_string_value<Endian: ByteOrder>(elem: &mut DicomElement, cs: CSRef) -> Re
     } else if elem.vr == &vr::US {
         str_vals.push(format!("{}", elem.parse_u16::<Endian>()?));
     } else if elem.vr.is_character_string {
-        elem.parse_strings(cs)?.iter_mut()
+        elem.parse_strings(cs)?
+            .iter_mut()
             .map(|val: &mut String| format!("\"{}\"", val))
             .for_each(|val: String| str_vals.push(val));
     } else {
         let byte_vec: &Vec<u8> = elem.get_value().get_ref();
-        byte_vec.iter()
+        byte_vec
+            .iter()
             .take(MAX_BYTES_DISPLAY)
             .map(|val: &u8| format!("{}", val))
             .for_each(|val: String| str_vals.push(val));
@@ -145,5 +166,8 @@ fn fmt_string_value<Endian: ByteOrder>(elem: &mut DicomElement, cs: CSRef) -> Re
         return Ok(str_vals.remove(0));
     }
 
-    Ok(format!("[{}]", str_vals.into_iter().collect::<Vec<String>>().join(sep)))
+    Ok(format!(
+        "[{}]",
+        str_vals.into_iter().collect::<Vec<String>>().join(sep)
+    ))
 }

@@ -3,8 +3,8 @@
 use crate::core::dict::dicom_elements as tags;
 use crate::core::dict::dir_structure_elements as dse;
 use crate::core::dict::file_meta_elements as fme;
-use crate::core::dict::uids;
 use crate::core::dict::transfer_syntaxes as ts;
+use crate::core::dict::uids;
 use crate::core::tag::TagRef;
 use crate::core::ts::TSRef;
 use crate::core::uid::UIDRef;

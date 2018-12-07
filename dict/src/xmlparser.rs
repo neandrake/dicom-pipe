@@ -1,5 +1,5 @@
-use quick_xml::Error as XmlError;
 use quick_xml::events::{BytesText, Event};
+use quick_xml::Error as XmlError;
 use quick_xml::Reader;
 
 use std::io::BufRead;
@@ -130,8 +130,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
 
     fn is_next_uid_fully_read(&self) -> bool {
         // type and part may not have content
-        self.uid_value.is_some()
-            && self.uid_name.is_some()
+        self.uid_value.is_some() && self.uid_name.is_some()
     }
 
     fn clear_next(&mut self) {
@@ -162,145 +161,223 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                 Ok(Event::Start(ref e)) => {
                     let local_name: &[u8] = e.local_name();
                     match self.state {
-                        XmlDicomReadingState::Off => if local_name == b"table" {
-                            if let Some(xml_id_attr) = e.attributes()
-                                .find(|attr| !attr.is_err() && attr.as_ref().unwrap().key == b"xml:id")
-                                .map(|attr| attr.unwrap()) {
-                                match xml_id_attr.value.as_ref() {
-                                    b"table_6-1" => {
-                                        self.table = XmlDicomDefinitionTable::DicomElements;
-                                        self.state = XmlDicomReadingState::InTableHead;
-                                    },
-                                    b"table_7-1" => {
-                                        self.table = XmlDicomDefinitionTable::FileMetaElements;
-                                        self.state = XmlDicomReadingState::InTableHead;
-                                    },
-                                    b"table_8-1" => {
-                                        self.table = XmlDicomDefinitionTable::DirStructureElements;
-                                        self.state = XmlDicomReadingState::InTableHead;
-                                    },
-                                    b"table_A-1" => {
-                                        self.table = XmlDicomDefinitionTable::Uids;
-                                        self.state = XmlDicomReadingState::InTableHead;
+                        XmlDicomReadingState::Off => {
+                            if local_name == b"table" {
+                                if let Some(xml_id_attr) = e
+                                    .attributes()
+                                    .find(|attr| {
+                                        !attr.is_err() && attr.as_ref().unwrap().key == b"xml:id"
+                                    })
+                                    .map(|attr| attr.unwrap())
+                                {
+                                    match xml_id_attr.value.as_ref() {
+                                        b"table_6-1" => {
+                                            self.table = XmlDicomDefinitionTable::DicomElements;
+                                            self.state = XmlDicomReadingState::InTableHead;
+                                        }
+                                        b"table_7-1" => {
+                                            self.table = XmlDicomDefinitionTable::FileMetaElements;
+                                            self.state = XmlDicomReadingState::InTableHead;
+                                        }
+                                        b"table_8-1" => {
+                                            self.table =
+                                                XmlDicomDefinitionTable::DirStructureElements;
+                                            self.state = XmlDicomReadingState::InTableHead;
+                                        }
+                                        b"table_A-1" => {
+                                            self.table = XmlDicomDefinitionTable::Uids;
+                                            self.state = XmlDicomReadingState::InTableHead;
+                                        }
+                                        _ => {}
                                     }
-                                    _ => {}
                                 }
                             }
-                        },
+                        }
                         XmlDicomReadingState::InTableHead => {
                             if local_name == b"tbody" {
                                 self.state = XmlDicomReadingState::InTable;
                             }
-                        },
+                        }
                         XmlDicomReadingState::InTable => {
                             if local_name == b"para" {
                                 match self.table {
-                                    XmlDicomDefinitionTable::DicomElements | XmlDicomDefinitionTable::FileMetaElements | XmlDicomDefinitionTable::DirStructureElements => {
-                                        self.state = XmlDicomReadingState::InDicomElementCell(XmlDicomElementCell::CellTag);
-                                    },
+                                    XmlDicomDefinitionTable::DicomElements
+                                    | XmlDicomDefinitionTable::FileMetaElements
+                                    | XmlDicomDefinitionTable::DirStructureElements => {
+                                        self.state = XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::CellTag,
+                                        );
+                                    }
                                     XmlDicomDefinitionTable::Uids => {
-                                        self.state = XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::CellValue);
-                                    },
+                                        self.state = XmlDicomReadingState::InDicomUidCell(
+                                            XmlDicomUidCell::CellValue,
+                                        );
+                                    }
                                     _ => {}
                                 }
                             }
-                        },
+                        }
                         XmlDicomReadingState::InDicomElementCell(element_cell) => {
                             if local_name == b"para" {
                                 self.state = match element_cell {
-                                    XmlDicomElementCell::CellTag => XmlDicomReadingState::InDicomElementCell(XmlDicomElementCell::CellName),
-                                    XmlDicomElementCell::CellName => XmlDicomReadingState::InDicomElementCell(XmlDicomElementCell::CellKeyword),
-                                    XmlDicomElementCell::CellKeyword => XmlDicomReadingState::InDicomElementCell(XmlDicomElementCell::CellVR),
-                                    XmlDicomElementCell::CellVR => XmlDicomReadingState::InDicomElementCell(XmlDicomElementCell::CellVM),
-                                    XmlDicomElementCell::CellVM => XmlDicomReadingState::InDicomElementCell(XmlDicomElementCell::CellObs),
+                                    XmlDicomElementCell::CellTag => {
+                                        XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::CellName,
+                                        )
+                                    }
+                                    XmlDicomElementCell::CellName => {
+                                        XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::CellKeyword,
+                                        )
+                                    }
+                                    XmlDicomElementCell::CellKeyword => {
+                                        XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::CellVR,
+                                        )
+                                    }
+                                    XmlDicomElementCell::CellVR => {
+                                        XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::CellVM,
+                                        )
+                                    }
+                                    XmlDicomElementCell::CellVM => {
+                                        XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::CellObs,
+                                        )
+                                    }
                                     XmlDicomElementCell::CellObs => XmlDicomReadingState::InTable,
                                 };
                             }
-                        },
+                        }
                         XmlDicomReadingState::InDicomUidCell(uid_cell) => {
                             if local_name == b"para" {
                                 self.state = match uid_cell {
-                                    XmlDicomUidCell::CellValue => XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::CellName),
-                                    XmlDicomUidCell::CellName => XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::CellType),
-                                    XmlDicomUidCell::CellType => XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::CellPart),
+                                    XmlDicomUidCell::CellValue => {
+                                        XmlDicomReadingState::InDicomUidCell(
+                                            XmlDicomUidCell::CellName,
+                                        )
+                                    }
+                                    XmlDicomUidCell::CellName => {
+                                        XmlDicomReadingState::InDicomUidCell(
+                                            XmlDicomUidCell::CellType,
+                                        )
+                                    }
+                                    XmlDicomUidCell::CellType => {
+                                        XmlDicomReadingState::InDicomUidCell(
+                                            XmlDicomUidCell::CellPart,
+                                        )
+                                    }
                                     XmlDicomUidCell::CellPart => XmlDicomReadingState::InTable,
                                 };
                             }
-                        },
+                        }
                     }
                 }
                 Ok(Event::End(ref e)) => {
                     let local_name: &[u8] = e.local_name();
                     match self.state {
-                        XmlDicomReadingState::Off => {},
-                        _ => if local_name == b"tr" {
-                            if self.is_next_element_fully_read() {
-                                let out = XmlDicomElement {
-                                    tag: self.element_tag.take().unwrap(),
-                                    name: self.element_name.take().unwrap(),
-                                    keyword: self.element_keyword.take().unwrap(),
-                                    vr: self.element_vr.take().unwrap(),
-                                    vm: self.element_vm.take().unwrap(),
-                                    obs: self.element_obs.take(),
-                                };
+                        XmlDicomReadingState::Off => {}
+                        _ => {
+                            if local_name == b"tr" {
+                                if self.is_next_element_fully_read() {
+                                    let out = XmlDicomElement {
+                                        tag: self.element_tag.take().unwrap(),
+                                        name: self.element_name.take().unwrap(),
+                                        keyword: self.element_keyword.take().unwrap(),
+                                        vr: self.element_vr.take().unwrap(),
+                                        vm: self.element_vm.take().unwrap(),
+                                        obs: self.element_obs.take(),
+                                    };
 
-                                self.clear_next();
-                                self.state = XmlDicomReadingState::InTable;
+                                    self.clear_next();
+                                    self.state = XmlDicomReadingState::InTable;
 
-                                match self.table {
-                                    XmlDicomDefinitionTable::DicomElements => return Some(Ok(XmlDicomDefinition::DicomElement(out))),
-                                    XmlDicomDefinitionTable::FileMetaElements => return Some(Ok(XmlDicomDefinition::FileMetaElement(out))),
-                                    XmlDicomDefinitionTable::DirStructureElements => return Some(Ok(XmlDicomDefinition::DirStructureElement(out))),
-                                    _ => {}
-                                }
-                            } else if self.is_next_uid_fully_read() {
-                                let out = XmlDicomUid {
-                                    value: self.uid_value.take().unwrap(),
-                                    name: self.uid_name.take().unwrap(),
-                                    uid_type: self.uid_type.take(),
-                                    part: self.uid_part.take(),
-                                };
-
-                                self.clear_next();
-                                self.state = XmlDicomReadingState::InTable;
-
-                                match self.table {
-                                    XmlDicomDefinitionTable::Uids => {
-                                        // TODO: Is a clone necessary here?
-                                        let type_clone: Option<String> = out.uid_type.clone();
-                                        if type_clone.filter(|v| v == "Transfer Syntax").is_some() {
-                                            return Some(Ok(XmlDicomDefinition::TransferSyntax(out)));
+                                    match self.table {
+                                        XmlDicomDefinitionTable::DicomElements => {
+                                            return Some(Ok(XmlDicomDefinition::DicomElement(out)))
                                         }
-                                        return Some(Ok(XmlDicomDefinition::Uid(out)));
-                                    },
-                                    _ => {}
+                                        XmlDicomDefinitionTable::FileMetaElements => {
+                                            return Some(Ok(XmlDicomDefinition::FileMetaElement(
+                                                out,
+                                            )))
+                                        }
+                                        XmlDicomDefinitionTable::DirStructureElements => {
+                                            return Some(Ok(
+                                                XmlDicomDefinition::DirStructureElement(out),
+                                            ))
+                                        }
+                                        _ => {}
+                                    }
+                                } else if self.is_next_uid_fully_read() {
+                                    let out = XmlDicomUid {
+                                        value: self.uid_value.take().unwrap(),
+                                        name: self.uid_name.take().unwrap(),
+                                        uid_type: self.uid_type.take(),
+                                        part: self.uid_part.take(),
+                                    };
+
+                                    self.clear_next();
+                                    self.state = XmlDicomReadingState::InTable;
+
+                                    match self.table {
+                                        XmlDicomDefinitionTable::Uids => {
+                                            // TODO: Is a clone necessary here?
+                                            let type_clone: Option<String> = out.uid_type.clone();
+                                            if type_clone
+                                                .filter(|v| v == "Transfer Syntax")
+                                                .is_some()
+                                            {
+                                                return Some(Ok(
+                                                    XmlDicomDefinition::TransferSyntax(out),
+                                                ));
+                                            }
+                                            return Some(Ok(XmlDicomDefinition::Uid(out)));
+                                        }
+                                        _ => {}
+                                    }
                                 }
+                            } else if local_name == b"tbody" {
+                                self.state = XmlDicomReadingState::Off;
+                                self.table = XmlDicomDefinitionTable::Unknown;
                             }
-                        } else if local_name == b"tbody" {
-                            self.state = XmlDicomReadingState::Off;
-                            self.table = XmlDicomDefinitionTable::Unknown;
-                        },
+                        }
                     }
                 }
                 Ok(Event::Text(data)) => match self.state {
-                    XmlDicomReadingState::InDicomElementCell(element_cell) => {
-                        match element_cell {
-                            XmlDicomElementCell::CellTag => self.element_tag = Some(self.parse_text_bytes(&data)),
-                            XmlDicomElementCell::CellName => self.element_name = Some(self.parse_text_bytes(&data)),
-                            XmlDicomElementCell::CellKeyword => self.element_keyword = Some(self.parse_text_bytes(&data)),
-                            XmlDicomElementCell::CellVR => self.element_vr = Some(self.parse_text_bytes(&data)),
-                            XmlDicomElementCell::CellVM => self.element_vm = Some(self.parse_text_bytes(&data)),
-                            XmlDicomElementCell::CellObs => self.element_obs = Some(self.parse_text_bytes(&data)),
+                    XmlDicomReadingState::InDicomElementCell(element_cell) => match element_cell {
+                        XmlDicomElementCell::CellTag => {
+                            self.element_tag = Some(self.parse_text_bytes(&data))
                         }
-                    }
-                    XmlDicomReadingState::InDicomUidCell(uid_cell) => {
-                        match uid_cell {
-                            XmlDicomUidCell::CellValue => self.uid_value = Some(self.parse_text_bytes(&data)),
-                            XmlDicomUidCell::CellName => self.uid_name = Some(self.parse_text_bytes(&data)),
-                            XmlDicomUidCell::CellType => self.uid_type = Some(self.parse_text_bytes(&data)),
-                            XmlDicomUidCell::CellPart => self.uid_part = Some(self.parse_text_bytes(&data)),
+                        XmlDicomElementCell::CellName => {
+                            self.element_name = Some(self.parse_text_bytes(&data))
                         }
-                    }
+                        XmlDicomElementCell::CellKeyword => {
+                            self.element_keyword = Some(self.parse_text_bytes(&data))
+                        }
+                        XmlDicomElementCell::CellVR => {
+                            self.element_vr = Some(self.parse_text_bytes(&data))
+                        }
+                        XmlDicomElementCell::CellVM => {
+                            self.element_vm = Some(self.parse_text_bytes(&data))
+                        }
+                        XmlDicomElementCell::CellObs => {
+                            self.element_obs = Some(self.parse_text_bytes(&data))
+                        }
+                    },
+                    XmlDicomReadingState::InDicomUidCell(uid_cell) => match uid_cell {
+                        XmlDicomUidCell::CellValue => {
+                            self.uid_value = Some(self.parse_text_bytes(&data))
+                        }
+                        XmlDicomUidCell::CellName => {
+                            self.uid_name = Some(self.parse_text_bytes(&data))
+                        }
+                        XmlDicomUidCell::CellType => {
+                            self.uid_type = Some(self.parse_text_bytes(&data))
+                        }
+                        XmlDicomUidCell::CellPart => {
+                            self.uid_part = Some(self.parse_text_bytes(&data))
+                        }
+                    },
                     _ => {}
                 },
                 Ok(Event::Eof { .. }) => {
