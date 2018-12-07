@@ -1,5 +1,5 @@
-use read::dcmparser::DicomStreamParser;
-use read::tagstop::TagStop;
+use crate::read::dcmparser::DicomStreamParser;
+use crate::read::tagstop::TagStop;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
 pub struct MockDicomStream {

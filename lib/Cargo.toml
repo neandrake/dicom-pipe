@@ -3,6 +3,7 @@ name = "dcmpipe_lib"
 version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
 build = "build/build.rs"
+edition = "2018"
 
 [dependencies]
 byteorder = "1"

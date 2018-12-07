@@ -2,52 +2,46 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Error, Write};
 use std::path::{Path, PathBuf};
 
-use xmlparser::{XmlDicomDefinition, XmlDicomElement, XmlDicomUid, XmlDicomDefinitionIterator, XmlDicomDefinitionResult};
+use crate::xmlparser::{XmlDicomDefinition, XmlDicomElement, XmlDicomUid, XmlDicomDefinitionIterator, XmlDicomDefinitionResult};
 
 static LOOKUP_PREAMBLE: &'static str = "//! This is an auto-generated file. Do not make modifications here.
 
-use core::dict::dicom_elements as tags;
-use core::dict::dir_structure_elements as dse;
-use core::dict::file_meta_elements as fme;
-use core::dict::uids;
-use core::dict::transfer_syntaxes as ts;
-use core::tag::TagRef;
-use core::ts::TSRef;
-use core::uid::UIDRef;
+use crate::core::dict::dicom_elements as tags;
+use crate::core::dict::dir_structure_elements as dse;
+use crate::core::dict::file_meta_elements as fme;
+use crate::core::dict::uids;
+use crate::core::dict::transfer_syntaxes as ts;
+use crate::core::tag::TagRef;
+use crate::core::ts::TSRef;
+use crate::core::uid::UIDRef;
 
 
 ";
 
 static DICOM_ELEMENT_PREAMBLE: &'static str = "//! This is an auto-generated file. Do not make modifications here.
 
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-use core::tag::Tag;
-use core::vm::VM;
-use core::vr;
+use crate::core::tag::Tag;
+use crate::core::vm::VM;
+use crate::core::vr;
 
 ";
 
 static TRANSFER_SYNTAX_PREAMBLE: &'static str = "//! This is an auto-generated file. Do not make modifications here.
 
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-use core::dict::uids;
-use core::ts::TransferSyntax;
+use crate::core::dict::uids;
+use crate::core::ts::TransferSyntax;
 
 ";
 
 static UID_PREAMBLE: &'static str = "//! This is an auto-generated file. Do not make modifications here.
 
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-use core::uid::UID;
+use crate::core::uid::UID;
 
 ";
 
@@ -193,27 +187,27 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
     let mut lookup_file: BufWriter<File> = BufWriter::new(File::create(lookup_file_path.as_path()).unwrap());
     write!(&mut lookup_file, "{}", LOOKUP_PREAMBLE)?;
 
-    write!(&mut lookup_file, "pub static TAG_BY_IDENT: ::phf::Map<&'static str, TagRef> = ")?;
+    write!(&mut lookup_file, "pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ")?;
     tag_ident_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static TAG_BY_VALUE: ::phf::Map<u32, TagRef> = ")?;
+    write!(&mut lookup_file, "pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = ")?;
     tag_tag_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static TS_BY_IDENT: ::phf::Map<&'static str, TSRef> = ")?;
+    write!(&mut lookup_file, "pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = ")?;
     ts_ident_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static TS_BY_ID: ::phf::Map<&'static str, TSRef> = ")?;
+    write!(&mut lookup_file, "pub static TS_BY_ID: phf::Map<&'static str, TSRef> = ")?;
     ts_id_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static UID_BY_IDENT: ::phf::Map<&'static str, UIDRef> = ")?;
+    write!(&mut lookup_file, "pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = ")?;
     uid_ident_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static UID_BY_ID: ::phf::Map<&'static str, UIDRef> = ")?;
+    write!(&mut lookup_file, "pub static UID_BY_ID: phf::Map<&'static str, UIDRef> = ")?;
     uid_id_lookup_phf.build(&mut lookup_file)?;
     write!(&mut lookup_file, ";\n")?;
 

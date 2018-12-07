@@ -1,18 +1,18 @@
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
-use core::dcmelement::DicomElement;
-use core::dict::dicom_elements as tags;
-use core::dict::file_meta_elements as fme;
-use core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
-use core::dict::transfer_syntaxes as ts;
-use core::tag::Tag;
-use core::ts::TSRef;
-use core::vl;
-use core::vl::ValueLength;
-use core::vr;
-use core::vr::{VR, VRRef};
+use crate::core::dcmelement::DicomElement;
+use crate::core::dict::dicom_elements as tags;
+use crate::core::dict::file_meta_elements as fme;
+use crate::core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
+use crate::core::dict::transfer_syntaxes as ts;
+use crate::core::tag::Tag;
+use crate::core::ts::TSRef;
+use crate::core::vl;
+use crate::core::vl::ValueLength;
+use crate::core::vr;
+use crate::core::vr::{VR, VRRef};
 use encoding::label::encoding_from_whatwg_label;
-use read::tagstop::TagStop;
-use read::CSRef;
+use crate::read::tagstop::TagStop;
+use crate::read::CSRef;
 use std::io::{Error, ErrorKind};
 
 
@@ -195,7 +195,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             let vr: VRRef = match VR::from_code(code) {
                 Some(vr) => vr,
                 None => {
-                    &::core::vr::UN
+                    &crate::core::vr::UN
                     // TODO: Log an error but still use UN?
                     //Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
                 }
@@ -210,7 +210,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
         } else {
             TAG_BY_VALUE.get(&tag)
                 .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
-                .or(Some(&::core::vr::UN))
+                .or(Some(&crate::core::vr::UN))
                 // TODO: Log an error but still use UN?
                 .ok_or(Error::new(ErrorKind::InvalidData, format!("ImplicitVR TS but VR is unknown for tag: {}", tag)))
         }

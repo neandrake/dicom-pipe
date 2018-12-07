@@ -2,10 +2,10 @@ extern crate byteorder;
 extern crate walkdir;
 
 use byteorder::ReadBytesExt;
-use core::dict::dicom_elements as tags;
-use read::dcmparser::{DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
-use read::mock::MockDicomStream;
-use read::tagstop::TagStop;
+use crate::core::dict::dicom_elements as tags;
+use crate::read::dcmparser::{DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
+use crate::read::mock::MockDicomStream;
+use crate::read::tagstop::TagStop;
 use std::fs::File;
 use std::io::Seek;
 use std::path::Path;
