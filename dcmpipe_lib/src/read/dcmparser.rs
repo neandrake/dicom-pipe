@@ -1,4 +1,4 @@
-use crate::core::dcmelement::DicomElement;
+use crate::core::dcmelement::{DicomElement, DicomSequencePosition};
 use crate::core::dict::dicom_elements as tags;
 use crate::core::dict::file_meta_elements as fme;
 use crate::core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
@@ -49,7 +49,8 @@ pub struct DicomStreamParser<StreamType: ReadBytesExt> {
     /// Tracks the number of bytes read from the stream. Since we don't require that the stream
     /// implement `Seek` we count bytes read from the stream in order to check relative positioning
     /// which currently is used for determining whether we're still parsing File Meta elements vs.
-    /// switch to parsing regular dicom elements.
+    /// switch to parsing regular dicom elements. This is also used for tracking when sequences
+    /// of explicit length begin/end.
     bytes_read: u64,
 
     /// The file preamble read from the stream. This may only be present when parsing from files
@@ -81,6 +82,11 @@ pub struct DicomStreamParser<StreamType: ReadBytesExt> {
     /// of the element is successfully parsed and returned by the iterator.
     partial_tag: Option<u32>,
 
+    /// The path to the current element being parsed represented as a stack. Elements read at the
+    /// root level will have an empty path. When a sequence item is read its tag and value length is
+    /// pushed onto the stack. Sequences of undefined length have `seq_end_pos` set to zero.
+    current_path: Vec<DicomSequencePosition>,
+
     /// The transfer syntax used for this stream. This defaults to `ExplicitVRLittleEndian` which is
     /// the transfer syntax used for parsing File Meta section. This default is not relied upon being
     /// set however as the iteration hardcodes the explicitness and endianness for those elements.
@@ -110,6 +116,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             fmi_grouplength: 0,
             tag_last_read: 0,
             partial_tag: None,
+            current_path: Vec::new(),
 
             ts: &ts::ExplicitVRLittleEndian,
             cs: vr::DEFAULT_CHARACTER_SET,
@@ -150,8 +157,12 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     fn is_at_tag_stop(&self) -> Result<bool, Error> {
         let is_at_tag_stop: bool = match self.tagstop {
             TagStop::EndOfStream => false,
-            TagStop::BeforeTag(before_tag) => self.tag_last_read >= before_tag,
-            TagStop::AfterTag(after_tag) => self.tag_last_read > after_tag,
+            TagStop::BeforeTag(before_tag) => {
+                self.current_path.is_empty() && self.tag_last_read >= before_tag
+            }
+            TagStop::AfterTag(after_tag) => {
+                self.current_path.is_empty() && self.tag_last_read > after_tag
+            }
             TagStop::AfterBytePos(byte_pos) => self.bytes_read > byte_pos,
         };
 
@@ -178,8 +189,16 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     ) -> Result<DicomElement, Error> {
         let vr: VRRef = self.read_vr::<Endian>(tag, force_explicit)?;
         let vl: ValueLength = self.read_value_length::<Endian>(vr, force_explicit)?;
-        let bytes: Vec<u8> = self.read_value_field(&vl)?;
-        Ok(DicomElement::new(tag, vr, vl, bytes))
+        let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::Item.tag {
+            // Sequence and item elements should let the iterator handle parsing its contents
+            // and not associate bytes to the element's value
+            Vec::new()
+        } else {
+            self.read_value_field(&vl)?
+        };
+
+        let ancestors: Vec<DicomSequencePosition> = self.current_path.clone();
+        Ok(DicomElement::new(tag, vr, vl, bytes, ancestors))
     }
 
     /// Reads a VR attribute from the stream. If `force_explicit` is false then
@@ -259,12 +278,9 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
                 self.bytes_read += value_length as u64;
                 Ok(bytes)
             }
-            ValueLength::UndefinedLength => {
-                // TODO: Read until Sequence Delimitation Item
-                // Part 5 Ch. 7.1.3
-                // The Value Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value Field.
-                unimplemented!();
-            }
+            // Undefined length should only be possible on sequence or item elements which should
+            // not be calling this method to read all bytes
+            ValueLength::UndefinedLength => Ok(Vec::new()),
         }
     }
 
@@ -479,7 +495,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         return Some(Err(e));
                     }
 
-                    let tag = tag.unwrap();
+                    let tag: u32 = tag.unwrap();
                     self.tag_last_read = tag;
                     self.partial_tag = Some(tag);
 
@@ -488,6 +504,14 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         return None;
                     } else if let Err(e) = at_tagstop {
                         return Some(Err(e));
+                    }
+
+                    // reading element clones the current path so update prior to reading element
+                    if tag == tags::Item.tag {
+                        // get the sequence this item is for and increment its item number
+                        if let Some(seq_elem) = self.current_path.last_mut() {
+                            seq_elem.increment_item_number();
+                        }
                     }
 
                     let element: DicomElementResult = if self.ts.big_endian {
@@ -509,6 +533,38 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     }
 
                     self.partial_tag = None;
+
+                    // check for exiting a sequence based on being sequence delimiter
+                    // do this before checking against byte position
+                    if element.tag == tags::SequenceDelimitationItem.tag {
+                        self.current_path.pop();
+                    }
+
+                    // sequence may not have a delimiter and should end based on byte position
+                    // multiple sequences may have been exited based off byte position
+                    while let Some(seq_elem) = self.current_path.last() {
+                        if let Some(seq_end_pos) = seq_elem.get_seq_end_pos() {
+                            if self.bytes_read >= seq_end_pos {
+                                self.current_path.pop();
+                            } else {
+                                break;
+                            }
+                        } else {
+                            // undefined length, stop checking the sequence path
+                            break;
+                        }
+                    }
+
+                    if element.vr == &vr::SQ {
+                        let seq_end_pos: Option<u64> =
+                            if let ValueLength::Explicit(len) = element.vl {
+                                Some(self.bytes_read + (len as u64))
+                            } else {
+                                None
+                            };
+                        self.current_path
+                            .push(DicomSequencePosition::new(tag, seq_end_pos));
+                    }
 
                     return Some(Ok(element));
                 }
