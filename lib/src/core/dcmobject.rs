@@ -1,11 +1,10 @@
-use byteorder::ByteOrder;
 use crate::core::dcmdataset::DicomDataSet;
 use crate::core::dcmelement::DicomElement;
 use crate::core::tag::Tag;
 use crate::read::CSRef;
+use byteorder::ByteOrder;
 use std::collections::hash_map::{Entry, HashMap};
 use std::io::{Error, ErrorKind};
-
 
 /// A container of DicomElements
 /// Also provides a cache of the values parsed into native types -- the initial
@@ -65,13 +64,17 @@ impl DicomDataSet for DicomObject {
     }
 
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
-        self.elements.get(&tag)
-            .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", Tag::format_tag_to_display(tag))))
+        self.elements.get(&tag).ok_or(Error::new(
+            ErrorKind::InvalidData,
+            format!("No element for tag: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
-        self.elements.get_mut(&tag)
-            .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", Tag::format_tag_to_display(tag))))
+        self.elements.get_mut(&tag).ok_or(Error::new(
+            ErrorKind::InvalidData,
+            format!("No element for tag: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_string(&mut self, tag: u32, cs: CSRef) -> Result<&String, Error> {
@@ -83,9 +86,12 @@ impl DicomDataSet for DicomObject {
                     let value: String = elem.parse_string(cs)?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_strings(&mut self, tag: u32, cs: CSRef) -> Result<&Vec<String>, Error> {
@@ -97,9 +103,12 @@ impl DicomDataSet for DicomObject {
                     let value: Vec<String> = elem.parse_strings(cs)?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_f32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f32, Error> {
@@ -111,9 +120,12 @@ impl DicomDataSet for DicomObject {
                     let value: f32 = elem.parse_f32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_f32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f32>, Error> {
@@ -125,9 +137,12 @@ impl DicomDataSet for DicomObject {
                     let value: Vec<f32> = elem.parse_f32s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_f64<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f64, Error> {
@@ -139,9 +154,12 @@ impl DicomDataSet for DicomObject {
                     let value: f64 = elem.parse_f64::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_f64s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f64>, Error> {
@@ -153,9 +171,12 @@ impl DicomDataSet for DicomObject {
                     let value: Vec<f64> = elem.parse_f64s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_i16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i16, Error> {
@@ -167,9 +188,12 @@ impl DicomDataSet for DicomObject {
                     let value: i16 = elem.parse_i16::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_i16s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i16>, Error> {
@@ -181,9 +205,12 @@ impl DicomDataSet for DicomObject {
                     let value: Vec<i16> = elem.parse_i16s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_i32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i32, Error> {
@@ -195,9 +222,12 @@ impl DicomDataSet for DicomObject {
                     let value: i32 = elem.parse_i32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_i32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i32>, Error> {
@@ -209,9 +239,12 @@ impl DicomDataSet for DicomObject {
                     let value: Vec<i32> = elem.parse_i32s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_u16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u16, Error> {
@@ -223,9 +256,12 @@ impl DicomDataSet for DicomObject {
                     let value: u16 = elem.parse_u16::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn get_u32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u32, Error> {
@@ -237,9 +273,12 @@ impl DicomDataSet for DicomObject {
                     let value: u32 = elem.parse_u32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
-            },
+            }
         }
-        Err(Error::new(ErrorKind::InvalidData, format!("Element not found: {}", Tag::format_tag_to_display(tag))))
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Element not found: {}", Tag::format_tag_to_display(tag)),
+        ))
     }
 
     fn put_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement> {

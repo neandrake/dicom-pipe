@@ -2,8 +2,8 @@
 
 use encoding::all::WINDOWS_1252;
 use encoding::types::EncodingRef;
-use std::hash::{Hash, Hasher};
 use std::fmt;
+use std::hash::{Hash, Hasher};
 
 /// The BACKSLASH used to delimit multi-value character string values, `\`
 pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
@@ -15,128 +15,127 @@ pub type VRRef = &'static VR;
 /// Value Representation
 #[derive(Eq)]
 pub struct VR {
-	/// The two-letter identifer, "AE", "IS", etc.
-	pub ident: &'static str,
-	/// A display name
-	pub name: &'static str,
-	/// The 16-bit code for this AE. In most (all?) cases this is the
-	/// ASCII representation of the ident.
-	pub code: u32,
+    /// The two-letter identifer, "AE", "IS", etc.
+    pub ident: &'static str,
+    /// A display name
+    pub name: &'static str,
+    /// The 16-bit code for this AE. In most (all?) cases this is the
+    /// ASCII representation of the ident.
+    pub code: u32,
 
-	/// Which value is used to pad the encoded value to achieve an even length
-	/// Part 5, Ch 6.2:
-	///
-	/// - Values with VRs constructed of character strings, except
-	/// in the case of the VR UI, shall be padded with SPACE characters
-	/// (20H, in the Default Character Repertoire).
-	/// - Values with a VR of UI shall be padded with a single trailing
-	/// NULL (00H) character when necessary to achieve even length. 
-	/// - Values with a VR of OB shall be padded with a single trailing
-	/// NULL byte value (00H) when necessary to achieve even length.
-	pub padding: u8,
+    /// Which value is used to pad the encoded value to achieve an even length
+    /// Part 5, Ch 6.2:
+    ///
+    /// - Values with VRs constructed of character strings, except
+    /// in the case of the VR UI, shall be padded with SPACE characters
+    /// (20H, in the Default Character Repertoire).
+    /// - Values with a VR of UI shall be padded with a single trailing
+    /// NULL (00H) character when necessary to achieve even length.
+    /// - Values with a VR of OB shall be padded with a single trailing
+    /// NULL byte value (00H) when necessary to achieve even length.
+    pub padding: u8,
 
-	/// If this VR is encoded explicitly, then depending on VR there might be a 2-byte padding after the VR encoding
-	/// Part 5 Ch 7.1.2:
-	/// For VRs of OB, OD, OF, OL, OW, SQ, UC, UR, UT or UN the 16 bits
-	/// following the two byte VR Field are reserved for use by later
-	/// versions of the DICOM Standard. These reserved bytes shall be
-	/// set to 0000H and shall not be used or decoded.
-	pub has_explicit_2byte_pad: bool,
+    /// If this VR is encoded explicitly, then depending on VR there might be a 2-byte padding after the VR encoding
+    /// Part 5 Ch 7.1.2:
+    /// For VRs of OB, OD, OF, OL, OW, SQ, UC, UR, UT or UN the 16 bits
+    /// following the two byte VR Field are reserved for use by later
+    /// versions of the DICOM Standard. These reserved bytes shall be
+    /// set to 0000H and shall not be used or decoded.
+    pub has_explicit_2byte_pad: bool,
 
-	pub is_character_string: bool,
+    pub is_character_string: bool,
 
-	/// Part 5, Ch 6.1.2.3:
-	/// Data Elements of the following VR can have their character repertoire
-	/// replaced via the Specific Character Set element. Other textual VRs
-	/// should use the default (ISO IR 100 / ISO 8859)
-	///
-	/// - SH (Short String)
-	/// - LO (Long String)
-	/// - UC (Unlimited Characters)
-	/// - ST (Short Text)
-	/// - LT (Long Text)
-	/// - UT (Unlimited Text)
-	/// - PN (Person Name)
-	///
-	/// This replacement character repertoire does not apply to other textual
-	/// Value Representations (AE and CS).
-	pub decode_text_with_replaced_cs: bool,
+    /// Part 5, Ch 6.1.2.3:
+    /// Data Elements of the following VR can have their character repertoire
+    /// replaced via the Specific Character Set element. Other textual VRs
+    /// should use the default (ISO IR 100 / ISO 8859)
+    ///
+    /// - SH (Short String)
+    /// - LO (Long String)
+    /// - UC (Unlimited Characters)
+    /// - ST (Short Text)
+    /// - LT (Long Text)
+    /// - UT (Unlimited Text)
+    /// - PN (Person Name)
+    ///
+    /// This replacement character repertoire does not apply to other textual
+    /// Value Representations (AE and CS).
+    pub decode_text_with_replaced_cs: bool,
 
-	/// Part 5, Ch 6.1.2.3:
-	/// The Graphic Character represented by the bit combination 05/12, `\` (BACKSLASH) in the repertoire ISO-IR 6,
-	/// shall only be used in character strings with Value Representations of UT, ST and LT.
-	/// Otherwise the character code 05/12 is used as a separator for multiple valued Data Elements 
-	pub allows_backslash_text_value: bool,
+    /// Part 5, Ch 6.1.2.3:
+    /// The Graphic Character represented by the bit combination 05/12, `\` (BACKSLASH) in the repertoire ISO-IR 6,
+    /// shall only be used in character strings with Value Representations of UT, ST and LT.
+    /// Otherwise the character code 05/12 is used as a separator for multiple valued Data Elements
+    pub allows_backslash_text_value: bool,
 
-	pub should_trim_leading_space: bool,
+    pub should_trim_leading_space: bool,
 
-	pub should_trim_trailing_space: bool,
+    pub should_trim_trailing_space: bool,
 }
 
 impl PartialEq for VR {
-	fn eq(&self, other: &VR) -> bool {
-		self.code.eq(&other.code)
-	}
+    fn eq(&self, other: &VR) -> bool {
+        self.code.eq(&other.code)
+    }
 }
 
 impl Hash for VR {
-	fn hash<H: Hasher>(&self, state: &mut H) {
-		self.code.hash(state)
-	}
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.code.hash(state)
+    }
 }
 
 impl fmt::Debug for VR {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.ident)
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.ident)
+    }
 }
 
 impl VR {
-	pub fn from_code(code: u16) -> Option<&'static VR> {
-		match code {
-			0x4145 => Some(&AE),
-			0x4153 => Some(&AS),
-			0x4154 => Some(&AT),
-			0x4353 => Some(&CS),
-			0x4441 => Some(&DA),
-			0x4453 => Some(&DS),
-			0x4454 => Some(&DT),
-			0x4644 => Some(&FD),
-			0x464C => Some(&FL),
-			0x4953 => Some(&IS),
-			0x4C4F => Some(&LO),
-			0x4C54 => Some(&LT),
-			0x4F42 => Some(&OB),
-			0x4F44 => Some(&OD),
-			0x4F46 => Some(&OF),
-			0x4F4C => Some(&OL),
-			0x4F57 => Some(&OW),
-			0x504E => Some(&PN),
-			0x5348 => Some(&SH),
-			0x534C => Some(&SL),
-			0x5351 => Some(&SQ),
-			0x5353 => Some(&SS),
-			0x5354 => Some(&ST),
-			0x544D => Some(&TM),
-			0x5443 => Some(&UC),
-			0x5549 => Some(&UI),
-			0x554c => Some(&UL),
-			0x544E => Some(&UN),
-			0x5452 => Some(&UR),
-			0x5553 => Some(&US),
-			0x5554 => Some(&UT),
-			_ => None,
-		}
-	}
+    pub fn from_code(code: u16) -> Option<&'static VR> {
+        match code {
+            0x4145 => Some(&AE),
+            0x4153 => Some(&AS),
+            0x4154 => Some(&AT),
+            0x4353 => Some(&CS),
+            0x4441 => Some(&DA),
+            0x4453 => Some(&DS),
+            0x4454 => Some(&DT),
+            0x4644 => Some(&FD),
+            0x464C => Some(&FL),
+            0x4953 => Some(&IS),
+            0x4C4F => Some(&LO),
+            0x4C54 => Some(&LT),
+            0x4F42 => Some(&OB),
+            0x4F44 => Some(&OD),
+            0x4F46 => Some(&OF),
+            0x4F4C => Some(&OL),
+            0x4F57 => Some(&OW),
+            0x504E => Some(&PN),
+            0x5348 => Some(&SH),
+            0x534C => Some(&SL),
+            0x5351 => Some(&SQ),
+            0x5353 => Some(&SS),
+            0x5354 => Some(&ST),
+            0x544D => Some(&TM),
+            0x5443 => Some(&UC),
+            0x5549 => Some(&UI),
+            0x554c => Some(&UL),
+            0x544E => Some(&UN),
+            0x5452 => Some(&UR),
+            0x5553 => Some(&US),
+            0x5554 => Some(&UT),
+            _ => None,
+        }
+    }
 
-	pub fn get_proper_cs(&self, cs: EncodingRef) -> EncodingRef {
-		match self.decode_text_with_replaced_cs {
+    pub fn get_proper_cs(&self, cs: EncodingRef) -> EncodingRef {
+        match self.decode_text_with_replaced_cs {
             true => cs,
             false => DEFAULT_CHARACTER_SET,
         }
-	}
+    }
 }
-
 
 /// Application Entity
 ///
@@ -155,16 +154,16 @@ impl VR {
 ///
 /// 16 bytes maximum
 pub static AE: VR = VR {
-	ident: "AE",
-	name: "Application Entity",
-	code: 0x4145,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "AE",
+    name: "Application Entity",
+    code: 0x4145,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Age String
@@ -191,16 +190,16 @@ pub static AE: VR = VR {
 ///
 /// 4 bytes fixed
 pub static AS: VR = VR {
-	ident: "AS",
-	name: "Age String",
-	code: 0x4153,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "AS",
+    name: "Age String",
+    code: 0x4153,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Attribute Tag
@@ -228,16 +227,16 @@ pub static AS: VR = VR {
 ///
 /// 4 bytes fixed
 pub static AT: VR = VR {
-	ident: "AT",
-	name: "Attribute Tag",
-	code: 0x4154,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "AT",
+    name: "Attribute Tag",
+    code: 0x4154,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Code String
@@ -256,16 +255,16 @@ pub static AT: VR = VR {
 ///
 /// 16 bytes maximum
 pub static CS: VR = VR {
-	ident: "CS",
-	name: "Code String",
-	code: 0x4353,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "CS",
+    name: "Code String",
+    code: 0x4353,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Date
@@ -311,16 +310,16 @@ pub static CS: VR = VR {
 /// In the context of a Query (PS3.4) with range matching the length
 /// is 18 bytes maximum.
 pub static DA: VR = VR {
-	ident: "DA",
-	name: "Date",
-	code: 0x4441,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "DA",
+    name: "Date",
+    code: 0x4441,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Decimal String
@@ -350,16 +349,16 @@ pub static DA: VR = VR {
 ///
 /// 16 bytes maximum
 pub static DS: VR = VR {
-	ident: "DS",
-	name: "Decimal String",
-	code: 0x4453,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "DS",
+    name: "Decimal String",
+    code: 0x4453,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Date Time
@@ -442,16 +441,16 @@ pub static DS: VR = VR {
 /// In the context of a Query with range matching (see PS3.4), the length is
 /// 54 bytes maximum.
 pub static DT: VR = VR {
-	ident: "DT",
-	name: "Date Time",
-	code: 0x4454,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "DT",
+    name: "Date Time",
+    code: 0x4454,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Floating Point Double
@@ -469,16 +468,16 @@ pub static DT: VR = VR {
 ///
 /// 4 bytes fixed
 pub static FD: VR = VR {
-	ident: "FD",
-	name: "Floating Point Double",
-	code: 0x4644,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "FD",
+    name: "Floating Point Double",
+    code: 0x4644,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Floating Point Single
@@ -495,16 +494,16 @@ pub static FD: VR = VR {
 ///
 /// 8 bytes fixed
 pub static FL: VR = VR {
-	ident: "FL",
-	name: "Floating Point Single",
-	code: 0x464C,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "FL",
+    name: "Floating Point Single",
+    code: 0x464C,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Integer String
@@ -527,16 +526,16 @@ pub static FL: VR = VR {
 ///
 /// 12 bytes maximum
 pub static IS: VR = VR {
-	ident: "IS",
-	name: "Integer String",
-	code: 0x4953,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "IS",
+    name: "Integer String",
+    code: 0x4953,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Long String
@@ -558,16 +557,16 @@ pub static IS: VR = VR {
 ///
 /// 64 chars maximum (see Note in Part 5, Ch 6.2)
 pub static LO: VR = VR {
-	ident: "LO",
-	name: "Long String",
-	code: 0x4C4F,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: true,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "LO",
+    name: "Long String",
+    code: 0x4C4F,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: true,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Long Text
@@ -591,16 +590,16 @@ pub static LO: VR = VR {
 ///
 /// 10240 chars maximum (see Note in Part 5, Ch 6.2)
 pub static LT: VR = VR {
-	ident: "LT",
-	name: "Long Text",
-	code: 0x4C54,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: true,
-	allows_backslash_text_value: true,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: true,
+    ident: "LT",
+    name: "Long Text",
+    code: 0x4C54,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: true,
+    allows_backslash_text_value: true,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: true,
 };
 
 /// Other Byte
@@ -621,16 +620,16 @@ pub static LT: VR = VR {
 ///
 /// see Transfer Syntax definition
 pub static OB: VR = VR {
-	ident: "OB",
-	name: "Other Byte",
-	code: 0x4F42,
-	padding: 0x0,
-	has_explicit_2byte_pad: true,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "OB",
+    name: "Other Byte",
+    code: 0x4F42,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Other Double
@@ -648,16 +647,16 @@ pub static OB: VR = VR {
 /// # Length of Value
 /// (2^32) - 8 bytes maximum
 pub static OD: VR = VR {
-	ident: "OD",
-	name: "Other Byte",
-	code: 0x4F44,
-	padding: 0x0,
-	has_explicit_2byte_pad: true,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "OD",
+    name: "Other Byte",
+    code: 0x4F44,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Other Float
@@ -676,16 +675,16 @@ pub static OD: VR = VR {
 ///
 /// (2^32) - 4 bytes maximum
 pub static OF: VR = VR {
-	ident: "OF",
-	name: "Other Float",
-	code: 0x4F46,
-	padding: 0x0,
-	has_explicit_2byte_pad: true,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "OF",
+    name: "Other Float",
+    code: 0x4F46,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Other Long
@@ -704,16 +703,16 @@ pub static OF: VR = VR {
 ///
 /// see Transfer Syntax definiton
 pub static OL: VR = VR {
-	ident: "OL",
-	name: "Other Long",
-	code: 0x4F4C,
-	padding: 0x0,
-	has_explicit_2byte_pad: true,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "OL",
+    name: "Other Long",
+    code: 0x4F4C,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Other Word
@@ -732,16 +731,16 @@ pub static OL: VR = VR {
 ///
 /// see Transfer Syntax definition
 pub static OW: VR = VR {
-	ident: "OW",
-	name: "Other Float",
-	code: 0x4F57,
-	padding: 0x0,
-	has_explicit_2byte_pad: true,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "OW",
+    name: "Other Float",
+    code: 0x4F57,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Person Name
@@ -797,16 +796,16 @@ pub static OW: VR = VR {
 ///
 /// 64 chars maximum per component group (see Note in Part 5, Ch 6.2)
 pub static PN: VR = VR {
-	ident: "PN",
-	name: "Person Name",
-	code: 0x504E,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: true,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "PN",
+    name: "Person Name",
+    code: 0x504E,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: true,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Short String
@@ -828,16 +827,16 @@ pub static PN: VR = VR {
 ///
 /// 16 chars maximum (see Note in Part 5, Ch 6.2)
 pub static SH: VR = VR {
-	ident: "SH",
-	name: "Short String",
-	code: 0x5348,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string:true,
-	decode_text_with_replaced_cs: true,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "SH",
+    name: "Short String",
+    code: 0x5348,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: true,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Signed Long
@@ -856,16 +855,16 @@ pub static SH: VR = VR {
 ///
 /// 4 bytes fixed
 pub static SL: VR = VR {
-	ident: "SL",
-	name: "Signed Long",
-	code: 0x534C,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "SL",
+    name: "Signed Long",
+    code: 0x534C,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Sequence of Items
@@ -882,16 +881,16 @@ pub static SL: VR = VR {
 ///
 /// N/A (see Part 5, Ch 7.5)
 pub static SQ: VR = VR {
-	ident: "SQ",
-	name: "Sequence of Items",
-	code: 0x5351,
-	padding: 0x0,
-	has_explicit_2byte_pad: true,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "SQ",
+    name: "Sequence of Items",
+    code: 0x5351,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Signed Short
@@ -910,16 +909,16 @@ pub static SQ: VR = VR {
 ///
 /// 4 bytes fixed
 pub static SS: VR = VR {
-	ident: "SS",
-	name: "Signed Short",
-	code: 0x5353,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "SS",
+    name: "Signed Short",
+    code: 0x5353,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Short Text
@@ -943,16 +942,16 @@ pub static SS: VR = VR {
 ///
 /// 1024 chars maximum (see Note in Part 5, Ch 6.2)
 pub static ST: VR = VR {
-	ident: "ST",
-	name: "Short Text",
-	code: 0x5354,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: true,
-	allows_backslash_text_value: true,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: true,
+    ident: "ST",
+    name: "Short Text",
+    code: 0x5354,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: true,
+    allows_backslash_text_value: true,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: true,
 };
 
 /// Time
@@ -1006,16 +1005,16 @@ pub static ST: VR = VR {
 /// 14 bytes maximum. In the context of a Query with range matching
 /// (see PS3.4), the length is 28 bytes maximum.
 pub static TM: VR = VR {
-	ident: "TM",
-	name: "Time",
-	code: 0x544D,
-	padding: 0x20,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "TM",
+    name: "Time",
+    code: 0x544D,
+    padding: 0x20,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Unlimited Characters
@@ -1038,16 +1037,16 @@ pub static TM: VR = VR {
 ///
 /// 2^32 - 2 bytes maximum
 pub static UC: VR = VR {
-	ident: "UC",
-	name: "Time",
-	code: 0x5443,
-	padding: 0x20,
-	has_explicit_2byte_pad: true,
-	is_character_string: true,
-	decode_text_with_replaced_cs: true,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: true,
+    ident: "UC",
+    name: "Time",
+    code: 0x5443,
+    padding: 0x20,
+    has_explicit_2byte_pad: true,
+    is_character_string: true,
+    decode_text_with_replaced_cs: true,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: true,
 };
 
 /// Unique Identifier
@@ -1068,16 +1067,16 @@ pub static UC: VR = VR {
 ///
 /// 64 bytes maximum
 pub static UI: VR = VR {
-	ident: "UI",
-	name: "Unique Identifier",
-	code: 0x5549,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "UI",
+    name: "Unique Identifier",
+    code: 0x5549,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Unsigned Long
@@ -1095,16 +1094,16 @@ pub static UI: VR = VR {
 ///
 /// 4 bytes fixed
 pub static UL: VR = VR {
-	ident: "UL",
-	name: "Unsigned Long",
-	code: 0x554C,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "UL",
+    name: "Unsigned Long",
+    code: 0x554C,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Unknown
@@ -1122,16 +1121,16 @@ pub static UL: VR = VR {
 ///
 /// Any length valid for any of the other DICOM Value Representations
 pub static UN: VR = VR {
-	ident: "UN",
-	name: "Unknown",
-	code: 0x544E,
-	padding: 0x0,
-	has_explicit_2byte_pad: true,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "UN",
+    name: "Unknown",
+    code: 0x544E,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Universal Resource Identifier / Universal Resource Locator
@@ -1164,16 +1163,16 @@ pub static UN: VR = VR {
 ///
 /// 2^32 - 2 bytes maximum
 pub static UR: VR = VR {
-	ident: "UR",
-	name: "Universal Resource Identifier / Universal Resource Locator",
-	code: 0x5452,
-	padding: 0x20,
-	has_explicit_2byte_pad: true,
-	is_character_string: true,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: true,
-	should_trim_trailing_space: true,
+    ident: "UR",
+    name: "Universal Resource Identifier / Universal Resource Locator",
+    code: 0x5452,
+    padding: 0x20,
+    has_explicit_2byte_pad: true,
+    is_character_string: true,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: true,
+    should_trim_trailing_space: true,
 };
 
 /// Unsigned Short
@@ -1191,16 +1190,16 @@ pub static UR: VR = VR {
 ///
 /// 2 bytes fixed
 pub static US: VR = VR {
-	ident: "US",
-	name: "Unsigned Short",
-	code: 0x5553,
-	padding: 0x0,
-	has_explicit_2byte_pad: false,
-	is_character_string: false,
-	decode_text_with_replaced_cs: false,
-	allows_backslash_text_value: false,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: false,
+    ident: "US",
+    name: "Unsigned Short",
+    code: 0x5553,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
 
 /// Unlimited Text
@@ -1224,14 +1223,14 @@ pub static US: VR = VR {
 ///
 /// 2^32 - 2 bytes maximum
 pub static UT: VR = VR {
-	ident: "UT",
-	name: "Unlimited Text",
-	code: 0x5554,
-	padding: 0x20,
-	has_explicit_2byte_pad: true,
-	is_character_string: true,
-	decode_text_with_replaced_cs: true,
-	allows_backslash_text_value: true,
-	should_trim_leading_space: false,
-	should_trim_trailing_space: true,
+    ident: "UT",
+    name: "Unlimited Text",
+    code: 0x5554,
+    padding: 0x20,
+    has_explicit_2byte_pad: true,
+    is_character_string: true,
+    decode_text_with_replaced_cs: true,
+    allows_backslash_text_value: true,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: true,
 };

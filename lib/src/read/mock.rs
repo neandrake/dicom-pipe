@@ -11,7 +11,7 @@ impl MockDicomStream {
     pub fn standard_dicom_preamble() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
-                let mut data: Vec<u8> = vec![0u8;132];
+                let mut data: Vec<u8> = vec![0u8; 132];
                 data[128] = 'D' as u8;
                 data[129] = 'I' as u8;
                 data[130] = 'C' as u8;
@@ -26,7 +26,7 @@ impl MockDicomStream {
     pub fn invalid_dicom_prefix() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
-                let mut data: Vec<u8> = vec![0u8;132];
+                let mut data: Vec<u8> = vec![0u8; 132];
                 data[128] = 'D' as u8;
                 data[129] = 'O' as u8;
                 data[130] = 'C' as u8;
@@ -41,7 +41,7 @@ impl MockDicomStream {
     pub fn nonzero_preamble() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
-                let mut data: Vec<u8> = vec![0xFFu8;132];
+                let mut data: Vec<u8> = vec![0xFFu8; 132];
                 data[128] = 'D' as u8;
                 data[129] = 'I' as u8;
                 data[130] = 'C' as u8;
@@ -53,10 +53,11 @@ impl MockDicomStream {
         DicomStreamParser::new(mockup, TagStop::EndOfStream)
     }
 
-    pub fn standard_dicom_preamble_diff_startpos_and_short_stream() -> DicomStreamParser<MockDicomStream> {
+    pub fn standard_dicom_preamble_diff_startpos_and_short_stream(
+    ) -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
-                let mut data: Vec<u8> = vec![0u8;132];
+                let mut data: Vec<u8> = vec![0u8; 132];
                 data[128] = 'D' as u8;
                 data[129] = 'I' as u8;
                 data[130] = 'C' as u8;
@@ -101,7 +102,9 @@ impl Seek for MockDicomStream {
             return Result::Ok(newpos as u64);
         }
 
-        return Result::Err(Error::new(ErrorKind::UnexpectedEof,
-                                      format!("seek to invalid position: {:?}", newpos)));
+        return Result::Err(Error::new(
+            ErrorKind::UnexpectedEof,
+            format!("seek to invalid position: {:?}", newpos),
+        ));
     }
 }

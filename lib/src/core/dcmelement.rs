@@ -1,11 +1,11 @@
-use byteorder::{ByteOrder, ReadBytesExt};
 use crate::core::dict::lookup::TAG_BY_VALUE;
 use crate::core::tag::Tag;
 use crate::core::vl::ValueLength;
 use crate::core::vr;
-use crate::core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
-use encoding::types::DecoderTrap;
+use crate::core::vr::{VRRef, CHARACTER_STRING_SEPARATOR};
 use crate::read::CSRef;
+use byteorder::{ByteOrder, ReadBytesExt};
+use encoding::types::DecoderTrap;
 use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
@@ -85,7 +85,8 @@ impl DicomElement {
         cs.decode(data, DecoderTrap::Strict)
             .map(|v: String| {
                 if !is_ui && is_char_str {
-                    v.trim_end_matches(|c: char| c == padding as char).to_string()
+                    v.trim_end_matches(|c: char| c == padding as char)
+                        .to_string()
                 } else {
                     v
                 }
@@ -113,7 +114,8 @@ impl DicomElement {
         cs.decode(data, DecoderTrap::Strict)
             .map(|v: String| {
                 if !is_ui && is_char_str {
-                    v.trim_end_matches(|c: char| c == padding as char).to_string()
+                    v.trim_end_matches(|c: char| c == padding as char)
+                        .to_string()
                 } else {
                     v
                 }
@@ -157,7 +159,7 @@ impl DicomElement {
                 }
             }
         }
-        &data[lindex .. (rindex + 1)]
+        &data[lindex..(rindex + 1)]
     }
 
     /// Parses the value for this element as an attribute (aka a tag)
