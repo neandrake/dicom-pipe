@@ -1,6 +1,6 @@
 use byteorder::ByteOrder;
-use core::dcmelement::DicomElement;
-use read::CSRef;
+use crate::core::dcmelement::DicomElement;
+use crate::read::CSRef;
 use std::io::Error;
 
 pub trait DicomDataSet {

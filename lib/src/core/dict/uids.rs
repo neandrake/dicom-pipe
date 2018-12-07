@@ -1,10 +1,8 @@
 //! This is an auto-generated file. Do not make modifications here.
 
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-use core::uid::UID;
+use crate::core::uid::UID;
 
 /// Verification SOP Class
 /// 

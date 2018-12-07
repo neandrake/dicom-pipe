@@ -1,16 +1,16 @@
 //! This is an auto-generated file. Do not make modifications here.
 
-use core::dict::dicom_elements as tags;
-use core::dict::dir_structure_elements as dse;
-use core::dict::file_meta_elements as fme;
-use core::dict::uids;
-use core::dict::transfer_syntaxes as ts;
-use core::tag::TagRef;
-use core::ts::TSRef;
-use core::uid::UIDRef;
+use crate::core::dict::dicom_elements as tags;
+use crate::core::dict::dir_structure_elements as dse;
+use crate::core::dict::file_meta_elements as fme;
+use crate::core::dict::uids;
+use crate::core::dict::transfer_syntaxes as ts;
+use crate::core::tag::TagRef;
+use crate::core::ts::TSRef;
+use crate::core::uid::UIDRef;
 
 
-pub static TAG_BY_IDENT: ::phf::Map<&'static str, TagRef> = ::phf::Map {
+pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ::phf::Map {
     key: 6246114685207409605,
     disps: ::phf::Slice::Static(&[
         (0, 274),
@@ -5055,7 +5055,7 @@ pub static TAG_BY_IDENT: ::phf::Map<&'static str, TagRef> = ::phf::Map {
     ]),
 };
 
-pub static TAG_BY_VALUE: ::phf::Map<u32, TagRef> = ::phf::Map {
+pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = ::phf::Map {
     key: 6246114685207409605,
     disps: ::phf::Slice::Static(&[
         (0, 652),
@@ -10100,7 +10100,7 @@ pub static TAG_BY_VALUE: ::phf::Map<u32, TagRef> = ::phf::Map {
     ]),
 };
 
-pub static TS_BY_IDENT: ::phf::Map<&'static str, TSRef> = ::phf::Map {
+pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = ::phf::Map {
     key: 2662727287650995926,
     disps: ::phf::Slice::Static(&[
         (5, 31),
@@ -10160,7 +10160,7 @@ pub static TS_BY_IDENT: ::phf::Map<&'static str, TSRef> = ::phf::Map {
     ]),
 };
 
-pub static TS_BY_ID: ::phf::Map<&'static str, TSRef> = ::phf::Map {
+pub static TS_BY_ID: phf::Map<&'static str, TSRef> = ::phf::Map {
     key: 6246114685207409605,
     disps: ::phf::Slice::Static(&[
         (5, 3),
@@ -10220,7 +10220,7 @@ pub static TS_BY_ID: ::phf::Map<&'static str, TSRef> = ::phf::Map {
     ]),
 };
 
-pub static UID_BY_IDENT: ::phf::Map<&'static str, UIDRef> = ::phf::Map {
+pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = ::phf::Map {
     key: 1175121576404892715,
     disps: ::phf::Slice::Static(&[
         (0, 74),
@@ -10706,7 +10706,7 @@ pub static UID_BY_IDENT: ::phf::Map<&'static str, UIDRef> = ::phf::Map {
     ]),
 };
 
-pub static UID_BY_ID: ::phf::Map<&'static str, UIDRef> = ::phf::Map {
+pub static UID_BY_ID: phf::Map<&'static str, UIDRef> = ::phf::Map {
     key: 6246114685207409605,
     disps: ::phf::Slice::Static(&[
         (0, 20),

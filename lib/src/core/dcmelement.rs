@@ -1,11 +1,11 @@
 use byteorder::{ByteOrder, ReadBytesExt};
-use core::dict::lookup::TAG_BY_VALUE;
-use core::tag::Tag;
-use core::vl::ValueLength;
-use core::vr;
-use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
+use crate::core::dict::lookup::TAG_BY_VALUE;
+use crate::core::tag::Tag;
+use crate::core::vl::ValueLength;
+use crate::core::vr;
+use crate::core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 use encoding::types::DecoderTrap;
-use read::CSRef;
+use crate::read::CSRef;
 use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
