@@ -14,7 +14,7 @@ phf = "0.7"
 walkdir = "2.2"
 
 [build-dependencies]
-dcmpipe_dict = { path = "../dict", version = "0.1" }
+dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
 
 [lib]
 name="dcmpipe_lib"
