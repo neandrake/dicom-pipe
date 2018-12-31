@@ -5,7 +5,3 @@ pub mod tagstop;
 mod mock;
 #[cfg(test)]
 mod tests;
-
-use encoding::EncodingRef;
-
-pub type CSRef = EncodingRef;

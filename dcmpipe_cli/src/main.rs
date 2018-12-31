@@ -2,6 +2,7 @@ extern crate byteorder;
 extern crate dcmpipe_lib;
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::{DicomElement, DicomSequencePosition};
 use dcmpipe_lib::core::dict::dicom_elements as tags;
 use dcmpipe_lib::core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
@@ -10,7 +11,6 @@ use dcmpipe_lib::core::ts::TSRef;
 use dcmpipe_lib::core::vr;
 use dcmpipe_lib::read::dcmparser::DicomStreamParser;
 use dcmpipe_lib::read::tagstop::TagStop;
-use dcmpipe_lib::read::CSRef;
 use std::env;
 use std::fs::File;
 use std::io::{self, Error, Write};
@@ -52,8 +52,12 @@ fn main() -> Result<(), Error> {
         }
         let mut elem: DicomElement = elem.unwrap();
         if prev_was_file_meta && elem.tag > 0x0002FFFF {
-            stdout.write(format!("\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
-                dicom_iter.get_ts().uid.ident).as_ref()
+            stdout.write(
+                format!(
+                    "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
+                    dicom_iter.get_ts().uid.ident
+                )
+                .as_ref(),
             )?;
             prev_was_file_meta = false;
         }

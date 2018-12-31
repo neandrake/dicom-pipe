@@ -1,3 +1,4 @@
+use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, DicomSequencePosition};
 use crate::core::dict::dicom_elements as tags;
 use crate::core::dict::file_meta_elements as fme;
@@ -10,9 +11,7 @@ use crate::core::vl::ValueLength;
 use crate::core::vr;
 use crate::core::vr::{VRRef, VR};
 use crate::read::tagstop::TagStop;
-use crate::read::CSRef;
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
-use encoding::label::encoding_from_whatwg_label;
 use std::io::{Error, ErrorKind};
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -119,7 +118,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             current_path: Vec::new(),
 
             ts: &ts::ExplicitVRLittleEndian,
-            cs: vr::DEFAULT_CHARACTER_SET,
+            cs: DEFAULT_CHARACTER_SET,
 
             state: DicomParseState::Preamble,
         }
@@ -287,7 +286,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// Parses the value of the given element as the transfer syntax and sets the `ts` value on this
     /// iterator to affect the reading of further dicom elements.
     fn parse_transfer_syntax(&mut self, element: &mut DicomElement) -> Result<(), Error> {
-        let ts_uid: String = element.parse_string(vr::DEFAULT_CHARACTER_SET)?;
+        let ts_uid: String = element.parse_string(DEFAULT_CHARACTER_SET)?;
 
         self.ts = TS_BY_ID
             .get::<str>(ts_uid.as_ref())
@@ -310,24 +309,11 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     fn parse_specific_character_set(&mut self, element: &mut DicomElement) -> Result<(), Error> {
         if let Some(ref vr) = tags::SpecificCharacterSet.implicit_vr {
             let decoder: CSRef = vr.get_proper_cs(self.cs);
-            // Change the lookup key into format that the encoding package and recognize
-            let new_cs: String = element
-                .parse_string(decoder)
-                .iter()
-                .flat_map(|s| s.chars())
-                .map(|c: char| match c {
-                    '_' => '-',
-                    ' ' => '-',
-                    a => a.to_ascii_lowercase(),
-                })
-                .collect::<String>();
+            let new_cs: String = element.parse_string(decoder)?;
 
             // TODO: There are options for what to do if we can't support the character repertoire
             // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
-            self.cs = encoding_from_whatwg_label(&new_cs).ok_or(Error::new(
-                ErrorKind::InvalidData,
-                format!("Unable to determine Specific Character Set: {:?}", &new_cs),
-            ))?;
+            self.cs = charset::lookup_charset(&new_cs)?;
 
             return Ok(());
         }
