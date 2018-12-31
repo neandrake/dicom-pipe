@@ -13,16 +13,16 @@ use dcmpipe_lib::read::tagstop::TagStop;
 use dcmpipe_lib::read::CSRef;
 use std::env;
 use std::fs::File;
-use std::io::Error;
+use std::io::{self, Error, Write};
 use std::path::Path;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 4;
 
-fn main() {
+fn main() -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        panic!("Must specify dicom file to open");
+        panic!("Must specify dicom file to open: {:?}", args);
     }
     let path: &Path = Path::new(&args[1]);
 
@@ -32,12 +32,17 @@ fn main() {
 
     let file: File = File::open(path).expect(&format!("Unable to open file: {:?}", path));
 
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+
     let mut dicom_iter: DicomStreamParser<File> =
         DicomStreamParser::new(file, TagStop::EndOfStream);
-    println!(
-        "\n# Dicom-File-Format File\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}",
-        dicom_iter.get_ts().uid.ident
-    );
+
+    stdout.write(format!(
+        "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
+        path,
+        dicom_iter.get_ts().uid.ident).as_ref()
+    )?;
 
     let mut prev_was_file_meta: bool = true;
 
@@ -47,10 +52,9 @@ fn main() {
         }
         let mut elem: DicomElement = elem.unwrap();
         if prev_was_file_meta && elem.tag > 0x0002FFFF {
-            println!(
-                "\n# Dicom-Data-Set\n# Used TransferSyntax: {}",
-                dicom_iter.get_ts().uid.ident
-            );
+            stdout.write(format!("\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
+                dicom_iter.get_ts().uid.ident).as_ref()
+            )?;
             prev_was_file_meta = false;
         }
         let printed: Result<Option<String>, Error> =
@@ -63,8 +67,10 @@ fn main() {
             continue;
         }
         let printed: String = printed.unwrap();
-        println!("{}", printed);
+        stdout.write(format!("{}\n", printed).as_ref())?;
     }
+
+    Ok(())
 }
 
 fn render_element(
@@ -91,9 +97,9 @@ fn render_element(
     } else if element.is_empty() {
         "<empty>".to_owned()
     } else if ts.big_endian {
-        render_dcm_value::<BigEndian>(element, cs)?
+        render_dicom_value::<BigEndian>(element, cs)?
     } else {
-        render_dcm_value::<LittleEndian>(element, cs)?
+        render_dicom_value::<LittleEndian>(element, cs)?
     };
 
     let seq_path: &Vec<DicomSequencePosition> = element.get_sequence_path();
@@ -102,6 +108,7 @@ fn render_element(
     if indent_width > 0 && element.tag != tags::Item.tag && element.vr != &vr::SQ {
         indent_width = indent_width + 2;
     }
+
     if element.tag == tags::Item.tag {
         let path: String = seq_path
             .iter()
@@ -152,7 +159,7 @@ fn render_element(
 }
 
 /// Formats the value of this element as a string based on the VR
-fn render_dcm_value<Endian: ByteOrder>(
+fn render_dicom_value<Endian: ByteOrder>(
     elem: &mut DicomElement,
     cs: CSRef,
 ) -> Result<String, Error> {
