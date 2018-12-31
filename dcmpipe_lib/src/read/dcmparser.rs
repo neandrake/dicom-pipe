@@ -381,18 +381,18 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     self.state = DicomParseState::GroupLength;
                 }
                 DicomParseState::GroupLength => {
-                    let tag: Result<u32, Error> = if let Some(partial_tag) = self.partial_tag {
-                        Ok(partial_tag)
+                    let tag: u32 = if let Some(partial_tag) = self.partial_tag {
+                        partial_tag
                     } else {
-                        self.read_tag::<LittleEndian>()
+                        let tag: Result<u32, Error> = self.read_tag::<LittleEndian>();
+                        if let Err(e) = tag {
+                            return Some(Err(e));
+                        }
+                        let tag: u32 = tag.unwrap();
+                        self.partial_tag.replace(tag);
+                        tag
                     };
-                    if let Err(e) = tag {
-                        return Some(Err(e));
-                    }
-
-                    let tag: u32 = tag.unwrap();
                     self.tag_last_read = tag;
-                    self.partial_tag = Some(tag);
 
                     let at_tagstop: Result<bool, Error> = self.is_at_tag_stop();
                     if let Ok(true) = at_tagstop {
@@ -428,23 +428,24 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     self.fmi_grouplength = grouplength_val.unwrap();
                     self.fmi_start = self.bytes_read;
                     self.state = DicomParseState::FileMeta;
-                    self.partial_tag = None;
+                    // reset partial_tag to None
+                    self.partial_tag.take();
 
                     return Some(Ok(grouplength));
                 }
                 DicomParseState::FileMeta => {
-                    let tag: Result<u32, Error> = if let Some(partial_tag) = self.partial_tag {
-                        Ok(partial_tag)
+                    let tag: u32 = if let Some(partial_tag) = self.partial_tag {
+                        partial_tag
                     } else {
-                        self.read_tag::<LittleEndian>()
+                        let tag: Result<u32, Error> = self.read_tag::<LittleEndian>();
+                        if let Err(e) = tag {
+                            return Some(Err(e));
+                        }
+                        let tag: u32 = tag.unwrap();
+                        self.partial_tag.replace(tag);
+                        tag
                     };
-                    if let Err(e) = tag {
-                        return Some(Err(e));
-                    }
-
-                    let tag: u32 = tag.unwrap();
                     self.tag_last_read = tag;
-                    self.partial_tag = Some(tag);
 
                     let at_tagstop: Result<bool, Error> = self.is_at_tag_stop();
                     if let Ok(true) = at_tagstop {
@@ -471,33 +472,34 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         self.state = DicomParseState::Element;
                     }
 
-                    self.partial_tag = None;
+                    // reset partial_tag to None
+                    self.partial_tag.take();
 
                     return Some(Ok(element));
                 }
                 DicomParseState::Element => {
-                    let tag: Result<u32, Error> = if let Some(partial_tag) = self.partial_tag {
-                        Ok(partial_tag)
+                    let tag: u32 = if let Some(partial_tag) = self.partial_tag {
+                        partial_tag
                     } else {
-                        if self.ts.big_endian {
+                        let tag: Result<u32, Error> = if self.ts.big_endian {
                             self.read_tag::<BigEndian>()
                         } else {
                             self.read_tag::<LittleEndian>()
+                        };
+                        if let Err(e) = tag {
+                            // only check EOF when reading beginning of elements as it would actually
+                            // be expected in this scenario since the DICOM format provides no determination
+                            // for end of the dicom object
+                            if e.kind() == ErrorKind::UnexpectedEof {
+                                return None;
+                            }
+                            return Some(Err(e));
                         }
+                        let tag: u32 = tag.unwrap();
+                        self.partial_tag.replace(tag);
+                        tag
                     };
-                    if let Err(e) = tag {
-                        // only check EOF when reading beginning of elements as it would actually
-                        // be expected in this scenario since the DICOM format provides no determination
-                        // for end of the dicom object
-                        if e.kind() == ErrorKind::UnexpectedEof {
-                            return None;
-                        }
-                        return Some(Err(e));
-                    }
-
-                    let tag: u32 = tag.unwrap();
                     self.tag_last_read = tag;
-                    self.partial_tag = Some(tag);
 
                     let at_tagstop: Result<bool, Error> = self.is_at_tag_stop();
                     if let Ok(true) = at_tagstop {
@@ -532,7 +534,8 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         }
                     }
 
-                    self.partial_tag = None;
+                    // reset partial_tag to None
+                    self.partial_tag.take();
 
                     // check for exiting a sequence based on being sequence delimiter
                     // do this before checking against byte position
