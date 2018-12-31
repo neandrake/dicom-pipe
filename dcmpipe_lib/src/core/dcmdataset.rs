@@ -1,5 +1,5 @@
+use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
-use crate::read::CSRef;
 use byteorder::ByteOrder;
 use std::io::Error;
 

@@ -1,9 +1,9 @@
+use crate::core::charset::CSRef;
 use crate::core::dict::lookup::TAG_BY_VALUE;
 use crate::core::tag::Tag;
 use crate::core::vl::ValueLength;
 use crate::core::vr;
 use crate::core::vr::{VRRef, CHARACTER_STRING_SEPARATOR};
-use crate::read::CSRef;
 use byteorder::{ByteOrder, ReadBytesExt};
 use encoding::types::DecoderTrap;
 use std::borrow::Cow;

@@ -1,7 +1,7 @@
+pub mod charset;
 pub mod dcmdataset;
 pub mod dcmelement;
 pub mod dcmobject;
-
 pub mod dict;
 pub mod tag;
 pub mod ts;

@@ -1,7 +1,7 @@
+use crate::core::charset::CSRef;
 use crate::core::dcmdataset::DicomDataSet;
 use crate::core::dcmelement::DicomElement;
 use crate::core::tag::Tag;
-use crate::read::CSRef;
 use byteorder::ByteOrder;
 use std::collections::hash_map::{Entry, HashMap};
 use std::io::{Error, ErrorKind};
