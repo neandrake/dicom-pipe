@@ -1125,7 +1125,7 @@ pub static UN: VR = VR {
     name: "Unknown",
     code: 0x544E,
     padding: 0x0,
-    has_explicit_2byte_pad: true,
+    has_explicit_2byte_pad: false,
     is_character_string: false,
     decode_text_with_replaced_cs: false,
     allows_backslash_text_value: false,
