@@ -9,6 +9,8 @@ pub static DEFAULT_CHARACTER_SET: CSRef = WINDOWS_1252 as CSRef;
 /// This is based off `encoding::label::encoding_from_whatwg_label` with a few minor changes
 /// - All whitespace, hyphens, and underscores are stripped when doing a lookup
 /// - Added `ISO-IR-192` mapping for `UTF-8`
+/// See DICOM Part 2 Appendix D.6.2 Support of Character Sets - Character Sets
+/// http://dicom.nema.org/medical/dicom/current/output/chtml/part02/sect_D.6.2.html
 pub fn lookup_charset(label: &str) -> Result<CSRef, Error> {
     let label: String = label
         .chars()
@@ -76,7 +78,8 @@ pub fn lookup_charset(label: &str) -> Result<CSRef, Error> {
         "gb18030" => Ok(all::GB18030 as CSRef),
         "big5" | "big5hkscs" | "csbig5" | "xxbig5" => Ok(all::BIG5_2003 as CSRef),
         "cseucpkdfmtjapanese" | "eucjp" | "xeucjp" => Ok(all::EUC_JP as CSRef),
-        "csiso2022jp" | "iso2022jp" => Ok(all::ISO_2022_JP as CSRef),
+        "isoir13" | "isoir87" | "isoir159" | "iso2022ir13" | "iso2022ir87" | "iso2022ir159"
+        | "csiso2022jp" | "iso2022jp" => Ok(all::ISO_2022_JP as CSRef),
         "csshiftjis" | "mskanji" | "shiftjis" | "sjis" | "windows31j" | "xsjis" => {
             Ok(all::WINDOWS_31J as CSRef)
         }
