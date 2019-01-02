@@ -15,6 +15,7 @@ use std::env;
 use std::fs::File;
 use std::io::{self, Error, Write};
 use std::path::Path;
+use std::process;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 4;
@@ -22,15 +23,22 @@ static MAX_ITEMS_DISPLAYED: usize = 4;
 fn main() -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        panic!("Must specify dicom file to open: {:?}", args);
+        eprintln!("First and only argument should be a file");
+        process::exit(1);
     }
     let path: &Path = Path::new(&args[1]);
 
     if !path.is_file() {
-        panic!(format!("Invalid path: {:?}", path));
+        eprintln!("Invalid file: {}", path.display());
+        process::exit(1);
     }
 
-    let file: File = File::open(path).expect(&format!("Unable to open file: {:?}", path));
+    let file: Result<File, Error> = File::open(path);
+    if let Err(e) = file {
+        eprintln!("Unable to open file: {}", path.display());
+        process::exit(1);
+    }
+    let file: File = file.unwrap();
 
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
@@ -48,8 +56,10 @@ fn main() -> Result<(), Error> {
 
     while let Some(elem) = dicom_iter.next() {
         if let Err(e) = elem {
-            panic!(format!("{:?}", e));
+            eprintln!("Error parsing element: {}", e);
+            process::exit(1);
         }
+
         let mut elem: DicomElement = elem.unwrap();
         if prev_was_file_meta && elem.tag > 0x0002FFFF {
             stdout.write(
@@ -57,14 +67,15 @@ fn main() -> Result<(), Error> {
                     "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                     dicom_iter.get_ts().uid.ident
                 )
-                .as_ref(),
+                    .as_ref(),
             )?;
             prev_was_file_meta = false;
         }
         let printed: Result<Option<String>, Error> =
             render_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs());
         if let Err(e) = printed {
-            panic!(format!("{:?}", e));
+            eprintln!("Error rendering element: {}", e);
+            process::exit(1);
         }
         let printed: Option<String> = printed.unwrap();
         if let None = printed {
