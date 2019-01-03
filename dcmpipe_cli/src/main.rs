@@ -13,39 +13,44 @@ use dcmpipe_lib::read::dcmparser::DicomStreamParser;
 use dcmpipe_lib::read::tagstop::TagStop;
 use std::env;
 use std::fs::File;
-use std::io::{self, Error, Write};
+use std::io::{self, Error, ErrorKind, Write};
 use std::path::Path;
 use std::process;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 4;
 
-fn main() -> Result<(), Error> {
+fn main() {
+    let result: Result<(), Error> = appmain();
+    if let Err(e) = result {
+        eprintln!("Error: {}", e);
+        process::exit(1);
+    }
+}
+
+fn appmain() -> Result<(), Error> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        eprintln!("First and only argument should be a file");
-        process::exit(1);
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "first and only argument should be a file",
+        ));
     }
     let path: &Path = Path::new(&args[1]);
 
     if !path.is_file() {
-        eprintln!("Invalid file: {}", path.display());
-        process::exit(1);
+        return Err(Error::new(
+            ErrorKind::NotFound,
+            format!("invalid file: {}", path.display()),
+        ));
     }
 
-    let file: Result<File, Error> = File::open(path);
-    if let Err(e) = file {
-        eprintln!("Unable to open file: {} - {}", e, path.display());
-        process::exit(1);
-    }
-    let file: File = file.unwrap();
-
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
-
+    let file: File = File::open(path)?;
     let mut dicom_iter: DicomStreamParser<File> =
         DicomStreamParser::new(file, TagStop::EndOfStream);
 
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
     stdout.write(format!(
         "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
         path,
@@ -55,34 +60,24 @@ fn main() -> Result<(), Error> {
     let mut prev_was_file_meta: bool = true;
 
     while let Some(elem) = dicom_iter.next() {
-        if let Err(e) = elem {
-            eprintln!("Error parsing element: {}", e);
-            process::exit(1);
-        }
-
-        let mut elem: DicomElement = elem.unwrap();
+        let mut elem: DicomElement = elem?;
         if prev_was_file_meta && elem.tag > 0x0002FFFF {
             stdout.write(
                 format!(
                     "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                     dicom_iter.get_ts().uid.ident
                 )
-                    .as_ref(),
+                .as_ref(),
             )?;
             prev_was_file_meta = false;
         }
-        let printed: Result<Option<String>, Error> =
-            render_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs());
-        if let Err(e) = printed {
-            eprintln!("Error rendering element: {}", e);
-            process::exit(1);
+
+        let printed: Option<String> =
+            render_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs())?;
+
+        if let Some(printed) = printed {
+            stdout.write(format!("{}\n", printed).as_ref())?;
         }
-        let printed: Option<String> = printed.unwrap();
-        if let None = printed {
-            continue;
-        }
-        let printed: String = printed.unwrap();
-        stdout.write(format!("{}\n", printed).as_ref())?;
     }
 
     Ok(())
