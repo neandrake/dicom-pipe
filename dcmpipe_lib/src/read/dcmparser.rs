@@ -544,7 +544,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         }
                     }
 
-                    if element.vr == &vr::SQ {
+                    if element.is_seq() {
                         let seq_end_pos: Option<u64> =
                             if let ValueLength::Explicit(len) = element.vl {
                                 Some(self.bytes_read + u64::from(len))
