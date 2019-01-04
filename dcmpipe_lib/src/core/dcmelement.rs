@@ -10,7 +10,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DicomSequencePosition {
     /// The tag of the sequence.
     seq_tag: u32,
@@ -102,12 +102,12 @@ impl DicomElement {
         &self.data
     }
 
-    pub fn get_data_mut(&mut self) -> &mut Cursor<Vec<u8>> {
-        &mut self.data
-    }
-
     pub fn get_sequence_path(&self) -> &Vec<DicomSequencePosition> {
         &self.sequence_path
+    }
+
+    pub fn is_seq(&self) -> bool {
+        self.vr == &vr::SQ
     }
 
     /// Resets the internal byte stream to be parsed from the beginning

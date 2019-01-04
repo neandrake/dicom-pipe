@@ -1,3 +1,4 @@
+pub mod dcmreader;
 pub mod dcmparser;
 pub mod tagstop;
 
