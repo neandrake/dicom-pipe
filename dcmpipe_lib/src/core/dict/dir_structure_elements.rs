@@ -13,7 +13,7 @@ use crate::core::vr;
 /// - **VM:** 1
 pub static FilesetID: Tag = Tag {
     ident: "FilesetID",
-    tag: 0x00041130,
+    tag: 0x0004_1130,
     implicit_vr: Some(&vr::CS),
     vm: &VM::Distinct(1),
     desc: "File-set ID",
@@ -26,7 +26,7 @@ pub static FilesetID: Tag = Tag {
 /// - **VM:** 1-8
 pub static FilesetDescriptorFileID: Tag = Tag {
     ident: "FilesetDescriptorFileID",
-    tag: 0x00041141,
+    tag: 0x0004_1141,
     implicit_vr: Some(&vr::CS),
     vm: &VM::AtMost(8),
     desc: "File-set Descriptor File ID",
@@ -39,7 +39,7 @@ pub static FilesetDescriptorFileID: Tag = Tag {
 /// - **VM:** 1
 pub static SpecificCharacterSetofFilesetDescriptorFile: Tag = Tag {
     ident: "SpecificCharacterSetofFilesetDescriptorFile",
-    tag: 0x00041142,
+    tag: 0x0004_1142,
     implicit_vr: Some(&vr::CS),
     vm: &VM::Distinct(1),
     desc: "Specific Character Set of File-set Descriptor File",
@@ -52,7 +52,7 @@ pub static SpecificCharacterSetofFilesetDescriptorFile: Tag = Tag {
 /// - **VM:** 1
 pub static OffsetoftheFirstDirectoryRecordoftheRootDirectoryEntity: Tag = Tag {
     ident: "OffsetoftheFirstDirectoryRecordoftheRootDirectoryEntity",
-    tag: 0x00041200,
+    tag: 0x0004_1200,
     implicit_vr: Some(&vr::UL),
     vm: &VM::Distinct(1),
     desc: "Offset of the First Directory Record of the Root Directory Entity",
@@ -65,7 +65,7 @@ pub static OffsetoftheFirstDirectoryRecordoftheRootDirectoryEntity: Tag = Tag {
 /// - **VM:** 1
 pub static OffsetoftheLastDirectoryRecordoftheRootDirectoryEntity: Tag = Tag {
     ident: "OffsetoftheLastDirectoryRecordoftheRootDirectoryEntity",
-    tag: 0x00041202,
+    tag: 0x0004_1202,
     implicit_vr: Some(&vr::UL),
     vm: &VM::Distinct(1),
     desc: "Offset of the Last Directory Record of the Root Directory Entity",
@@ -78,7 +78,7 @@ pub static OffsetoftheLastDirectoryRecordoftheRootDirectoryEntity: Tag = Tag {
 /// - **VM:** 1
 pub static FilesetConsistencyFlag: Tag = Tag {
     ident: "FilesetConsistencyFlag",
-    tag: 0x00041212,
+    tag: 0x0004_1212,
     implicit_vr: Some(&vr::US),
     vm: &VM::Distinct(1),
     desc: "File-set Consistency Flag",
@@ -91,7 +91,7 @@ pub static FilesetConsistencyFlag: Tag = Tag {
 /// - **VM:** 1
 pub static DirectoryRecordSequence: Tag = Tag {
     ident: "DirectoryRecordSequence",
-    tag: 0x00041220,
+    tag: 0x0004_1220,
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Directory Record Sequence",
@@ -104,7 +104,7 @@ pub static DirectoryRecordSequence: Tag = Tag {
 /// - **VM:** 1
 pub static OffsetoftheNextDirectoryRecord: Tag = Tag {
     ident: "OffsetoftheNextDirectoryRecord",
-    tag: 0x00041400,
+    tag: 0x0004_1400,
     implicit_vr: Some(&vr::UL),
     vm: &VM::Distinct(1),
     desc: "Offset of the Next Directory Record",
@@ -117,7 +117,7 @@ pub static OffsetoftheNextDirectoryRecord: Tag = Tag {
 /// - **VM:** 1
 pub static RecordInuseFlag: Tag = Tag {
     ident: "RecordInuseFlag",
-    tag: 0x00041410,
+    tag: 0x0004_1410,
     implicit_vr: Some(&vr::US),
     vm: &VM::Distinct(1),
     desc: "Record In-use Flag",
@@ -130,7 +130,7 @@ pub static RecordInuseFlag: Tag = Tag {
 /// - **VM:** 1
 pub static OffsetofReferencedLowerLevelDirectoryEntity: Tag = Tag {
     ident: "OffsetofReferencedLowerLevelDirectoryEntity",
-    tag: 0x00041420,
+    tag: 0x0004_1420,
     implicit_vr: Some(&vr::UL),
     vm: &VM::Distinct(1),
     desc: "Offset of Referenced Lower-Level Directory Entity",
@@ -143,7 +143,7 @@ pub static OffsetofReferencedLowerLevelDirectoryEntity: Tag = Tag {
 /// - **VM:** 1
 pub static DirectoryRecordType: Tag = Tag {
     ident: "DirectoryRecordType",
-    tag: 0x00041430,
+    tag: 0x0004_1430,
     implicit_vr: Some(&vr::CS),
     vm: &VM::Distinct(1),
     desc: "Directory Record Type",
@@ -156,7 +156,7 @@ pub static DirectoryRecordType: Tag = Tag {
 /// - **VM:** 1
 pub static PrivateRecordUID: Tag = Tag {
     ident: "PrivateRecordUID",
-    tag: 0x00041432,
+    tag: 0x0004_1432,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Private Record UID",
@@ -169,7 +169,7 @@ pub static PrivateRecordUID: Tag = Tag {
 /// - **VM:** 1-8
 pub static ReferencedFileID: Tag = Tag {
     ident: "ReferencedFileID",
-    tag: 0x00041500,
+    tag: 0x0004_1500,
     implicit_vr: Some(&vr::CS),
     vm: &VM::AtMost(8),
     desc: "Referenced File ID",
@@ -182,7 +182,7 @@ pub static ReferencedFileID: Tag = Tag {
 /// - **VM:** 1
 pub static MRDRDirectoryRecordOffset: Tag = Tag {
     ident: "MRDRDirectoryRecordOffset",
-    tag: 0x00041504,
+    tag: 0x0004_1504,
     implicit_vr: Some(&vr::UL),
     vm: &VM::Distinct(1),
     desc: "MRDR Directory Record Offset",
@@ -195,7 +195,7 @@ pub static MRDRDirectoryRecordOffset: Tag = Tag {
 /// - **VM:** 1
 pub static ReferencedSOPClassUIDinFile: Tag = Tag {
     ident: "ReferencedSOPClassUIDinFile",
-    tag: 0x00041510,
+    tag: 0x0004_1510,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Referenced SOP Class UID in File",
@@ -208,7 +208,7 @@ pub static ReferencedSOPClassUIDinFile: Tag = Tag {
 /// - **VM:** 1
 pub static ReferencedSOPInstanceUIDinFile: Tag = Tag {
     ident: "ReferencedSOPInstanceUIDinFile",
-    tag: 0x00041511,
+    tag: 0x0004_1511,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Referenced SOP Instance UID in File",
@@ -221,7 +221,7 @@ pub static ReferencedSOPInstanceUIDinFile: Tag = Tag {
 /// - **VM:** 1
 pub static ReferencedTransferSyntaxUIDinFile: Tag = Tag {
     ident: "ReferencedTransferSyntaxUIDinFile",
-    tag: 0x00041512,
+    tag: 0x0004_1512,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Referenced Transfer Syntax UID in File",
@@ -234,7 +234,7 @@ pub static ReferencedTransferSyntaxUIDinFile: Tag = Tag {
 /// - **VM:** 1-n
 pub static ReferencedRelatedGeneralSOPClassUIDinFile: Tag = Tag {
     ident: "ReferencedRelatedGeneralSOPClassUIDinFile",
-    tag: 0x0004151A,
+    tag: 0x0004_151A,
     implicit_vr: Some(&vr::UI),
     vm: &VM::AtLeast(1),
     desc: "Referenced Related General SOP Class UID in File",
@@ -247,7 +247,7 @@ pub static ReferencedRelatedGeneralSOPClassUIDinFile: Tag = Tag {
 /// - **VM:** 1
 pub static NumberofReferences: Tag = Tag {
     ident: "NumberofReferences",
-    tag: 0x00041600,
+    tag: 0x0004_1600,
     implicit_vr: Some(&vr::UL),
     vm: &VM::Distinct(1),
     desc: "Number of References",
