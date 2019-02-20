@@ -96,7 +96,7 @@ macro_rules! dicom_element_definition {
 /// - **VM:** {}
 pub static {}: Tag = Tag {{
     ident: \"{}\",
-    tag: 0x{:08X},
+    tag: 0x{:04X}_{:04X},
     implicit_vr: {},
     vm: {},
     desc: \"{}\",
@@ -406,6 +406,9 @@ fn process_element(
         return None;
     }
 
+    let tag_group: u32 = (tag_value >> 16) & 0x0000_FFFF;
+    let tag_element: u32 = tag_value & 0x0000_FFFF;
+
     let vr: &str = element.vr.split_whitespace().next().unwrap();
     let vr_value: String = if vr == "See" {
         "None".to_owned()
@@ -440,7 +443,8 @@ fn process_element(
         element.vm, // comment placeholders
         var_name,
         var_name,
-        tag_value,
+        tag_group,
+        tag_element,
         vr_value,
         vm,
         element.name

@@ -61,7 +61,7 @@ fn appmain() -> Result<(), Error> {
 
     while let Some(elem) = dicom_iter.next() {
         let mut elem: DicomElement = elem?;
-        if prev_was_file_meta && elem.tag > 0x0002FFFF {
+        if prev_was_file_meta && elem.tag > 0x0002_FFFF {
             stdout.write(
                 format!(
                     "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
@@ -116,9 +116,9 @@ fn render_element(
 
     let mut indent_width: usize = seq_path.len();
     if indent_width > 0 && element.tag != tags::Item.tag {
-        indent_width = indent_width + 1;
+        indent_width += 1;
     }
-    indent_width = indent_width * 2;
+    indent_width *= 2;
 
     if element.tag == tags::Item.tag {
         let path: String = seq_path
@@ -127,7 +127,7 @@ fn render_element(
                 format!(
                     "{}[{}]",
                     Tag::format_tag_to_path_display(seq_elem.get_seq_tag()),
-                    seq_elem.get_item_number().unwrap_or(0xFFFFFFFF)
+                    seq_elem.get_item_number().unwrap_or(0xFFFF_FFFF)
                 )
             })
             .collect::<Vec<String>>()
@@ -135,7 +135,7 @@ fn render_element(
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
             format!(
                 "#{} - {}",
-                last_seq_elem.get_item_number().unwrap_or(0xFFFFFFFF),
+                last_seq_elem.get_item_number().unwrap_or(0xFFFF_FFFF),
                 path
             )
         } else {

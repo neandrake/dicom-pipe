@@ -13,7 +13,7 @@ use crate::core::vr;
 /// - **VM:** 1
 pub static FileMetaInformationGroupLength: Tag = Tag {
     ident: "FileMetaInformationGroupLength",
-    tag: 0x00020000,
+    tag: 0x0002_0000,
     implicit_vr: Some(&vr::UL),
     vm: &VM::Distinct(1),
     desc: "File Meta Information Group Length",
@@ -26,7 +26,7 @@ pub static FileMetaInformationGroupLength: Tag = Tag {
 /// - **VM:** 1
 pub static FileMetaInformationVersion: Tag = Tag {
     ident: "FileMetaInformationVersion",
-    tag: 0x00020001,
+    tag: 0x0002_0001,
     implicit_vr: Some(&vr::OB),
     vm: &VM::Distinct(1),
     desc: "File Meta Information Version",
@@ -39,7 +39,7 @@ pub static FileMetaInformationVersion: Tag = Tag {
 /// - **VM:** 1
 pub static MediaStorageSOPClassUID: Tag = Tag {
     ident: "MediaStorageSOPClassUID",
-    tag: 0x00020002,
+    tag: 0x0002_0002,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Media Storage SOP Class UID",
@@ -52,7 +52,7 @@ pub static MediaStorageSOPClassUID: Tag = Tag {
 /// - **VM:** 1
 pub static MediaStorageSOPInstanceUID: Tag = Tag {
     ident: "MediaStorageSOPInstanceUID",
-    tag: 0x00020003,
+    tag: 0x0002_0003,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Media Storage SOP Instance UID",
@@ -65,7 +65,7 @@ pub static MediaStorageSOPInstanceUID: Tag = Tag {
 /// - **VM:** 1
 pub static TransferSyntaxUID: Tag = Tag {
     ident: "TransferSyntaxUID",
-    tag: 0x00020010,
+    tag: 0x0002_0010,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Transfer Syntax UID",
@@ -78,7 +78,7 @@ pub static TransferSyntaxUID: Tag = Tag {
 /// - **VM:** 1
 pub static ImplementationClassUID: Tag = Tag {
     ident: "ImplementationClassUID",
-    tag: 0x00020012,
+    tag: 0x0002_0012,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Implementation Class UID",
@@ -91,7 +91,7 @@ pub static ImplementationClassUID: Tag = Tag {
 /// - **VM:** 1
 pub static ImplementationVersionName: Tag = Tag {
     ident: "ImplementationVersionName",
-    tag: 0x00020013,
+    tag: 0x0002_0013,
     implicit_vr: Some(&vr::SH),
     vm: &VM::Distinct(1),
     desc: "Implementation Version Name",
@@ -104,7 +104,7 @@ pub static ImplementationVersionName: Tag = Tag {
 /// - **VM:** 1
 pub static SourceApplicationEntityTitle: Tag = Tag {
     ident: "SourceApplicationEntityTitle",
-    tag: 0x00020016,
+    tag: 0x0002_0016,
     implicit_vr: Some(&vr::AE),
     vm: &VM::Distinct(1),
     desc: "Source Application Entity Title",
@@ -117,7 +117,7 @@ pub static SourceApplicationEntityTitle: Tag = Tag {
 /// - **VM:** 1
 pub static SendingApplicationEntityTitle: Tag = Tag {
     ident: "SendingApplicationEntityTitle",
-    tag: 0x00020017,
+    tag: 0x0002_0017,
     implicit_vr: Some(&vr::AE),
     vm: &VM::Distinct(1),
     desc: "Sending Application Entity Title",
@@ -130,7 +130,7 @@ pub static SendingApplicationEntityTitle: Tag = Tag {
 /// - **VM:** 1
 pub static ReceivingApplicationEntityTitle: Tag = Tag {
     ident: "ReceivingApplicationEntityTitle",
-    tag: 0x00020018,
+    tag: 0x0002_0018,
     implicit_vr: Some(&vr::AE),
     vm: &VM::Distinct(1),
     desc: "Receiving Application Entity Title",
@@ -143,7 +143,7 @@ pub static ReceivingApplicationEntityTitle: Tag = Tag {
 /// - **VM:** 1
 pub static PrivateInformationCreatorUID: Tag = Tag {
     ident: "PrivateInformationCreatorUID",
-    tag: 0x00020100,
+    tag: 0x0002_0100,
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "Private Information Creator UID",
@@ -156,7 +156,7 @@ pub static PrivateInformationCreatorUID: Tag = Tag {
 /// - **VM:** 1
 pub static PrivateInformation: Tag = Tag {
     ident: "PrivateInformation",
-    tag: 0x00020102,
+    tag: 0x0002_0102,
     implicit_vr: Some(&vr::OB),
     vm: &VM::Distinct(1),
     desc: "Private Information",
