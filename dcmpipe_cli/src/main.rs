@@ -51,7 +51,7 @@ fn appmain() -> Result<(), Error> {
 
     let stdout = io::stdout();
     let mut stdout = stdout.lock();
-    stdout.write(format!(
+    stdout.write_all(format!(
         "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
         path,
         dicom_iter.get_ts().uid.ident).as_ref()
@@ -62,7 +62,7 @@ fn appmain() -> Result<(), Error> {
     while let Some(elem) = dicom_iter.next() {
         let mut elem: DicomElement = elem?;
         if prev_was_file_meta && elem.tag > 0x0002_FFFF {
-            stdout.write(
+            stdout.write_all(
                 format!(
                     "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                     dicom_iter.get_ts().uid.ident
@@ -76,7 +76,7 @@ fn appmain() -> Result<(), Error> {
             render_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs())?;
 
         if let Some(printed) = printed {
-            stdout.write(format!("{}\n", printed).as_ref())?;
+            stdout.write_all(format!("{}\n", printed).as_ref())?;
         }
     }
 
@@ -88,7 +88,7 @@ fn render_element(
     ts: TSRef,
     cs: CSRef,
 ) -> Result<Option<String>, Error> {
-    if element.tag & 0xFFFF == 0 {
+    if element.tag.trailing_zeros() >= 16 {
         // Group Length tags are deprecated, see note on Ch 5 Part 7.2
         return Ok(None);
     }

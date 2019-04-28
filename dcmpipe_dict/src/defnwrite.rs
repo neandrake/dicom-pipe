@@ -110,7 +110,7 @@ pub fn process_xml_file(file: File, folder: &Path) -> Result<(), Error> {
     let bufread: BufReader<File> = BufReader::new(file);
     let xml_definitions: Vec<XmlDicomDefinition> = XmlDicomDefinitionIterator::new(bufread)
         .map(|item: XmlDicomDefinitionResult| {
-            item.expect(&format!("Error parsing XML dicom entry"))
+            item.unwrap_or_else(|_| panic!("Error parsing XML dicom entry"))
         })
         .collect::<Vec<XmlDicomDefinition>>();
 
@@ -424,7 +424,7 @@ fn process_element(
         let parts: Vec<&str> = element.vm.split('-').collect::<Vec<&str>>();
         let start: u32 = parts[0]
             .parse::<u32>()
-            .expect(&format!("Missing start to VM: {}", element.vm));
+            .unwrap_or_else(|_| panic!("Missing start to VM: {}", element.vm));
         let end: &str = parts[1];
 
         if end == "n" {
@@ -470,7 +470,7 @@ fn save_codefile(filename: &Path, preamble: String, code: &str) -> Result<(), Er
 /// Some things straight up don't have a name aside from "(Retired)" o.O
 /// Such as: 1.2.840.10008.5.1.4.1.​1.​40 and (0018,0061)
 /// So check whether the returned string is empty
-fn sanitize_var_name(var_name: &String) -> String {
+fn sanitize_var_name(var_name: &str) -> String {
     let is_retired: bool = var_name.contains("Retired");
     // let is_trial: bool = var_name.contains("Trial");
 
@@ -490,7 +490,7 @@ fn sanitize_var_name(var_name: &String) -> String {
         .replace("\"", "_")
         .replace("&", "_and_")
         .replace("µ", "micro")
-        .split(":")
+        .split(':')
         .next()
         .unwrap()
         .to_owned();

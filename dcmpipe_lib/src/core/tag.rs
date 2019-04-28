@@ -42,14 +42,14 @@ impl Tag {
     /// Renders the tag number as `(gggg,eeee)`
     pub fn format_tag_to_display(tag: u32) -> String {
         let tag_upper: u32 = tag >> 16;
-        let tag_lower: u32 = tag & 0x0000FFFF;
+        let tag_lower: u32 = tag & 0x0000_FFFF;
         format!("({:04X},{:04X})", tag_upper, tag_lower)
     }
 
     /// Renders the tag number as `ggggeeee`
     pub fn format_tag_to_path_display(tag: u32) -> String {
         let tag_upper: u32 = tag >> 16;
-        let tag_lower: u32 = tag & 0x0000FFFF;
+        let tag_lower: u32 = tag & 0x0000_FFFF;
         format!("{:04X}{:04X}", tag_upper, tag_lower)
     }
 }

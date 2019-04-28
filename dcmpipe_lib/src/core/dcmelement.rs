@@ -131,10 +131,8 @@ impl DicomElement {
 
         let mut data: &[u8] = self.get_string_bytes_without_padding();
 
-        if is_ui {
-            if data[data.len() - 1] == padding {
-                data = &data[0..data.len() - 1];
-            }
+        if is_ui && data[data.len() - 1] == padding {
+            data = &data[0..data.len() - 1];
         }
 
         cs.decode(data, DecoderTrap::Strict)
@@ -160,10 +158,8 @@ impl DicomElement {
 
         let mut data: &[u8] = self.get_string_bytes_without_padding();
 
-        if is_ui {
-            if data[data.len() - 1] == padding {
-                data = &data[0..data.len() - 1];
-            }
+        if is_ui && data[data.len() - 1] == padding {
+            data = &data[0..data.len() - 1];
         }
 
         cs.decode(data, DecoderTrap::Strict)
@@ -179,7 +175,7 @@ impl DicomElement {
             .map(|multivalue: String| {
                 multivalue
                     .split(CHARACTER_STRING_SEPARATOR)
-                    .map(|singlevalue: &str| singlevalue.to_owned())
+                    .map(str::to_owned)
                     .collect::<Vec<String>>()
             })
     }
@@ -199,7 +195,7 @@ impl DicomElement {
         if self.vr.should_trim_trailing_space {
             while rindex >= lindex {
                 if data[rindex] == 0x20 {
-                    rindex = rindex - 1;
+                    rindex -= 1;
                 } else {
                     break;
                 }
@@ -208,21 +204,21 @@ impl DicomElement {
         if self.vr.should_trim_leading_space {
             while lindex < rindex {
                 if data[lindex] == 0x20 {
-                    lindex = lindex + 1;
+                    lindex += 1;
                 } else {
                     break;
                 }
             }
         }
-        &data[lindex..(rindex + 1)]
+        &data[lindex..=rindex]
     }
 
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
     pub fn parse_attribute<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         self.reset_data_read();
-        let first: u32 = (self.data.read_u16::<Endian>()? as u32) << 16;
-        let second: u32 = self.data.read_u16::<Endian>()? as u32;
+        let first: u32 = u32::from(self.data.read_u16::<Endian>()?) << 16;
+        let second: u32 = u32::from(self.data.read_u16::<Endian>()?);
         let result: u32 = first + second;
         Ok(result)
     }

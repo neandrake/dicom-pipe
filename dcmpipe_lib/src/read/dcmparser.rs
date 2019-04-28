@@ -17,7 +17,7 @@ use std::io::{Error, ErrorKind};
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
 
-pub static DICOM_PREFIX: [u8; DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
+pub static DICOM_PREFIX: &[u8; DICOM_PREFIX_LENGTH] = b"DICM";
 
 /// The different parsing behaviors of the stream
 enum DicomParseState {
@@ -170,9 +170,9 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
 
     /// Reads a tag attribute from the stream
     fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        let group_number: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
+        let group_number: u32 = u32::from(self.stream.read_u16::<Endian>()?) << 16;
         self.bytes_read += 2;
-        let element_number: u32 = self.stream.read_u16::<Endian>()? as u32;
+        let element_number: u32 = u32::from(self.stream.read_u16::<Endian>()?);
         self.bytes_read += 2;
         let tag: u32 = group_number + element_number;
         Ok(tag)
@@ -215,7 +215,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             let second_char: u8 = self.stream.read_u8()?;
             self.bytes_read += 1;
 
-            let code: u16 = ((first_char as u16) << 8) + second_char as u16;
+            let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
             let vr: VRRef = match VR::from_code(code) {
                 Some(vr) => vr,
                 None => {
@@ -235,9 +235,9 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             TAG_BY_VALUE
                 .get(&tag)
                 .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
-                .or(Some(&crate::core::vr::UN))
+                .or_else(|| Some(&crate::core::vr::UN))
                 // TODO: Log an error but still use UN?
-                .ok_or(Error::new(
+                .ok_or_else(|| Error::new(
                     ErrorKind::InvalidData,
                     format!("ImplicitVR TS but VR is unknown for tag: {}", tag),
                 ))
@@ -258,7 +258,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
                 value_length = self.stream.read_u32::<Endian>()?;
                 self.bytes_read += 4;
             } else {
-                value_length = self.stream.read_u16::<Endian>()? as u32;
+                value_length = u32::from(self.stream.read_u16::<Endian>()?);
                 self.bytes_read += 2;
             }
         } else {
@@ -274,7 +274,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             ValueLength::Explicit(value_length) => {
                 let mut bytes: Vec<u8> = vec![0; value_length as usize];
                 self.stream.read_exact(bytes.as_mut_slice())?;
-                self.bytes_read += value_length as u64;
+                self.bytes_read += u64::from(value_length);
                 Ok(bytes)
             }
             // Undefined length should only be possible on sequence or item elements which should
@@ -290,8 +290,8 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
 
         self.ts = TS_BY_ID
             .get::<str>(ts_uid.as_ref())
-            .map(|tsref: &TSRef| *tsref)
-            .ok_or(Error::new(
+            .cloned()
+            .ok_or_else(|| Error::new(
                 ErrorKind::InvalidData,
                 format!("Unknown TransferSyntax: {:?}", ts_uid),
             ))?;
@@ -307,8 +307,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             let new_cs: Option<String> = element
                 .parse_strings(decoder)?
                 .into_iter()
-                .filter(|cs_entry: &String| !cs_entry.is_empty())
-                .next();
+                .find(|cs_entry: &String| !cs_entry.is_empty());
 
             // TODO: There are options for what to do if we can't support the character repertoire
             // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
@@ -321,7 +320,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
 
         Err(Error::new(
             ErrorKind::InvalidData,
-            format!("Invalid SpecificCharacterSet"),
+            "Invalid SpecificCharacterSet".to_string(),
         ))
     }
 }
@@ -356,8 +355,8 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     }
                     self.bytes_read += self.dicom_prefix.len() as u64;
 
-                    for n in 0..DICOM_PREFIX.len() {
-                        if self.dicom_prefix[n] != DICOM_PREFIX[n] {
+                    for (n, prefix_item) in DICOM_PREFIX.iter().enumerate() {
+                        if self.dicom_prefix[n] != *prefix_item {
                             return Some(Err(Error::new(
                                 ErrorKind::InvalidData,
                                 format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix),
@@ -455,7 +454,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         }
                     }
 
-                    if self.bytes_read >= self.fmi_start + self.fmi_grouplength as u64 {
+                    if self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength) {
                         self.state = DicomParseState::Element;
                     }
 
@@ -548,7 +547,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     if element.vr == &vr::SQ {
                         let seq_end_pos: Option<u64> =
                             if let ValueLength::Explicit(len) = element.vl {
-                                Some(self.bytes_read + (len as u64))
+                                Some(self.bytes_read + u64::from(len))
                             } else {
                                 None
                             };
