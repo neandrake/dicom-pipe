@@ -44,20 +44,20 @@ enum XmlDicomDefinitionTable {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum XmlDicomElementCell {
-    CellTag,
-    CellName,
-    CellKeyword,
-    CellVR,
-    CellVM,
-    CellObs,
+    Tag,
+    Name,
+    Keyword,
+    VR,
+    VM,
+    Obs,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum XmlDicomUidCell {
-    CellValue,
-    CellName,
-    CellType,
-    CellPart,
+    Value,
+    Name,
+    Type,
+    Part,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -114,7 +114,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
 
     fn parse_text_bytes(&self, data: &BytesText) -> String {
         data.unescape_and_decode(&self.parser)
-            .expect(&format!("Error parsing DICOM Entry Name: {:?}", data))
+            .unwrap_or_else(|_| panic!("Error parsing DICOM Entry Name: {:?}", data))
             .trim()
             .replace("\u{200b}", "")
     }
@@ -205,12 +205,12 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                     | XmlDicomDefinitionTable::FileMetaElements
                                     | XmlDicomDefinitionTable::DirStructureElements => {
                                         self.state = XmlDicomReadingState::InDicomElementCell(
-                                            XmlDicomElementCell::CellTag,
+                                            XmlDicomElementCell::Tag,
                                         );
                                     }
                                     XmlDicomDefinitionTable::Uids => {
                                         self.state = XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::CellValue,
+                                            XmlDicomUidCell::Value,
                                         );
                                     }
                                     _ => {}
@@ -220,54 +220,54 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                         XmlDicomReadingState::InDicomElementCell(element_cell) => {
                             if local_name == b"para" {
                                 self.state = match element_cell {
-                                    XmlDicomElementCell::CellTag => {
+                                    XmlDicomElementCell::Tag => {
                                         XmlDicomReadingState::InDicomElementCell(
-                                            XmlDicomElementCell::CellName,
+                                            XmlDicomElementCell::Name,
                                         )
                                     }
-                                    XmlDicomElementCell::CellName => {
+                                    XmlDicomElementCell::Name => {
                                         XmlDicomReadingState::InDicomElementCell(
-                                            XmlDicomElementCell::CellKeyword,
+                                            XmlDicomElementCell::Keyword,
                                         )
                                     }
-                                    XmlDicomElementCell::CellKeyword => {
+                                    XmlDicomElementCell::Keyword => {
                                         XmlDicomReadingState::InDicomElementCell(
-                                            XmlDicomElementCell::CellVR,
+                                            XmlDicomElementCell::VR,
                                         )
                                     }
-                                    XmlDicomElementCell::CellVR => {
+                                    XmlDicomElementCell::VR => {
                                         XmlDicomReadingState::InDicomElementCell(
-                                            XmlDicomElementCell::CellVM,
+                                            XmlDicomElementCell::VM,
                                         )
                                     }
-                                    XmlDicomElementCell::CellVM => {
+                                    XmlDicomElementCell::VM => {
                                         XmlDicomReadingState::InDicomElementCell(
-                                            XmlDicomElementCell::CellObs,
+                                            XmlDicomElementCell::Obs,
                                         )
                                     }
-                                    XmlDicomElementCell::CellObs => XmlDicomReadingState::InTable,
+                                    XmlDicomElementCell::Obs => XmlDicomReadingState::InTable,
                                 };
                             }
                         }
                         XmlDicomReadingState::InDicomUidCell(uid_cell) => {
                             if local_name == b"para" {
                                 self.state = match uid_cell {
-                                    XmlDicomUidCell::CellValue => {
+                                    XmlDicomUidCell::Value => {
                                         XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::CellName,
+                                            XmlDicomUidCell::Name,
                                         )
                                     }
-                                    XmlDicomUidCell::CellName => {
+                                    XmlDicomUidCell::Name => {
                                         XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::CellType,
+                                            XmlDicomUidCell::Type,
                                         )
                                     }
-                                    XmlDicomUidCell::CellType => {
+                                    XmlDicomUidCell::Type => {
                                         XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::CellPart,
+                                            XmlDicomUidCell::Part,
                                         )
                                     }
-                                    XmlDicomUidCell::CellPart => XmlDicomReadingState::InTable,
+                                    XmlDicomUidCell::Part => XmlDicomReadingState::InTable,
                                 };
                             }
                         }
@@ -345,36 +345,36 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                 }
                 Ok(Event::Text(data)) => match self.state {
                     XmlDicomReadingState::InDicomElementCell(element_cell) => match element_cell {
-                        XmlDicomElementCell::CellTag => {
+                        XmlDicomElementCell::Tag => {
                             self.element_tag = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomElementCell::CellName => {
+                        XmlDicomElementCell::Name => {
                             self.element_name = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomElementCell::CellKeyword => {
+                        XmlDicomElementCell::Keyword => {
                             self.element_keyword = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomElementCell::CellVR => {
+                        XmlDicomElementCell::VR => {
                             self.element_vr = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomElementCell::CellVM => {
+                        XmlDicomElementCell::VM => {
                             self.element_vm = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomElementCell::CellObs => {
+                        XmlDicomElementCell::Obs => {
                             self.element_obs = Some(self.parse_text_bytes(&data))
                         }
                     },
                     XmlDicomReadingState::InDicomUidCell(uid_cell) => match uid_cell {
-                        XmlDicomUidCell::CellValue => {
+                        XmlDicomUidCell::Value => {
                             self.uid_value = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomUidCell::CellName => {
+                        XmlDicomUidCell::Name => {
                             self.uid_name = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomUidCell::CellType => {
+                        XmlDicomUidCell::Type => {
                             self.uid_type = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomUidCell::CellPart => {
+                        XmlDicomUidCell::Part => {
                             self.uid_part = Some(self.parse_text_bytes(&data))
                         }
                     },

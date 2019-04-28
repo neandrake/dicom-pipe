@@ -18,9 +18,9 @@ pub struct UID {
 impl UID {
     pub fn new(uid: &'static str, ident: &'static str, name: &'static str) -> UID {
         UID {
-            uid: uid,
-            ident: ident,
-            name: name,
+            uid,
+            ident,
+            name,
         }
     }
 

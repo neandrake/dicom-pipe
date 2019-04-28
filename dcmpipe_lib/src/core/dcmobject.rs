@@ -64,14 +64,14 @@ impl DicomDataSet for DicomObject {
     }
 
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
-        self.elements.get(&tag).ok_or(Error::new(
+        self.elements.get(&tag).ok_or_else(|| Error::new(
             ErrorKind::InvalidData,
             format!("No element for tag: {}", Tag::format_tag_to_display(tag)),
         ))
     }
 
     fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
-        self.elements.get_mut(&tag).ok_or(Error::new(
+        self.elements.get_mut(&tag).ok_or_else(|| Error::new(
             ErrorKind::InvalidData,
             format!("No element for tag: {}", Tag::format_tag_to_display(tag)),
         ))
