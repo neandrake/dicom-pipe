@@ -20,8 +20,9 @@ fn test_good_preamble() {
     let mut test_good_iter: DicomStreamParser<MockDicomStream> =
         MockDicomStream::standard_dicom_preamble();
 
-    // reads the preamble, prefix, and first element
-    let _ = test_good_iter.next().expect("Value should be Some Error");
+    // reads the preamble, prefix, and first element (mock has no first element)
+    let _ = test_good_iter.next()
+        .expect("Should be able to iterate a valid dicom stream");
 
     let is_dcm: bool = is_standard_preamble(&test_good_iter);
     assert_eq!(is_dcm, true);
@@ -32,8 +33,9 @@ fn test_nonzero_preamble() {
     let mut test_size_iter: DicomStreamParser<MockDicomStream> =
         MockDicomStream::nonzero_preamble();
 
-    // reads the preamble, prefix, and first element
-    let _ = test_size_iter.next().expect("Value should be Some Error");
+    // reads the preamble, prefix, and first element (mock has no first element)
+    let _ = test_size_iter.next()
+        .expect("Should be able to iterate a valid dicom stream with non-standard preamble");
 
     let is_dcm: bool = is_standard_preamble(&test_size_iter);
     assert_eq!(is_dcm, false);
@@ -48,11 +50,8 @@ fn test_bad_dicom_prefix() {
     // reads the preamble, prefix, and first element
     let _ = test_bad_iter
         .next()
-        .expect("Value should be Some Error")
-        .expect("This should fail to read a valid prefix");
-
-    let is_dcm: bool = is_standard_preamble(&test_bad_iter);
-    assert_eq!(is_dcm, false);
+        .expect("An invalid prefix should return Some(Err)")
+        .expect("Invalid prefix should be Err, this expect should cause panic");
 }
 
 #[test]
