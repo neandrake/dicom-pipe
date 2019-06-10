@@ -115,7 +115,7 @@ pub fn test_dicom_object() {
     let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter).expect("Should be no probz");
     let sop_class_uid: &mut DicomObject = dcmobj.get_object(tags::SOPClassUID.tag).expect("Should have SOP Class UID");
     if let Some(ref mut element) = sop_class_uid.as_element() {
-        assert_eq!(element.parse_string(dicom_iter.get_cs()).expect("get cs"), uids::CTImageStorage.uid)
+        assert_eq!(element.parse_string().expect("get cs"), uids::CTImageStorage.uid)
     } else {
         panic!("Element should exist")
     }
