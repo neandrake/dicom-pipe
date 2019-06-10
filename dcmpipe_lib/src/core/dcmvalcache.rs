@@ -1,6 +1,4 @@
-use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
-use byteorder::ByteOrder;
 use std::collections::hash_map::{Entry, HashMap};
 use std::io::Error;
 
@@ -52,133 +50,133 @@ impl DicomValueCache {
 
 /// Implements the parsing and caching of DicomElements to different native types
 impl DicomValueCache {
-    pub fn get_string(&mut self, element: &mut DicomElement, cs: CSRef) -> Result<&String, Error> {
+    pub fn get_string(&mut self, element: &mut DicomElement) -> Result<&String, Error> {
         let entry: Entry<u32, String> = self.strings.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: String = element.parse_string(cs)?;
+                let value: String = element.parse_string()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_strings(&mut self, element: &mut DicomElement, cs: CSRef) -> Result<&Vec<String>, Error> {
+    pub fn get_strings(&mut self, element: &mut DicomElement) -> Result<&Vec<String>, Error> {
         let entry: Entry<u32, Vec<String>> = self.string_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<String> = element.parse_strings(cs)?;
+                let value: Vec<String> = element.parse_strings()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_f32<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&f32, Error> {
+    pub fn get_f32(&mut self, element: &mut DicomElement) -> Result<&f32, Error> {
         let entry: Entry<u32, f32> = self.floats.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: f32 = element.parse_f32::<Endian>()?;
+                let value: f32 = element.parse_f32()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_f32s<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&Vec<f32>, Error> {
+    pub fn get_f32s(&mut self, element: &mut DicomElement) -> Result<&Vec<f32>, Error> {
         let entry: Entry<u32, Vec<f32>> = self.float_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<f32> = element.parse_f32s::<Endian>()?;
+                let value: Vec<f32> = element.parse_f32s()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_f64<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&f64, Error> {
+    pub fn get_f64(&mut self, element: &mut DicomElement) -> Result<&f64, Error> {
         let entry: Entry<u32, f64> = self.doubles.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: f64 = element.parse_f64::<Endian>()?;
+                let value: f64 = element.parse_f64()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_f64s<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&Vec<f64>, Error> {
+    pub fn get_f64s(&mut self, element: &mut DicomElement) -> Result<&Vec<f64>, Error> {
         let entry: Entry<u32, Vec<f64>> = self.double_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<f64> = element.parse_f64s::<Endian>()?;
+                let value: Vec<f64> = element.parse_f64s()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_i16<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&i16, Error> {
+    pub fn get_i16(&mut self, element: &mut DicomElement) -> Result<&i16, Error> {
         let entry: Entry<u32, i16> = self.shorts.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: i16 = element.parse_i16::<Endian>()?;
+                let value: i16 = element.parse_i16()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_i16s<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&Vec<i16>, Error> {
+    pub fn get_i16s(&mut self, element: &mut DicomElement) -> Result<&Vec<i16>, Error> {
         let entry: Entry<u32, Vec<i16>> = self.short_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<i16> = element.parse_i16s::<Endian>()?;
+                let value: Vec<i16> = element.parse_i16s()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_i32<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&i32, Error> {
+    pub fn get_i32(&mut self, element: &mut DicomElement) -> Result<&i32, Error> {
         let entry: Entry<u32, i32> = self.ints.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: i32 = element.parse_i32::<Endian>()?;
+                let value: i32 = element.parse_i32()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_i32s<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&Vec<i32>, Error> {
+    pub fn get_i32s(&mut self, element: &mut DicomElement) -> Result<&Vec<i32>, Error> {
         let entry: Entry<u32, Vec<i32>> = self.int_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<i32> = element.parse_i32s::<Endian>()?;
+                let value: Vec<i32> = element.parse_i32s()?;
                 Ok(vac_entry.insert(value))
             }
         }
     }
 
-    pub fn get_u16<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&u16, Error> {
+    pub fn get_u16(&mut self, element: &mut DicomElement) -> Result<&u16, Error> {
         let entry: Entry<u32, u16> = self.ushorts.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: u16 = element.parse_u16::<Endian>()?;
+                let value: u16 = element.parse_u16()?;
                 return Ok(vac_entry.insert(value));
             }
         }
     }
 
-    pub fn get_u32<Endian: ByteOrder>(&mut self, element: &mut DicomElement) -> Result<&u32, Error> {
+    pub fn get_u32(&mut self, element: &mut DicomElement) -> Result<&u32, Error> {
         let entry: Entry<u32, u32> = self.uints.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: u32 = element.parse_u32::<Endian>()?;
+                let value: u32 = element.parse_u32()?;
                 return Ok(vac_entry.insert(value))
             }
         }

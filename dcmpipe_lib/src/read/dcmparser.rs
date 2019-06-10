@@ -11,7 +11,7 @@ use crate::core::vl::ValueLength;
 use crate::core::vr;
 use crate::core::vr::{VRRef, VR};
 use crate::read::tagstop::TagStop;
-use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use std::io::{Error, ErrorKind};
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -169,10 +169,18 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     }
 
     /// Reads a tag attribute from the stream
-    fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        let group_number: u32 = u32::from(self.stream.read_u16::<Endian>()?) << 16;
+    fn read_tag(&mut self, be: bool) -> Result<u32, Error> {
+        let group_number: u32 = if be {
+            u32::from(self.stream.read_u16::<BigEndian>()?) << 16
+        } else {
+            u32::from(self.stream.read_u16::<LittleEndian>()?) << 16
+        };
         self.bytes_read += 2;
-        let element_number: u32 = u32::from(self.stream.read_u16::<Endian>()?);
+        let element_number: u32 = if be {
+            u32::from(self.stream.read_u16::<BigEndian>()?)
+        } else {
+            u32::from(self.stream.read_u16::<LittleEndian>()?)
+        };
         self.bytes_read += 2;
         let tag: u32 = group_number + element_number;
         Ok(tag)
@@ -181,13 +189,14 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// Reads the remainder of the dicom element from the stream.
     /// This assumes that just prior to calling this `self.read_tag()` was called
     /// and the result is passed as parameter here.
-    fn read_dicom_element<Endian: ByteOrder>(
+    fn read_dicom_element(
         &mut self,
         tag: u32,
+        be: bool,
         force_explicit: bool,
     ) -> Result<DicomElement, Error> {
-        let vr: VRRef = self.read_vr::<Endian>(tag, force_explicit)?;
-        let vl: ValueLength = self.read_value_length::<Endian>(vr, force_explicit)?;
+        let vr: VRRef = self.read_vr(tag, be, force_explicit)?;
+        let vl: ValueLength = self.read_value_length(vr, be, force_explicit)?;
         let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::Item.tag {
             // Sequence and item elements should let the iterator handle parsing its contents
             // and not associate bytes to the element's value
@@ -197,16 +206,17 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
         };
 
         let ancestors: Vec<DicomSequencePosition> = self.current_path.clone();
-        Ok(DicomElement::new(tag, vr, vl, bytes, ancestors))
+        Ok(DicomElement::new(tag, vr, vl, self.cs, be,bytes, ancestors))
     }
 
     /// Reads a VR attribute from the stream. If `force_explicit` is false then
     /// the transfer syntax specified from the stream is used to determine if the VR
     /// should be read explicitly or implicitly determined from the dataset dictionary.
     /// If `force_explicit` is true then the VR is explicitly read from the stream.
-    fn read_vr<Endian: ByteOrder>(
+    fn read_vr(
         &mut self,
         tag: u32,
+        be: bool,
         force_explicit: bool,
     ) -> Result<VRRef, Error> {
         if force_explicit || self.ts.explicit_vr {
@@ -226,7 +236,11 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             };
 
             if vr.has_explicit_2byte_pad {
-                self.stream.read_u16::<Endian>()?;
+                if be {
+                    self.stream.read_u16::<BigEndian>()?;
+                } else {
+                    self.stream.read_u16::<LittleEndian>()?;
+                }
                 self.bytes_read += 2;
             }
 
@@ -247,22 +261,35 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// Reads a Value Length attribute from the stream. If `force_explicit` is false then
     /// the transfer syntax specified from the stream is used to determine how to read the attribute
     /// otherwise it forces reading as explicit VR definition.
-    fn read_value_length<Endian: ByteOrder>(
+    fn read_value_length(
         &mut self,
         vr: VRRef,
+        be: bool,
         force_explicit: bool,
     ) -> Result<ValueLength, Error> {
         let value_length: u32;
         if force_explicit || self.ts.explicit_vr {
             if vr.has_explicit_2byte_pad {
-                value_length = self.stream.read_u32::<Endian>()?;
+                value_length = if be {
+                    self.stream.read_u32::<BigEndian>()?
+                } else {
+                    self.stream.read_u32::<LittleEndian>()?
+                };
                 self.bytes_read += 4;
             } else {
-                value_length = u32::from(self.stream.read_u16::<Endian>()?);
+                value_length = if be {
+                    u32::from(self.stream.read_u16::<BigEndian>()?)
+                } else {
+                    u32::from(self.stream.read_u16::<LittleEndian>()?)
+                };
                 self.bytes_read += 2;
             }
         } else {
-            value_length = self.stream.read_u32::<Endian>()?;
+            value_length = if be {
+                self.stream.read_u32::<BigEndian>()?
+            } else {
+                self.stream.read_u32::<LittleEndian>()?
+            };
             self.bytes_read += 4;
         }
         Ok(vl::from_value_length(value_length))
@@ -286,7 +313,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// Parses the value of the given element as the transfer syntax and sets the `ts` value on this
     /// iterator to affect the reading of further dicom elements.
     fn parse_transfer_syntax(&mut self, element: &mut DicomElement) -> Result<(), Error> {
-        let ts_uid: String = element.parse_string(DEFAULT_CHARACTER_SET)?;
+        let ts_uid: String = element.parse_string()?;
 
         self.ts = TS_BY_ID
             .get::<str>(ts_uid.as_ref())
@@ -302,20 +329,17 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// Parses the value of the given element as the specific character set and sets the `cs` value
     /// on this iterator to affect the parsing of further text-type element values.
     fn parse_specific_character_set(&mut self, element: &mut DicomElement) -> Result<(), Error> {
-        if let Some(ref vr) = tags::SpecificCharacterSet.implicit_vr {
-            let decoder: CSRef = vr.get_proper_cs(self.cs);
-            let new_cs: Option<String> = element
-                .parse_strings(decoder)?
-                .into_iter()
-                .find(|cs_entry: &String| !cs_entry.is_empty());
+        let new_cs: Option<String> = element
+            .parse_strings()?
+            .into_iter()
+            .find(|cs_entry: &String| !cs_entry.is_empty());
 
-            // TODO: There are options for what to do if we can't support the character repertoire
-            // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
+        // TODO: There are options for what to do if we can't support the character repertoire
+        // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
 
-            if let Some(new_cs) = new_cs {
-                self.cs = charset::lookup_charset(&new_cs)?;
-                return Ok(());
-            }
+        if let Some(new_cs) = new_cs {
+            self.cs = charset::lookup_charset(&new_cs)?;
+            return Ok(());
         }
 
         Err(Error::new(
@@ -370,7 +394,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     let tag: u32 = if let Some(partial_tag) = self.partial_tag {
                         partial_tag
                     } else {
-                        let tag: Result<u32, Error> = self.read_tag::<LittleEndian>();
+                        let tag: Result<u32, Error> = self.read_tag(false);
                         if let Err(e) = tag {
                             return Some(Err(e));
                         }
@@ -398,15 +422,14 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     }
 
                     let grouplength: DicomElementResult =
-                        self.read_dicom_element::<LittleEndian>(tag, true);
+                        self.read_dicom_element(tag, false, true);
                     if grouplength.is_err() {
                         return Some(grouplength);
                     }
 
                     let mut grouplength: DicomElement = grouplength.unwrap();
 
-                    let grouplength_val: Result<u32, Error> =
-                        grouplength.parse_u32::<LittleEndian>();
+                    let grouplength_val: Result<u32, Error> = grouplength.parse_u32();
                     if let Err(e) = grouplength_val {
                         return Some(Err(e));
                     }
@@ -423,7 +446,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     let tag: u32 = if let Some(partial_tag) = self.partial_tag {
                         partial_tag
                     } else {
-                        let tag: Result<u32, Error> = self.read_tag::<LittleEndian>();
+                        let tag: Result<u32, Error> = self.read_tag(false);
                         if let Err(e) = tag {
                             return Some(Err(e));
                         }
@@ -441,7 +464,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     }
 
                     let element: DicomElementResult =
-                        self.read_dicom_element::<LittleEndian>(tag, true);
+                        self.read_dicom_element(tag, false, true);
                     if element.is_err() {
                         return Some(element);
                     }
@@ -467,11 +490,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     let tag: u32 = if let Some(partial_tag) = self.partial_tag {
                         partial_tag
                     } else {
-                        let tag: Result<u32, Error> = if self.ts.big_endian {
-                            self.read_tag::<BigEndian>()
-                        } else {
-                            self.read_tag::<LittleEndian>()
-                        };
+                        let tag: Result<u32, Error> = self.read_tag(self.ts.big_endian);
                         if let Err(e) = tag {
                             // only check EOF when reading beginning of elements as it would actually
                             // be expected in this scenario since the DICOM format provides no determination
@@ -502,11 +521,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         }
                     }
 
-                    let element: DicomElementResult = if self.ts.big_endian {
-                        self.read_dicom_element::<BigEndian>(tag, false)
-                    } else {
-                        self.read_dicom_element::<LittleEndian>(tag, false)
-                    };
+                    let element: DicomElementResult = self.read_dicom_element(tag, self.ts.big_endian, false);
                     if element.is_err() {
                         return Some(element);
                     }
