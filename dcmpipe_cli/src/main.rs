@@ -124,10 +124,9 @@ fn render_objects(
     stdout: &mut StdoutLock,
 ) -> Result<(), Error> {
     for (tag, obj) in obj_iter {
-        let mut elem: &mut DicomElement = obj.as_element().ok_or(Error::new(
-            ErrorKind::InvalidData,
-            "DicomObject is not also element",
-        ))?;
+        let mut elem: &mut DicomElement = obj
+            .as_element()
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "DicomObject is not also element"))?;
 
         if prev_was_file_meta && *tag > 0x0002_FFFF {
             stdout.write_all(
