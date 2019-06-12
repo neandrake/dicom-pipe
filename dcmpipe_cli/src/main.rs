@@ -1,23 +1,31 @@
 extern crate dcmpipe_lib;
 
 use dcmpipe_lib::core::dcmelement::{DicomElement, DicomSequencePosition};
+use dcmpipe_lib::core::dcmobject::DicomObject;
 use dcmpipe_lib::core::dict::dicom_elements as tags;
 use dcmpipe_lib::core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
 use dcmpipe_lib::core::tag::Tag;
+use dcmpipe_lib::core::ts::TSRef;
 use dcmpipe_lib::core::vr;
+use dcmpipe_lib::read::dcmreader::parse_stream;
 use dcmpipe_lib::read::dcmparser::DicomStreamParser;
 use dcmpipe_lib::read::tagstop::TagStop;
 use std::env;
 use std::fs::File;
-use std::io::{self, Error, ErrorKind, Write};
+use std::io::{self, Error, ErrorKind, Write, StdoutLock};
 use std::path::Path;
 use std::process;
+use std::collections::btree_map::IterMut;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 4;
 
 fn main() {
-    let result: Result<(), Error> = appmain();
+    let result: Result<(), Error> = if false {
+        appmain()
+    } else {
+        appmain2()
+    };
     if let Err(e) = result {
         eprintln!("Error: {}", e);
         process::exit(1);
@@ -78,6 +86,70 @@ fn appmain() -> Result<(), Error> {
     Ok(())
 }
 
+fn appmain2() -> Result<(), Error> {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "first and only argument should be a file",
+        ));
+    }
+    let path: &Path = Path::new(&args[1]);
+
+    if !path.is_file() {
+        return Err(Error::new(
+            ErrorKind::NotFound,
+            format!("invalid file: {}", path.display()),
+        ));
+    }
+
+    let file: File = File::open(path)?;
+    let mut dicom_iter: DicomStreamParser<File> =
+        DicomStreamParser::new(file, TagStop::EndOfStream);
+
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    stdout.write_all(format!(
+        "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
+        path,
+        dicom_iter.get_ts().uid.ident).as_ref()
+    )?;
+
+    let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
+    let obj_iter: IterMut<u32, DicomObject> = dcmobj.iter_mut();
+    render_objects(obj_iter, true, dicom_iter.get_ts(), &mut stdout)?;
+    Ok(())
+}
+
+fn render_objects(obj_iter: IterMut<u32, DicomObject>, mut prev_was_file_meta: bool, ts: TSRef, stdout: &mut StdoutLock) -> Result<(), Error> {
+    for (tag, obj) in obj_iter {
+        let mut elem: &mut DicomElement = obj.as_element()
+            .ok_or(Error::new(ErrorKind::InvalidData, "DicomObject is not also element"))?;
+
+        if prev_was_file_meta && *tag > 0x0002_FFFF {
+            stdout.write_all(
+                format!(
+                    "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
+                    ts.uid.ident
+                )
+                    .as_ref(),
+            )?;
+            prev_was_file_meta = false;
+        }
+
+        let printed: Option<String> = render_element(&mut elem)?;
+        if let Some(printed) = printed {
+            stdout.write_all(format!("{}\n", printed).as_ref())?;
+        }
+
+        if obj.get_object_count() > 0 {
+            render_objects(obj.iter_mut(), prev_was_file_meta, ts, stdout)?;
+        }
+    }
+
+    Ok(())
+}
+
 fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
     if element.tag.trailing_zeros() >= 16 {
         // Group Length tags are deprecated, see note on Ch 5 Part 7.2
@@ -97,7 +169,7 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
     } else if element.is_empty() {
         "<empty>".to_owned()
     } else {
-        render_dicom_value(element)?
+        render_value(element)?
     };
 
     let seq_path: &Vec<DicomSequencePosition> = element.get_sequence_path();
@@ -158,7 +230,7 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
 }
 
 /// Formats the value of this element as a string based on the VR
-fn render_dicom_value(elem: &mut DicomElement) -> Result<String, Error> {
+fn render_value(elem: &mut DicomElement) -> Result<String, Error> {
     let mut ellipses: bool = false;
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
