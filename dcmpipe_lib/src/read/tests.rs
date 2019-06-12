@@ -1,19 +1,19 @@
 extern crate walkdir;
 
 use self::walkdir::{DirEntry, WalkDir};
+use crate::core::dcmobject::DicomObject;
 use crate::core::dict::dicom_elements as tags;
 use crate::core::dict::uids;
-use crate::read::dcmreader::parse_stream;
 use crate::read::dcmparser::{
     DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
+use crate::read::dcmreader::parse_stream;
 use crate::read::mock::MockDicomStream;
 use crate::read::tagstop::TagStop;
 use byteorder::ReadBytesExt;
 use std::fs::File;
 use std::io::Seek;
 use std::path::Path;
-use crate::core::dcmobject::DicomObject;
 
 static FIXTURE_DATASET1_FOLDER: &'static str = "../fixtures/dataset1";
 
@@ -23,7 +23,8 @@ fn test_good_preamble() {
         MockDicomStream::standard_dicom_preamble();
 
     // reads the preamble, prefix, and first element (mock has no first element)
-    let _ = test_good_iter.next()
+    let _ = test_good_iter
+        .next()
         .expect("Should be able to iterate a valid dicom stream");
 
     let is_dcm: bool = is_standard_preamble(&test_good_iter);
@@ -36,7 +37,8 @@ fn test_nonzero_preamble() {
         MockDicomStream::nonzero_preamble();
 
     // reads the preamble, prefix, and first element (mock has no first element)
-    let _ = test_size_iter.next()
+    let _ = test_size_iter
+        .next()
         .expect("Should be able to iterate a valid dicom stream with non-standard preamble");
 
     let is_dcm: bool = is_standard_preamble(&test_size_iter);
@@ -108,13 +110,17 @@ fn test_parse_known_dicom_files() {
 
 #[test]
 pub fn test_dicom_object() {
-    let mut dicom_iter: DicomStreamParser<File> =
-        get_first_file_stream(TagStop::EndOfStream);
+    let mut dicom_iter: DicomStreamParser<File> = get_first_file_stream(TagStop::EndOfStream);
 
     let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter).expect("Should be no probz");
-    let sop_class_uid: &mut DicomObject = dcmobj.get_object(tags::SOPClassUID.tag).expect("Should have SOP Class UID");
+    let sop_class_uid: &mut DicomObject = dcmobj
+        .get_object(tags::SOPClassUID.tag)
+        .expect("Should have SOP Class UID");
     if let Some(ref mut element) = sop_class_uid.as_element() {
-        assert_eq!(element.parse_string().expect("get cs"), uids::CTImageStorage.uid)
+        assert_eq!(
+            element.parse_string().expect("get cs"),
+            uids::CTImageStorage.uid
+        )
     } else {
         panic!("Element should exist")
     }

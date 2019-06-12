@@ -1,6 +1,6 @@
 use crate::core::dcmelement::DicomElement;
-use std::collections::BTreeMap;
 use std::collections::btree_map::IterMut;
+use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
 
 pub struct DicomObject {
@@ -43,7 +43,10 @@ impl DicomObject {
         if let Some(element) = object.as_element() {
             tag = element.tag;
         } else {
-            return Err(Error::new(ErrorKind::InvalidData, "Attempting to insert root node as child"));
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Attempting to insert root node as child",
+            ));
         }
         Ok(self.child_nodes.insert(tag, object))
     }

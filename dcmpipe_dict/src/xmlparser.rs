@@ -253,19 +253,13 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                             if local_name == b"para" {
                                 self.state = match uid_cell {
                                     XmlDicomUidCell::Value => {
-                                        XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::Name,
-                                        )
+                                        XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Name)
                                     }
                                     XmlDicomUidCell::Name => {
-                                        XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::Type,
-                                        )
+                                        XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Type)
                                     }
                                     XmlDicomUidCell::Type => {
-                                        XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::Part,
-                                        )
+                                        XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Part)
                                     }
                                     XmlDicomUidCell::Part => XmlDicomReadingState::InTable,
                                 };
@@ -368,15 +362,9 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                         XmlDicomUidCell::Value => {
                             self.uid_value = Some(self.parse_text_bytes(&data))
                         }
-                        XmlDicomUidCell::Name => {
-                            self.uid_name = Some(self.parse_text_bytes(&data))
-                        }
-                        XmlDicomUidCell::Type => {
-                            self.uid_type = Some(self.parse_text_bytes(&data))
-                        }
-                        XmlDicomUidCell::Part => {
-                            self.uid_part = Some(self.parse_text_bytes(&data))
-                        }
+                        XmlDicomUidCell::Name => self.uid_name = Some(self.parse_text_bytes(&data)),
+                        XmlDicomUidCell::Type => self.uid_type = Some(self.parse_text_bytes(&data)),
+                        XmlDicomUidCell::Part => self.uid_part = Some(self.parse_text_bytes(&data)),
                     },
                     _ => {}
                 },
