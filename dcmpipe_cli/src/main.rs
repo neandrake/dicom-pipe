@@ -7,25 +7,21 @@ use dcmpipe_lib::core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
 use dcmpipe_lib::core::tag::Tag;
 use dcmpipe_lib::core::ts::TSRef;
 use dcmpipe_lib::core::vr;
-use dcmpipe_lib::read::dcmreader::parse_stream;
 use dcmpipe_lib::read::dcmparser::DicomStreamParser;
+use dcmpipe_lib::read::dcmreader::parse_stream;
 use dcmpipe_lib::read::tagstop::TagStop;
+use std::collections::btree_map::IterMut;
 use std::env;
 use std::fs::File;
-use std::io::{self, Error, ErrorKind, Write, StdoutLock};
+use std::io::{self, Error, ErrorKind, StdoutLock, Write};
 use std::path::Path;
 use std::process;
-use std::collections::btree_map::IterMut;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 4;
 
 fn main() {
-    let result: Result<(), Error> = if false {
-        appmain()
-    } else {
-        appmain2()
-    };
+    let result: Result<(), Error> = if false { appmain() } else { appmain2() };
     if let Err(e) = result {
         eprintln!("Error: {}", e);
         process::exit(1);
@@ -121,10 +117,17 @@ fn appmain2() -> Result<(), Error> {
     Ok(())
 }
 
-fn render_objects(obj_iter: IterMut<u32, DicomObject>, mut prev_was_file_meta: bool, ts: TSRef, stdout: &mut StdoutLock) -> Result<(), Error> {
+fn render_objects(
+    obj_iter: IterMut<u32, DicomObject>,
+    mut prev_was_file_meta: bool,
+    ts: TSRef,
+    stdout: &mut StdoutLock,
+) -> Result<(), Error> {
     for (tag, obj) in obj_iter {
-        let mut elem: &mut DicomElement = obj.as_element()
-            .ok_or(Error::new(ErrorKind::InvalidData, "DicomObject is not also element"))?;
+        let mut elem: &mut DicomElement = obj.as_element().ok_or(Error::new(
+            ErrorKind::InvalidData,
+            "DicomObject is not also element",
+        ))?;
 
         if prev_was_file_meta && *tag > 0x0002_FFFF {
             stdout.write_all(
@@ -132,7 +135,7 @@ fn render_objects(obj_iter: IterMut<u32, DicomObject>, mut prev_was_file_meta: b
                     "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                     ts.uid.ident
                 )
-                    .as_ref(),
+                .as_ref(),
             )?;
             prev_was_file_meta = false;
         }
@@ -235,9 +238,7 @@ fn render_value(elem: &mut DicomElement) -> Result<String, Error> {
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
     if elem.vr == &vr::AT {
-        str_vals.push(Tag::format_tag_to_display(
-            elem.parse_attribute()?,
-        ));
+        str_vals.push(Tag::format_tag_to_display(elem.parse_attribute()?));
     } else if elem.vr == &vr::FL || elem.vr == &vr::OF {
         sep = " / ";
         let vec: Vec<f32> = elem.parse_f32s()?;
