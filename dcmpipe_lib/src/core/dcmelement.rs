@@ -204,7 +204,7 @@ impl DicomElement {
 
         let mut rindex: usize = data.len() - 1;
         if self.vr.should_trim_trailing_space {
-            while rindex >= lindex {
+            while rindex > lindex {
                 if data[rindex] == 0x20 {
                     rindex -= 1;
                 } else {

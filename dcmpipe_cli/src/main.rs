@@ -157,6 +157,11 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
         // Group Length tags are deprecated, see note on Ch 5 Part 7.2
         return Ok(None);
     }
+    if element.tag == tags::ItemDelimitationItem.tag
+        || element.tag == tags::SequenceDelimitationItem.tag {
+        // These are 
+        return Ok(None);
+    }
 
     let tag_num: String = Tag::format_tag_to_display(element.tag);
     let tag_name: &str = if let Some(tag) = TAG_BY_VALUE.get(&element.tag) {
