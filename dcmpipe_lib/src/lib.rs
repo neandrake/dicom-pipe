@@ -3,5 +3,5 @@ extern crate encoding;
 extern crate phf;
 
 pub mod core;
-pub mod read;
-pub mod write;
+pub mod defn;
+pub mod dict;

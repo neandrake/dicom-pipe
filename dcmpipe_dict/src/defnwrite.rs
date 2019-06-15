@@ -10,15 +10,14 @@ use crate::xmlparser::{
 static LOOKUP_PREAMBLE: &'static str =
     "//! This is an auto-generated file. Do not make modifications here.
 
-use crate::core::dict::dicom_elements as tags;
-use crate::core::dict::dir_structure_elements as dse;
-use crate::core::dict::file_meta_elements as fme;
-use crate::core::dict::transfer_syntaxes as ts;
-use crate::core::dict::uids;
-use crate::core::tag::TagRef;
-use crate::core::ts::TSRef;
-use crate::core::uid::UIDRef;
-
+use crate::defn::tag::TagRef;
+use crate::defn::ts::TSRef;
+use crate::defn::uid::UIDRef;
+use crate::dict::dicom_elements as tags;
+use crate::dict::dir_structure_elements as dse;
+use crate::dict::file_meta_elements as fme;
+use crate::dict::transfer_syntaxes as ts;
+use crate::dict::uids;
 
 ";
 
@@ -27,9 +26,9 @@ static DICOM_ELEMENT_PREAMBLE: &'static str =
 
 #![allow(non_upper_case_globals)]
 
-use crate::core::tag::Tag;
-use crate::core::vm::VM;
-use crate::core::vr;
+use crate::defn::tag::Tag;
+use crate::defn::vm::VM;
+use crate::defn::vr;
 
 ";
 
@@ -38,8 +37,8 @@ static TRANSFER_SYNTAX_PREAMBLE: &'static str =
 
 #![allow(non_upper_case_globals)]
 
-use crate::core::dict::uids;
-use crate::core::ts::TransferSyntax;
+use crate::defn::ts::TransferSyntax;
+use crate::dict::uids;
 
 ";
 
@@ -48,7 +47,7 @@ static UID_PREAMBLE: &'static str =
 
 #![allow(non_upper_case_globals)]
 
-use crate::core::uid::UID;
+use crate::defn::uid::UID;
 
 ";
 
@@ -188,6 +187,13 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
             }
         }
     }
+
+    // Remove trailing newlines
+    dicom_elements.remove(dicom_elements.len() - 2);
+    file_meta_elements.remove(file_meta_elements.len() - 2);
+    dir_structure_elements.remove(dir_structure_elements.len() - 2);
+    uids.remove(uids.len() - 2);
+    transfer_syntax_uids.remove(transfer_syntax_uids.len() - 2);
 
     std::fs::create_dir_all(folder)?;
 
@@ -416,7 +422,7 @@ fn process_element(
         format!("Some(&vr::{})", vr)
     };
 
-    let vm: String = if element.vm == "1-n or 1" {
+    let vm: String = if element.vm == "1-n or 1".to_string() {
         "&VM::OneOrMore".to_owned()
     } else if let Ok(vm_val) = element.vm.parse::<u32>() {
         format!("&VM::Distinct({})", vm_val)
@@ -504,21 +510,21 @@ fn sanitize_var_name(var_name: &str) -> String {
     // However if we just remove "(Retired)" then it results in a
     // few duplicate definitions so we'll add back "_Retired"
     if is_retired
-        && (sanitized == "UltrasoundMultiframeImageStorage"
-            || sanitized == "UltrasoundImageStorage"
-            || sanitized == "NuclearMedicineImageStorage"
-            || sanitized == "DopplerSampleVolumeXPosition"
-            || sanitized == "DopplerSampleVolumeYPosition"
-            || sanitized == "TMLinePositionX0"
-            || sanitized == "TMLinePositionY0"
-            || sanitized == "TMLinePositionX1"
-            || sanitized == "TMLinePositionY1"
-            || sanitized == "ParallelReductionFactorInplane"
-            || sanitized == "LossyImageCompression"
-            || sanitized == "PlacerOrderNumberImagingServiceRequest"
-            || sanitized == "FillerOrderNumberImagingServiceRequest"
-            || sanitized == "ImageRotation"
-            || sanitized == "ReferencedImageBoxSequence")
+        && (sanitized == "UltrasoundMultiframeImageStorage".to_string()
+            || sanitized == "UltrasoundImageStorage".to_string()
+            || sanitized == "NuclearMedicineImageStorage".to_string()
+            || sanitized == "DopplerSampleVolumeXPosition".to_string()
+            || sanitized == "DopplerSampleVolumeYPosition".to_string()
+            || sanitized == "TMLinePositionX0".to_string()
+            || sanitized == "TMLinePositionY0".to_string()
+            || sanitized == "TMLinePositionX1".to_string()
+            || sanitized == "TMLinePositionY1".to_string()
+            || sanitized == "ParallelReductionFactorInplane".to_string()
+            || sanitized == "LossyImageCompression".to_string()
+            || sanitized == "PlacerOrderNumberImagingServiceRequest".to_string()
+            || sanitized == "FillerOrderNumberImagingServiceRequest".to_string()
+            || sanitized == "ImageRotation".to_string()
+            || sanitized == "ReferencedImageBoxSequence".to_string())
     {
         sanitized = format!("{}_Retired", sanitized);
     }

@@ -14,7 +14,7 @@ fn main() {
     println!("cargo:rerun-if-changed=./{}", DICOM_DEFINITIONS_XML_FILE);
 
     let file: File = File::open(DICOM_DEFINITIONS_XML_FILE).expect("Unable to load XML file");
-    let folder: &Path = Path::new("src/core/dict/");
+    let folder: &Path = Path::new("src/dict/");
 
     defnwrite::process_xml_file(file, folder).expect("Failed to process XML file");
 }

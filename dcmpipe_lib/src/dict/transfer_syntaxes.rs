@@ -2,8 +2,8 @@
 
 #![allow(non_upper_case_globals)]
 
-use crate::core::dict::uids;
-use crate::core::ts::TransferSyntax;
+use crate::defn::ts::TransferSyntax;
+use crate::dict::uids;
 
 /// Implicit VR Little Endian: Default Transfer Syntax for DICOM
 ///
@@ -477,4 +477,3 @@ pub static Papyrus3ImplicitVRLittleEndian: TransferSyntax = TransferSyntax {
     deflated: false,
     encapsulated: false,
 };
-
