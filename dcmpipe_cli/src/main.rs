@@ -2,14 +2,14 @@ extern crate dcmpipe_lib;
 
 use dcmpipe_lib::core::dcmelement::{DicomElement, DicomSequencePosition};
 use dcmpipe_lib::core::dcmobject::DicomObject;
-use dcmpipe_lib::core::dict::dicom_elements as tags;
-use dcmpipe_lib::core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
-use dcmpipe_lib::core::tag::Tag;
-use dcmpipe_lib::core::ts::TSRef;
-use dcmpipe_lib::core::vr;
-use dcmpipe_lib::read::dcmparser::DicomStreamParser;
-use dcmpipe_lib::read::dcmreader::parse_stream;
-use dcmpipe_lib::read::tagstop::TagStop;
+use dcmpipe_lib::core::dcmparser::DicomStreamParser;
+use dcmpipe_lib::core::dcmreader::parse_stream;
+use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::ts::TSRef;
+use dcmpipe_lib::defn::vr;
+use dcmpipe_lib::dict::dicom_elements as tags;
+use dcmpipe_lib::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
 use std::collections::btree_map::IterMut;
 use std::env;
 use std::fs::File;
@@ -158,8 +158,9 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
         return Ok(None);
     }
     if element.tag == tags::ItemDelimitationItem.tag
-        || element.tag == tags::SequenceDelimitationItem.tag {
-        // These are 
+        || element.tag == tags::SequenceDelimitationItem.tag
+    {
+        // These are delimiter items that are not very useful to see
         return Ok(None);
     }
 

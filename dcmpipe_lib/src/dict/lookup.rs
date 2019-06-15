@@ -1,14 +1,13 @@
 //! This is an auto-generated file. Do not make modifications here.
 
-use crate::core::dict::dicom_elements as tags;
-use crate::core::dict::dir_structure_elements as dse;
-use crate::core::dict::file_meta_elements as fme;
-use crate::core::dict::transfer_syntaxes as ts;
-use crate::core::dict::uids;
-use crate::core::tag::TagRef;
-use crate::core::ts::TSRef;
-use crate::core::uid::UIDRef;
-
+use crate::defn::tag::TagRef;
+use crate::defn::ts::TSRef;
+use crate::defn::uid::UIDRef;
+use crate::dict::dicom_elements as tags;
+use crate::dict::dir_structure_elements as dse;
+use crate::dict::file_meta_elements as fme;
+use crate::dict::transfer_syntaxes as ts;
+use crate::dict::uids;
 
 pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ::phf::Map {
     key: 3213172566270843353,
