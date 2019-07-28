@@ -1,4 +1,5 @@
 use crate::core::charset::CSRef;
+use crate::core::tagpath::{TagPath, TagPathElement};
 use crate::defn::tag::Tag;
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
@@ -10,23 +11,29 @@ use std::borrow::Cow;
 use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
 
+/// Represents the sequence/item position of an element.
+/// For elements to track which sequence they are a part of. When an SQ element is parsed the parser
+/// adds a new DicomSequenceElement to its current path which subsequent elements will clone for
+/// themselves. This allows elements to know how they exist within a dicom object.
 #[derive(Clone, PartialEq, Eq)]
-pub struct DicomSequencePosition {
-    /// The tag of the sequence.
+pub struct DicomSequenceElement {
+    /// The SQ element tag.
     seq_tag: u32,
-    /// The byte position where this sequence ends. This value is set as `bytes_read + value_length`
-    /// during parsing. If the sequence has undefined length this is set to None.
+    /// The byte position where the parent sequence ends. This value is set as
+    /// `bytes_read + value_length` during parsing. If the sequence has undefined length this is set
+    /// to None.
     seq_end_pos: Option<u64>,
-    /// The item number within the sequence. Note that an item can contain multiple elements so
-    /// this is not an element index into a sequence. This is an option which will be `None` between
-    /// reading the sequence element and reading an item element, and is then incremented for each
-    /// item read.
+    /// The item number within the sequence. This is initialized/incremented whenever an Item tag is
+    /// parsed. Elements within a sequence are not required to be contained within an Item element
+    /// so this is not an element index into the sequence. This is an option which will be `None`
+    /// between reading the sequence element and reading the first item element, and is then
+    /// incremented whenever an Item tag is read.
     item_number: Option<u32>,
 }
 
-impl DicomSequencePosition {
-    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>) -> DicomSequencePosition {
-        DicomSequencePosition {
+impl DicomSequenceElement {
+    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>) -> DicomSequenceElement {
+        DicomSequenceElement {
             seq_tag,
             seq_end_pos,
             item_number: None,
@@ -61,7 +68,7 @@ pub struct DicomElement {
     pub vl: ValueLength,
 
     data: Cursor<Vec<u8>>,
-    sequence_path: Vec<DicomSequencePosition>,
+    sequence_path: Vec<DicomSequenceElement>,
 
     ts: TSRef,
     cs: CSRef,
@@ -91,7 +98,7 @@ impl DicomElement {
         ts: TSRef,
         cs: CSRef,
         data: Vec<u8>,
-        sequence_path: Vec<DicomSequencePosition>,
+        sequence_path: Vec<DicomSequenceElement>,
     ) -> DicomElement {
         let cs: CSRef = vr.get_proper_cs(cs);
         DicomElement {
@@ -110,8 +117,16 @@ impl DicomElement {
         &self.data
     }
 
-    pub fn get_sequence_path(&self) -> &Vec<DicomSequencePosition> {
+    pub fn get_sequence_path(&self) -> &Vec<DicomSequenceElement> {
         &self.sequence_path
+    }
+
+    pub fn get_tag_path(&self) -> TagPath {
+        let mut path: Vec<TagPathElement> = self.sequence_path.iter()
+            .map(|dse: &DicomSequenceElement| TagPathElement::new(dse.get_seq_tag(), None))
+            .collect::<Vec<TagPathElement>>();
+        path.push(TagPathElement::new(self.tag, None));
+        TagPath::new_from_vec(path)
     }
 
     pub fn is_seq(&self) -> bool {
