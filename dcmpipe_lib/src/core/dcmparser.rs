@@ -1,5 +1,5 @@
 use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
-use crate::core::dcmelement::{DicomElement, DicomSequencePosition};
+use crate::core::dcmelement::{DicomElement, DicomSequenceElement};
 use crate::core::tagstop::TagStop;
 use crate::defn::tag::Tag;
 use crate::defn::ts::TSRef;
@@ -79,10 +79,13 @@ pub struct DicomStreamParser<StreamType: ReadBytesExt> {
     /// of the element is successfully parsed and returned by the iterator.
     partial_tag: Option<u32>,
 
-    /// The path to the current element being parsed represented as a stack. Elements read at the
-    /// root level will have an empty path. When a sequence item is read its tag and value length is
-    /// pushed onto the stack. Sequences of undefined length have `seq_end_pos` set to zero.
-    current_path: Vec<DicomSequencePosition>,
+    /// The current sequence stack. Whenever an SQ element is parsed a new `DicomSequenceElement` is
+    /// appened to this stack. When the sequence ends (via byte position or
+    /// `SequenceDelimitationItem`) then the last element is popped off. This also tracks the
+    /// current `Item` within a sequence. Whenever an `Item` element is read the last element in
+    /// this list has its item count initialized/incremented. Every element parsed from the stream
+    /// clones this stack.
+    current_path: Vec<DicomSequenceElement>,
 
     /// The transfer syntax used for this stream. This defaults to `ExplicitVRLittleEndian` which is
     /// the transfer syntax used for parsing File Meta section. This default is not relied upon being
@@ -198,7 +201,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             self.read_value_field(&vl)?
         };
 
-        let ancestors: Vec<DicomSequencePosition> = self.current_path.clone();
+        let ancestors: Vec<DicomSequenceElement> = self.current_path.clone();
         Ok(DicomElement::new(
             tag, vr, vl, ts, self.cs, bytes, ancestors,
         ))
@@ -556,7 +559,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                                 None
                             };
                         self.current_path
-                            .push(DicomSequencePosition::new(tag, seq_end_pos));
+                            .push(DicomSequenceElement::new(tag, seq_end_pos));
                     }
 
                     return Some(Ok(element));

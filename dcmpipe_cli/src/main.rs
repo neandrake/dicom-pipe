@@ -1,6 +1,6 @@
 extern crate dcmpipe_lib;
 
-use dcmpipe_lib::core::dcmelement::{DicomElement, DicomSequencePosition};
+use dcmpipe_lib::core::dcmelement::{DicomElement, DicomSequenceElement};
 use dcmpipe_lib::core::dcmobject::DicomObject;
 use dcmpipe_lib::core::dcmparser::DicomStreamParser;
 use dcmpipe_lib::core::dcmreader::parse_stream;
@@ -180,7 +180,7 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
         render_value(element)?
     };
 
-    let seq_path: &Vec<DicomSequencePosition> = element.get_sequence_path();
+    let seq_path: &Vec<DicomSequenceElement> = element.get_sequence_path();
 
     let mut indent_width: usize = seq_path.len();
     if indent_width > 0 && element.tag != tags::Item.tag {
@@ -191,7 +191,7 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
     if element.tag == tags::Item.tag {
         let path: String = seq_path
             .iter()
-            .map(|seq_elem: &DicomSequencePosition| {
+            .map(|seq_elem: &DicomSequenceElement| {
                 format!(
                     "{}[{}]",
                     Tag::format_tag_to_path_display(seq_elem.get_seq_tag()),
