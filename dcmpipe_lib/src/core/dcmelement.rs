@@ -62,6 +62,7 @@ impl DicomSequenceElement {
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
+#[derive(Clone)]
 pub struct DicomElement {
     pub tag: u32,
     pub vr: VRRef,
@@ -215,6 +216,9 @@ impl DicomElement {
         let mut lindex: usize = 0;
 
         let data: &[u8] = self.get_data().get_ref();
+        if data.is_empty() {
+            return data;
+        }
 
         let mut rindex: usize = data.len() - 1;
         if self.vr.should_trim_trailing_space {
