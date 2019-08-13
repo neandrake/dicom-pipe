@@ -1,8 +1,11 @@
 //! This is an auto-generated file. Do not make modifications here.
 
-use crate::defn::tag::TagRef;
-use crate::defn::ts::TSRef;
-use crate::defn::uid::UIDRef;
+#![allow(clippy::unreadable_literal)]
+
+use dcmpipe_lib::defn::tag::TagRef;
+use dcmpipe_lib::defn::ts::TSRef;
+use dcmpipe_lib::defn::uid::UIDRef;
+
 use crate::dict::dicom_elements as tags;
 use crate::dict::dir_structure_elements as dse;
 use crate::dict::file_meta_elements as fme;
@@ -10159,7 +10162,7 @@ pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = ::phf::Map {
     ]),
 };
 
-pub static TS_BY_ID: phf::Map<&'static str, TSRef> = ::phf::Map {
+pub static TS_BY_UID: phf::Map<&'static str, TSRef> = ::phf::Map {
     key: 3347381344252206323,
     disps: ::phf::Slice::Static(&[
         (1, 0),
@@ -10705,7 +10708,7 @@ pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = ::phf::Map {
     ]),
 };
 
-pub static UID_BY_ID: phf::Map<&'static str, UIDRef> = ::phf::Map {
+pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = ::phf::Map {
     key: 3213172566270843353,
     disps: ::phf::Slice::Static(&[
         (1, 384),

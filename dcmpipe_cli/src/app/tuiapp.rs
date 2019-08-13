@@ -1,19 +1,19 @@
 use crossterm::{self, AlternateScreen, InputEvent, KeyEvent, TerminalInput};
-use tui::backend::{CrosstermBackend, Backend};
-use tui::{Terminal, Frame};
-use std::io::{Error, ErrorKind};
-use std::sync::mpsc;
-use std::thread;
-use std::sync::mpsc::RecvError;
-use tui::layout::{Layout, Constraint, Rect};
-use tui::widgets::{Tabs, Borders, Block, Widget, Text, Paragraph};
-use tui::style::{Style, Color};
-use std::path::Path;
-use std::fs::File;
-use dcmpipe_lib::core::dcmparser::DicomStreamParser;
+use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmobject::DicomObject;
-use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::core::dcmparser::DicomStreamParser;
 use dcmpipe_lib::core::dcmreader::parse_stream;
+use dcmpipe_lib::core::tagstop::TagStop;
+use std::fs::File;
+use std::io::{Error, ErrorKind};
+use std::path::Path;
+use std::sync::mpsc::{self, RecvError};
+use std::thread;
+use tui::backend::{Backend, CrosstermBackend};
+use tui::layout::{Constraint, Layout, Rect};
+use tui::style::{Color, Style};
+use tui::widgets::{Block, Borders, Paragraph, Tabs, Text, Widget};
+use tui::{Frame, Terminal};
 
 pub struct TuiApp {
     openpath: String,
@@ -32,10 +32,7 @@ struct TabState {
 
 impl TabState {
     pub fn new(titles: Vec<String>) -> TabState {
-        TabState {
-            titles,
-            index: 0,
-        }
+        TabState { titles, index: 0 }
     }
 
     pub fn next(&mut self) {
@@ -71,11 +68,9 @@ impl TuiApp {
         }
     }
 
-    fn on_up(&mut self) {
-    }
+    fn on_up(&mut self) {}
 
-    fn on_down(&mut self) {
-    }
+    fn on_down(&mut self) {}
 
     fn on_left(&mut self) {
         self.tabs.prev();
@@ -97,9 +92,9 @@ impl TuiApp {
 
         let file: File = File::open(path)?;
         let mut dicom_iter: DicomStreamParser<File> =
-            DicomStreamParser::new(file, TagStop::EndOfStream);
+            DicomStreamParser::new(file, TagStop::EndOfStream, &TAG_BY_VALUE, &TS_BY_UID);
 
-        let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
+        let _dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
 
         let screen: AlternateScreen = AlternateScreen::to_alternate(true)?;
         let backend: CrosstermBackend = CrosstermBackend::with_alternate_screen(screen)?;
@@ -114,16 +109,13 @@ impl TuiApp {
                 let input: TerminalInput = crossterm::input();
                 let reader = input.read_sync();
                 for event in reader {
-                    match event {
-                        InputEvent::Keyboard(key) => {
-                            if let Err(_) = tx.send(Event::Input(key.clone())) {
-                                return;
-                            }
-                            if key == KeyEvent::Char('q') {
-                                return;
-                            }
+                    if let InputEvent::Keyboard(key) = event {
+                        if tx.send(Event::Input(key.clone())).is_err() {
+                            return;
                         }
-                        _ => {}
+                        if key == KeyEvent::Char('q') {
+                            return;
+                        }
                     }
                 }
             });
@@ -133,7 +125,10 @@ impl TuiApp {
 
         loop {
             self.draw(&mut terminal)?;
-            match rx.recv().map_err(|err: RecvError| Error::new(ErrorKind::Interrupted, err))? {
+            match rx
+                .recv()
+                .map_err(|err: RecvError| Error::new(ErrorKind::Interrupted, err))?
+            {
                 Event::Input(event) => match event {
                     KeyEvent::Char(c) => self.on_key(c),
                     KeyEvent::Left => self.on_left(),
@@ -172,17 +167,19 @@ impl TuiApp {
         })
     }
 
-    fn draw_text<B>(&self, f: &mut Frame<B>, area: Rect) where B: Backend {
+    fn draw_text<B>(&self, f: &mut Frame<B>, area: Rect)
+    where
+        B: Backend,
+    {
         let text = [Text::raw("Command: ")];
-        Paragraph::new(text.iter())
-            .wrap(true)
-            .render(f, area);
+        Paragraph::new(text.iter()).wrap(true).render(f, area);
     }
 
-    fn draw_list<B>(&self, f: &mut Frame<B>, area: Rect) where B: Backend {
+    fn draw_list<B>(&self, f: &mut Frame<B>, area: Rect)
+    where
+        B: Backend,
+    {
         let text = [Text::raw("DICOM Contents: ")];
-        Paragraph::new(text.iter())
-            .wrap(true)
-            .render(f, area);
+        Paragraph::new(text.iter()).wrap(true).render(f, area);
     }
 }

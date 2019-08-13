@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TagPathElement {
     tag: u32,
@@ -7,10 +6,7 @@ pub struct TagPathElement {
 
 impl TagPathElement {
     pub fn new(tag: u32, index: Option<u32>) -> TagPathElement {
-        TagPathElement {
-            tag,
-            index,
-        }
+        TagPathElement { tag, index }
     }
 
     pub fn get_tag(&self) -> u32 {
@@ -26,28 +22,18 @@ impl TagPathElement {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct TagPath {
     path: Vec<TagPathElement>,
 }
 
 impl TagPath {
-    pub fn new() -> TagPath {
-        TagPath {
-            path: Vec::new(),
-        }
-    }
-
     pub fn new_from_vec(path: Vec<TagPathElement>) -> TagPath {
-        TagPath {
-            path,
-        }
+        TagPath { path }
     }
 
     pub fn new_from_tag(tag: u32) -> TagPath {
         let path: Vec<TagPathElement> = vec![TagPathElement::new(tag, None)];
-        TagPath {
-            path,
-        }
+        TagPath { path }
     }
 }

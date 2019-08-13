@@ -1,6 +1,6 @@
-extern crate dcmpipe_dict;
+extern crate dcmpipe_dict_builder;
 
-use dcmpipe_dict::defnwrite;
+use dcmpipe_dict_builder::defnwrite;
 
 use std::fs::File;
 use std::path::Path;

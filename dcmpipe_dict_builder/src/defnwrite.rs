@@ -7,12 +7,15 @@ use crate::xmlparser::{
     XmlDicomUid,
 };
 
-static LOOKUP_PREAMBLE: &'static str =
+static LOOKUP_PREAMBLE: &str =
     "//! This is an auto-generated file. Do not make modifications here.
 
-use crate::defn::tag::TagRef;
-use crate::defn::ts::TSRef;
-use crate::defn::uid::UIDRef;
+#![allow(clippy::unreadable_literal)]
+
+use dcmpipe_lib::defn::tag::TagRef;
+use dcmpipe_lib::defn::ts::TSRef;
+use dcmpipe_lib::defn::uid::UIDRef;
+
 use crate::dict::dicom_elements as tags;
 use crate::dict::dir_structure_elements as dse;
 use crate::dict::file_meta_elements as fme;
@@ -21,33 +24,34 @@ use crate::dict::uids;
 
 ";
 
-static DICOM_ELEMENT_PREAMBLE: &'static str =
+static DICOM_ELEMENT_PREAMBLE: &str =
     "//! This is an auto-generated file. Do not make modifications here.
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::tag::Tag;
-use crate::defn::vm::VM;
-use crate::defn::vr;
+use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::vm::VM;
+use dcmpipe_lib::defn::vr;
 
 ";
 
-static TRANSFER_SYNTAX_PREAMBLE: &'static str =
+static TRANSFER_SYNTAX_PREAMBLE: &str =
     "//! This is an auto-generated file. Do not make modifications here.
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::ts::TransferSyntax;
+use dcmpipe_lib::defn::ts::TransferSyntax;
+
 use crate::dict::uids;
 
 ";
 
-static UID_PREAMBLE: &'static str =
+static UID_PREAMBLE: &str =
     "//! This is an auto-generated file. Do not make modifications here.
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::uid::UID;
+use dcmpipe_lib::defn::uid::UID;
 
 ";
 
@@ -261,7 +265,7 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
     write!(&mut lookup_file, ";\n\n")?;
     write!(
         &mut lookup_file,
-        "pub static TS_BY_ID: phf::Map<&'static str, TSRef> = "
+        "pub static TS_BY_UID: phf::Map<&'static str, TSRef> = "
     )?;
     ts_id_lookup_phf.build(&mut lookup_file)?;
 
@@ -275,7 +279,7 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
     write!(&mut lookup_file, ";\n\n")?;
     write!(
         &mut lookup_file,
-        "pub static UID_BY_ID: phf::Map<&'static str, UIDRef> = "
+        "pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = "
     )?;
     uid_id_lookup_phf.build(&mut lookup_file)?;
     write!(&mut lookup_file, ";\n")?;
@@ -422,7 +426,7 @@ fn process_element(
         format!("Some(&vr::{})", vr)
     };
 
-    let vm: String = if element.vm == "1-n or 1".to_string() {
+    let vm: String = if &element.vm == "1-n or 1" {
         "&VM::OneOrMore".to_owned()
     } else if let Ok(vm_val) = element.vm.parse::<u32>() {
         format!("&VM::Distinct({})", vm_val)
@@ -510,21 +514,21 @@ fn sanitize_var_name(var_name: &str) -> String {
     // However if we just remove "(Retired)" then it results in a
     // few duplicate definitions so we'll add back "_Retired"
     if is_retired
-        && (sanitized == "UltrasoundMultiframeImageStorage".to_string()
-            || sanitized == "UltrasoundImageStorage".to_string()
-            || sanitized == "NuclearMedicineImageStorage".to_string()
-            || sanitized == "DopplerSampleVolumeXPosition".to_string()
-            || sanitized == "DopplerSampleVolumeYPosition".to_string()
-            || sanitized == "TMLinePositionX0".to_string()
-            || sanitized == "TMLinePositionY0".to_string()
-            || sanitized == "TMLinePositionX1".to_string()
-            || sanitized == "TMLinePositionY1".to_string()
-            || sanitized == "ParallelReductionFactorInplane".to_string()
-            || sanitized == "LossyImageCompression".to_string()
-            || sanitized == "PlacerOrderNumberImagingServiceRequest".to_string()
-            || sanitized == "FillerOrderNumberImagingServiceRequest".to_string()
-            || sanitized == "ImageRotation".to_string()
-            || sanitized == "ReferencedImageBoxSequence".to_string())
+        && (&sanitized == "UltrasoundMultiframeImageStorage"
+            || &sanitized == "UltrasoundImageStorage"
+            || &sanitized == "NuclearMedicineImageStorage"
+            || &sanitized == "DopplerSampleVolumeXPosition"
+            || &sanitized == "DopplerSampleVolumeYPosition"
+            || &sanitized == "TMLinePositionX0"
+            || &sanitized == "TMLinePositionY0"
+            || &sanitized == "TMLinePositionX1"
+            || &sanitized == "TMLinePositionY1"
+            || &sanitized == "ParallelReductionFactorInplane"
+            || &sanitized == "LossyImageCompression"
+            || &sanitized == "PlacerOrderNumberImagingServiceRequest"
+            || &sanitized == "FillerOrderNumberImagingServiceRequest"
+            || &sanitized == "ImageRotation"
+            || &sanitized == "ReferencedImageBoxSequence")
     {
         sanitized = format!("{}_Retired", sanitized);
     }

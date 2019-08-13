@@ -1,15 +1,16 @@
 extern crate crossterm;
 extern crate cursive;
 extern crate cursive_table_view;
+extern crate dcmpipe_dict;
 extern crate dcmpipe_lib;
 extern crate tui;
 
 mod app;
 
-use app::{FullObjApp, LowMemApp, TuiApp};
-use std::{env, process};
-use std::io::{Error, ErrorKind};
 use crate::app::CursiveApp;
+use app::{FullObjApp, LowMemApp, TuiApp};
+use std::io::{Error, ErrorKind};
+use std::{env, process};
 
 static APP_MODE: usize = 4;
 
@@ -36,9 +37,6 @@ fn runapp() -> Result<(), Error> {
         2 => FullObjApp::new(openpath).run(),
         3 => TuiApp::new(openpath).run(),
         4 => CursiveApp::new(openpath).run(),
-        _ => Err(Error::new(
-            ErrorKind::InvalidInput,
-            "Invalid app mode"
-        ))
+        _ => Err(Error::new(ErrorKind::InvalidInput, "Invalid app mode")),
     }
 }
