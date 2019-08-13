@@ -4,6 +4,7 @@ use std::io::Error;
 
 /// A cache of the values parsed into native types -- the initial request
 /// for a value will result in parsing the raw value and caching it
+#[derive(Default)]
 pub struct DicomValueCache {
     strings: HashMap<u32, String>,
     string_lists: HashMap<u32, Vec<String>>,
@@ -25,27 +26,6 @@ pub struct DicomValueCache {
 }
 
 impl DicomValueCache {
-    pub fn new() -> DicomValueCache {
-        DicomValueCache {
-            strings: HashMap::new(),
-            string_lists: HashMap::new(),
-
-            floats: HashMap::new(),
-            float_lists: HashMap::new(),
-
-            doubles: HashMap::new(),
-            double_lists: HashMap::new(),
-
-            shorts: HashMap::new(),
-            short_lists: HashMap::new(),
-
-            ints: HashMap::new(),
-            int_lists: HashMap::new(),
-
-            ushorts: HashMap::new(),
-            uints: HashMap::new(),
-        }
-    }
 }
 
 /// Implements the parsing and caching of DicomElements to different native types

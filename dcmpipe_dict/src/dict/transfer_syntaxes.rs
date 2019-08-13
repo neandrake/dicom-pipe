@@ -2,7 +2,8 @@
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::ts::TransferSyntax;
+use dcmpipe_lib::defn::ts::TransferSyntax;
+
 use crate::dict::uids;
 
 /// Implicit VR Little Endian: Default Transfer Syntax for DICOM

@@ -2,9 +2,9 @@
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::tag::Tag;
-use crate::defn::vm::VM;
-use crate::defn::vr;
+use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::vm::VM;
+use dcmpipe_lib::defn::vr;
 
 /// File-set ID
 ///

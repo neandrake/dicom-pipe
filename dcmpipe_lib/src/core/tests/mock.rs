@@ -1,6 +1,20 @@
 use crate::core::dcmparser::DicomStreamParser;
 use crate::core::tagstop::TagStop;
+use crate::defn::tag::TagRef;
+use crate::defn::ts::TSRef;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
+
+pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = phf::Map {
+    key: 0,
+    disps: ::phf::Slice::Static(&[]),
+    entries: ::phf::Slice::Static(&[]),
+};
+
+pub static TS_BY_UID: phf::Map<&'static str, TSRef> = phf::Map {
+    key: 0,
+    disps: ::phf::Slice::Static(&[]),
+    entries: ::phf::Slice::Static(&[]),
+};
 
 pub struct MockDicomStream {
     pub data: Vec<u8>,
@@ -8,6 +22,13 @@ pub struct MockDicomStream {
 }
 
 impl MockDicomStream {
+    fn create_parser(
+        mockup: MockDicomStream,
+        tagstop: TagStop,
+    ) -> DicomStreamParser<MockDicomStream> {
+        DicomStreamParser::new(mockup, tagstop, &TAG_BY_VALUE, &TS_BY_UID)
+    }
+
     pub fn standard_dicom_preamble() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
@@ -20,7 +41,7 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        DicomStreamParser::new(mockup, TagStop::EndOfStream)
+        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
     }
 
     pub fn invalid_dicom_prefix() -> DicomStreamParser<MockDicomStream> {
@@ -35,7 +56,7 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        DicomStreamParser::new(mockup, TagStop::EndOfStream)
+        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
     }
 
     pub fn nonzero_preamble() -> DicomStreamParser<MockDicomStream> {
@@ -50,7 +71,7 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        DicomStreamParser::new(mockup, TagStop::EndOfStream)
+        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
     }
 
     pub fn standard_dicom_preamble_diff_startpos_and_short_stream(
@@ -66,7 +87,7 @@ impl MockDicomStream {
             },
             pos: 131,
         };
-        DicomStreamParser::new(mockup, TagStop::EndOfStream)
+        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
     }
 }
 

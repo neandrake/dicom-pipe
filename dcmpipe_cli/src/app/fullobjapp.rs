@@ -1,15 +1,15 @@
-use dcmpipe_lib::core::dcmobject::DicomObject;
-use std::io::{Error, ErrorKind, StdoutLock};
-use std::path::Path;
-use std::fs::File;
-use dcmpipe_lib::core::dcmparser::DicomStreamParser;
-use dcmpipe_lib::core::tagstop::TagStop;
-use std::io::{self, Write};
-use dcmpipe_lib::core::dcmreader::parse_stream;
-use std::collections::btree_map::IterMut;
-use dcmpipe_lib::defn::ts::TSRef;
-use dcmpipe_lib::core::dcmelement::DicomElement;
 use crate::app::render_element;
+use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
+use dcmpipe_lib::core::dcmelement::DicomElement;
+use dcmpipe_lib::core::dcmobject::DicomObject;
+use dcmpipe_lib::core::dcmparser::DicomStreamParser;
+use dcmpipe_lib::core::dcmreader::parse_stream;
+use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::defn::ts::TSRef;
+use std::collections::btree_map::IterMut;
+use std::fs::File;
+use std::io::{self, Error, ErrorKind, StdoutLock, Write};
+use std::path::Path;
 
 pub struct FullObjApp {
     openpath: String,
@@ -17,9 +17,7 @@ pub struct FullObjApp {
 
 impl FullObjApp {
     pub fn new(openpath: String) -> FullObjApp {
-        FullObjApp {
-            openpath,
-        }
+        FullObjApp { openpath }
     }
 
     pub fn run(&self) -> Result<(), Error> {
@@ -34,7 +32,7 @@ impl FullObjApp {
 
         let file: File = File::open(path)?;
         let mut dicom_iter: DicomStreamParser<File> =
-            DicomStreamParser::new(file, TagStop::EndOfStream);
+            DicomStreamParser::new(file, TagStop::EndOfStream, &TAG_BY_VALUE, &TS_BY_UID);
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
@@ -58,9 +56,9 @@ impl FullObjApp {
         stdout: &mut StdoutLock,
     ) -> Result<(), Error> {
         for (tag, obj) in obj_iter {
-            let mut elem: &mut DicomElement = obj
-                .as_element()
-                .ok_or_else(|| Error::new(ErrorKind::InvalidData, "DicomObject is not also element"))?;
+            let mut elem: &mut DicomElement = obj.as_element().ok_or_else(|| {
+                Error::new(ErrorKind::InvalidData, "DicomObject is not also element")
+            })?;
 
             if prev_was_file_meta && *tag > 0x0002_FFFF {
                 stdout.write_all(
@@ -68,7 +66,7 @@ impl FullObjApp {
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                         ts.uid.ident
                     )
-                        .as_ref(),
+                    .as_ref(),
                 )?;
                 prev_was_file_meta = false;
             }

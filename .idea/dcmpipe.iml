@@ -19,7 +19,7 @@
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_lib/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_lib/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_lib/benches" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/benches" isTestSource="true" />
@@ -28,9 +28,14 @@
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_cli/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_cli/benches" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/fixtures" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/cli/target" />
       <excludeFolder url="file://$MODULE_DIR$/dcmpipe_cli/target" />
       <excludeFolder url="file://$MODULE_DIR$/dcmpipe_dict/target" />
+      <excludeFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/target" />
       <excludeFolder url="file://$MODULE_DIR$/dcmpipe_lib/target" />
       <excludeFolder url="file://$MODULE_DIR$/dict/target" />
       <excludeFolder url="file://$MODULE_DIR$/lib/target" />

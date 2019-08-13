@@ -15,7 +15,7 @@ pub fn lookup_charset(label: &str) -> Result<CSRef, Error> {
     let label: String = label
         .chars()
         .map(|c| match c {
-            'A'...'Z' => (c as u8 + 32) as char,
+            'A'..='Z' => (c as u8 + 32) as char,
             ' ' => '-',
             '_' => '-',
             '\n' => '-',
