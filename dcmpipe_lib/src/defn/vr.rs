@@ -10,6 +10,9 @@ pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
 pub type VRRef = &'static VR;
 
 /// Value Representation
+///
+/// The Value Representation of a Data Element describes the data type and format of that Data
+/// Element's Value(s).
 #[derive(Eq)]
 pub struct VR {
     /// The two-letter identifer, "AE", "IS", etc.
@@ -21,8 +24,8 @@ pub struct VR {
     pub code: u32,
 
     /// Which value is used to pad the encoded value to achieve an even length
-    /// Part 5, Ch 6.2:
     ///
+    /// Part 5, Ch 6.2:
     /// - Values with VRs constructed of character strings, except
     /// in the case of the VR UI, shall be padded with SPACE characters
     /// (20H, in the Default Character Repertoire).
@@ -32,7 +35,9 @@ pub struct VR {
     /// NULL byte value (00H) when necessary to achieve even length.
     pub padding: u8,
 
-    /// If this VR is encoded explicitly, then depending on VR there might be a 2-byte padding after the VR encoding
+    /// If this VR is encoded explicitly, then depending on VR there might be a 2-byte padding after
+    /// the VR encoding.
+    ///
     /// Part 5 Ch 7.1.2:
     /// For VRs of OB, OD, OF, OL, OW, SQ, UC, UR, UT or UN the 16 bits
     /// following the two byte VR Field are reserved for use by later
@@ -60,9 +65,10 @@ pub struct VR {
     pub decode_text_with_replaced_cs: bool,
 
     /// Part 5, Ch 6.1.2.3:
-    /// The Graphic Character represented by the bit combination 05/12, `\` (BACKSLASH) in the repertoire ISO-IR 6,
-    /// shall only be used in character strings with Value Representations of UT, ST and LT.
-    /// Otherwise the character code 05/12 is used as a separator for multiple valued Data Elements
+    /// The Graphic Character represented by the bit combination 05/12, `\` (BACKSLASH) in the
+    /// repertoire ISO-IR 6, shall only be used in character strings with Value Representations of
+    /// UT, ST and LT. Otherwise the character code 05/12 is used as a separator for multiple valued
+    /// Data Elements
     pub allows_backslash_text_value: bool,
 
     pub should_trim_leading_space: bool,
@@ -108,20 +114,23 @@ impl VR {
             0x4F46 => Some(&OF),
             0x4F4C => Some(&OL),
             0x4F57 => Some(&OW),
+            0x4F56 => Some(&OV),
             0x504E => Some(&PN),
             0x5348 => Some(&SH),
             0x534C => Some(&SL),
             0x5351 => Some(&SQ),
             0x5353 => Some(&SS),
             0x5354 => Some(&ST),
+            0x5356 => Some(&SV),
             0x544D => Some(&TM),
             0x5443 => Some(&UC),
             0x5549 => Some(&UI),
-            0x554c => Some(&UL),
+            0x554C => Some(&UL),
             0x544E => Some(&UN),
             0x5452 => Some(&UR),
             0x5553 => Some(&US),
             0x5554 => Some(&UT),
+            0x5556 => Some(&UV),
             _ => None,
         }
     }
@@ -134,21 +143,18 @@ impl VR {
     }
 }
 
-/// Application Entity
+/// # Application Entity
 ///
-/// # Definition
-///
+/// ## Definition
 /// A string of characters that identifies an Application Entity with
 /// leading and trailing spaces (20H) being non-significant. A value
 /// consisting solely of spaces shall not be used.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire excluding character code 5CH
 /// (the BACKSLASH `\` in ISO-IR 6), and all control characters.
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 16 bytes maximum
 pub static AE: VR = VR {
     ident: "AE",
@@ -163,10 +169,9 @@ pub static AE: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Age String
+/// # Age String
 ///
-/// # Definition
-///
+/// ## Definition
 /// A string of characters with one of the following formats --
 /// nnnD, nnnW, nnnM, nnnY; where nnn shall contain the number of
 ///
@@ -175,16 +180,13 @@ pub static AE: VR = VR {
 /// - months for M, or
 /// - years for Y.
 ///
-/// ## Examples
-///
+/// ### Examples
 /// "018M" would represent an age of 18 months.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// `'0'`-`'9'`, `D`, `W`, `M`, `Y` of Default Character Repertoire
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 4 bytes fixed
 pub static AS: VR = VR {
     ident: "AS",
@@ -199,29 +201,24 @@ pub static AS: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Attribute Tag
+/// # Attribute Tag
 ///
-/// # Definition
-///
+/// ## Definition
 /// Ordered pair of 16-bit unsigned integers that is the value of
 /// a Data Element Tag.
 ///
-/// ## Examples
-///
+/// ### Examples
 /// A Data Element Tag of (0018,00FF) would be encoded as
 /// a series of 4 bytes in a Little-Endian Transfer Syntax as 18H,00H,FFH,00H.
 ///
-/// ## Notes
-///
+/// ### Notes
 /// The encoding of an AT value is exactly the same as the
 /// encoding of a Data Element Tag as defined in Part 5, Ch 7
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 4 bytes fixed
 pub static AT: VR = VR {
     ident: "AT",
@@ -236,20 +233,17 @@ pub static AT: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Code String
+/// # Code String
 ///
-/// # Definition
-///
+/// ## Definition
 /// A string of characters identifying a controlled concept.
 /// Leading or trailing spaces (20H) are not significant.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Uppercase characters, `'0'`-`'9'`, the SPACE character,
 /// and underscore `_`, of the Default Character Repertoire
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 16 bytes maximum
 pub static CS: VR = VR {
     ident: "CS",
@@ -264,10 +258,9 @@ pub static CS: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Date
+/// # Date
 ///
-/// # Definition
-///
+/// ## Definition
 /// A string of characters of the format YYYYMMDD; where
 ///
 /// - YYYY shall contain year,
@@ -276,12 +269,10 @@ pub static CS: VR = VR {
 ///
 /// interpreted as a date of the Gregorian calendar system.
 ///
-/// ## Examples
-///
+/// ### Examples
 /// "19930822" would represent August 22, 1993.
 ///
-/// ## Notes
-///
+/// ### Notes
 /// 1. The ACR-NEMA Standard 300 (predecessor to DICOM) supported a
 /// string of characters of the format YYYY.MM.DD for this VR.
 /// Use of this format is not compliant.
@@ -290,20 +281,17 @@ pub static CS: VR = VR {
 /// archeological items, are interpreted as proleptic Gregorian calendar
 /// dates, unless otherwise specified.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// `'0'`-`'9'` of Default Character Repertoire
 ///
-/// ## Notes
+/// ### Notes
 /// In the context of a Query with range matching (see PS3.4), the character
 /// `-` is allowed, and a trailing SPACE character is allowed for padding.
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 8 bytes fixed
 ///
-/// ## Notes
-///
+/// ### Notes
 /// In the context of a Query (PS3.4) with range matching the length
 /// is 18 bytes maximum.
 pub static DA: VR = VR {
@@ -319,10 +307,9 @@ pub static DA: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Decimal String
+/// # Decimal String
 ///
-/// # Definition
-///
+/// ## Definition
 /// A string of characters representing either a fixed point number or
 /// a floating point number. A fixed point number shall contain only the
 /// characters 0-9 with an optional leading `+` or `-` and an optional
@@ -331,19 +318,16 @@ pub static DA: VR = VR {
 /// of the exponent. Decimal Strings may be padded with leading or trailing
 /// spaces. Embedded spaces are not allowed.
 ///
-/// ## Notes
-///
+/// ### Notes
 /// Data Elements with multiple values using this VR may not be properly
 /// encoded if Explicit-VR transfer syntax is used and the VL of this
 /// attribute exceeds 65534 bytes.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// `'0'`-`'9'`, `+`, `-`, `E`, `e`, `.` and the SPACE character
 /// of Default Character Repertoire
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 16 bytes maximum
 pub static DS: VR = VR {
     ident: "DS",
@@ -358,10 +342,9 @@ pub static DS: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Date Time
+/// # Date Time
 ///
-/// # Definition
-///
+/// ## Definition
 /// A concatenated date-time character string in the format:
 ///
 /// YYYYMMDDHHMMSS.FFFFFF&ZZXX
@@ -410,8 +393,7 @@ pub static DS: VR = VR {
 /// UTC offsets are calculated as "local time minus UTC". The offset for a
 /// Date Time value in UTC shall be +0000.
 ///
-/// ## Notes
-///
+/// ### Notes
 /// 1. The range of the offset is -1200 to +1400. The offset for United States
 /// Eastern Standard Time is -0500.
 /// The offset for Japan Standard Time is +0900.
@@ -424,17 +406,14 @@ pub static DS: VR = VR {
 /// 5. The offset may be included regardless of null components; e.g.,
 /// 2007-0500 is a legal value.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// `'0'`-`'9'`, `+`, `-`, `.` and the SPACE character of Default
 /// Character Repertoire
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 26 bytes maximum
 ///
-/// ## Notes
-///
+/// ### Notes
 /// In the context of a Query with range matching (see PS3.4), the length is
 /// 54 bytes maximum.
 pub static DT: VR = VR {
@@ -450,19 +429,16 @@ pub static DT: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Floating Point Double
+/// # Floating Point Double
 ///
-/// # Definition
-///
+/// ## Definition
 /// Single precision binary floating point number represented in
 /// IEEE 754:1985 32-bit Floating Point Number Format.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 4 bytes fixed
 pub static FD: VR = VR {
     ident: "FD",
@@ -477,18 +453,16 @@ pub static FD: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Floating Point Single
+/// # Floating Point Single
 ///
-/// # Definition
-///
+/// ## Definition
 /// Double precision binary floating point number represented in
 /// IEEE 754:1985 64-bit Floating Point Number Format.
 ///
-/// # Character Repertoire
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 8 bytes fixed
 pub static FL: VR = VR {
     ident: "FL",
@@ -503,10 +477,9 @@ pub static FL: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Integer String
+/// # Integer String
 ///
-/// # Definition
-///
+/// ## Definition
 /// A string of characters representing an Integer in base-10 (decimal),
 /// shall contain only the characters 0 - 9, with an optional leading `+`
 /// or `-`. It may be padded with leading and/or trailing spaces. Embedded
@@ -514,13 +487,11 @@ pub static FL: VR = VR {
 ///
 /// The integer, n, represented shall be in the range: -2^31 <= n <= 2^31 - 1.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// `'0'`-`'9'`, `+`, `-` and the SPACE character of Default Character
 /// Repertoire
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 12 bytes maximum
 pub static IS: VR = VR {
     ident: "IS",
@@ -535,23 +506,20 @@ pub static IS: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Long String
+/// # Long String
 ///
-/// # Definition
-///
+/// ## Definition
 /// A character string that may be padded with leading and/or trailing spaces.
 /// The character code 5CH (the BACKSLASH `\` in ISO-IR 6) shall not be
 /// present, as it is used as the delimiter between values in multiple valued
 /// data elements. The string shall not have Control Characters except for ESC.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
 /// character code 5CH (the BACKSLASH `\` in ISO-IR 6), and all Control
 /// Characters except ESC when used for ISO 2022 escape sequences.
 ///
-/// # Length of Value
-///
+/// # #Length of Value
 /// 64 chars maximum (see Note in Part 5, Ch 6.2)
 pub static LO: VR = VR {
     ident: "LO",
@@ -566,10 +534,9 @@ pub static LO: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Long Text
+/// # Long Text
 ///
-/// # Definition
-///
+/// ## Definition
 /// A character string that may contain one or more paragraphs.
 /// It may contain the Graphic Character set and the Control Characters,
 /// CR, LF, FF, and ESC. It may be padded with trailing spaces, which may
@@ -577,14 +544,12 @@ pub static LO: VR = VR {
 /// Elements with this VR shall not be multi-valued and therefore character
 /// code 5CH (the BACKSLASH `\` in ISO-IR 6) may be used.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
 /// Control Characters except TAB, LF, FF, CR (and ESC when used for
 /// ISO 2022 escape sequences).
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 10240 chars maximum (see Note in Part 5, Ch 6.2)
 pub static LT: VR = VR {
     ident: "LT",
@@ -599,22 +564,19 @@ pub static LT: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Other Byte
+/// # Other Byte
 ///
-/// # Definition
-///
+/// ## Definition
 /// An octet-stream where the encoding of the contents is specified by the
 /// negotiated Transfer Syntax. OB is a VR that is insensitive to byte
 /// ordering (see Part 5, Ch 7.3). The octet-stream shall be padded with a
 /// single trailing NULL byte value (00H) when necessary to achieve even
 /// length.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// see Transfer Syntax definition
 pub static OB: VR = VR {
     ident: "OB",
@@ -629,19 +591,17 @@ pub static OB: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Other Double
+/// # Other Double
 ///
-/// # Definition
-///
+/// ## Definition
 /// A stream of 64-bit IEEE 754:1985 floating point words. OD is a VR that
 /// requires byte swapping within each 64-bit word when changing byte ordering
 /// (see Part 5, Ch 7.3).
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
+/// ## Length of Value
 /// (2^32) - 8 bytes maximum
 pub static OD: VR = VR {
     ident: "OD",
@@ -656,20 +616,17 @@ pub static OD: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Other Float
+/// # Other Float
 ///
-/// # Definition
-///
+/// ## Definition
 /// A stream of 32-bit IEEE 754:1985 floating point words. OF is a VR that
 /// requires byte swapping within each 32-bit word when changing byte ordering
 /// (see Part 5, Ch 7.3).
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// (2^32) - 4 bytes maximum
 pub static OF: VR = VR {
     ident: "OF",
@@ -684,20 +641,17 @@ pub static OF: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Other Long
+/// # Other Long
 ///
-/// # Definition
-///
+/// ## Definition
 /// A stream of 32-bit words where the encoding of the contents is specified
 /// by the negotiated Transfer Syntax. OL is a VR that requires byte swapping
 /// within each word when changing byte ordering (see Part 5, Ch 7.3).
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// see Transfer Syntax definiton
 pub static OL: VR = VR {
     ident: "OL",
@@ -712,20 +666,42 @@ pub static OL: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Other Word
+/// # Other 64-bit Very Long
 ///
-/// # Definition
+/// ## Definition
+/// A stream of 64-bit words where the encoding of the contents is specified
+/// by the negotiated Transfer Syntax. OV is a VR that requires byte swapping
+/// within each word when changing byte ordering (see Part 5, Ch 7.3).
 ///
+/// ## Character Repertoire
+/// N/A
+///
+/// ## Length of Value
+/// see Transfer Syntax definition
+pub static OV: VR = VR {
+    ident: "OV",
+    name: "Other Very Long",
+    code: 0x4F56,
+    padding: 0x0,
+    has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
+};
+
+/// # Other Word
+///
+/// ## Definition
 /// A stream of 16-bit words where the encoding of the contents is specified
 /// by the negotiated Transfer Syntax. OW is a VR that requires byte swapping
 /// within each word when changing byte ordering (see Part 5, Ch 7.3).
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// see Transfer Syntax definition
 pub static OW: VR = VR {
     ident: "OW",
@@ -740,10 +716,9 @@ pub static OW: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Person Name
+/// # Person Name
 ///
-/// # Definition
-///
+/// ## Definition
 /// A character string encoded using a 5 component convention. The character
 /// code 5CH (the BACKSLASH `\` in ISO-IR 6) shall not be present, as it is
 /// used as the delimiter between values in multiple valued data elements.
@@ -778,19 +753,16 @@ pub static OW: VR = VR {
 /// Delimiters are required for interior null component groups. Trailing null
 /// component groups and their delimiters may be omitted.
 ///
-/// ## Notes
-///
+/// ### Notes
 /// HL7 prohibits leading spaces within a component; DICOM allows leading and
 /// trailing spaces and considers them insignificant.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
 /// character code 5CH (the BACKSLASH `\` in ISO-IR 6) and all Control
 /// Characters except ESC when used for ISO 2022 escape sequences.
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 64 chars maximum per component group (see Note in Part 5, Ch 6.2)
 pub static PN: VR = VR {
     ident: "PN",
@@ -805,23 +777,20 @@ pub static PN: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Short String
+/// # Short String
 ///
-/// # Definition
-///
+/// ## Definition
 /// A character string that may be padded with leading and/or trailing spaces.
 /// The character code 05CH (the BACKSLASH `\` in ISO-IR 6) shall not be
 /// present, as it is used as the delimiter between values for multiple data
 /// elements. The string shall not have Control Characters except ESC.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
 /// character code 5CH (the BACKSLASH `\` in ISO-IR 6) and all Control
 /// Characters except ESC when used for ISO 2022 escape sequences.
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 16 chars maximum (see Note in Part 5, Ch 6.2)
 pub static SH: VR = VR {
     ident: "SH",
@@ -836,20 +805,18 @@ pub static SH: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Signed Long
+/// # Signed Long
 ///
-/// # Definition
-///
+/// ## Definition
 /// Signed binary integer 32 bits long in 2's complement form.
 ///
-/// Represents an integer, n, in the range: (-2^31) <= n <= (2^31 - 1).
+/// Represents an integer, n, in the range:
+/// (-2^31) <= n <= (2^31 - 1).
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 4 bytes fixed
 pub static SL: VR = VR {
     ident: "SL",
@@ -864,18 +831,15 @@ pub static SL: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Sequence of Items
+/// # Sequence of Items
 ///
-/// # Definition
-///
+/// ## Definition
 /// Value is a Sequence of zero or more Items, as defined in Part 5, Ch 7.5.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A (see Part 5, Ch 7.5)
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// N/A (see Part 5, Ch 7.5)
 pub static SQ: VR = VR {
     ident: "SQ",
@@ -890,20 +854,17 @@ pub static SQ: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Signed Short
+/// # Signed Short
 ///
-/// # Definition
-///
+/// ## Definition
 /// Signed binary integer 16 bits long in 2's complement form.
 ///
 /// Represents an integer n in the range: (-2^15) <= n <= (2^15 - 1).
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 4 bytes fixed
 pub static SS: VR = VR {
     ident: "SS",
@@ -918,10 +879,9 @@ pub static SS: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Short Text
+/// # Short Text
 ///
-/// # Definition
-///
+/// ## Definition
 /// A character string that may contain one or more paragraphs. It may contain
 /// the Graphic Character set and the Control Characters, CR, LF, FF, and ESC.
 /// It may be padded with trailing spaces, which may be ignored, but leading
@@ -929,14 +889,12 @@ pub static SS: VR = VR {
 /// not be multi-valued and therefore character code 5CH (the BACKSLASH `\`
 /// in ISO-IR 6) may be used.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
 /// Control Characters except TAB, LF, FF, CR (and ESC when used for ISO 2022
 /// escape sequences).
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 1024 chars maximum (see Note in Part 5, Ch 6.2)
 pub static ST: VR = VR {
     ident: "ST",
@@ -951,10 +909,33 @@ pub static ST: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Time
+/// # Signed 64-bit Very Long
 ///
-/// # Definition
+/// ## Description
+/// Signed binary integer 64 bits long. Represents an integer n in the range:
+/// -2^63 <= n <= 2^63-1.
 ///
+/// ## Character Repertoire
+/// N/A
+///
+/// ## Length of Value
+/// 8 bytes fixed
+pub static SV: VR = VR {
+    ident: "SV",
+    name: "Signed Very Long",
+    code: 0x5356,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
+};
+
+/// # Time
+///
+/// ## Definition
 /// A string of characters of the format HHMMSS.FFFFFF; where
 ///
 /// - HH contains hours (range "00" - "23"),
@@ -975,30 +956,26 @@ pub static ST: VR = VR {
 /// The FFFFFF component, if present, shall contain 1 to 6 digits. If FFFFFF
 /// is unspecified the preceding "." shall not be included.
 ///
-/// ## Examples
-///
+/// ### Examples
 /// 1. "070907.0705 " represents a time of 7 hours, 9 minutes and 7.0705
 /// seconds.
 /// 2. "1010" represents a time of 10 hours, and 10 minutes.
 /// 3. "021 " is an invalid value.
 ///
-/// ## Notes
-///
+/// ### Notes
 /// 1. The ACR-NEMA Standard 300 (predecessor to DICOM) supported a string of
 /// characters of the format HH:MM:SS.frac for this VR. Use of this format is
 /// not compliant.
 /// 2. See also DT VR in this table.
 /// 3. The SS component may have a value of 60 only for a leap second.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// `'0'`-`'9'`, `.` and the SPACE character of Default Character Repertoire
 ///
 /// In the context of a Query with range matching (see PS3.4), the character
 /// `-` is allowed.
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 14 bytes maximum. In the context of a Query with range matching
 /// (see PS3.4), the length is 28 bytes maximum.
 pub static TM: VR = VR {
@@ -1014,24 +991,21 @@ pub static TM: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Unlimited Characters
+/// # Unlimited Characters
 ///
-/// # Definition
-///
+/// ## Definition
 /// A character string that may be of unlimited length that may be padded with
 /// trailing spaces. The character code 5CH (the BACKSLASH `\` in ISO-IR 6)
 /// shall not be present, as it is used as the delimiter between values in
 /// multiple valued data elements. The string shall not have Control
 /// Characters except for ESC.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
 /// character code 5CH (the BACKSLASH `\` in ISO-IR 6), and all Control
 /// Characters except ESC when used for ISO 2022 escape sequences.
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 2^32 - 2 bytes maximum
 pub static UC: VR = VR {
     ident: "UC",
@@ -1046,8 +1020,9 @@ pub static UC: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Unique Identifier
+/// # Unique Identifier
 ///
+/// ## Description
 /// A character string containing a UID that is used to uniquely identify a
 /// wide variety of items. The UID is a series of numeric components separated
 /// by the period `.` character. If a Value Field containing one or more UIDs
@@ -1056,12 +1031,10 @@ pub static UC: VR = VR {
 /// even number of bytes in length. See Part 5, Ch 9 and Part 5, Annex B for a
 /// complete specification and examples.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// `'0'`-`'9'`, `.` of Default Character Repertoire
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 64 bytes maximum
 pub static UI: VR = VR {
     ident: "UI",
@@ -1076,19 +1049,16 @@ pub static UI: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Unsigned Long
+/// # Unsigned Long
 ///
-/// # Definition
-///
+/// ## Definition
 /// Unsigned binary integer 32 bits long. Represents an integer n in
 /// the range: 0 <= n < 2^32
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 4 bytes fixed
 pub static UL: VR = VR {
     ident: "UL",
@@ -1103,19 +1073,16 @@ pub static UL: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Unknown
+/// # Unknown
 ///
-/// # Definition
-///
+/// ## Definition
 /// An octet-stream where the encoding of the contents is Unknown
 /// (see Part 5, Ch 6.2.2).
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// Any length valid for any of the other DICOM Value Representations
 pub static UN: VR = VR {
     ident: "UN",
@@ -1130,34 +1097,29 @@ pub static UN: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Universal Resource Identifier / Universal Resource Locator
+/// # Universal Resource Identifier / Universal Resource Locator
 ///
-/// # Definition
-///
+/// ## Definition
 /// A string of characters that identifies a URI or a URL as defined in
 /// [RFC3986]. Leading spaces are not allowed. Trailing spaces shall be
 /// ignored. Data Elements with this VR shall not be multi-valued.
 ///
-/// ## Notes
-///
+/// ### Notes
 /// Both absolute and relative URIs are permitted. If the URI is relative,
 /// then it is relative to the base URI of the object within which it is
 /// contained.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// The subset of the Default Character Repertoire required for the URI as
 /// defined in IETF RFC3986 Section 2, plus the space (20H) character
 /// permitted only as trailing padding.
 ///
 /// Characters outside the permitted character set must be "percent encoded".
 ///
-/// ## Notes
-///
+/// ### Notes
 /// The Backslash (5CH) character is among those disallowed in URIs.
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 2^32 - 2 bytes maximum
 pub static UR: VR = VR {
     ident: "UR",
@@ -1172,19 +1134,16 @@ pub static UR: VR = VR {
     should_trim_trailing_space: true,
 };
 
-/// Unsigned Short
+/// # Unsigned Short
 ///
-/// # Definition
-///
+/// ## Definition
 /// Unsigned binary integer 16 bits long. Represents integer n in the range:
 /// 0 <= n < 2^16
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// N/A
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 2 bytes fixed
 pub static US: VR = VR {
     ident: "US",
@@ -1199,10 +1158,9 @@ pub static US: VR = VR {
     should_trim_trailing_space: false,
 };
 
-/// Unlimited Text
+/// # Unlimited Text
 ///
-/// # Definition
-///
+/// ## Definition
 /// A character string that may contain one or more paragraphs. It may contain
 /// the Graphic Character set and the Control Characters, CR, LF, FF, and ESC.
 /// It may be padded with trailing spaces, which may be ignored, but leading
@@ -1210,14 +1168,12 @@ pub static US: VR = VR {
 /// not be multi-valued and therefore character code 5CH (the BACKSLASH `\`
 /// in ISO-IR 6) may be used.
 ///
-/// # Character Repertoire
-///
+/// ## Character Repertoire
 /// Default Character Repertoire and/or as defined by (0008,0005) excluding
 /// Control Characters except TAB, LF, FF, CR (and ESC when used for ISO 2022
 /// escape sequences).
 ///
-/// # Length of Value
-///
+/// ## Length of Value
 /// 2^32 - 2 bytes maximum
 pub static UT: VR = VR {
     ident: "UT",
@@ -1230,4 +1186,28 @@ pub static UT: VR = VR {
     allows_backslash_text_value: true,
     should_trim_leading_space: false,
     should_trim_trailing_space: true,
+};
+
+/// # Unsigned 64-bit Very Long
+///
+/// ## Definition
+/// Unsigned binary integer 64 bits long. Represents an integer n in the range:
+/// 0 <= n < 264.
+///
+/// ## Character Repertoire
+/// N/A
+///
+/// ## Length of Value
+/// 8 bytes fixed
+pub static UV: VR = VR {
+    ident: "UV",
+    name: "Unsigned Very Long",
+    code: 0x5556,
+    padding: 0x0,
+    has_explicit_2byte_pad: false,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    should_trim_leading_space: false,
+    should_trim_trailing_space: false,
 };
