@@ -3,11 +3,11 @@ extern crate walkdir;
 
 use crate::core::dcmobject::DicomObject;
 use crate::core::dcmparser::{
-    DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
+    DicomParserBuilder, DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use crate::core::dcmreader::parse_stream;
 use crate::core::tagstop::TagStop;
-use crate::core::tests::mock::{MockDicomStream, TAG_BY_VALUE, TS_BY_UID};
+use crate::core::tests::mock::MockDicomStream;
 use byteorder::ReadBytesExt;
 use std::fs::File;
 use std::path::Path;
@@ -140,7 +140,7 @@ fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
         let file: File = File::open(path).expect(&format!("Unable to open file: {:?}", path));
 
         let dstream: DicomStreamParser<File> =
-            DicomStreamParser::new(file, tagstop, &TAG_BY_VALUE, &TS_BY_UID);
+            DicomParserBuilder::new(file).tagstop(tagstop).build();
 
         return dstream;
     }

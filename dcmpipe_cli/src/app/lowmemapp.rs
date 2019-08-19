@@ -1,8 +1,6 @@
 use crate::app::render_element;
-use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmparser::DicomStreamParser;
-use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
 use std::fs::File;
 use std::io::{self, Error, ErrorKind, Write};
 use std::path::Path;
@@ -27,8 +25,7 @@ impl LowMemApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: DicomStreamParser<File> =
-            DicomStreamParser::new(file, TagStop::EndOfStream, &TAG_BY_VALUE, &TS_BY_UID);
+        let mut dicom_iter: DicomStreamParser<File> = DicomParserBuilder::new(file).build();
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();

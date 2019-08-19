@@ -1,7 +1,7 @@
-use crate::core::constants::tags;
 use crate::core::dcmelement::DicomElement;
 use crate::core::dcmobject::DicomObject;
 use crate::core::dcmparser::DicomStreamParser;
+use crate::defn::constants::tags;
 use byteorder::ReadBytesExt;
 use std::io::Error;
 

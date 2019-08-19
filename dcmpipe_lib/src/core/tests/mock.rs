@@ -1,20 +1,6 @@
-use crate::core::dcmparser::DicomStreamParser;
+use crate::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
 use crate::core::tagstop::TagStop;
-use crate::defn::tag::TagRef;
-use crate::defn::ts::TSRef;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
-
-pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = phf::Map {
-    key: 0,
-    disps: ::phf::Slice::Static(&[]),
-    entries: ::phf::Slice::Static(&[]),
-};
-
-pub static TS_BY_UID: phf::Map<&'static str, TSRef> = phf::Map {
-    key: 0,
-    disps: ::phf::Slice::Static(&[]),
-    entries: ::phf::Slice::Static(&[]),
-};
 
 pub struct MockDicomStream {
     pub data: Vec<u8>,
@@ -26,7 +12,7 @@ impl MockDicomStream {
         mockup: MockDicomStream,
         tagstop: TagStop,
     ) -> DicomStreamParser<MockDicomStream> {
-        DicomStreamParser::new(mockup, tagstop, &TAG_BY_VALUE, &TS_BY_UID)
+        DicomParserBuilder::new(mockup).tagstop(tagstop).build()
     }
 
     pub fn standard_dicom_preamble() -> DicomStreamParser<MockDicomStream> {
