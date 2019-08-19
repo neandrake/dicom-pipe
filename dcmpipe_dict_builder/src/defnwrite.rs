@@ -7,8 +7,7 @@ use crate::xmlparser::{
     XmlDicomUid,
 };
 
-static LOOKUP_PREAMBLE: &str =
-    "//! This is an auto-generated file. Do not make modifications here.
+static LOOKUP_PREAMBLE: &str = "//! This is an auto-generated file. Do not make modifications here.
 
 #![allow(clippy::unreadable_literal)]
 
@@ -46,8 +45,7 @@ use crate::dict::uids;
 
 ";
 
-static UID_PREAMBLE: &str =
-    "//! This is an auto-generated file. Do not make modifications here.
+static UID_PREAMBLE: &str = "//! This is an auto-generated file. Do not make modifications here.
 
 #![allow(non_upper_case_globals)]
 

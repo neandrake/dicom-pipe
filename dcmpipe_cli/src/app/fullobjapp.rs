@@ -1,10 +1,8 @@
 use crate::app::render_element;
-use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::DicomObject;
-use dcmpipe_lib::core::dcmparser::DicomStreamParser;
+use dcmpipe_lib::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
 use dcmpipe_lib::core::dcmreader::parse_stream;
-use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::ts::TSRef;
 use std::collections::btree_map::IterMut;
 use std::fs::File;
@@ -31,8 +29,7 @@ impl FullObjApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: DicomStreamParser<File> =
-            DicomStreamParser::new(file, TagStop::EndOfStream, &TAG_BY_VALUE, &TS_BY_UID);
+        let mut dicom_iter: DicomStreamParser<File> = DicomParserBuilder::new(file).build();
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();

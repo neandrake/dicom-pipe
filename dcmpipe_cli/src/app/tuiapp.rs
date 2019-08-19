@@ -1,9 +1,7 @@
 use crossterm::{self, AlternateScreen, InputEvent, KeyEvent, TerminalInput};
-use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmobject::DicomObject;
-use dcmpipe_lib::core::dcmparser::DicomStreamParser;
+use dcmpipe_lib::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
 use dcmpipe_lib::core::dcmreader::parse_stream;
-use dcmpipe_lib::core::tagstop::TagStop;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
@@ -91,8 +89,7 @@ impl TuiApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: DicomStreamParser<File> =
-            DicomStreamParser::new(file, TagStop::EndOfStream, &TAG_BY_VALUE, &TS_BY_UID);
+        let mut dicom_iter: DicomStreamParser<File> = DicomParserBuilder::new(file).build();
 
         let _dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
 
