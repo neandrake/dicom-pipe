@@ -1,4 +1,4 @@
-use crate::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
+use crate::core::dcmparser::{Parser, ParserBuilder};
 use crate::core::tagstop::TagStop;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
@@ -8,14 +8,11 @@ pub struct MockDicomStream {
 }
 
 impl MockDicomStream {
-    fn create_parser(
-        mockup: MockDicomStream,
-        tagstop: TagStop,
-    ) -> DicomStreamParser<MockDicomStream> {
-        DicomParserBuilder::new(mockup).tagstop(tagstop).build()
+    fn create_parser(mockup: MockDicomStream, tagstop: TagStop) -> Parser<MockDicomStream> {
+        ParserBuilder::new(mockup).tagstop(tagstop).build()
     }
 
-    pub fn standard_dicom_preamble() -> DicomStreamParser<MockDicomStream> {
+    pub fn standard_dicom_preamble() -> Parser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
@@ -30,7 +27,7 @@ impl MockDicomStream {
         MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
     }
 
-    pub fn invalid_dicom_prefix() -> DicomStreamParser<MockDicomStream> {
+    pub fn invalid_dicom_prefix() -> Parser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
@@ -45,7 +42,7 @@ impl MockDicomStream {
         MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
     }
 
-    pub fn nonzero_preamble() -> DicomStreamParser<MockDicomStream> {
+    pub fn nonzero_preamble() -> Parser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0xFFu8; 132];
@@ -60,8 +57,7 @@ impl MockDicomStream {
         MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
     }
 
-    pub fn standard_dicom_preamble_diff_startpos_and_short_stream(
-    ) -> DicomStreamParser<MockDicomStream> {
+    pub fn standard_dicom_preamble_diff_startpos_and_short_stream() -> Parser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];

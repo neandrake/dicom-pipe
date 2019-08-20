@@ -1,6 +1,6 @@
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, UID_BY_UID};
-use dcmpipe_lib::core::dcmelement::{DicomElement, DicomSequenceElement};
+use dcmpipe_lib::core::dcmelement::{DicomElement, SequenceElement};
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vr;
 use std::io::Error;
@@ -47,7 +47,7 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
     };
     let vr: &str = element.vr.ident;
 
-    let seq_path: &Vec<DicomSequenceElement> = element.get_sequence_path();
+    let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
 
     let mut indent_width: usize = seq_path.len();
     if indent_width > 0 && element.tag != tags::Item.tag {
@@ -58,7 +58,7 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
     if element.tag == tags::Item.tag {
         let path: String = seq_path
             .iter()
-            .map(|seq_elem: &DicomSequenceElement| {
+            .map(|seq_elem: &SequenceElement| {
                 format!(
                     "{}[{}]",
                     Tag::format_tag_to_path_display(seq_elem.get_seq_tag()),

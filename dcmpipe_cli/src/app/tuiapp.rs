@@ -1,6 +1,6 @@
 use crossterm::{self, AlternateScreen, InputEvent, KeyEvent, TerminalInput};
 use dcmpipe_lib::core::dcmobject::DicomObject;
-use dcmpipe_lib::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmreader::parse_stream;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
@@ -89,7 +89,7 @@ impl TuiApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: DicomStreamParser<File> = DicomParserBuilder::new(file).build();
+        let mut dicom_iter: Parser<File> = ParserBuilder::new(file).build();
 
         let _dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
 

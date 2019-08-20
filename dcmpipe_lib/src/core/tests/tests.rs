@@ -3,7 +3,7 @@ extern crate walkdir;
 
 use crate::core::dcmobject::DicomObject;
 use crate::core::dcmparser::{
-    DicomParserBuilder, DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
+    Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use crate::core::dcmreader::parse_stream;
 use crate::core::tagstop::TagStop;
@@ -21,8 +21,7 @@ static CT_IMAGE_STORAGE_UID: &'static str = "1.2.840.10008.5.1.4.1.1.2";
 
 #[test]
 fn test_good_preamble() {
-    let mut test_good_iter: DicomStreamParser<MockDicomStream> =
-        MockDicomStream::standard_dicom_preamble();
+    let mut test_good_iter: Parser<MockDicomStream> = MockDicomStream::standard_dicom_preamble();
 
     // reads the preamble, prefix, and first element (mock has no first element)
     let _ = test_good_iter
@@ -35,8 +34,7 @@ fn test_good_preamble() {
 
 #[test]
 fn test_nonzero_preamble() {
-    let mut test_size_iter: DicomStreamParser<MockDicomStream> =
-        MockDicomStream::nonzero_preamble();
+    let mut test_size_iter: Parser<MockDicomStream> = MockDicomStream::nonzero_preamble();
 
     // reads the preamble, prefix, and first element (mock has no first element)
     let _ = test_size_iter
@@ -50,8 +48,7 @@ fn test_nonzero_preamble() {
 #[test]
 #[should_panic(expected = "Invalid DICOM Prefix")]
 fn test_bad_dicom_prefix() {
-    let mut test_bad_iter: DicomStreamParser<MockDicomStream> =
-        MockDicomStream::invalid_dicom_prefix();
+    let mut test_bad_iter: Parser<MockDicomStream> = MockDicomStream::invalid_dicom_prefix();
 
     // reads the preamble, prefix, and first element
     let _ = test_bad_iter
@@ -63,7 +60,7 @@ fn test_bad_dicom_prefix() {
 #[test]
 #[should_panic(expected = "failed to fill whole buffer")]
 fn test_failure_to_read_preamble() {
-    let mut test_iter: DicomStreamParser<MockDicomStream> =
+    let mut test_iter: Parser<MockDicomStream> =
         MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
 
     // reads the preamble, prefix, and first element
@@ -80,8 +77,7 @@ fn test_failure_to_read_preamble() {
 #[test] // slow
 fn test_parse_known_dicom_files() {
     let tagstop: u32 = PIXEL_DATA;
-    let mut dicom_iter: DicomStreamParser<File> =
-        get_first_file_stream(TagStop::BeforeTag(tagstop));
+    let mut dicom_iter: Parser<File> = get_first_file_stream(TagStop::BeforeTag(tagstop));
 
     let _first_elem = dicom_iter
         .next()
@@ -112,7 +108,7 @@ fn test_parse_known_dicom_files() {
 
 #[test]
 pub fn test_dicom_object() {
-    let mut dicom_iter: DicomStreamParser<File> = get_first_file_stream(TagStop::EndOfStream);
+    let mut dicom_iter: Parser<File> = get_first_file_stream(TagStop::EndOfStream);
 
     let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter).expect("Should be no probz");
     let sop_class_uid: &mut DicomObject = dcmobj
@@ -128,7 +124,7 @@ pub fn test_dicom_object() {
     }
 }
 
-fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
+fn get_first_file_stream(tagstop: TagStop) -> Parser<File> {
     let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
         .min_depth(1)
         .max_depth(1);
@@ -139,8 +135,7 @@ fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
 
         let file: File = File::open(path).expect(&format!("Unable to open file: {:?}", path));
 
-        let dstream: DicomStreamParser<File> =
-            DicomParserBuilder::new(file).tagstop(tagstop).build();
+        let dstream: Parser<File> = ParserBuilder::new(file).tagstop(tagstop).build();
 
         return dstream;
     }
@@ -149,7 +144,7 @@ fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
 }
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'
-fn is_standard_preamble<StreamType>(stream: &DicomStreamParser<StreamType>) -> bool
+fn is_standard_preamble<StreamType>(stream: &Parser<StreamType>) -> bool
 where
     StreamType: ReadBytesExt,
 {
