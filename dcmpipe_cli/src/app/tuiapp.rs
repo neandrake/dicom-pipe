@@ -1,4 +1,5 @@
 use crossterm::{self, AlternateScreen, InputEvent, KeyEvent, TerminalInput};
+use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmobject::DicomObject;
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmreader::parse_stream;
@@ -89,7 +90,10 @@ impl TuiApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: Parser<File> = ParserBuilder::new(file).build();
+        let mut dicom_iter: Parser<File> = ParserBuilder::new(file)
+            .tag_by_value(&TAG_BY_VALUE)
+            .ts_by_uid(&TS_BY_UID)
+            .build();
 
         let _dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
 
