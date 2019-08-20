@@ -16,7 +16,7 @@ pub use lowmemapp::LowMemApp;
 pub use tuiapp::TuiApp;
 
 static MAX_BYTES_DISPLAY: usize = 16;
-static MAX_ITEMS_DISPLAYED: usize = 4;
+static MAX_ITEMS_DISPLAYED: usize = 16;
 
 /// Renders an element on a single line, includes indentation based on depth in sequences
 /// ```
