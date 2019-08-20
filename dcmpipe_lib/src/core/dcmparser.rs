@@ -1,5 +1,5 @@
 use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
-use crate::core::dcmelement::{DicomElement, DicomSequenceElement};
+use crate::core::dcmelement::{DicomElement, SequenceElement};
 use crate::core::tagstop::TagStop;
 use crate::defn::constants::{lookup, tags, ts};
 use crate::defn::tag::{Tag, TagRef};
@@ -19,7 +19,7 @@ pub type TagByValueLookup = &'static phf::Map<u32, TagRef>;
 pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
 
 /// The different parsing behaviors of the stream
-enum DicomParseState {
+pub enum ParseState {
     /// The File Preamble. May only be present on file media and possibly not present over network
     Preamble,
     /// The DICOM prefix. May be required for all media transfer.
@@ -34,17 +34,17 @@ enum DicomParseState {
     Element,
 }
 
-pub struct DicomParserBuilder<StreamType: ReadBytesExt> {
+pub struct ParserBuilder<StreamType: ReadBytesExt> {
     stream: StreamType,
-    state: Option<DicomParseState>,
+    state: Option<ParseState>,
     tagstop: Option<TagStop>,
     tag_by_value: Option<TagByValueLookup>,
     ts_by_uid: Option<TsByUidLookup>,
 }
 
-impl<StreamType: ReadBytesExt> DicomParserBuilder<StreamType> {
-    pub fn new(stream: StreamType) -> DicomParserBuilder<StreamType> {
-        DicomParserBuilder {
+impl<StreamType: ReadBytesExt> ParserBuilder<StreamType> {
+    pub fn new(stream: StreamType) -> ParserBuilder<StreamType> {
+        ParserBuilder {
             stream,
             state: None,
             tagstop: None,
@@ -68,13 +68,13 @@ impl<StreamType: ReadBytesExt> DicomParserBuilder<StreamType> {
         self
     }
 
-    pub fn build(self) -> DicomStreamParser<StreamType> {
-        DicomStreamParser {
+    pub fn build(self) -> Parser<StreamType> {
+        Parser {
             stream: self.stream,
             tagstop: self.tagstop.unwrap_or(TagStop::EndOfStream),
             tag_by_value: self.tag_by_value,
             ts_by_uid: self.ts_by_uid,
-            state: self.state.unwrap_or(DicomParseState::Preamble),
+            state: self.state.unwrap_or(ParseState::Preamble),
 
             bytes_read: 0,
             file_preamble: [0u8; FILE_PREAMBLE_LENGTH],
@@ -91,13 +91,13 @@ impl<StreamType: ReadBytesExt> DicomParserBuilder<StreamType> {
 }
 
 /// Provides an iterator that parses through a dicom stream returning top-level elements
-pub struct DicomStreamParser<StreamType: ReadBytesExt> {
+pub struct Parser<StreamType: ReadBytesExt> {
     /// The stream to parse dicom from.
     stream: StreamType,
 
     /// The current state of reading items from the stream, which represents the different types
     /// of items that can be parsed from the stream.
-    state: DicomParseState,
+    state: ParseState,
 
     /// The condition under which this iterator should stop parsing elements from the stream.
     /// This allows for partially parsing through the stream instead of having to read the entire
@@ -163,10 +163,10 @@ pub struct DicomStreamParser<StreamType: ReadBytesExt> {
     /// current `Item` within a sequence. Whenever an `Item` element is read the last element in
     /// this list has its item count initialized/incremented. Every element parsed from the stream
     /// clones this stack.
-    current_path: Vec<DicomSequenceElement>,
+    current_path: Vec<SequenceElement>,
 }
 
-impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
+impl<StreamType: ReadBytesExt> Parser<StreamType> {
     pub fn bytes_read(&self) -> u64 {
         self.bytes_read
     }
@@ -243,7 +243,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             self.read_value_field(vl)?
         };
 
-        let ancestors: Vec<DicomSequenceElement> = self.current_path.clone();
+        let ancestors: Vec<SequenceElement> = self.current_path.clone();
         Ok(DicomElement::new(
             tag, vr, vl, ts, self.cs, bytes, ancestors,
         ))
@@ -386,7 +386,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
 
 type DicomElementResult = Result<DicomElement, Error>;
 
-impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
+impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
     type Item = DicomElementResult;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
@@ -399,15 +399,15 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
             }
 
             match self.state {
-                DicomParseState::Preamble => {
+                ParseState::Preamble => {
                     let result: Result<(), Error> = self.stream.read_exact(&mut self.file_preamble);
                     if let Err(e) = result {
                         return Some(Err(e));
                     }
                     self.bytes_read += self.file_preamble.len() as u64;
-                    self.state = DicomParseState::Prefix;
+                    self.state = ParseState::Prefix;
                 }
-                DicomParseState::Prefix => {
+                ParseState::Prefix => {
                     let result: Result<(), Error> = self.stream.read_exact(&mut self.dicom_prefix);
                     if let Err(e) = result {
                         return Some(Err(e));
@@ -423,9 +423,9 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                         }
                     }
 
-                    self.state = DicomParseState::GroupLength;
+                    self.state = ParseState::GroupLength;
                 }
-                DicomParseState::GroupLength => {
+                ParseState::GroupLength => {
                     let tag: u32 = if let Some(partial_tag) = self.partial_tag {
                         partial_tag
                     } else {
@@ -471,13 +471,13 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
 
                     self.fmi_grouplength = grouplength_val.unwrap();
                     self.fmi_start = self.bytes_read;
-                    self.state = DicomParseState::FileMeta;
+                    self.state = ParseState::FileMeta;
                     // reset partial_tag to None
                     self.partial_tag.take();
 
                     return Some(Ok(grouplength));
                 }
-                DicomParseState::FileMeta => {
+                ParseState::FileMeta => {
                     let tag: u32 = if let Some(partial_tag) = self.partial_tag {
                         partial_tag
                     } else {
@@ -513,7 +513,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                     }
 
                     if self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength) {
-                        self.state = DicomParseState::Element;
+                        self.state = ParseState::Element;
                     }
 
                     // reset partial_tag to None
@@ -521,7 +521,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
 
                     return Some(Ok(element));
                 }
-                DicomParseState::Element => {
+                ParseState::Element => {
                     let tag: u32 = if let Some(partial_tag) = self.partial_tag {
                         partial_tag
                     } else {
@@ -602,7 +602,7 @@ impl<StreamType: ReadBytesExt> Iterator for DicomStreamParser<StreamType> {
                                 None
                             };
                         self.current_path
-                            .push(DicomSequenceElement::new(tag, seq_end_pos));
+                            .push(SequenceElement::new(tag, seq_end_pos));
                     }
 
                     return Some(Ok(element));
