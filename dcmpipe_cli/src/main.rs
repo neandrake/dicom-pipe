@@ -12,7 +12,7 @@ use app::{FullObjApp, LowMemApp, TuiApp};
 use std::io::{Error, ErrorKind};
 use std::{env, process};
 
-static APP_MODE: usize = 4;
+static APP_MODE: usize = 1;
 
 fn main() {
     if let Err(e) = runapp() {
