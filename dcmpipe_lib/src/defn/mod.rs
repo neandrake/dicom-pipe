@@ -1,4 +1,4 @@
-pub mod constants;
+pub(crate) mod constants;
 pub mod tag;
 pub mod ts;
 pub mod uid;
