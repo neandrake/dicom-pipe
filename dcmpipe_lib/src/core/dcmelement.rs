@@ -65,7 +65,7 @@ pub struct DicomElement {
     pub vr: VRRef,
     pub vl: ValueLength,
 
-    data: Cursor<Vec<u8>>,
+    data: Vec<u8>,
     sequence_path: Vec<SequenceElement>,
 
     ts: TSRef,
@@ -89,13 +89,12 @@ impl DicomElement {
             vl,
             ts,
             cs,
-
-            data: Cursor::new(data),
+            data,
             sequence_path,
         }
     }
 
-    pub fn get_data(&self) -> &Cursor<Vec<u8>> {
+    pub fn get_data(&self) -> &Vec<u8> {
         &self.data
     }
 
@@ -117,21 +116,16 @@ impl DicomElement {
         self.vr == &vr::SQ
     }
 
-    /// Resets the internal byte stream to be parsed from the beginning
-    fn reset_data_read(&mut self) {
-        self.data.set_position(0);
-    }
-
     /// Returns whether the the size of the value for this element is zero
     pub fn is_empty(&self) -> bool {
-        self.data.get_ref().len() == 0
+        self.data.is_empty()
     }
 
     /// Parses the value of this element as a string using the given encoding
     /// Associated VRs:
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    pub fn parse_string(&mut self) -> Result<String, Error> {
+    pub fn parse_string(&self) -> Result<String, Error> {
         let is_ui: bool = self.vr == &vr::UI;
         let is_char_str: bool = self.vr.is_character_string;
         let padding: u8 = self.vr.padding;
@@ -159,7 +153,7 @@ impl DicomElement {
     /// Associated VRs:
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    pub fn parse_strings(&mut self) -> Result<Vec<String>, Error> {
+    pub fn parse_strings(&self) -> Result<Vec<String>, Error> {
         let is_ui: bool = self.vr == &vr::UI;
         let is_char_str: bool = self.vr.is_character_string;
         let padding: u8 = self.vr.padding;
@@ -192,13 +186,11 @@ impl DicomElement {
     /// Returns the value as a slice with the padding character
     /// removed per the specification of whether the VR indicates leading/trailing
     /// padding is significant.
-    fn get_string_bytes_without_padding(&mut self) -> &[u8] {
-        self.reset_data_read();
-
+    fn get_string_bytes_without_padding(&self) -> &[u8] {
         // grab the position to start reading bytes from prior to computing the new bytes_read
         let mut lindex: usize = 0;
 
-        let data: &[u8] = self.get_data().get_ref();
+        let data: &[u8] = self.data.as_slice();
         if data.is_empty() {
             return data;
         }
@@ -227,17 +219,17 @@ impl DicomElement {
 
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
-    pub fn parse_attribute(&mut self) -> Result<u32, Error> {
-        self.reset_data_read();
+    pub fn parse_attribute(&self) -> Result<u32, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
         let first: u32 = if self.ts.is_big_endian() {
-            u32::from(self.data.read_u16::<BigEndian>()?) << 16
+            u32::from(cursor.read_u16::<BigEndian>()?) << 16
         } else {
-            u32::from(self.data.read_u16::<LittleEndian>()?) << 16
+            u32::from(cursor.read_u16::<LittleEndian>()?) << 16
         };
         let second: u32 = if self.ts.is_big_endian() {
-            u32::from(self.data.read_u16::<BigEndian>()?)
+            u32::from(cursor.read_u16::<BigEndian>()?)
         } else {
-            u32::from(self.data.read_u16::<LittleEndian>()?)
+            u32::from(cursor.read_u16::<LittleEndian>()?)
         };
         let result: u32 = first + second;
         Ok(result)
@@ -245,28 +237,28 @@ impl DicomElement {
 
     /// Parses the value for this element as a 32bit floating point
     /// Associated VRs: FL
-    pub fn parse_f32(&mut self) -> Result<f32, Error> {
-        self.reset_data_read();
+    pub fn parse_f32(&self) -> Result<f32, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
         let result: f32 = if self.ts.is_big_endian() {
-            self.data.read_f32::<BigEndian>()?
+            cursor.read_f32::<BigEndian>()?
         } else {
-            self.data.read_f32::<LittleEndian>()?
+            cursor.read_f32::<LittleEndian>()?
         };
         Ok(result)
     }
 
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: OF
-    pub fn parse_f32s(&mut self) -> Result<Vec<f32>, Error> {
-        self.reset_data_read();
-        let num_bytes: usize = self.data.get_ref().len();
+    pub fn parse_f32s(&self) -> Result<Vec<f32>, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let num_bytes: usize = self.data.len();
         let num_floats: usize = num_bytes / 4;
         let mut result: Vec<f32> = Vec::with_capacity(num_floats);
         for _ in 0..num_floats {
             let val: f32 = if self.ts.is_big_endian() {
-                self.data.read_f32::<BigEndian>()?
+                cursor.read_f32::<BigEndian>()?
             } else {
-                self.data.read_f32::<LittleEndian>()?
+                cursor.read_f32::<LittleEndian>()?
             };
             result.push(val);
         }
@@ -275,28 +267,28 @@ impl DicomElement {
 
     /// Parses the value for this element as a 64bit floating point
     /// Associated VRs: FD
-    pub fn parse_f64(&mut self) -> Result<f64, Error> {
-        self.reset_data_read();
+    pub fn parse_f64(&self) -> Result<f64, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
         let result: f64 = if self.ts.is_big_endian() {
-            self.data.read_f64::<BigEndian>()?
+            cursor.read_f64::<BigEndian>()?
         } else {
-            self.data.read_f64::<LittleEndian>()?
+            cursor.read_f64::<LittleEndian>()?
         };
         Ok(result)
     }
 
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: OD
-    pub fn parse_f64s(&mut self) -> Result<Vec<f64>, Error> {
-        self.reset_data_read();
-        let num_bytes: usize = self.data.get_ref().len();
+    pub fn parse_f64s(&self) -> Result<Vec<f64>, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let num_bytes: usize = self.data.len();
         let num_doubles: usize = num_bytes / 8;
         let mut result: Vec<f64> = Vec::with_capacity(num_doubles);
         for _ in 0..num_doubles {
             let val: f64 = if self.ts.is_big_endian() {
-                self.data.read_f64::<BigEndian>()?
+                cursor.read_f64::<BigEndian>()?
             } else {
-                self.data.read_f64::<LittleEndian>()?
+                cursor.read_f64::<LittleEndian>()?
             };
             result.push(val);
         }
@@ -305,29 +297,29 @@ impl DicomElement {
 
     /// Parses the value for this element as a signed 16bit integer
     /// Associated VRs: SS
-    pub fn parse_i16(&mut self) -> Result<i16, Error> {
-        self.reset_data_read();
+    pub fn parse_i16(&self) -> Result<i16, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
         let result: i16 = if self.ts.is_big_endian() {
-            self.data.read_i16::<BigEndian>()?
+            cursor.read_i16::<BigEndian>()?
         } else {
-            self.data.read_i16::<LittleEndian>()?
+            cursor.read_i16::<LittleEndian>()?
         };
         Ok(result)
     }
 
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: OW
-    pub fn parse_i16s(&mut self) -> Result<Vec<i16>, Error> {
-        self.reset_data_read();
-        let num_bytes: usize = self.data.get_ref().len();
+    pub fn parse_i16s(&self) -> Result<Vec<i16>, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let num_bytes: usize = self.data.len();
         let num_words: usize = num_bytes / 4;
         let mut result: Vec<i16> = Vec::with_capacity(num_words);
         for _ in 0..num_words {
             let val: i16 = if self.ts.is_big_endian() {
-                self.data.read_i16::<BigEndian>()?
+                cursor.read_i16::<BigEndian>()?
             } else {
-                self.data.read_i16::<LittleEndian>()?
+                cursor.read_i16::<LittleEndian>()?
             };
             result.push(val);
         }
@@ -336,29 +328,29 @@ impl DicomElement {
 
     /// Parses the value for this element as a signed 32bit integer
     /// Associated VRs: SL
-    pub fn parse_i32(&mut self) -> Result<i32, Error> {
-        self.reset_data_read();
+    pub fn parse_i32(&self) -> Result<i32, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
         let result: i32 = if self.ts.is_big_endian() {
-            self.data.read_i32::<BigEndian>()?
+            cursor.read_i32::<BigEndian>()?
         } else {
-            self.data.read_i32::<LittleEndian>()?
+            cursor.read_i32::<LittleEndian>()?
         };
         Ok(result)
     }
 
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: OL
-    pub fn parse_i32s(&mut self) -> Result<Vec<i32>, Error> {
-        self.reset_data_read();
-        let num_bytes: usize = self.data.get_ref().len();
+    pub fn parse_i32s(&self) -> Result<Vec<i32>, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let num_bytes: usize = self.data.len();
         let num_longs: usize = num_bytes / 4;
         let mut result: Vec<i32> = Vec::with_capacity(num_longs);
         for _ in 0..num_longs {
             let val: i32 = if self.ts.is_big_endian() {
-                self.data.read_i32::<BigEndian>()?
+                cursor.read_i32::<BigEndian>()?
             } else {
-                self.data.read_i32::<LittleEndian>()?
+                cursor.read_i32::<LittleEndian>()?
             };
             result.push(val);
         }
@@ -367,24 +359,24 @@ impl DicomElement {
 
     /// Parses the value for this element as an unsigned 32bit integer
     /// Associated VRs: UL
-    pub fn parse_u32(&mut self) -> Result<u32, Error> {
-        self.reset_data_read();
+    pub fn parse_u32(&self) -> Result<u32, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
         let result: u32 = if self.ts.is_big_endian() {
-            self.data.read_u32::<BigEndian>()?
+            cursor.read_u32::<BigEndian>()?
         } else {
-            self.data.read_u32::<LittleEndian>()?
+            cursor.read_u32::<LittleEndian>()?
         };
         Ok(result)
     }
 
     /// Parses the value for this element as an unsigned 16bit integer
     /// Associated VRs: US
-    pub fn parse_u16(&mut self) -> Result<u16, Error> {
-        self.reset_data_read();
+    pub fn parse_u16(&self) -> Result<u16, Error> {
+        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
         let result: u16 = if self.ts.is_big_endian() {
-            self.data.read_u16::<BigEndian>()?
+            cursor.read_u16::<BigEndian>()?
         } else {
-            self.data.read_u16::<LittleEndian>()?
+            cursor.read_u16::<LittleEndian>()?
         };
         Ok(result)
     }
