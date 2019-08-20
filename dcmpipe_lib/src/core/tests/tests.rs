@@ -110,11 +110,11 @@ fn test_parse_known_dicom_files() {
 pub fn test_dicom_object() {
     let mut dicom_iter: Parser<File> = get_first_file_stream(TagStop::EndOfStream);
 
-    let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter).expect("Should be no probz");
-    let sop_class_uid: &mut DicomObject = dcmobj
+    let dcmobj: DicomObject = parse_stream(&mut dicom_iter).expect("Should be no probz");
+    let sop_class_uid: &DicomObject = dcmobj
         .get_object(SOP_CLASS_UID)
         .expect("Should have SOP Class UID");
-    if let Some(ref mut element) = sop_class_uid.as_element() {
+    if let Some(element) = sop_class_uid.as_element() {
         assert_eq!(
             element.parse_string().expect("get cs"),
             CT_IMAGE_STORAGE_UID

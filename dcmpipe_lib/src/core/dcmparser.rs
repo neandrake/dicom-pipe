@@ -345,7 +345,7 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
 
     /// Parses the value of the given element as the transfer syntax and sets the `ts` value on this
     /// iterator to affect the reading of further dicom elements.
-    fn parse_transfer_syntax(&mut self, element: &mut DicomElement) -> Result<(), Error> {
+    fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<(), Error> {
         let ts_uid: String = element.parse_string()?;
 
         self.ts = self
@@ -363,7 +363,7 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
 
     /// Parses the value of the given element as the specific character set and sets the `cs` value
     /// on this iterator to affect the parsing of further text-type element values.
-    fn parse_specific_character_set(&mut self, element: &mut DicomElement) -> Result<(), Error> {
+    fn parse_specific_character_set(&mut self, element: &DicomElement) -> Result<(), Error> {
         let new_cs: Option<String> = element
             .parse_strings()?
             .into_iter()
@@ -462,8 +462,7 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                         return Some(grouplength);
                     }
 
-                    let mut grouplength: DicomElement = grouplength.unwrap();
-
+                    let grouplength: DicomElement = grouplength.unwrap();
                     let grouplength_val: Result<u32, Error> = grouplength.parse_u32();
                     if let Err(e) = grouplength_val {
                         return Some(Err(e));
@@ -504,9 +503,9 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                         return Some(element);
                     }
 
-                    let mut element: DicomElement = element.unwrap();
+                    let element: DicomElement = element.unwrap();
                     if element.tag == tags::TRANSFER_SYNTAX_UID {
-                        let result: Result<(), Error> = self.parse_transfer_syntax(&mut element);
+                        let result: Result<(), Error> = self.parse_transfer_syntax(&element);
                         if let Err(e) = result {
                             return Some(Err(e));
                         }
@@ -561,10 +560,9 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                         return Some(element);
                     }
 
-                    let mut element: DicomElement = element.unwrap();
+                    let element: DicomElement = element.unwrap();
                     if element.tag == tags::SPECIFIC_CHARACTER_SET {
-                        let result: Result<(), Error> =
-                            self.parse_specific_character_set(&mut element);
+                        let result: Result<(), Error> = self.parse_specific_character_set(&element);
                         if let Err(e) = result {
                             return Some(Err(e));
                         }

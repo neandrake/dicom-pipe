@@ -38,7 +38,7 @@ impl LowMemApp {
         let mut prev_was_file_meta: bool = true;
 
         while let Some(elem) = dicom_iter.next() {
-            let mut elem: DicomElement = elem?;
+            let elem: DicomElement = elem?;
             if prev_was_file_meta && elem.tag > 0x0002_FFFF {
                 stdout.write_all(
                     format!(
@@ -50,7 +50,7 @@ impl LowMemApp {
                 prev_was_file_meta = false;
             }
 
-            let printed: Option<String> = render_element(&mut elem)?;
+            let printed: Option<String> = render_element(&elem)?;
 
             if let Some(printed) = printed {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
