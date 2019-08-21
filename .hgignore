@@ -8,3 +8,5 @@ fixtures
 
 
 .DS_Store
+.orig
+.rej
