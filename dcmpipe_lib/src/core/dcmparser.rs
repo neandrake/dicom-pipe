@@ -157,7 +157,7 @@ pub struct Parser<StreamType: ReadBytesExt> {
     /// set element.
     cs: CSRef,
 
-    /// The current sequence stack. Whenever an SQ element is parsed a new `DicomSequenceElement` is
+    /// The current sequence stack. Whenever an SQ element is parsed a new `SequenceElement` is
     /// appened to this stack. When the sequence ends (via byte position or
     /// `SequenceDelimitationItem`) then the last element is popped off. This also tracks the
     /// current `Item` within a sequence. Whenever an `Item` element is read the last element in
@@ -233,8 +233,36 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
     /// This assumes that just prior to calling this `self.read_tag()` was called
     /// and the result is passed as parameter here.
     fn read_dicom_element(&mut self, tag: u32, ts: TSRef) -> Result<DicomElement, Error> {
-        let vr: VRRef = self.read_vr(tag, ts)?;
+        // Part 5, Section 7.5
+        // There are three special SQ related Data Elements that are not ruled by the VR encoding
+        // rules conveyed by the Transfer Syntax. They shall be encoded as Implicit VR. These
+        // special Data Elements are Item (FFFE,E000), Item Delimitation Item (FFFE,E00D), and
+        // Sequence Delimitation Item (FFFE,E0DD). However, the Data Set within the Value Field of
+        // the Data Element Item (FFFE,E000) shall be encoded according to the rules conveyed by the
+        // Transfer Syntax.
+        let ts: TSRef = if tag == tags::SEQUENCE_DELIMITATION_ITEM
+            || tag == tags::ITEM_DELIMITATION_ITEM
+            || tag == tags::ITEM {
+            &ts::ImplicitVRLittleEndian
+        } else {
+            ts
+        };
+
+        let vr_ts: (VRRef, TSRef) = self.read_vr(tag, ts)?;
+        let mut vr: VRRef = vr_ts.0;
+        // If VR is explicitly UN but we can tell it's SQ then the inner elements are encoded as
+        // IVRLE -- but only the contents should be parsed as such, do not switch transfer syntax
+        // prior to reading in the value length.
         let vl: ValueLength = self.read_value_length(vr, ts)?;
+        let mut ts: TSRef = vr_ts.1;
+
+        // If the VR is UN and ValueLength is UndefinedLength then this should be interpreted as
+        // a private-tag SQ element.
+        if tag != tags::ITEM && vr == &vr::UN && vl == ValueLength::UndefinedLength {
+            vr = &vr::SQ;
+            ts = &ts::ImplicitVRLittleEndian;
+        }
+
         let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::ITEM {
             // Sequence and item elements should let the iterator handle parsing its contents
             // and not associate bytes to the element's value
@@ -253,7 +281,7 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
     /// the transfer syntax specified from the stream is used to determine if the VR
     /// should be read explicitly or implicitly determined from the dataset dictionary.
     /// If `force_explicit` is true then the VR is explicitly read from the stream.
-    fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<VRRef, Error> {
+    fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef), Error> {
         if ts.explicit_vr {
             let first_char: u8 = self.stream.read_u8()?;
             self.bytes_read += 1;
@@ -261,14 +289,7 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
             self.bytes_read += 1;
 
             let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
-            let vr: VRRef = match VR::from_code(code) {
-                Some(vr) => vr,
-                None => {
-                    &vr::UN
-                    // TODO: Log an error but still use UN?
-                    //Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
-                }
-            };
+            let mut vr: VRRef = VR::from_code(code).unwrap_or(&vr::UN);
 
             if vr.has_explicit_2byte_pad {
                 if ts.is_big_endian() {
@@ -279,21 +300,39 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
                 self.bytes_read += 2;
             }
 
-            Ok(vr)
+            // Part 5 Section 6.2.2 Note 2
+            // If at some point an application knows the actual VR for an Attribute of VR UN
+            // (e.g., has its own applicable data dictionary), it can assume that the Value Field of
+            // the Attribute is encoded in Little Endian byte ordering with implicit VR encoding,
+            // irrespective of the current Transfer Syntax.
+            let mut ts: TSRef = ts;
+            if vr == &vr::UN {
+                vr = self.lookup_vr(tag)?;
+                if vr != &vr::UN {
+                    ts = &ts::ImplicitVRLittleEndian;
+                }
+            }
+
+            Ok((vr, ts))
         } else {
-            self.tag_by_value
-                .and_then(|map| {
-                    map.get(&tag)
-                        .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
-                })
-                .or_else(|| Some(&vr::UN))
-                .ok_or_else(|| {
-                    Error::new(
-                        ErrorKind::InvalidData,
-                        format!("ImplicitVR TS but VR is unknown for tag: {}", tag),
-                    )
-                })
+            Ok((self.lookup_vr(tag)?, ts))
         }
+    }
+
+    /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present
+    fn lookup_vr(&self, tag: u32) -> Result<VRRef, Error> {
+        self.tag_by_value
+            .and_then(|map| {
+                map.get(&tag)
+                    .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
+            })
+            .or_else(|| Some(&vr::UN))
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("ImplicitVR TS but VR is unknown for tag: {}", tag),
+                )
+            })
     }
 
     /// Reads a Value Length attribute from the stream. If `force_explicit` is false then
@@ -521,10 +560,16 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                     return Some(Ok(element));
                 }
                 ParseState::Element => {
+                    // if we're in a sequence we need to use the sequence's transfer syntax
+                    let ts: TSRef = self.current_path
+                        .last()
+                        .map(SequenceElement::get_ts)
+                        .unwrap_or(self.ts);
+
                     let tag: u32 = if let Some(partial_tag) = self.partial_tag {
                         partial_tag
                     } else {
-                        let tag: Result<u32, Error> = self.read_tag(self.ts);
+                        let tag: Result<u32, Error> = self.read_tag(ts);
                         if let Err(e) = tag {
                             // only check EOF when reading beginning of elements as it would actually
                             // be expected in this scenario since the DICOM format provides no determination
@@ -555,7 +600,7 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                         }
                     }
 
-                    let element: DicomElementResult = self.read_dicom_element(tag, self.ts);
+                    let element: DicomElementResult = self.read_dicom_element(tag, ts);
                     if element.is_err() {
                         return Some(element);
                     }
@@ -575,6 +620,10 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                     // do this before checking against byte position
                     if element.tag == tags::SEQUENCE_DELIMITATION_ITEM {
                         self.current_path.pop();
+                    } else if element.tag == tags::ITEM_DELIMITATION_ITEM {
+                        if let Some(seq_elem) = self.current_path.last_mut() {
+                            seq_elem.decrement_item_num();
+                        }
                     }
 
                     // sequence may not have a delimiter and should end based on byte position
@@ -600,7 +649,7 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                                 None
                             };
                         self.current_path
-                            .push(SequenceElement::new(tag, seq_end_pos));
+                            .push(SequenceElement::new(tag, seq_end_pos, element.get_ts()));
                     }
 
                     return Some(Ok(element));

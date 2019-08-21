@@ -39,10 +39,19 @@ pub struct VR {
     /// the VR encoding.
     ///
     /// Part 5 Ch 7.1.2:
-    /// For VRs of OB, OD, OF, OL, OW, SQ, UC, UR, UT or UN the 16 bits
-    /// following the two byte VR Field are reserved for use by later
-    /// versions of the DICOM Standard. These reserved bytes shall be
-    /// set to 0000H and shall not be used or decoded.
+    /// For VRs of OB, OD, OF, OL, OV, OW, SQ and UN the 16 bits following the two byte VR Field are
+    /// reserved for use by later versions of the DICOM Standard. These reserved bytes shall be set
+    /// to 0000H and shall not be used or decoded. The Value Length Field is a 32-bit unsigned
+    /// integer. If the Value Field has an Explicit Length, then the Value Length Field shall
+    /// contain a value equal to the length (in bytes) of the Value Field. Otherwise, the Value
+    /// Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value
+    /// Field.
+    ///
+    /// For VRs of SV, UC, UR, UV and UT the 16 bits following the two byte VR Field are reserved
+    /// for use by later versions of the DICOM Standard. These reserved bytes shall be set to 0000H
+    /// and shall not be used or decoded. The Value Length Field is a 32-bit unsigned integer. The
+    /// Value Field is required to have an Explicit Length, that is the Value Length Field shall
+    /// contain a value equal to the length (in bytes) of the Value Field.
     pub has_explicit_2byte_pad: bool,
 
     pub is_character_string: bool,
@@ -95,7 +104,7 @@ impl fmt::Debug for VR {
 }
 
 impl VR {
-    pub fn from_code(code: u16) -> Option<&'static VR> {
+    pub fn from_code(code: u16) -> Option<VRRef> {
         match code {
             0x4145 => Some(&AE),
             0x4153 => Some(&AS),
@@ -123,11 +132,11 @@ impl VR {
             0x5354 => Some(&ST),
             0x5356 => Some(&SV),
             0x544D => Some(&TM),
-            0x5443 => Some(&UC),
+            0x5543 => Some(&UC),
             0x5549 => Some(&UI),
             0x554C => Some(&UL),
-            0x544E => Some(&UN),
-            0x5452 => Some(&UR),
+            0x554E => Some(&UN),
+            0x5552 => Some(&UR),
             0x5553 => Some(&US),
             0x5554 => Some(&UT),
             0x5556 => Some(&UV),
@@ -925,7 +934,7 @@ pub static SV: VR = VR {
     name: "Signed Very Long",
     code: 0x5356,
     padding: 0x0,
-    has_explicit_2byte_pad: false,
+    has_explicit_2byte_pad: true,
     is_character_string: false,
     decode_text_with_replaced_cs: false,
     allows_backslash_text_value: false,
@@ -1009,8 +1018,8 @@ pub static TM: VR = VR {
 /// 2^32 - 2 bytes maximum
 pub static UC: VR = VR {
     ident: "UC",
-    name: "Time",
-    code: 0x5443,
+    name: "Unlimited Characters",
+    code: 0x5543,
     padding: 0x20,
     has_explicit_2byte_pad: true,
     is_character_string: true,
@@ -1087,9 +1096,9 @@ pub static UL: VR = VR {
 pub static UN: VR = VR {
     ident: "UN",
     name: "Unknown",
-    code: 0x544E,
+    code: 0x554E,
     padding: 0x0,
-    has_explicit_2byte_pad: false,
+    has_explicit_2byte_pad: true,
     is_character_string: false,
     decode_text_with_replaced_cs: false,
     allows_backslash_text_value: false,
@@ -1124,7 +1133,7 @@ pub static UN: VR = VR {
 pub static UR: VR = VR {
     ident: "UR",
     name: "Universal Resource Identifier / Universal Resource Locator",
-    code: 0x5452,
+    code: 0x5552,
     padding: 0x20,
     has_explicit_2byte_pad: true,
     is_character_string: true,
@@ -1204,7 +1213,7 @@ pub static UV: VR = VR {
     name: "Unsigned Very Long",
     code: 0x5556,
     padding: 0x0,
-    has_explicit_2byte_pad: false,
+    has_explicit_2byte_pad: true,
     is_character_string: false,
     decode_text_with_replaced_cs: false,
     allows_backslash_text_value: false,
