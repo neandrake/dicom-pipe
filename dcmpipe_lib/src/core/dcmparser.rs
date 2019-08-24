@@ -7,7 +7,7 @@ use crate::defn::ts::TSRef;
 use crate::defn::vl::{self, ValueLength};
 use crate::defn::vr::{self, VRRef, VR};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
-use std::io::{Error, ErrorKind};
+use std::io::{Cursor, Error, ErrorKind};
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
@@ -20,6 +20,8 @@ pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
 
 /// The different parsing behaviors of the stream
 pub enum ParseState {
+    /// An initial state in which we're trying to detect if there is a preamble at all
+    DetectState,
     /// The File Preamble. May only be present on file media and possibly not present over network
     Preamble,
     /// The DICOM prefix. May be required for all media transfer.
@@ -74,7 +76,7 @@ impl<StreamType: ReadBytesExt> ParserBuilder<StreamType> {
             tagstop: self.tagstop.unwrap_or(TagStop::EndOfStream),
             tag_by_value: self.tag_by_value,
             ts_by_uid: self.ts_by_uid,
-            state: self.state.unwrap_or(ParseState::Preamble),
+            state: self.state.unwrap_or(ParseState::DetectState),
 
             bytes_read: 0,
             file_preamble: [0u8; FILE_PREAMBLE_LENGTH],
@@ -219,12 +221,35 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
             u32::from(self.stream.read_u16::<LittleEndian>()?) << 16
         };
         self.bytes_read += 2;
+
         let element_number: u32 = if ts.is_big_endian() {
             u32::from(self.stream.read_u16::<BigEndian>()?)
         } else {
             u32::from(self.stream.read_u16::<LittleEndian>()?)
         };
         self.bytes_read += 2;
+
+        let tag: u32 = group_number + element_number;
+        Ok(tag)
+    }
+
+    fn read_tag_from_stream(
+        &mut self,
+        stream: &mut Cursor<&[u8]>,
+        ts: TSRef,
+    ) -> Result<u32, Error> {
+        let group_number: u32 = if ts.is_big_endian() {
+            u32::from(stream.read_u16::<BigEndian>()?) << 16
+        } else {
+            u32::from(stream.read_u16::<LittleEndian>()?) << 16
+        };
+
+        let element_number: u32 = if ts.is_big_endian() {
+            u32::from(stream.read_u16::<BigEndian>()?)
+        } else {
+            u32::from(stream.read_u16::<LittleEndian>()?)
+        };
+
         let tag: u32 = group_number + element_number;
         Ok(tag)
     }
@@ -242,7 +267,8 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
         // Transfer Syntax.
         let ts: TSRef = if tag == tags::SEQUENCE_DELIMITATION_ITEM
             || tag == tags::ITEM_DELIMITATION_ITEM
-            || tag == tags::ITEM {
+            || tag == tags::ITEM
+        {
             &ts::ImplicitVRLittleEndian
         } else {
             ts
@@ -254,14 +280,16 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
         // IVRLE -- but only the contents should be parsed as such, do not switch transfer syntax
         // prior to reading in the value length.
         let vl: ValueLength = self.read_value_length(vr, ts)?;
-        let mut ts: TSRef = vr_ts.1;
 
-        // If the VR is UN and ValueLength is UndefinedLength then this should be interpreted as
+        // If the VR is not SQ and ValueLength is UndefinedLength then this should be interpreted as
         // a private-tag SQ element.
-        if tag != tags::ITEM && vr == &vr::UN && vl == ValueLength::UndefinedLength {
+        let ts: TSRef = if tag != tags::ITEM && vr != &vr::SQ && vl == ValueLength::UndefinedLength
+        {
             vr = &vr::SQ;
-            ts = &ts::ImplicitVRLittleEndian;
-        }
+            &ts::ImplicitVRLittleEndian
+        } else {
+            vr_ts.1
+        };
 
         let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::ITEM {
             // Sequence and item elements should let the iterator handle parsing its contents
@@ -411,15 +439,25 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
         // TODO: There are options for what to do if we can't support the character repertoire
         // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
 
-        if let Some(new_cs) = new_cs {
-            self.cs = charset::lookup_charset(&new_cs)?;
-            return Ok(());
+        match new_cs {
+            Some(cs) => {
+                self.cs = charset::lookup_charset(&cs).unwrap_or(charset::DEFAULT_CHARACTER_SET);
+            }
+            None => {
+                self.cs = charset::DEFAULT_CHARACTER_SET;
+            }
         }
+        Ok(())
+    }
 
-        Err(Error::new(
-            ErrorKind::InvalidData,
-            "Invalid SpecificCharacterSet".to_string(),
-        ))
+    fn finalize_preamble(&mut self, buf: &[u8]) -> Result<(), Error> {
+        self.file_preamble[..buf.len()].copy_from_slice(&buf);
+        let file_preamble_len: usize = self.file_preamble.len();
+        self.stream
+            .read_exact(&mut self.file_preamble[buf.len()..file_preamble_len])?;
+        self.bytes_read += self.file_preamble.len() as u64;
+        self.state = ParseState::Prefix;
+        Ok(())
     }
 }
 
@@ -438,6 +476,56 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
             }
 
             match self.state {
+                ParseState::DetectState => {
+                    // Read in enough bytes to determine if we're reading valid dicom.
+                    // Right now this is determined by reading a tag using the default transfer
+                    // syntax and verifying we know it's VR in the VR lookup table.
+                    let mut buf: [u8; 4] = [0; 4];
+                    if let Err(e) = self.stream.read_exact(&mut buf) {
+                        return Some(Err(e));
+                    }
+                    let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
+
+                    let tag_result: Result<u32, Error> =
+                        self.read_tag_from_stream(&mut cursor, &ts::ImplicitVRLittleEndian);
+                    if let Err(e) = tag_result {
+                        return Some(Err(e));
+                    }
+                    let tag: u32 = tag_result.unwrap();
+                    // quick check for common case of being zeroed-out data
+                    if tag == 0 {
+                        if let Err(e) = self.finalize_preamble(&buf) {
+                            return Some(Err(e));
+                        }
+                        continue;
+                    }
+
+                    // quick check if we're reading beginning of file meta, continue from there
+                    if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
+                        self.partial_tag = Some(tag);
+                        self.state = ParseState::GroupLength;
+                        continue;
+                    }
+
+                    let vr_result: Result<VRRef, Error> = self.lookup_vr(tag);
+                    if let Err(e) = vr_result {
+                        return Some(Err(e));
+                    }
+                    let vr: VRRef = vr_result.unwrap();
+
+                    // unknown tag and not a group-length tag then assume it's not dicom encoded
+                    if vr == &vr::UN && tag.trailing_zeros() < 16 {
+                        if let Err(e) = self.finalize_preamble(&buf) {
+                            return Some(Err(e));
+                        }
+                        continue;
+                    }
+
+                    // known tag that's not file meta, use default transfer syntax
+                    self.partial_tag = Some(tag);
+                    self.ts = &ts::ImplicitVRLittleEndian;
+                    self.state = ParseState::Element;
+                }
                 ParseState::Preamble => {
                     let result: Result<(), Error> = self.stream.read_exact(&mut self.file_preamble);
                     if let Err(e) = result {
@@ -561,7 +649,8 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                 }
                 ParseState::Element => {
                     // if we're in a sequence we need to use the sequence's transfer syntax
-                    let ts: TSRef = self.current_path
+                    let ts: TSRef = self
+                        .current_path
                         .last()
                         .map(SequenceElement::get_ts)
                         .unwrap_or(self.ts);
@@ -648,8 +737,11 @@ impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
                             } else {
                                 None
                             };
-                        self.current_path
-                            .push(SequenceElement::new(tag, seq_end_pos, element.get_ts()));
+                        self.current_path.push(SequenceElement::new(
+                            tag,
+                            seq_end_pos,
+                            element.get_ts(),
+                        ));
                     }
 
                     return Some(Ok(element));

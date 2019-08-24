@@ -29,7 +29,7 @@ static MAX_ITEMS_DISPLAYED: usize = 16;
 /// Names for private tags will render as `<PrivateTag>`
 fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     if element.tag.trailing_zeros() >= 16 {
-        // Group Length tags are deprecated, see note on Ch 5 Part 7.2
+        // Group Length tags are deprecated, see note on Part 5 Section 7.2
         return Ok(None);
     }
     if element.tag == tags::ItemDelimitationItem.tag
