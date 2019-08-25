@@ -11,6 +11,7 @@ use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
+use std::ops::AddAssign;
 
 pub struct CursiveApp {
     openpath: String,
@@ -146,21 +147,21 @@ impl CursiveApp {
                 .call_on_id(
                     "table",
                     move |table: &mut TableView<DicomElement, DicomElementColumn>| {
-                        render_element_tag(table.borrow_item(index).unwrap())
+                        let tag_info: String = render_element_tag(table.borrow_item(index).unwrap());
+                        let val_info: String = render_value(table.borrow_item(index).unwrap()).unwrap();
+                        let mut display: String = String::new();
+                        display.add_assign(tag_info.as_str());
+                        display.add_assign("\n");
+                        display.add_assign(val_info.as_str());
+                        display
                     },
                 )
                 .unwrap();
 
             siv.add_layer(
                 Dialog::around(TextView::new(value))
-                    .title(format!("Removing row # {}", row))
+                    .title(format!("Viewing row # {}", row))
                     .button("Close", move |s| {
-                        s.call_on_id(
-                            "table",
-                            |table: &mut TableView<DicomElement, DicomElementColumn>| {
-                                table.remove_item(index);
-                            },
-                        );
                         s.pop_layer();
                     }),
             );

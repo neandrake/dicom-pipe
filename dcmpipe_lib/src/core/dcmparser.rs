@@ -283,7 +283,9 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
 
         // If the VR is not SQ and ValueLength is UndefinedLength then this should be interpreted as
         // a private-tag SQ element.
-        let ts: TSRef = if tag != tags::ITEM && vr != &vr::SQ && vl == ValueLength::UndefinedLength
+        let ts: TSRef = if tag != tags::ITEM
+            && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OW)
+            && vl == ValueLength::UndefinedLength
         {
             vr = &vr::SQ;
             &ts::ImplicitVRLittleEndian
