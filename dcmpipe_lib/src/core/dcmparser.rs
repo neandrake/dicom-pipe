@@ -293,8 +293,8 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
             vr_ts.1
         };
 
-        let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::ITEM {
-            // Sequence and item elements should let the iterator handle parsing its contents
+        let bytes: Vec<u8> = if vr == &vr::SQ {
+            // Sequence elements should let the iterator handle parsing its contents
             // and not associate bytes to the element's value
             Vec::new()
         } else {
@@ -400,15 +400,15 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
     /// Reads the value field of the dicom element into a byte array
     fn read_value_field(&mut self, vl: ValueLength) -> Result<Vec<u8>, Error> {
         match vl {
+            // undefined length means that the contents of the element are other
+            // dicom elements to be parsed, so don't read data from the stream.
+            ValueLength::Explicit(0) | ValueLength::UndefinedLength => Ok(Vec::new()),
             ValueLength::Explicit(value_length) => {
                 let mut bytes: Vec<u8> = vec![0; value_length as usize];
                 self.stream.read_exact(bytes.as_mut_slice())?;
                 self.bytes_read += u64::from(value_length);
                 Ok(bytes)
             }
-            // Undefined length should only be possible on sequence or item elements which should
-            // not be calling this method to read all bytes
-            ValueLength::UndefinedLength => Ok(Vec::new()),
         }
     }
 
