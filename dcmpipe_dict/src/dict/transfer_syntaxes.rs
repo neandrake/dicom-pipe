@@ -55,7 +55,7 @@ pub static ExplicitVRBigEndian: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.50
 pub static JPEGBaselineProcess1: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGBaselineProcess1,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -66,7 +66,7 @@ pub static JPEGBaselineProcess1: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.51
 pub static JPEGExtendedProcess2_and_4: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGExtendedProcess2_and_4,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -77,7 +77,7 @@ pub static JPEGExtendedProcess2_and_4: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.52
 pub static JPEGExtendedProcess3_and_5: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGExtendedProcess3_and_5,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -88,7 +88,7 @@ pub static JPEGExtendedProcess3_and_5: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.53
 pub static JPEGSpectralSelectionNonHierarchicalProcess6_and_8: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGSpectralSelectionNonHierarchicalProcess6_and_8,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -99,7 +99,7 @@ pub static JPEGSpectralSelectionNonHierarchicalProcess6_and_8: TransferSyntax = 
 /// - **UID:** 1.2.840.10008.1.2.4.54
 pub static JPEGSpectralSelectionNonHierarchicalProcess7_and_9: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGSpectralSelectionNonHierarchicalProcess7_and_9,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -110,7 +110,7 @@ pub static JPEGSpectralSelectionNonHierarchicalProcess7_and_9: TransferSyntax = 
 /// - **UID:** 1.2.840.10008.1.2.4.55
 pub static JPEGFullProgressionNonHierarchicalProcess10_and_12: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGFullProgressionNonHierarchicalProcess10_and_12,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -121,7 +121,7 @@ pub static JPEGFullProgressionNonHierarchicalProcess10_and_12: TransferSyntax = 
 /// - **UID:** 1.2.840.10008.1.2.4.56
 pub static JPEGFullProgressionNonHierarchicalProcess11_and_13: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGFullProgressionNonHierarchicalProcess11_and_13,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -132,7 +132,7 @@ pub static JPEGFullProgressionNonHierarchicalProcess11_and_13: TransferSyntax = 
 /// - **UID:** 1.2.840.10008.1.2.4.57
 pub static JPEGLosslessNonHierarchicalProcess14: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGLosslessNonHierarchicalProcess14,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -143,7 +143,7 @@ pub static JPEGLosslessNonHierarchicalProcess14: TransferSyntax = TransferSyntax
 /// - **UID:** 1.2.840.10008.1.2.4.58
 pub static JPEGLosslessNonHierarchicalProcess15: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGLosslessNonHierarchicalProcess15,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -154,7 +154,7 @@ pub static JPEGLosslessNonHierarchicalProcess15: TransferSyntax = TransferSyntax
 /// - **UID:** 1.2.840.10008.1.2.4.59
 pub static JPEGExtendedHierarchicalProcess16_and_18: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGExtendedHierarchicalProcess16_and_18,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -165,7 +165,7 @@ pub static JPEGExtendedHierarchicalProcess16_and_18: TransferSyntax = TransferSy
 /// - **UID:** 1.2.840.10008.1.2.4.60
 pub static JPEGExtendedHierarchicalProcess17_and_19: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGExtendedHierarchicalProcess17_and_19,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -176,7 +176,7 @@ pub static JPEGExtendedHierarchicalProcess17_and_19: TransferSyntax = TransferSy
 /// - **UID:** 1.2.840.10008.1.2.4.61
 pub static JPEGSpectralSelectionHierarchicalProcess20_and_22: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGSpectralSelectionHierarchicalProcess20_and_22,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -187,7 +187,7 @@ pub static JPEGSpectralSelectionHierarchicalProcess20_and_22: TransferSyntax = T
 /// - **UID:** 1.2.840.10008.1.2.4.62
 pub static JPEGSpectralSelectionHierarchicalProcess21_and_23: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGSpectralSelectionHierarchicalProcess21_and_23,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -198,7 +198,7 @@ pub static JPEGSpectralSelectionHierarchicalProcess21_and_23: TransferSyntax = T
 /// - **UID:** 1.2.840.10008.1.2.4.63
 pub static JPEGFullProgressionHierarchicalProcess24_and_26: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGFullProgressionHierarchicalProcess24_and_26,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -209,7 +209,7 @@ pub static JPEGFullProgressionHierarchicalProcess24_and_26: TransferSyntax = Tra
 /// - **UID:** 1.2.840.10008.1.2.4.64
 pub static JPEGFullProgressionHierarchicalProcess25_and_27: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGFullProgressionHierarchicalProcess25_and_27,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -220,7 +220,7 @@ pub static JPEGFullProgressionHierarchicalProcess25_and_27: TransferSyntax = Tra
 /// - **UID:** 1.2.840.10008.1.2.4.65
 pub static JPEGLosslessHierarchicalProcess28: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGLosslessHierarchicalProcess28,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -231,7 +231,7 @@ pub static JPEGLosslessHierarchicalProcess28: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.66
 pub static JPEGLosslessHierarchicalProcess29: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGLosslessHierarchicalProcess29,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -242,7 +242,7 @@ pub static JPEGLosslessHierarchicalProcess29: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.70
 pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -253,7 +253,7 @@ pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValu
 /// - **UID:** 1.2.840.10008.1.2.4.80
 pub static JPEGLSLosslessImageCompression: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGLSLosslessImageCompression,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -264,7 +264,7 @@ pub static JPEGLSLosslessImageCompression: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.81
 pub static JPEGLSLossyNearLosslessImageCompression: TransferSyntax = TransferSyntax {
     uid: &uids::JPEGLSLossyNearLosslessImageCompression,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -275,7 +275,7 @@ pub static JPEGLSLossyNearLosslessImageCompression: TransferSyntax = TransferSyn
 /// - **UID:** 1.2.840.10008.1.2.4.90
 pub static JPEG2000ImageCompressionLosslessOnly: TransferSyntax = TransferSyntax {
     uid: &uids::JPEG2000ImageCompressionLosslessOnly,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -286,7 +286,7 @@ pub static JPEG2000ImageCompressionLosslessOnly: TransferSyntax = TransferSyntax
 /// - **UID:** 1.2.840.10008.1.2.4.91
 pub static JPEG2000ImageCompression: TransferSyntax = TransferSyntax {
     uid: &uids::JPEG2000ImageCompression,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -297,7 +297,7 @@ pub static JPEG2000ImageCompression: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.92
 pub static JPEG2000Part2MulticomponentImageCompressionLosslessOnly: TransferSyntax = TransferSyntax {
     uid: &uids::JPEG2000Part2MulticomponentImageCompressionLosslessOnly,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -308,7 +308,7 @@ pub static JPEG2000Part2MulticomponentImageCompressionLosslessOnly: TransferSynt
 /// - **UID:** 1.2.840.10008.1.2.4.93
 pub static JPEG2000Part2MulticomponentImageCompression: TransferSyntax = TransferSyntax {
     uid: &uids::JPEG2000Part2MulticomponentImageCompression,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -319,7 +319,7 @@ pub static JPEG2000Part2MulticomponentImageCompression: TransferSyntax = Transfe
 /// - **UID:** 1.2.840.10008.1.2.4.94
 pub static JPIPReferenced: TransferSyntax = TransferSyntax {
     uid: &uids::JPIPReferenced,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -330,7 +330,7 @@ pub static JPIPReferenced: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.95
 pub static JPIPReferencedDeflate: TransferSyntax = TransferSyntax {
     uid: &uids::JPIPReferencedDeflate,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: true,
     encapsulated: false,
@@ -341,7 +341,7 @@ pub static JPIPReferencedDeflate: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.100
 pub static MPEG2MainProfileMainLevel: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG2MainProfileMainLevel,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -352,7 +352,7 @@ pub static MPEG2MainProfileMainLevel: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.101
 pub static MPEG2MainProfileHighLevel: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG2MainProfileHighLevel,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -363,7 +363,7 @@ pub static MPEG2MainProfileHighLevel: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.102
 pub static MPEG4AVCH264HighProfileLevel41: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG4AVCH264HighProfileLevel41,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -374,7 +374,7 @@ pub static MPEG4AVCH264HighProfileLevel41: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.103
 pub static MPEG4AVCH264BDcompatibleHighProfileLevel41: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG4AVCH264BDcompatibleHighProfileLevel41,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -385,7 +385,7 @@ pub static MPEG4AVCH264BDcompatibleHighProfileLevel41: TransferSyntax = Transfer
 /// - **UID:** 1.2.840.10008.1.2.4.104
 pub static MPEG4AVCH264HighProfileLevel42For2DVideo: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG4AVCH264HighProfileLevel42For2DVideo,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -396,7 +396,7 @@ pub static MPEG4AVCH264HighProfileLevel42For2DVideo: TransferSyntax = TransferSy
 /// - **UID:** 1.2.840.10008.1.2.4.105
 pub static MPEG4AVCH264HighProfileLevel42For3DVideo: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG4AVCH264HighProfileLevel42For3DVideo,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -407,7 +407,7 @@ pub static MPEG4AVCH264HighProfileLevel42For3DVideo: TransferSyntax = TransferSy
 /// - **UID:** 1.2.840.10008.1.2.4.106
 pub static MPEG4AVCH264StereoHighProfileLevel42: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG4AVCH264StereoHighProfileLevel42,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -418,7 +418,7 @@ pub static MPEG4AVCH264StereoHighProfileLevel42: TransferSyntax = TransferSyntax
 /// - **UID:** 1.2.840.10008.1.2.4.107
 pub static HEVCH265MainProfileLevel51: TransferSyntax = TransferSyntax {
     uid: &uids::HEVCH265MainProfileLevel51,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -429,7 +429,7 @@ pub static HEVCH265MainProfileLevel51: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.4.108
 pub static HEVCH265Main10ProfileLevel51: TransferSyntax = TransferSyntax {
     uid: &uids::HEVCH265Main10ProfileLevel51,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -440,7 +440,7 @@ pub static HEVCH265Main10ProfileLevel51: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.5
 pub static RLELossless: TransferSyntax = TransferSyntax {
     uid: &uids::RLELossless,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -451,7 +451,7 @@ pub static RLELossless: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.6.1
 pub static RFC2557MIMEencapsulation: TransferSyntax = TransferSyntax {
     uid: &uids::RFC2557MIMEencapsulation,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,
@@ -462,7 +462,7 @@ pub static RFC2557MIMEencapsulation: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.6.2
 pub static XMLEncoding: TransferSyntax = TransferSyntax {
     uid: &uids::XMLEncoding,
-    explicit_vr: false,
+    explicit_vr: true,
     big_endian: false,
     deflated: false,
     encapsulated: false,

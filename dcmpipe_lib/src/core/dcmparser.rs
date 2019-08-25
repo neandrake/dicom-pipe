@@ -422,9 +422,7 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
             .and_then(|map| map.get::<str>(ts_uid.as_ref()))
             .cloned()
             .or_else(|| lookup::get_ts_by_uid(ts_uid.as_ref()))
-            // The majority of other defined transfer syntaxes
-            // all seem to encode elements using ImplicitVRLittleEndian
-            // but only differ in how PixelData is encoded.
+            // The default encoding
             .unwrap_or(&ts::ImplicitVRLittleEndian);
 
         Ok(())
