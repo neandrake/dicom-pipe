@@ -357,13 +357,11 @@ fn process_transfer_syntax(
     }
     .to_owned();
 
-    // This assumes if it doesn't state "implicit" or "explicit" then it would be encapsulated
-    // Due to this excerpt from the DICOM standard (Part 5 section 8.2):
-    // "Pixel data conveyed in the Pixel Data (7FE0,0010) may be sent either
-    // in a Native (uncompressed) Format or in an Encapsulated Format (e.g., compressed)
-    // defined outside the DICOM standard.""
-
-    let encapsulated_val: String = if var_name.contains("Encapsulate") {
+    let encapsulated_val: String = if var_name.contains("JPEG")
+        || var_name.contains("RLE")
+        || var_name.contains("MPEG")
+        || var_name.contains("HEVC")
+    {
         "true"
     } else {
         "false"

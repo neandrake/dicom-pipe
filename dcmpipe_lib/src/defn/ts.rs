@@ -10,13 +10,18 @@ pub type TSRef = &'static TransferSyntax;
 pub struct TransferSyntax {
     /// The UID of the Transfer Syntax
     pub uid: UIDRef,
-    /// If Native Encoding, whether this encodes with ExplicitVR or ImplicitVR
+    /// If Native Encoding, whether this encodes with ExplicitVR or ImplicitVR. The majority of
+    /// transfer syntaxes are explicit VR.
     pub explicit_vr: bool,
-    /// If Native Encoding, whether this encodes using BigEndian or LittleEndian
+    /// If Native Encoding, whether this encodes using BigEndian or LittleEndian. The majority of
+    /// transfer syntaxes are little endian.
     pub big_endian: bool,
-    /// -- unsure
+    /// A few transfer syntaxes are deflated which means all contents after the file meta segment
+    /// are compressed using RFC 1951, including the dicom encodings.
     pub deflated: bool,
-    /// Whether this is Native Encoding or Encapsulated/Compressed
+    /// Encapsulated transfer syntaxes (basically anything that isn't the handful of
+    /// implicit/explicit big/little endian), including all jpeg - the content of the PixelData
+    /// segment is encoded in a different format from the rest of the dicom elements.
     pub encapsulated: bool,
 }
 
