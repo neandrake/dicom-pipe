@@ -334,7 +334,7 @@ fn process_transfer_syntax(
     }
 
     let var_uid: String = format!("&uids::{}", var_name);
-    let explicit_vr_val: String = if var_name.contains("Explicit") {
+    let explicit_vr_val: String = if !var_name.contains("Implicit") {
         "true"
     } else {
         "false"
