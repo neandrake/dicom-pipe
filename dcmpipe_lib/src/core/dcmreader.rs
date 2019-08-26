@@ -2,10 +2,9 @@ use crate::core::dcmelement::DicomElement;
 use crate::core::dcmobject::DicomObject;
 use crate::core::dcmparser::Parser;
 use crate::defn::constants::tags;
-use byteorder::ReadBytesExt;
-use std::io::Error;
+use std::io::{Error, Read};
 
-pub fn parse_stream<StreamType: ReadBytesExt>(
+pub fn parse_stream<StreamType: Read>(
     parser: &mut Parser<StreamType>,
 ) -> Result<DicomObject, Error> {
     let mut root: DicomObject = DicomObject::new_root();
@@ -15,7 +14,7 @@ pub fn parse_stream<StreamType: ReadBytesExt>(
     Ok(root)
 }
 
-fn parse_stream_recurse<StreamType: ReadBytesExt>(
+fn parse_stream_recurse<StreamType: Read>(
     parser: &mut Parser<StreamType>,
     parent: &mut DicomObject,
 ) -> Option<Result<DicomElement, Error>> {
