@@ -8,8 +8,8 @@ use crate::core::dcmparser::{
 use crate::core::dcmreader::parse_stream;
 use crate::core::tagstop::TagStop;
 use crate::core::tests::mock::MockDicomStream;
-use byteorder::ReadBytesExt;
 use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
 
@@ -146,7 +146,7 @@ fn get_first_file_stream(tagstop: TagStop) -> Parser<File> {
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'
 fn is_standard_preamble<StreamType>(stream: &Parser<StreamType>) -> bool
 where
-    StreamType: ReadBytesExt,
+    StreamType: Read,
 {
     for i in 0..FILE_PREAMBLE_LENGTH {
         if stream.get_file_preamble()[i] != 0 {

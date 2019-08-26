@@ -1,4 +1,3 @@
-extern crate byteorder;
 extern crate encoding;
 extern crate phf;
 

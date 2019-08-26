@@ -6,8 +6,7 @@ use crate::defn::tag::{Tag, TagRef};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::{self, ValueLength};
 use crate::defn::vr::{self, VRRef, VR};
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
-use std::io::{Cursor, Error, ErrorKind};
+use std::io::{Cursor, Error, ErrorKind, Read};
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
@@ -36,7 +35,7 @@ pub enum ParseState {
     Element,
 }
 
-pub struct ParserBuilder<StreamType: ReadBytesExt> {
+pub struct ParserBuilder<StreamType: Read> {
     stream: StreamType,
     state: Option<ParseState>,
     tagstop: Option<TagStop>,
@@ -44,7 +43,7 @@ pub struct ParserBuilder<StreamType: ReadBytesExt> {
     ts_by_uid: Option<TsByUidLookup>,
 }
 
-impl<StreamType: ReadBytesExt> ParserBuilder<StreamType> {
+impl<StreamType: Read> ParserBuilder<StreamType> {
     pub fn new(stream: StreamType) -> ParserBuilder<StreamType> {
         ParserBuilder {
             stream,
@@ -93,7 +92,7 @@ impl<StreamType: ReadBytesExt> ParserBuilder<StreamType> {
 }
 
 /// Provides an iterator that parses through a dicom stream returning top-level elements
-pub struct Parser<StreamType: ReadBytesExt> {
+pub struct Parser<StreamType: Read> {
     /// The stream to parse dicom from.
     stream: StreamType,
 
@@ -168,7 +167,7 @@ pub struct Parser<StreamType: ReadBytesExt> {
     current_path: Vec<SequenceElement>,
 }
 
-impl<StreamType: ReadBytesExt> Parser<StreamType> {
+impl<StreamType: Read> Parser<StreamType> {
     pub fn bytes_read(&self) -> u64 {
         self.bytes_read
     }
@@ -215,19 +214,23 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
 
     /// Reads a tag attribute from the stream
     fn read_tag(&mut self, ts: TSRef) -> Result<u32, Error> {
-        let group_number: u32 = if ts.is_big_endian() {
-            u32::from(self.stream.read_u16::<BigEndian>()?) << 16
-        } else {
-            u32::from(self.stream.read_u16::<LittleEndian>()?) << 16
-        };
+        let mut buf: [u8; 2] = [0; 2];
+        self.stream.read_exact(&mut buf)?;
         self.bytes_read += 2;
 
-        let element_number: u32 = if ts.is_big_endian() {
-            u32::from(self.stream.read_u16::<BigEndian>()?)
+        let group_number: u32 = if ts.is_big_endian() {
+            u32::from(u16::from_be_bytes(buf)) << 16
         } else {
-            u32::from(self.stream.read_u16::<LittleEndian>()?)
+            u32::from(u16::from_le_bytes(buf)) << 16
         };
+
+        self.stream.read_exact(&mut buf)?;
         self.bytes_read += 2;
+        let element_number: u32 = if ts.is_big_endian() {
+            u32::from(u16::from_be_bytes(buf))
+        } else {
+            u32::from(u16::from_le_bytes(buf))
+        };
 
         let tag: u32 = group_number + element_number;
         Ok(tag)
@@ -238,16 +241,20 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
         stream: &mut Cursor<&[u8]>,
         ts: TSRef,
     ) -> Result<u32, Error> {
+        let mut buf: [u8; 2] = [0; 2];
+        stream.read_exact(&mut buf)?;
+
         let group_number: u32 = if ts.is_big_endian() {
-            u32::from(stream.read_u16::<BigEndian>()?) << 16
+            u32::from(u16::from_be_bytes(buf)) << 16
         } else {
-            u32::from(stream.read_u16::<LittleEndian>()?) << 16
+            u32::from(u16::from_le_bytes(buf)) << 16
         };
 
+        stream.read_exact(&mut buf)?;
         let element_number: u32 = if ts.is_big_endian() {
-            u32::from(stream.read_u16::<BigEndian>()?)
+            u32::from(u16::from_be_bytes(buf))
         } else {
-            u32::from(stream.read_u16::<LittleEndian>()?)
+            u32::from(u16::from_le_bytes(buf))
         };
 
         let tag: u32 = group_number + element_number;
@@ -313,20 +320,17 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
     /// If `force_explicit` is true then the VR is explicitly read from the stream.
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef), Error> {
         if ts.explicit_vr {
-            let first_char: u8 = self.stream.read_u8()?;
-            self.bytes_read += 1;
-            let second_char: u8 = self.stream.read_u8()?;
-            self.bytes_read += 1;
+            let mut buf: [u8; 2] = [0; 2];
+            self.stream.read_exact(&mut buf)?;
+            self.bytes_read += 2;
+            let first_char: u8 = buf[0];
+            let second_char: u8 = buf[1];
 
             let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
             let mut vr: VRRef = VR::from_code(code).unwrap_or(&vr::UN);
 
             if vr.has_explicit_2byte_pad {
-                if ts.is_big_endian() {
-                    self.stream.read_u16::<BigEndian>()?;
-                } else {
-                    self.stream.read_u16::<LittleEndian>()?;
-                }
+                self.stream.read_exact(&mut buf)?;
                 self.bytes_read += 2;
             }
 
@@ -370,29 +374,26 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
     /// otherwise it forces reading as explicit VR definition.
     fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
         let value_length: u32;
-        if ts.explicit_vr {
-            if vr.has_explicit_2byte_pad {
-                value_length = if ts.is_big_endian() {
-                    self.stream.read_u32::<BigEndian>()?
-                } else {
-                    self.stream.read_u32::<LittleEndian>()?
-                };
-                self.bytes_read += 4;
-            } else {
-                value_length = if ts.is_big_endian() {
-                    u32::from(self.stream.read_u16::<BigEndian>()?)
-                } else {
-                    u32::from(self.stream.read_u16::<LittleEndian>()?)
-                };
-                self.bytes_read += 2;
-            }
-        } else {
-            value_length = if ts.is_big_endian() {
-                self.stream.read_u32::<BigEndian>()?
-            } else {
-                self.stream.read_u32::<LittleEndian>()?
-            };
+        if !ts.explicit_vr || vr.has_explicit_2byte_pad {
+            let mut buf: [u8; 4] = [0; 4];
+            self.stream.read_exact(&mut buf)?;
             self.bytes_read += 4;
+
+            value_length = if ts.is_big_endian() {
+                u32::from_be_bytes(buf)
+            } else {
+                u32::from_le_bytes(buf)
+            };
+        } else {
+            let mut buf: [u8; 2] = [0; 2];
+            self.stream.read_exact(&mut buf)?;
+            self.bytes_read += 2;
+
+            value_length = if ts.is_big_endian() {
+                u32::from(u16::from_be_bytes(buf))
+            } else {
+                u32::from(u16::from_le_bytes(buf))
+            };
         }
         Ok(vl::from_value_length(value_length))
     }
@@ -463,7 +464,7 @@ impl<StreamType: ReadBytesExt> Parser<StreamType> {
 
 type DicomElementResult = Result<DicomElement, Error>;
 
-impl<StreamType: ReadBytesExt> Iterator for Parser<StreamType> {
+impl<StreamType: Read> Iterator for Parser<StreamType> {
     type Item = DicomElementResult;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
