@@ -19,31 +19,41 @@ pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
 
 /// The different parsing behaviors of the stream
 pub enum ParseState {
-    /// An initial state in which we're trying to detect if there is a preamble at all
+    /// An initial state in which we're trying to detect if there is a preamble/prefix
     DetectState,
-    /// The File Preamble. May only be present on file media and possibly not present over network
+    /// The File Preamble. This is not required for all dicom streams but is commonly present in
+    /// file media.
     Preamble,
-    /// The DICOM prefix. May be required for all media transfer.
+    /// The DICOM prefix. This is only present if Preamble is present.
     Prefix,
-    /// The first official dicom element to be parsed as `ExplicitVRLittleEndian`. The value of
-    /// this first element is the remaining bytes of the File Meta group.
+    /// The first element of a valid dicom stream which is from the File Meta group of tags which
+    /// are always encoded as `ExplicitVRLittleEndian`. The value of this first element is the
+    /// remaining bytes of the File Meta group.
     GroupLength,
-    /// These are elements that are always parsed using `ExplicitVRLittleEndian`
+    /// The first set of elements of a valid dicom stream which provide details on how the dicom
+    /// stream is encoded. These elements are always encoded using `ExplicitVRLittleEndian`.
     FileMeta,
-    /// These are the main dicom elements being parsed. They are parsed using the transfer
-    /// syntax specified in the File Meta group
+    /// The primary content of a dicom stream. They are parsed using the transfer syntax specified
+    /// in the File Meta group
     Element,
 }
 
+/// A builder for constructing `Parser` with common default states
 pub struct ParserBuilder<StreamType: Read> {
+    /// The stream to parse dicom from.
     stream: StreamType,
+    /// Initial parse state. Default is `ParseState::DetectState`.
     state: Option<ParseState>,
+    /// When to stop parsing the stream. Default is `TagStop::EndOfStream`.
     tagstop: Option<TagStop>,
+    /// Lookup of tags by tag number.
     tag_by_value: Option<TagByValueLookup>,
+    /// Lookup of transfer syntax by uid.
     ts_by_uid: Option<TsByUidLookup>,
 }
 
 impl<StreamType: Read> ParserBuilder<StreamType> {
+    /// Start a new default builder for the given stream.
     pub fn new(stream: StreamType) -> ParserBuilder<StreamType> {
         ParserBuilder {
             stream,
@@ -54,21 +64,25 @@ impl<StreamType: Read> ParserBuilder<StreamType> {
         }
     }
 
+    /// Sets the `TagStop` for when to stop parsing the stream.
     pub fn tagstop(mut self, tagstop: TagStop) -> Self {
         self.tagstop = Some(tagstop);
         self
     }
 
+    /// Sets the tag lookup map.
     pub fn tag_by_value(mut self, tag_by_value: TagByValueLookup) -> Self {
         self.tag_by_value = Some(tag_by_value);
         self
     }
 
+    /// Sets the transfer syntax lookup map.
     pub fn ts_by_uid(mut self, ts_by_uid: TsByUidLookup) -> Self {
         self.ts_by_uid = Some(ts_by_uid);
         self
     }
 
+    /// Constructs the parser from this builder.
     pub fn build(self) -> Parser<StreamType> {
         Parser {
             stream: self.stream,
@@ -96,13 +110,11 @@ pub struct Parser<StreamType: Read> {
     /// The stream to parse dicom from.
     stream: StreamType,
 
-    /// The current state of reading items from the stream, which represents the different types
-    /// of items that can be parsed from the stream.
+    /// The current state of reading elements from the stream.
     state: ParseState,
 
     /// The condition under which this iterator should stop parsing elements from the stream.
-    /// This allows for partially parsing through the stream instead of having to read the entire
-    /// thing.
+    /// This allows for partially parsing through the stream.
     tagstop: TagStop,
 
     /// Lookup map for identifying tags by their tag number. Needed for resolving implicit VRs.
@@ -111,19 +123,20 @@ pub struct Parser<StreamType: Read> {
     /// Lookup map for identifying transfer sytnax by their UID.
     ts_by_uid: Option<TsByUidLookup>,
 
-    /// Tracks the number of bytes read from the stream. Since we don't require that the stream
-    /// implement `Seek` we count bytes read from the stream in order to check relative positioning
-    /// which currently is used for determining whether we're still parsing File Meta elements vs.
-    /// switch to parsing regular dicom elements. This is also used for tracking when sequences
+    /// Tracks the number of bytes read from the stream. We don't require that the stream implement
+    /// `Seek` (network streams won't implement `Seek` without a buffer). Bytes read from the stream
+    /// are counted in order to track relative positioning for allocating elements with defined
+    /// value lengths. Currently used for determining if still parsing File Meta elements vs.
+    /// switching to parsing regular dicom elements. This is also used for tracking when sequences
     /// of explicit length begin/end.
     bytes_read: u64,
 
-    /// The file preamble read from the stream. This may only be present when parsing from files
-    /// and may need to be skipped when reading from network or elsewhere.
+    /// The file preamble read from the stream. Currently this doesn't differentiate between the
+    /// stream having a preamble of all zeros or not having a preamble at all.
     file_preamble: [u8; FILE_PREAMBLE_LENGTH],
 
-    /// The prefix of the stream. Not yet clear if this is always expected to be present depending
-    /// on which media format (file, network, etc.) the dicom object is being read from.
+    /// The prefix read from the stream. This should be a value of `"DICM"` but not all streams have
+    /// a prefix.
     dicom_prefix: [u8; DICOM_PREFIX_LENGTH],
 
     /// The number of bytes read just after having read the `FileMetaInformationGroupLength`. This
@@ -131,26 +144,24 @@ pub struct Parser<StreamType: Read> {
     /// DICOM elements, by checking `bytes_read` against `fmi_start + fmi_grouplength`.
     fmi_start: u64,
 
-    /// The value of the FileMetaInformationGroupLength tag, which is the number of bytes remaining
-    /// in the File Meta Information section until the non-meta section of the DICOM stream starts.
-    /// Only after the File Meta Information section does the transfer syntax and character encoding
-    /// take effect.
+    /// The value of the `FileMetaInformationGroupLength` tag, which is the number of bytes
+    /// remaining in the File Meta Information section until the non-meta section of the DICOM
+    /// stream starts. Only after the File Meta Information section does the transfer syntax and
+    /// character encoding take effect.
     fmi_grouplength: u32,
 
     /// This is the last element tag successfully read from the stream, regardless of whether
-    /// the element it's for successfully finished parsing.
+    /// the element it's for was successfully finished parsing.
     tag_last_read: u32,
 
-    /// This field represents an element tag being successfully read from the stream however the
-    /// remainder of the element did not finish parsing, either due to `TagStop` or errors reading
-    /// the stream. It is set after successfully parsing an element tag and unset when the reaminder
-    /// of the element is successfully parsed and returned by the iterator.
+    /// This is the element tag currently being read from the stream. It will be `Some` once the
+    /// element starts parsing and will be `None` after the element has completed parsing. Elements
+    /// may be only partially parsed either due to IO errors or `TagStop`.
     partial_tag: Option<u32>,
 
     /// The transfer syntax used for this stream. This defaults to `ExplicitVRLittleEndian` which is
-    /// the transfer syntax used for parsing File Meta section. This default is not relied upon being
-    /// set however as the iteration hardcodes the explicitness and endianness for those elements.
-    /// This will only be set after having successully parsed the transfer sytnax element.
+    /// the transfer syntax used for parsing File Meta section despite the default DICOM transfer
+    /// syntax being `ImplicitVRLittleEndian`.
     ts: TSRef,
 
     /// The specific character set used for this stream. This defaults to the dicom default which
@@ -192,11 +203,9 @@ impl<StreamType: Read> Parser<StreamType> {
         &self.dicom_prefix
     }
 
-    /// This needs to be checked multiple times during parsing of element
-    /// 1. Just before reading the next element will catch `TagStop::AfterTag`
-    /// and `TagStop::AfterBytePos`
-    /// 2. Just after reading the tag for the element about to be parsed
-    /// will catch `TagStop::BeforeTag` as well as `TagStop::AfterBytePos`
+    /// This needs to be checked multiple times during parsing of an element
+    /// 1. Before reading an element will catch `TagStop::AfterTag` and `TagStop::AfterBytePos`
+    /// 2. After reading the tag value will catch `TagStop::BeforeTag` and `TagStop::AfterBytePos`
     fn is_at_tag_stop(&self) -> Result<bool, Error> {
         let is_at_tag_stop: bool = match self.tagstop {
             TagStop::EndOfStream => false,
@@ -236,14 +245,15 @@ impl<StreamType: Read> Parser<StreamType> {
         Ok(tag)
     }
 
+    /// Reads a tag attribute from a given buffer instead of the parser's stream
     fn read_tag_from_stream(
         &mut self,
         stream: &mut Cursor<&[u8]>,
         ts: TSRef,
     ) -> Result<u32, Error> {
         let mut buf: [u8; 2] = [0; 2];
-        stream.read_exact(&mut buf)?;
 
+        stream.read_exact(&mut buf)?;
         let group_number: u32 = if ts.is_big_endian() {
             u32::from(u16::from_be_bytes(buf)) << 16
         } else {
@@ -261,9 +271,8 @@ impl<StreamType: Read> Parser<StreamType> {
         Ok(tag)
     }
 
-    /// Reads the remainder of the dicom element from the stream.
-    /// This assumes that just prior to calling this `self.read_tag()` was called
-    /// and the result is passed as parameter here.
+    /// Reads the remainder of the dicom element from the stream. This assumes `self.read_tag()` was
+    /// called just prior and its result passed as the tag parameter here.
     fn read_dicom_element(&mut self, tag: u32, ts: TSRef) -> Result<DicomElement, Error> {
         // Part 5, Section 7.5
         // There are three special SQ related Data Elements that are not ruled by the VR encoding
@@ -288,8 +297,8 @@ impl<StreamType: Read> Parser<StreamType> {
         // prior to reading in the value length.
         let vl: ValueLength = self.read_value_length(vr, ts)?;
 
-        // If the VR is not SQ and ValueLength is UndefinedLength then this should be interpreted as
-        // a private-tag SQ element.
+        // If the tag isn't Item and VR isn't SQ but ValueLength is Undefined then element should be
+        // considered a private-tag sequence whose contents are encoded as IVRLE.
         let ts: TSRef = if tag != tags::ITEM
             && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OW)
             && vl == ValueLength::UndefinedLength
@@ -314,10 +323,13 @@ impl<StreamType: Read> Parser<StreamType> {
         ))
     }
 
-    /// Reads a VR attribute from the stream. If `force_explicit` is false then
-    /// the transfer syntax specified from the stream is used to determine if the VR
-    /// should be read explicitly or implicitly determined from the dataset dictionary.
-    /// If `force_explicit` is true then the VR is explicitly read from the stream.
+    /// If the given transfer syntax has Explicit VR then this reads a VR attribute from the stream
+    /// using the given transfer syntax. This returns a tuple of `(VRRef, TSRef)` as if the VR is
+    /// written explicitly as `UN` but the tag dictionary being used for parsing knows the VR is
+    /// non-`UN` then the element value should be read with IVRLE.
+    ///
+    /// If the given transfer syntax is Implicit VR then this does not read from the stream but does
+    /// a lookup of the VR based on the tag dictionary used for parsing.
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef), Error> {
         if ts.explicit_vr {
             let mut buf: [u8; 2] = [0; 2];
@@ -355,23 +367,16 @@ impl<StreamType: Read> Parser<StreamType> {
 
     /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present
     fn lookup_vr(&self, tag: u32) -> Result<VRRef, Error> {
-        self.tag_by_value
+        Ok(self
+            .tag_by_value
             .and_then(|map| {
                 map.get(&tag)
                     .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
             })
-            .or_else(|| Some(&vr::UN))
-            .ok_or_else(|| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("ImplicitVR TS but VR is unknown for tag: {}", tag),
-                )
-            })
+            .unwrap_or(&vr::UN))
     }
 
-    /// Reads a Value Length attribute from the stream. If `force_explicit` is false then
-    /// the transfer syntax specified from the stream is used to determine how to read the attribute
-    /// otherwise it forces reading as explicit VR definition.
+    /// Reads a Value Length attribute from the stream using the given transfer syntax.
     fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
         let value_length: u32;
         if !ts.explicit_vr || vr.has_explicit_2byte_pad {
@@ -398,7 +403,9 @@ impl<StreamType: Read> Parser<StreamType> {
         Ok(vl::from_value_length(value_length))
     }
 
-    /// Reads the value field of the dicom element into a byte array
+    /// Reads the value field of the dicom element into a byte array. If the given `ValueLength` is
+    /// undefined then this returns an empty array as elements with undefined length should have its
+    /// contents parsed as dicom elements.
     fn read_value_field(&mut self, vl: ValueLength) -> Result<Vec<u8>, Error> {
         match vl {
             // undefined length means that the contents of the element are other
@@ -414,7 +421,8 @@ impl<StreamType: Read> Parser<StreamType> {
     }
 
     /// Parses the value of the given element as the transfer syntax and sets the `ts` value on this
-    /// iterator to affect the reading of further dicom elements.
+    /// iterator to affect the reading of further dicom elements. If the transfer syntax cannot be
+    /// resolved then this sets it to the default DICOM transfer syntax which is IVRLE.
     fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<(), Error> {
         let ts_uid: String = element.parse_string()?;
 
@@ -451,6 +459,9 @@ impl<StreamType: Read> Parser<StreamType> {
         Ok(())
     }
 
+    /// Used when detecting if the stream has a file preamble. In the event the parser detects that
+    /// there is a preamble then this takes the currently parsed bytes as input, copies them into
+    /// the preamble field and reads in the remainder of the preamble from the stream.
     fn finalize_preamble(&mut self, buf: &[u8]) -> Result<(), Error> {
         self.file_preamble[..buf.len()].copy_from_slice(&buf);
         let file_preamble_len: usize = self.file_preamble.len();
@@ -522,7 +533,7 @@ impl<StreamType: Read> Iterator for Parser<StreamType> {
                         continue;
                     }
 
-                    // known tag that's not file meta, use default transfer syntax
+                    // known tag that's not file meta, use DICOM default transfer syntax
                     self.partial_tag = Some(tag);
                     self.ts = &ts::ImplicitVRLittleEndian;
                     self.state = ParseState::Element;
