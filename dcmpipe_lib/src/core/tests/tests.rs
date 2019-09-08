@@ -8,6 +8,7 @@ use crate::core::dcmparser::{
 use crate::core::dcmreader::parse_stream;
 use crate::core::tagstop::TagStop;
 use crate::core::tests::mock::MockDicomStream;
+use crate::defn::vr;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -116,7 +117,7 @@ pub fn test_dicom_object() {
         .expect("Should have SOP Class UID");
     if let Some(element) = sop_class_uid.as_element() {
         assert_eq!(
-            element.parse_string().expect("get cs"),
+            element.parse_string_with_vr(&vr::UI).expect("get cs"),
             CT_IMAGE_STORAGE_UID
         )
     } else {
