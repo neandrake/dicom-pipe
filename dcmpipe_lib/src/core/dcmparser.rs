@@ -101,6 +101,7 @@ impl<StreamType: Read> ParserBuilder<StreamType> {
             ts: &ts::ExplicitVRLittleEndian,
             cs: DEFAULT_CHARACTER_SET,
             current_path: Vec::new(),
+            iterator_ended: false,
         }
     }
 }
@@ -176,6 +177,11 @@ pub struct Parser<StreamType: Read> {
     /// this list has its item count initialized/incremented. Every element parsed from the stream
     /// clones this stack.
     current_path: Vec<SequenceElement>,
+
+    /// When the `next()` returns an `Error` or `None` future calls to `next()` should not attempt
+    /// to read from the stream. This is used to track when the iterator should be considered fully
+    /// consumed in those cases and prevent further attempts at reading from the stream.
+    iterator_ended: bool,
 }
 
 impl<StreamType: Read> Parser<StreamType> {
@@ -378,28 +384,27 @@ impl<StreamType: Read> Parser<StreamType> {
 
     /// Reads a Value Length attribute from the stream using the given transfer syntax.
     fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
-        let value_length: u32;
-        if !ts.explicit_vr || vr.has_explicit_2byte_pad {
+        let value_length: u32 = if !ts.explicit_vr || vr.has_explicit_2byte_pad {
             let mut buf: [u8; 4] = [0; 4];
             self.stream.read_exact(&mut buf)?;
             self.bytes_read += 4;
 
-            value_length = if ts.is_big_endian() {
+            if ts.is_big_endian() {
                 u32::from_be_bytes(buf)
             } else {
                 u32::from_le_bytes(buf)
-            };
+            }
         } else {
             let mut buf: [u8; 2] = [0; 2];
             self.stream.read_exact(&mut buf)?;
             self.bytes_read += 2;
 
-            value_length = if ts.is_big_endian() {
+            if ts.is_big_endian() {
                 u32::from(u16::from_be_bytes(buf))
             } else {
                 u32::from(u16::from_le_bytes(buf))
-            };
-        }
+            }
+        };
         Ok(vl::from_value_length(value_length))
     }
 
@@ -459,6 +464,92 @@ impl<StreamType: Read> Parser<StreamType> {
         Ok(())
     }
 
+    /// Performs the primary iteration for the parser but the return type is consistent for error
+    /// handling and not iteration. This should be called once for each invocation of `next()`.
+    fn iterate(&mut self) -> Result<Option<DicomElement>, Error> {
+        // The earlier parse states will read non-elements from the stream and move to another
+        // state. A loop is used so once those succeed they continue the loop and move to next
+        // states which will eventually return a dicom element.
+        loop {
+            if self.is_at_tag_stop()? {
+                return Ok(None);
+            }
+
+            match self.state {
+                ParseState::DetectState => {
+                    self.iterate_detect_state()?;
+                    continue;
+                }
+                ParseState::Preamble => {
+                    self.iterate_preamble()?;
+                    continue;
+                }
+                ParseState::Prefix => {
+                    self.iterate_prefix()?;
+                    continue;
+                }
+                ParseState::GroupLength => match self.iterate_group_length()? {
+                    None => return Ok(None),
+                    Some(element) => return Ok(Some(element)),
+                },
+                ParseState::FileMeta => match self.iterate_file_meta()? {
+                    None => return Ok(None),
+                    Some(element) => return Ok(Some(element)),
+                },
+                ParseState::Element => match self.iterate_element() {
+                    Err(e) => {
+                        // only check EOF when reading beginning of elements as it would
+                        // actually be expected in this scenario since the DICOM format provides
+                        // no determination for end of the dicom object
+                        if e.kind() == ErrorKind::UnexpectedEof {
+                            return Ok(None);
+                        }
+                        return Err(e);
+                    }
+                    element_result => return element_result,
+                },
+            }
+        }
+    }
+
+    /// Performs the `ParserState::DetectState` iteration
+    fn iterate_detect_state(&mut self) -> Result<(), Error> {
+        // Read in enough bytes to determine if we're reading valid dicom.
+        // Right now this is determined by reading a tag using the default transfer
+        // syntax and verifying we know it's VR in the VR lookup table.
+        let mut buf: [u8; 4] = [0; 4];
+        self.stream.read_exact(&mut buf)?;
+        let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
+
+        let tag: u32 = self.read_tag_from_stream(&mut cursor, &ts::ImplicitVRLittleEndian)?;
+        // quick check for common case of being zeroed-out data
+        if tag == 0 {
+            self.finalize_preamble(&buf)?;
+            return Ok(());
+        }
+
+        // quick check if we're reading beginning of file meta, continue from there
+        if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
+            self.partial_tag = Some(tag);
+            self.state = ParseState::GroupLength;
+            return Ok(());
+        }
+
+        let vr: VRRef = self.lookup_vr(tag)?;
+
+        // unknown tag and not a group-length tag then assume it's not dicom encoded
+        if vr == &vr::UN && tag.trailing_zeros() < 16 {
+            self.finalize_preamble(&buf)?;
+            return Ok(());
+        }
+
+        // known tag that's not file meta, use DICOM default transfer syntax
+        self.partial_tag = Some(tag);
+        self.ts = &ts::ImplicitVRLittleEndian;
+        self.state = ParseState::Element;
+        Ok(())
+    }
+
     /// Used when detecting if the stream has a file preamble. In the event the parser detects that
     /// there is a preamble then this takes the currently parsed bytes as input, copies them into
     /// the preamble field and reads in the remainder of the preamble from the stream.
@@ -471,294 +562,192 @@ impl<StreamType: Read> Parser<StreamType> {
         self.state = ParseState::Prefix;
         Ok(())
     }
+
+    /// Performs the `ParserState::Preamble` iteration
+    fn iterate_preamble(&mut self) -> Result<(), Error> {
+        self.stream.read_exact(&mut self.file_preamble)?;
+        self.bytes_read += self.file_preamble.len() as u64;
+        self.state = ParseState::Prefix;
+        Ok(())
+    }
+
+    /// Performs the `ParserState::Prefix` iteration
+    fn iterate_prefix(&mut self) -> Result<(), Error> {
+        self.stream.read_exact(&mut self.dicom_prefix)?;
+        self.bytes_read += self.dicom_prefix.len() as u64;
+        for (n, prefix_item) in DICOM_PREFIX.iter().enumerate() {
+            if self.dicom_prefix[n] != *prefix_item {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix),
+                ));
+            }
+        }
+        self.state = ParseState::GroupLength;
+        Ok(())
+    }
+
+    /// Performs the `ParserState::GroupLength` iteration
+    fn iterate_group_length(&mut self) -> Result<Option<DicomElement>, Error> {
+        let tag: u32 = if let Some(partial_tag) = self.partial_tag {
+            partial_tag
+        } else {
+            let tag: u32 = self.read_tag(&ts::ExplicitVRLittleEndian)?;
+            self.partial_tag.replace(tag);
+            tag
+        };
+        self.tag_last_read = tag;
+
+        if self.is_at_tag_stop()? {
+            return Ok(None);
+        }
+
+        if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "Expected FileMetaInformationGroupLength but read: {:?}",
+                    Tag::format_tag_to_display(tag)
+                ),
+            ));
+        }
+
+        let grouplength: DicomElement =
+            self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian)?;
+        self.fmi_grouplength = grouplength.parse_u32()?;
+        self.fmi_start = self.bytes_read;
+        self.state = ParseState::FileMeta;
+        // reset partial_tag to None
+        self.partial_tag.take();
+
+        Ok(Some(grouplength))
+    }
+
+    /// Performs the `ParserState::FileMeta` iteration
+    fn iterate_file_meta(&mut self) -> Result<Option<DicomElement>, Error> {
+        let tag: u32 = if let Some(partial_tag) = self.partial_tag {
+            partial_tag
+        } else {
+            let tag: u32 = self.read_tag(&ts::ExplicitVRLittleEndian)?;
+            self.partial_tag.replace(tag);
+            tag
+        };
+        self.tag_last_read = tag;
+
+        if self.is_at_tag_stop()? {
+            return Ok(None);
+        }
+
+        let element: DicomElement = self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian)?;
+        if element.tag == tags::TRANSFER_SYNTAX_UID {
+            self.parse_transfer_syntax(&element)?;
+        }
+
+        if self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength) {
+            self.state = ParseState::Element;
+        }
+
+        // reset partial_tag to None
+        self.partial_tag.take();
+
+        Ok(Some(element))
+    }
+
+    /// Performs the `ParserState::Element` iteration
+    fn iterate_element(&mut self) -> Result<Option<DicomElement>, Error> {
+        // if we're in a sequence we need to use the sequence's transfer syntax
+        let ts: TSRef = self
+            .current_path
+            .last()
+            .map(SequenceElement::get_ts)
+            .unwrap_or(self.ts);
+
+        let tag: u32 = if let Some(partial_tag) = self.partial_tag {
+            partial_tag
+        } else {
+            let tag: u32 = self.read_tag(ts)?;
+            self.partial_tag.replace(tag);
+            tag
+        };
+        self.tag_last_read = tag;
+
+        if self.is_at_tag_stop()? {
+            return Ok(None);
+        }
+
+        // reading element clones the current path so update prior to reading element
+        if tag == tags::ITEM {
+            // get the sequence this item is for and increment its item number
+            if let Some(seq_elem) = self.current_path.last_mut() {
+                seq_elem.increment_item_number();
+            }
+        }
+
+        let element: DicomElement = self.read_dicom_element(tag, ts)?;
+        if element.tag == tags::SPECIFIC_CHARACTER_SET {
+            self.parse_specific_character_set(&element)?;
+        }
+
+        // reset partial_tag to None
+        self.partial_tag.take();
+
+        // check for exiting a sequence based on being sequence delimiter
+        // do this before checking against byte position
+        if element.tag == tags::SEQUENCE_DELIMITATION_ITEM {
+            self.current_path.pop();
+        } else if element.tag == tags::ITEM_DELIMITATION_ITEM {
+            if let Some(seq_elem) = self.current_path.last_mut() {
+                seq_elem.decrement_item_num();
+            }
+        }
+
+        // sequence may not have a delimiter and should end based on byte position
+        // multiple sequences may have been exited based off byte position
+        while let Some(seq_elem) = self.current_path.last() {
+            if let Some(seq_end_pos) = seq_elem.get_seq_end_pos() {
+                if self.bytes_read >= seq_end_pos {
+                    self.current_path.pop();
+                } else {
+                    break;
+                }
+            } else {
+                // undefined length, stop checking the sequence path
+                break;
+            }
+        }
+
+        if element.is_seq() {
+            let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.vl {
+                Some(self.bytes_read + u64::from(len))
+            } else {
+                None
+            };
+            self.current_path
+                .push(SequenceElement::new(tag, seq_end_pos, element.get_ts()));
+        }
+
+        Ok(Some(element))
+    }
 }
 
-type DicomElementResult = Result<DicomElement, Error>;
-
 impl<StreamType: Read> Iterator for Parser<StreamType> {
-    type Item = DicomElementResult;
+    type Item = Result<DicomElement, Error>;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
-        loop {
-            let at_tagstop: Result<bool, Error> = self.is_at_tag_stop();
-            if let Ok(true) = at_tagstop {
-                return None;
-            } else if let Err(e) = at_tagstop {
-                return Some(Err(e));
+        if self.iterator_ended {
+            return None;
+        }
+
+        match self.iterate() {
+            Err(e) => {
+                self.iterator_ended = true;
+                Some(Err(e))
             }
-
-            match self.state {
-                ParseState::DetectState => {
-                    // Read in enough bytes to determine if we're reading valid dicom.
-                    // Right now this is determined by reading a tag using the default transfer
-                    // syntax and verifying we know it's VR in the VR lookup table.
-                    let mut buf: [u8; 4] = [0; 4];
-                    if let Err(e) = self.stream.read_exact(&mut buf) {
-                        return Some(Err(e));
-                    }
-                    let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
-
-                    let tag_result: Result<u32, Error> =
-                        self.read_tag_from_stream(&mut cursor, &ts::ImplicitVRLittleEndian);
-                    if let Err(e) = tag_result {
-                        return Some(Err(e));
-                    }
-                    let tag: u32 = tag_result.unwrap();
-                    // quick check for common case of being zeroed-out data
-                    if tag == 0 {
-                        if let Err(e) = self.finalize_preamble(&buf) {
-                            return Some(Err(e));
-                        }
-                        continue;
-                    }
-
-                    // quick check if we're reading beginning of file meta, continue from there
-                    if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
-                        self.partial_tag = Some(tag);
-                        self.state = ParseState::GroupLength;
-                        continue;
-                    }
-
-                    let vr_result: Result<VRRef, Error> = self.lookup_vr(tag);
-                    if let Err(e) = vr_result {
-                        return Some(Err(e));
-                    }
-                    let vr: VRRef = vr_result.unwrap();
-
-                    // unknown tag and not a group-length tag then assume it's not dicom encoded
-                    if vr == &vr::UN && tag.trailing_zeros() < 16 {
-                        if let Err(e) = self.finalize_preamble(&buf) {
-                            return Some(Err(e));
-                        }
-                        continue;
-                    }
-
-                    // known tag that's not file meta, use DICOM default transfer syntax
-                    self.partial_tag = Some(tag);
-                    self.ts = &ts::ImplicitVRLittleEndian;
-                    self.state = ParseState::Element;
-                }
-                ParseState::Preamble => {
-                    let result: Result<(), Error> = self.stream.read_exact(&mut self.file_preamble);
-                    if let Err(e) = result {
-                        return Some(Err(e));
-                    }
-                    self.bytes_read += self.file_preamble.len() as u64;
-                    self.state = ParseState::Prefix;
-                }
-                ParseState::Prefix => {
-                    let result: Result<(), Error> = self.stream.read_exact(&mut self.dicom_prefix);
-                    if let Err(e) = result {
-                        return Some(Err(e));
-                    }
-                    self.bytes_read += self.dicom_prefix.len() as u64;
-
-                    for (n, prefix_item) in DICOM_PREFIX.iter().enumerate() {
-                        if self.dicom_prefix[n] != *prefix_item {
-                            return Some(Err(Error::new(
-                                ErrorKind::InvalidData,
-                                format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix),
-                            )));
-                        }
-                    }
-
-                    self.state = ParseState::GroupLength;
-                }
-                ParseState::GroupLength => {
-                    let tag: u32 = if let Some(partial_tag) = self.partial_tag {
-                        partial_tag
-                    } else {
-                        let tag: Result<u32, Error> = self.read_tag(&ts::ExplicitVRLittleEndian);
-                        if let Err(e) = tag {
-                            return Some(Err(e));
-                        }
-                        let tag: u32 = tag.unwrap();
-                        self.partial_tag.replace(tag);
-                        tag
-                    };
-                    self.tag_last_read = tag;
-
-                    let at_tagstop: Result<bool, Error> = self.is_at_tag_stop();
-                    if let Ok(true) = at_tagstop {
-                        return None;
-                    } else if let Err(e) = at_tagstop {
-                        return Some(Err(e));
-                    }
-
-                    if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
-                        return Some(Err(Error::new(
-                            ErrorKind::InvalidData,
-                            format!(
-                                "Expected FileMetaInformationGroupLength but read: {:?}",
-                                Tag::format_tag_to_display(tag)
-                            ),
-                        )));
-                    }
-
-                    let grouplength: DicomElementResult =
-                        self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian);
-                    if grouplength.is_err() {
-                        return Some(grouplength);
-                    }
-
-                    let grouplength: DicomElement = grouplength.unwrap();
-                    let grouplength_val: Result<u32, Error> = grouplength.parse_u32();
-                    if let Err(e) = grouplength_val {
-                        return Some(Err(e));
-                    }
-
-                    self.fmi_grouplength = grouplength_val.unwrap();
-                    self.fmi_start = self.bytes_read;
-                    self.state = ParseState::FileMeta;
-                    // reset partial_tag to None
-                    self.partial_tag.take();
-
-                    return Some(Ok(grouplength));
-                }
-                ParseState::FileMeta => {
-                    let tag: u32 = if let Some(partial_tag) = self.partial_tag {
-                        partial_tag
-                    } else {
-                        let tag: Result<u32, Error> = self.read_tag(&ts::ExplicitVRLittleEndian);
-                        if let Err(e) = tag {
-                            return Some(Err(e));
-                        }
-                        let tag: u32 = tag.unwrap();
-                        self.partial_tag.replace(tag);
-                        tag
-                    };
-                    self.tag_last_read = tag;
-
-                    let at_tagstop: Result<bool, Error> = self.is_at_tag_stop();
-                    if let Ok(true) = at_tagstop {
-                        return None;
-                    } else if let Err(e) = at_tagstop {
-                        return Some(Err(e));
-                    }
-
-                    let element: DicomElementResult =
-                        self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian);
-                    if element.is_err() {
-                        return Some(element);
-                    }
-
-                    let element: DicomElement = element.unwrap();
-                    if element.tag == tags::TRANSFER_SYNTAX_UID {
-                        let result: Result<(), Error> = self.parse_transfer_syntax(&element);
-                        if let Err(e) = result {
-                            return Some(Err(e));
-                        }
-                    }
-
-                    if self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength) {
-                        self.state = ParseState::Element;
-                    }
-
-                    // reset partial_tag to None
-                    self.partial_tag.take();
-
-                    return Some(Ok(element));
-                }
-                ParseState::Element => {
-                    // if we're in a sequence we need to use the sequence's transfer syntax
-                    let ts: TSRef = self
-                        .current_path
-                        .last()
-                        .map(SequenceElement::get_ts)
-                        .unwrap_or(self.ts);
-
-                    let tag: u32 = if let Some(partial_tag) = self.partial_tag {
-                        partial_tag
-                    } else {
-                        let tag: Result<u32, Error> = self.read_tag(ts);
-                        if let Err(e) = tag {
-                            // only check EOF when reading beginning of elements as it would actually
-                            // be expected in this scenario since the DICOM format provides no determination
-                            // for end of the dicom object
-                            if e.kind() == ErrorKind::UnexpectedEof {
-                                return None;
-                            }
-                            return Some(Err(e));
-                        }
-                        let tag: u32 = tag.unwrap();
-                        self.partial_tag.replace(tag);
-                        tag
-                    };
-                    self.tag_last_read = tag;
-
-                    let at_tagstop: Result<bool, Error> = self.is_at_tag_stop();
-                    if let Ok(true) = at_tagstop {
-                        return None;
-                    } else if let Err(e) = at_tagstop {
-                        return Some(Err(e));
-                    }
-
-                    // reading element clones the current path so update prior to reading element
-                    if tag == tags::ITEM {
-                        // get the sequence this item is for and increment its item number
-                        if let Some(seq_elem) = self.current_path.last_mut() {
-                            seq_elem.increment_item_number();
-                        }
-                    }
-
-                    let element: DicomElementResult = self.read_dicom_element(tag, ts);
-                    if element.is_err() {
-                        return Some(element);
-                    }
-
-                    let element: DicomElement = element.unwrap();
-                    if element.tag == tags::SPECIFIC_CHARACTER_SET {
-                        let result: Result<(), Error> = self.parse_specific_character_set(&element);
-                        if let Err(e) = result {
-                            return Some(Err(e));
-                        }
-                    }
-
-                    // reset partial_tag to None
-                    self.partial_tag.take();
-
-                    // check for exiting a sequence based on being sequence delimiter
-                    // do this before checking against byte position
-                    if element.tag == tags::SEQUENCE_DELIMITATION_ITEM {
-                        self.current_path.pop();
-                    } else if element.tag == tags::ITEM_DELIMITATION_ITEM {
-                        if let Some(seq_elem) = self.current_path.last_mut() {
-                            seq_elem.decrement_item_num();
-                        }
-                    }
-
-                    // sequence may not have a delimiter and should end based on byte position
-                    // multiple sequences may have been exited based off byte position
-                    while let Some(seq_elem) = self.current_path.last() {
-                        if let Some(seq_end_pos) = seq_elem.get_seq_end_pos() {
-                            if self.bytes_read >= seq_end_pos {
-                                self.current_path.pop();
-                            } else {
-                                break;
-                            }
-                        } else {
-                            // undefined length, stop checking the sequence path
-                            break;
-                        }
-                    }
-
-                    if element.is_seq() {
-                        let seq_end_pos: Option<u64> =
-                            if let ValueLength::Explicit(len) = element.vl {
-                                Some(self.bytes_read + u64::from(len))
-                            } else {
-                                None
-                            };
-                        self.current_path.push(SequenceElement::new(
-                            tag,
-                            seq_end_pos,
-                            element.get_ts(),
-                        ));
-                    }
-
-                    return Some(Ok(element));
-                }
+            Ok(None) => {
+                self.iterator_ended = true;
+                None
             }
+            Ok(Some(element)) => Some(Ok(element)),
         }
     }
 }
