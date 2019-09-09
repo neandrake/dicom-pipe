@@ -20,7 +20,6 @@ A set of crates for reading and writing DICOM.
 #### TODO
 
 Short-term goals
-- [ ] Refactor parsing to reduce the clutter of dealing with `Option<Result<DicomElement, Error>>`
 - [ ] Add tests for DICOM test datasets currently manually tested 
 - [ ] Change errors to be custom instead of `std::io::Error`
 - [ ] Add support for logging
