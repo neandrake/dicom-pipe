@@ -6,7 +6,6 @@ fixtures
 .idea/workspace.xml
 .idea/vcs.xml
 
-
 .DS_Store
 .orig
 .rej

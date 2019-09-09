@@ -6,6 +6,3 @@ pub mod dcmreader;
 pub mod dcmvalcache;
 pub mod tagpath;
 pub mod tagstop;
-
-#[cfg(test)]
-mod tests;

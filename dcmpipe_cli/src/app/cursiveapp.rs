@@ -90,11 +90,11 @@ impl CursiveApp {
         }
 
         let file: File = File::open(path)?;
-        let dicom_iter: Parser<File> = ParserBuilder::new(file).build();
+        let parser: Parser<File> = ParserBuilder::new(file).build();
 
         let mut total_name_size: usize = 0;
         let mut items: Vec<DicomElement> = Vec::new();
-        for elem in dicom_iter {
+        for elem in parser {
             let elem: DicomElement = elem?;
             if elem.get_sequence_path().is_empty() {
                 let name: String = if let Some(tag) = TAG_BY_VALUE.get(&elem.tag) {
