@@ -59,7 +59,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
             .map(|seq_elem: &SequenceElement| {
                 format!(
                     "{}[{}]",
-                    Tag::format_tag_to_path_display(seq_elem.get_seq_tag()),
+                    Tag::format_tag_to_display(seq_elem.get_seq_tag()),
                     seq_elem.get_item_number().unwrap_or(0xFFFF_FFFF)
                 )
             })
@@ -67,9 +67,10 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
             .join(".");
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
             format!(
-                "#{} - {}",
+                "#{} - {} [{:?}]",
                 last_seq_elem.get_item_number().unwrap_or(0xFFFF_FFFF),
-                path
+                path,
+                element.vl,
             )
         } else {
             String::new()
@@ -79,7 +80,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
             indentation = "",
             indent_width = indent_width,
             tag_name = tag_name,
-            item_desc = item_desc
+            item_desc = item_desc,
         )));
     }
 
@@ -100,13 +101,14 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     }
 
     Ok(Some(format!(
-        "{indentation:indent_width$}{tag_num} {vr} {tag_name}{tag_value}",
+        "{indentation:indent_width$}{tag_num} {vr} {tag_name} [{vl:?}]{tag_value}",
         indentation = "",
         indent_width = indent_width,
         tag_num = tag_num,
         vr = vr,
         tag_name = tag_name,
-        tag_value = tag_value
+        vl = element.vl,
+        tag_value = tag_value,
     )))
 }
 

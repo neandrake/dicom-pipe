@@ -17,6 +17,14 @@ pub type TagByValueLookup = &'static phf::Map<u32, TagRef>;
 
 pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
 
+/// If the tag isn't Item and VR isn't SQ but ValueLength is Undefined then element should be
+/// considered a private-tag sequence whose contents are encoded as IVRLE.
+pub fn should_parse_as_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
+    tag != tags::ITEM
+        && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OW)
+        && vl == ValueLength::UndefinedLength
+}
+
 /// The different parsing behaviors of the stream
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum ParseState {
@@ -302,25 +310,20 @@ impl<StreamType: Read> Parser<StreamType> {
         };
 
         let vr_ts: (VRRef, TSRef) = self.read_vr(tag, ts)?;
-        let mut vr: VRRef = vr_ts.0;
+        let vr: VRRef = vr_ts.0;
         // If VR is explicitly UN but we can tell it's SQ then the inner elements are encoded as
         // IVRLE -- but only the contents should be parsed as such, do not switch transfer syntax
         // prior to reading in the value length.
         let vl: ValueLength = self.read_value_length(vr, ts)?;
 
-        // If the tag isn't Item and VR isn't SQ but ValueLength is Undefined then element should be
-        // considered a private-tag sequence whose contents are encoded as IVRLE.
-        let ts: TSRef = if tag != tags::ITEM
-            && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OW)
-            && vl == ValueLength::UndefinedLength
-        {
-            vr = &vr::SQ;
+        let parse_as_seq: bool = should_parse_as_seq(tag, vr, vl);
+        let ts: TSRef = if parse_as_seq {
             &ts::ImplicitVRLittleEndian
         } else {
             vr_ts.1
         };
 
-        let bytes: Vec<u8> = if vr == &vr::SQ {
+        let bytes: Vec<u8> = if vr == &vr::SQ || parse_as_seq {
             // Sequence elements should let the iterator handle parsing its contents
             // and not associate bytes to the element's value
             Vec::new()
@@ -721,7 +724,7 @@ impl<StreamType: Read> Parser<StreamType> {
             }
         }
 
-        if element.is_seq() {
+        if element.is_seq_like() {
             let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.vl {
                 Some(self.bytes_read + u64::from(len))
             } else {
