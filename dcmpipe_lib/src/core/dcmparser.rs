@@ -323,8 +323,8 @@ impl<StreamType: Read> Parser<StreamType> {
             vr_ts.1
         };
 
-        let bytes: Vec<u8> = if vr == &vr::SQ || parse_as_seq {
-            // Sequence elements should let the iterator handle parsing its contents
+        let bytes: Vec<u8> = if vr == &vr::SQ || parse_as_seq || tag == tags::ITEM {
+            // Sequence and item elements should let the iterator handle parsing its contents
             // and not associate bytes to the element's value
             Vec::new()
         } else {

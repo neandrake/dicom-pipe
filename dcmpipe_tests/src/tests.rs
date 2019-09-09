@@ -2,20 +2,21 @@ use crate::mock::MockDicomStream;
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::file_meta_elements as fme;
 use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
+use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
+use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::DicomObject;
 use dcmpipe_lib::core::dcmparser::{
     ParseState, Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use dcmpipe_lib::core::dcmreader::parse_stream;
 use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::fs::File;
 use std::io::{Error, Read};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
-use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::defn::vl::ValueLength;
 
 #[test]
 fn test_good_preamble() {
@@ -142,9 +143,11 @@ pub fn test_dicom_object() -> Result<(), Error> {
 /// contents are `SequenceDelimitationItem` which ends the sequence.
 #[test]
 pub fn test_empty_seq_undefined_length() -> Result<(), Error> {
-    let dcmobj: DicomObject = parse_file("./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm")?;
+    let (_parser, dcmobj) =
+        parse_file("./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm")?;
 
-    let rss_obj: &DicomObject = dcmobj.get_object(tags::ReferencedStudySequence.tag)
+    let rss_obj: &DicomObject = dcmobj
+        .get_object(tags::ReferencedStudySequence.tag)
         .expect("Should be able to parse ReferencedStudySequence");
 
     let rss_elem: &DicomElement = rss_obj
@@ -162,7 +165,8 @@ pub fn test_empty_seq_undefined_length() -> Result<(), Error> {
         .expect("Should be able to get single child item");
 
     assert_eq!(*sdi_pair.0, tags::SequenceDelimitationItem.tag);
-    let sdi_elem: &DicomElement = sdi_pair.1
+    let sdi_elem: &DicomElement = sdi_pair
+        .1
         .as_element()
         .expect("Should be able to access as element");
     assert_eq!(sdi_elem.tag, tags::SequenceDelimitationItem.tag);
@@ -173,13 +177,15 @@ pub fn test_empty_seq_undefined_length() -> Result<(), Error> {
 /// Private tags with UN VR and UndefinedLength should be parsed as sequences
 #[test]
 pub fn test_private_tag_un_sq() -> Result<(), Error> {
-    let dcmobj: DicomObject = parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm")?;
+    let (_parser, dcmobj) = parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm")?;
+
     let private_un_seq_obj: &DicomObject = dcmobj
         .get_object(tags::SharedFunctionalGroupsSequence.tag)
         .expect("Fixture should have this this tag")
         .iter()
         .next()
-        .expect("This sequence should have 1 sequence item").1
+        .expect("This sequence should have 1 sequence item")
+        .1
         .get_object(0x2005_140E)
         .expect("This sequence should have private element as child");
 
@@ -191,13 +197,13 @@ pub fn test_private_tag_un_sq() -> Result<(), Error> {
     assert_eq!(private_un_seq_elem.vl, ValueLength::UndefinedLength);
     assert_eq!(private_un_seq_elem.is_seq_like(), true);
     assert_eq!(private_un_seq_elem.get_data().len(), 0);
-
     assert_eq!(private_un_seq_obj.get_object_count(), 1);
 
     let child_obj: &DicomObject = private_un_seq_obj
         .iter()
         .next()
-        .expect("Private sequence should have one item").1;
+        .expect("Private sequence should have one item")
+        .1;
 
     // The first item has 28 elements
     assert_eq!(child_obj.get_object_count(), 28);
@@ -210,6 +216,86 @@ pub fn test_private_tag_un_sq() -> Result<(), Error> {
 
     assert_eq!(sopuid.parse_string()?, uids::MRImageStorage.uid);
 
+    Ok(())
+}
+
+/// `SequenceDelimitationItem`, `Item`, and `ItemDelimitationItem` are always encoded as IVRLE
+/// despite what the transfer syntax is.
+#[test]
+pub fn test_seq_switch_to_ivrle() -> Result<(), Error> {
+    let (parser, dcmobj) =
+        parse_file("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
+
+    assert_eq!(parser.get_ts(), &ts::ExplicitVRBigEndian);
+
+    let sis_obj: &DicomObject = dcmobj
+        .get_object(tags::SourceImageSequence.tag)
+        .expect("Should have Source Image Sequence");
+
+    assert_eq!(sis_obj.get_object_count(), 1);
+
+    let sis_elem: &DicomElement = sis_obj
+        .as_element()
+        .expect("Should be able to get element for Source Image Sequence");
+
+    assert_eq!(sis_elem.get_ts(), &ts::ImplicitVRLittleEndian);
+
+    let item_obj: &DicomObject = sis_obj
+        .iter()
+        .next()
+        .expect("Should be able to get child object").1;
+
+    assert_eq!(item_obj.get_object_count(), 2);
+
+    let item_elem: &DicomElement = item_obj
+        .as_element()
+        .expect("Should be able to get child element");
+
+    assert_eq!(item_elem.tag, tags::Item.tag);
+    assert_eq!(item_elem.get_ts(), &ts::ImplicitVRLittleEndian);
+
+    for (_tag, inner_obj) in item_obj.iter() {
+        let elem: &DicomElement = inner_obj.as_element().expect("Get inner object element");
+        // This assertion seems wrong (should be EVRBE) based on Part 5, Section 7.5 --
+        // However, the Data Set within the Value Field of the Data Element Item (FFFE,E000) shall
+        // be encoded according to the rules conveyed by the Transfer Syntax.
+        assert_eq!(elem.get_ts(), &ts::ImplicitVRLittleEndian);
+    }
+
+    Ok(())
+}
+
+/// This file has no preamble or file meta - should parse as the DICOM default IVRLE
+#[test]
+pub fn test_missing_preamble() -> Result<(), Error> {
+    let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
+    let mut parser: Parser<File> = ParserBuilder::new(file)
+        .ts_by_uid(&TS_BY_UID)
+        .tag_by_value(&TAG_BY_VALUE)
+        .build();
+
+    let first_elem: DicomElement = parser
+        .next()
+        .expect("First element should be parsable")?;
+
+    // first tag is a group length tag
+    assert_eq!(first_elem.tag, 0x0008_0000);
+    // should immediately jump past preamble/prefix, group length, and file meta
+    assert_eq!(parser.get_parser_state(), ParseState::Element);
+    assert_eq!(parser.get_ts(), &ts::ImplicitVRLittleEndian);
+
+    // parser doesn't differentiate between no preamble/prefix vs. what's read
+    // so in this scenario both of these should be initialized to zeros
+    for i in 0..FILE_PREAMBLE_LENGTH {
+        assert_eq!(parser.get_file_preamble()[i], 0);
+    }
+    for i in 0..DICOM_PREFIX_LENGTH {
+        assert_eq!(parser.get_dicom_prefix()[i], 0);
+    }
+
+    // parse the rest of the stream into an object
+    let dcm_obj: DicomObject = parse_stream(&mut parser)?;
+    assert_eq!(dcm_obj.get_object_count(), 32);
     Ok(())
 }
 
@@ -234,14 +320,14 @@ pub fn test_parse_all_dicom_files_without_std_dict() -> Result<(), Error> {
 }
 
 /// Parses the given file into a `DicomObject`
-fn parse_file(path: &str) -> Result<DicomObject, Error> {
+fn parse_file(path: &str) -> Result<(Parser<File>, DicomObject), Error> {
     let file: File = File::open(path)?;
     let mut parser: Parser<File> = ParserBuilder::new(file)
         .tag_by_value(&TAG_BY_VALUE)
         .ts_by_uid(&TS_BY_UID)
         .build();
-
-    parse_stream(&mut parser)
+    let dcmobj: DicomObject = parse_stream(&mut parser)?;
+    Ok((parser, dcmobj))
 }
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
