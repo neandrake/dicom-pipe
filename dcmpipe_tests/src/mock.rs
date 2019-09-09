@@ -1,5 +1,5 @@
-use crate::core::dcmparser::{Parser, ParserBuilder};
-use crate::core::tagstop::TagStop;
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::core::tagstop::TagStop;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
 pub struct MockDicomStream {

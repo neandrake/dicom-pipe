@@ -11,7 +11,7 @@ use std::io::{Error, ErrorKind};
 /// For elements to track which sequence they are a part of. When an SQ element is parsed the parser
 /// adds a new `SequenceElement` to its current path which subsequent elements will clone for
 /// themselves. This allows elements to know how they exist within a dicom object.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SequenceElement {
     /// The SQ element tag.
     seq_tag: u32,

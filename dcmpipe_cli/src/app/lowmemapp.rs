@@ -26,7 +26,7 @@ impl LowMemApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: Parser<File> = ParserBuilder::new(file)
+        let mut parser: Parser<File> = ParserBuilder::new(file)
             .tag_by_value(&TAG_BY_VALUE)
             .ts_by_uid(&TS_BY_UID)
             .build();
@@ -36,18 +36,18 @@ impl LowMemApp {
         stdout.write_all(format!(
             "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
             path,
-            dicom_iter.get_ts().uid.ident).as_ref()
+            parser.get_ts().uid.ident).as_ref()
         )?;
 
         let mut prev_was_file_meta: bool = true;
 
-        while let Some(elem) = dicom_iter.next() {
+        while let Some(elem) = parser.next() {
             let elem: DicomElement = elem?;
             if prev_was_file_meta && elem.tag > 0x0002_FFFF {
                 stdout.write_all(
                     format!(
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
-                        dicom_iter.get_ts().uid.ident
+                        parser.get_ts().uid.ident
                     )
                     .as_ref(),
                 )?;
