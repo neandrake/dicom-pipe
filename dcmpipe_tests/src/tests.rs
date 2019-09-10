@@ -14,7 +14,7 @@ use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::fs::File;
-use std::io::{Error, Read};
+use std::io::{Error, Read, ErrorKind};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
@@ -74,13 +74,25 @@ fn test_failure_to_read_preamble() {
 }
 
 #[test]
-fn test_parser_state() -> Result<(), Error> {
+fn test_parser_state_with_std() -> Result<(), Error> {
+    test_parser_state(true)
+}
+
+#[test]
+fn test_parser_state_without_std() -> Result<(), Error> {
+    test_parser_state(false)
+}
+
+fn test_parser_state(with_std: bool) -> Result<(), Error> {
     let tagstop: u32 = tags::PixelData.tag;
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
-    let mut parser: Parser<File> = ParserBuilder::new(file)
-        .tagstop(TagStop::BeforeTag(tagstop))
-        .build();
+    let mut parser: ParserBuilder<File> =
+        ParserBuilder::new(file).tagstop(TagStop::BeforeTag(tagstop));
+    if with_std {
+        parser = parser.ts_by_uid(&TS_BY_UID).tag_by_value(&TAG_BY_VALUE);
+    }
+    let mut parser: Parser<File> = parser.build();
 
     assert_eq!(parser.get_parser_state(), ParseState::DetectState);
 
@@ -114,12 +126,24 @@ fn test_parser_state() -> Result<(), Error> {
 }
 
 #[test]
-pub fn test_dicom_object() -> Result<(), Error> {
+fn test_dicom_object_with_std() -> Result<(), Error> {
+    test_dicom_object(true)
+}
+
+#[test]
+fn test_dicom_object_without_std() -> Result<(), Error> {
+    test_dicom_object(false)
+}
+
+fn test_dicom_object(with_std: bool) -> Result<(), Error> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
-    let mut parser: Parser<File> = ParserBuilder::new(file)
-        .tagstop(TagStop::BeforeTag(tags::PixelData.tag))
-        .build();
+    let mut parser: ParserBuilder<File> =
+        ParserBuilder::new(file).tagstop(TagStop::BeforeTag(tags::PixelData.tag));
+    if with_std {
+        parser = parser.ts_by_uid(&TS_BY_UID).tag_by_value(&TAG_BY_VALUE);
+    }
+    let mut parser: Parser<File> = parser.build();
 
     let dcmobj: DicomObject = parse_stream(&mut parser)?;
     let sop_class_uid: &DicomObject = dcmobj
@@ -138,13 +162,24 @@ pub fn test_dicom_object() -> Result<(), Error> {
     Ok(())
 }
 
+#[test]
+fn test_empty_seq_undefined_length_with_std() -> Result<(), Error> {
+    test_empty_seq_undefined_length(true)
+}
+
+#[test]
+fn test_empty_seq_undefined_length_without_std() -> Result<(), Error> {
+    test_empty_seq_undefined_length(false)
+}
+
 /// In this file the `ReferencedStudySequence` and `ReferencedPatientSequence` tags are both `SQ`
 /// elements defined with `UndefinedLength` and contain no data - the first element they have as
 /// contents are `SequenceDelimitationItem` which ends the sequence.
-#[test]
-pub fn test_empty_seq_undefined_length() -> Result<(), Error> {
-    let (_parser, dcmobj) =
-        parse_file("./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm")?;
+fn test_empty_seq_undefined_length(with_std: bool) -> Result<(), Error> {
+    let (_parser, dcmobj) = parse_file(
+        "./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm",
+        with_std,
+    )?;
 
     let rss_obj: &DicomObject = dcmobj
         .get_object(tags::ReferencedStudySequence.tag)
@@ -174,10 +209,21 @@ pub fn test_empty_seq_undefined_length() -> Result<(), Error> {
     Ok(())
 }
 
-/// Private tags with UN VR and UndefinedLength should be parsed as sequences
 #[test]
-pub fn test_private_tag_un_sq() -> Result<(), Error> {
-    let (_parser, dcmobj) = parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm")?;
+fn test_private_tag_un_sq_with_std() -> Result<(), Error> {
+    test_private_tag_un_sq(true)
+}
+
+#[test]
+fn test_private_tag_un_sq_without_std() -> Result<(), Error> {
+    test_private_tag_un_sq(false)
+}
+
+/// Private tags with UN VR and UndefinedLength should be parsed as sequences. This file uses tags
+/// which are not known to the dictionaries we're parsing with.
+fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
+    let (_parser, dcmobj) =
+        parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm", with_std)?;
 
     let private_un_seq_obj: &DicomObject = dcmobj
         .get_object(tags::SharedFunctionalGroupsSequence.tag)
@@ -219,12 +265,23 @@ pub fn test_private_tag_un_sq() -> Result<(), Error> {
     Ok(())
 }
 
+#[test]
+fn test_seq_switch_to_ivrle_with_std() -> Result<(), Error> {
+    test_seq_switch_to_ivrle(true)
+}
+
+#[test]
+fn test_seq_switch_to_ivrle_without_std() -> Result<(), Error> {
+    test_seq_switch_to_ivrle(false)
+}
+
 /// `SequenceDelimitationItem`, `Item`, and `ItemDelimitationItem` are always encoded as IVRLE
 /// despite what the transfer syntax is.
-#[test]
-pub fn test_seq_switch_to_ivrle() -> Result<(), Error> {
-    let (parser, dcmobj) =
-        parse_file("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
+fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
+    let (parser, dcmobj) = parse_file(
+        "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
+        with_std,
+    )?;
 
     assert_eq!(parser.get_ts(), &ts::ExplicitVRBigEndian);
 
@@ -243,7 +300,8 @@ pub fn test_seq_switch_to_ivrle() -> Result<(), Error> {
     let item_obj: &DicomObject = sis_obj
         .iter()
         .next()
-        .expect("Should be able to get child object").1;
+        .expect("Should be able to get child object")
+        .1;
 
     assert_eq!(item_obj.get_object_count(), 2);
 
@@ -265,18 +323,26 @@ pub fn test_seq_switch_to_ivrle() -> Result<(), Error> {
     Ok(())
 }
 
-/// This file has no preamble or file meta - should parse as the DICOM default IVRLE
 #[test]
-pub fn test_missing_preamble() -> Result<(), Error> {
-    let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
-    let mut parser: Parser<File> = ParserBuilder::new(file)
-        .ts_by_uid(&TS_BY_UID)
-        .tag_by_value(&TAG_BY_VALUE)
-        .build();
+fn test_missing_preamble_with_std() -> Result<(), Error> {
+    test_missing_preamble(true)
+}
 
-    let first_elem: DicomElement = parser
-        .next()
-        .expect("First element should be parsable")?;
+#[test]
+fn test_missing_preamble_without_std() -> Result<(), Error> {
+    test_missing_preamble(false)
+}
+
+/// This file has no preamble or file meta - should parse as the DICOM default IVRLE
+fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
+    let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
+    let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
+    if with_std {
+        parser = parser.ts_by_uid(&TS_BY_UID).tag_by_value(&TAG_BY_VALUE);
+    }
+    let mut parser: Parser<File> = parser.build();
+
+    let first_elem: DicomElement = parser.next().expect("First element should be parsable")?;
 
     // first tag is a group length tag
     assert_eq!(first_elem.tag, 0x0008_0000);
@@ -300,8 +366,91 @@ pub fn test_missing_preamble() -> Result<(), Error> {
 }
 
 #[test]
+fn test_undefined_charset_with_std() -> Result<(), Error> {
+    test_undefined_charset(true)
+}
+
+#[test]
+fn test_undefined_charset_without_std() -> Result<(), Error> {
+    test_undefined_charset(false)
+}
+
+/// This file has no Specific Character Set defined and tests the behavior of parsing string values.
+fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
+    let (_parser, dcmobj) = parse_file(
+        "./fixtures/gdcm/gdcmConformanceTests/UndefinedValueLengthIllegalNonEncapsulatedTS.dcm",
+        with_std,
+    )?;
+
+    let scs_elem: &DicomElement = dcmobj
+        .get_object(tags::SpecificCharacterSet.tag)
+        .expect("Should have Specific Character Set")
+        .as_element()
+        .expect("Should get SCS as element");
+    assert!(scs_elem.is_empty());
+
+    let pat_name: &DicomElement = dcmobj
+        .get_object(tags::PatientsName.tag)
+        .expect("Should have Patient Name")
+        .as_element()
+        .expect("Should get PN as element");
+    let pn: String = pat_name.parse_string()?;
+    assert_eq!(pn, "6063^Anon17216");
+
+    let pat_com: &DicomElement = dcmobj
+        .get_object(tags::PatientComments.tag)
+        .expect("Should have Patient Comments")
+        .as_element()
+        .expect("Should get Patient Comments as element");
+
+    let pc: String = pat_com.parse_string()?;
+    let pc_expected: String = String::from_utf8(vec![0,0,0,0,0,0,0,0,0,0,0,0])
+        .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+    assert_eq!(pc, pc_expected);
+
+    Ok(())
+}
+
+#[test]
+fn test_rle_with_std() -> Result<(), Error> {
+    test_rle(true)
+}
+
+#[test]
+fn test_rle_without_std() -> Result<(), Error> {
+    test_rle(false)
+}
+
+/// This file is RLE encoded. Eventually test the data can be decompressed properly.
+fn test_rle(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmobj) = parse_file(
+        "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_RLE_FRAGS.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_deflated_evrle_with_std() -> Result<(), Error> {
+    test_deflated_evrle(true)
+}
+
+#[test]
+fn test_deflated_evrle_without_std() -> Result<(), Error> {
+    test_deflated_evrle(false)
+}
+
+fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmobj) =
+        parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
 #[ignore]
-pub fn test_parse_all_dicom_files_with_std_dict() -> Result<(), Error> {
+fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
     let errors: usize = parse_all_dicom_files(true)?;
     // currently 12 files fail to parse -- when testing for regressions flip the comment
     //assert_eq!(errors, 12);
@@ -311,7 +460,7 @@ pub fn test_parse_all_dicom_files_with_std_dict() -> Result<(), Error> {
 
 #[test]
 #[ignore]
-pub fn test_parse_all_dicom_files_without_std_dict() -> Result<(), Error> {
+fn test_parse_all_dicom_files_without_std() -> Result<(), Error> {
     let errors: usize = parse_all_dicom_files(false)?;
     // currently 14 files fail to parse -- when testing for regressions flip the comment
     //assert_eq!(errors, 14);
@@ -320,21 +469,22 @@ pub fn test_parse_all_dicom_files_without_std_dict() -> Result<(), Error> {
 }
 
 /// Parses the given file into a `DicomObject`
-fn parse_file(path: &str) -> Result<(Parser<File>, DicomObject), Error> {
+fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomObject), Error> {
     let file: File = File::open(path)?;
-    let mut parser: Parser<File> = ParserBuilder::new(file)
-        .tag_by_value(&TAG_BY_VALUE)
-        .ts_by_uid(&TS_BY_UID)
-        .build();
+    let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
+    if with_std {
+        parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
+    }
+    let mut parser: Parser<File> = parser.build();
     let dcmobj: DicomObject = parse_stream(&mut parser)?;
     Ok((parser, dcmobj))
 }
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
 /// whether the standard dicom dictionary should be reigstered with the parser.
-fn parse_all_dicom_files(use_std_dict: bool) -> Result<usize, Error> {
+fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
     let mut errors: usize = 0;
-    for mut pair in get_all_dicom_file_parsers(use_std_dict)? {
+    for mut pair in get_all_dicom_file_parsers(with_std)? {
         while let Some(element) = pair.1.next() {
             if let Err(e) = element {
                 errors += 1;
@@ -352,7 +502,7 @@ fn parse_all_dicom_files(use_std_dict: bool) -> Result<usize, Error> {
 /// Creates parsers for every dicom file in the `fixutres` folder. The `use_std_dict` argument
 /// specifies whether the standard dicom dictionary should be registered with the parser.
 /// See the `readme.md` in this project for information on obtaining test fixtures.
-fn get_all_dicom_file_parsers(use_std_dict: bool) -> Result<Vec<(PathBuf, Parser<File>)>, Error> {
+fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser<File>)>, Error> {
     let fixtures_path: &Path = Path::new("./fixtures");
     assert!(
         fixtures_path.is_dir(),
@@ -379,7 +529,7 @@ fn get_all_dicom_file_parsers(use_std_dict: bool) -> Result<Vec<(PathBuf, Parser
         let file: File = File::open(path)?;
         if file.metadata()?.is_file() {
             let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
-            if use_std_dict {
+            if with_std {
                 parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
             }
 
