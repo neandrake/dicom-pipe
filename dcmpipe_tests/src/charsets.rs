@@ -56,7 +56,7 @@ fn test_scs_h32() -> Result<(), Error> {
     test_scs_file(true,
                   "./fixtures/dclunie/charsettests/SCSH32",
                   all::ISO_2022_JP,
-                  "ISO 2022 IR 87",
+                  "ISO 2022 IR 13",
                   "")
 }
 
@@ -116,13 +116,20 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
         .expect("Should have SCS")
         .as_element();
 
-    assert_eq!(scs_elem.parse_string()?, scs);
+    // value can be multiple and sometimes contains empties -- match logic from the parser
+    let scs_val: String = scs_elem.parse_strings()?
+        .into_iter()
+        .filter(|cs_entry: &String| !cs_entry.is_empty())
+        .nth(0)
+        .expect("Should have at least one value for SCS");
+    assert_eq!(scs_val, scs);
 
     let pn_elem: &DicomElement = dcmroot.get_child(tags::PatientsName.tag)
         .expect("Should have PN")
         .as_element();
 
-    assert_eq!(pn_elem.parse_string()?, pn);
+    let pn_val: String = pn_elem.parse_string()?;
+    assert_eq!(pn_val, pn);
 
     Ok(())
 }
