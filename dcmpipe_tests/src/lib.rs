@@ -73,7 +73,7 @@ pub fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser
             .expect("Should be able to stringify filename");
 
         // Only attempt to parse .DCM files or files without any extension
-        if (!filename.ends_with(".dcm") && filename.contains(".")) || filename.eq("README") {
+        if (!filename.ends_with(".dcm") && filename.contains('.')) || filename.eq("README") {
             continue;
         }
 
@@ -100,8 +100,8 @@ pub fn is_standard_dcm_file<StreamType>(parser: &Parser<StreamType>) -> bool
 {
     match parser.get_file_preamble() {
         Some(file_preamble) => {
-            for i in 0..FILE_PREAMBLE_LENGTH {
-                if file_preamble[i] != 0 {
+            for b in file_preamble.iter().take(FILE_PREAMBLE_LENGTH) {
+                if *b != 0 {
                     eprintln!("BAD PREAMBLE??");
                     return false;
                 }
