@@ -492,7 +492,7 @@ fn test_no_preamble_start_with_0005(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-#[ignore]
+//#[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
     let errors: usize = parse_all_dicom_files(true)?;
     // currently 12 files fail to parse -- when testing for regressions flip the comment
@@ -502,7 +502,7 @@ fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
 }
 
 #[test]
-#[ignore]
+//#[ignore]
 fn test_parse_all_dicom_files_without_std() -> Result<(), Error> {
     let errors: usize = parse_all_dicom_files(false)?;
     // currently 14 files fail to parse -- when testing for regressions flip the comment

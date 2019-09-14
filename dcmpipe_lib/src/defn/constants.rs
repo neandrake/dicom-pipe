@@ -2,7 +2,6 @@
 
 /// The tags necessary for parsing a DICOM stream
 pub mod tags {
-    pub const FILE_META_GROUP_START: u32 = 0x0002_0000;
     pub const FILE_META_INFORMATION_GROUP_LENGTH: u32 = 0x0002_0000;
     pub const TRANSFER_SYNTAX_UID: u32 = 0x0002_0010;
     pub const FILE_META_GROUP_END: u32 = 0x0002_FFFF;

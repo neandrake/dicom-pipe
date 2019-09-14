@@ -536,11 +536,25 @@ impl<StreamType: Read> Parser<StreamType> {
                     continue;
                 }
                 ParseState::GroupLength => match self.iterate_group_length()? {
-                    None => return Ok(None),
+                    None => {
+                        // if none is returned and the state changed then let the iterator go to the
+                        // next state -- it's likely group length wasn't read but another tag was
+                        if self.state != ParseState::GroupLength {
+                            continue;
+                        }
+                        return Ok(None);
+                    },
                     Some(element) => return Ok(Some(element)),
                 },
                 ParseState::FileMeta => match self.iterate_file_meta()? {
-                    None => return Ok(None),
+                    None => {
+                        // if none is returned and the state changed then let the iterator go to the
+                        // next state -- it's likely file meta wasn't read but another tag was
+                        if self.state != ParseState::FileMeta {
+                            continue;
+                        }
+                        return Ok(None);
+                    },
                     Some(element) => return Ok(Some(element)),
                 },
                 ParseState::Element => match self.iterate_element() {
@@ -607,11 +621,15 @@ impl<StreamType: Read> Parser<StreamType> {
         }
 
         // quick check if we're reading beginning of file meta, continue from there
-        if tag >= tags::FILE_META_GROUP_START && tag < tags::FILE_META_GROUP_END {
+        if tag >= tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
             // there's no preamble/prefix, set the partial tag read, jump right to file-meta
             self.partial_tag = Some(tag);
             self.bytes_read += bytes_read as u64;
-            self.state = ParseState::GroupLength;
+            if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
+                self.state = ParseState::GroupLength;
+            } else {
+                self.state = ParseState::FileMeta;
+            }
             return Ok(());
         }
 
@@ -741,13 +759,13 @@ impl<StreamType: Read> Parser<StreamType> {
         }
 
         if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!(
-                    "Expected FileMetaInformationGroupLength but read: {:?}",
-                    Tag::format_tag_to_display(tag)
-                ),
-            ));
+            if tag > tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
+                self.state = ParseState::FileMeta;
+                return Ok(None);
+            } else {
+                self.state = ParseState::Element;
+                return Ok(None);
+            }
         }
 
         let grouplength: DicomElement =
@@ -776,13 +794,23 @@ impl<StreamType: Read> Parser<StreamType> {
             return Ok(None);
         }
 
+        if self.fmi_grouplength == 0 {
+            if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::FILE_META_GROUP_END {
+                self.state = ParseState::Element;
+                return Ok(None);
+            }
+        }
+
         let element: DicomElement = self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian)?;
         if element.tag == tags::TRANSFER_SYNTAX_UID {
             self.parse_transfer_syntax(&element)?;
         }
 
-        if self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength) {
-            self.state = ParseState::Element;
+        if self.fmi_grouplength > 0 {
+            // if group length was read use the byte position to determine if we're out of file-meta
+            if self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength) {
+                self.state = ParseState::Element;
+            }
         }
 
         // reset partial_tag to None
