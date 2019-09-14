@@ -3,7 +3,7 @@ use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
-use dcmpipe_lib::core::dcmreader::parse_stream;
+use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::defn::ts::TSRef;
 use std::collections::btree_map::Iter;
 use std::fs::File;
@@ -43,7 +43,7 @@ impl FullObjApp {
             parser.get_ts().uid.ident).as_ref()
         )?;
 
-        let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+        let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
         let obj_iter: Iter<u32, DicomObject> = dcmroot.iter();
         self.render_objects(obj_iter, true, parser.get_ts(), &mut stdout)?;
         Ok(())

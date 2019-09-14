@@ -8,7 +8,7 @@ use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{ParseState, Parser, ParserBuilder};
-use dcmpipe_lib::core::dcmreader::parse_stream;
+use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
@@ -59,7 +59,7 @@ fn test_bad_dicom_prefix_parser() {
 #[should_panic(expected = "Invalid DICOM Prefix")]
 fn test_bad_dicom_prefix_reader() {
     let mut parser: Parser<MockDicomStream> = MockDicomStream::invalid_dicom_prefix();
-    parse_stream(&mut parser).unwrap();
+    parse_into_object(&mut parser).unwrap();
 }
 
 #[test]
@@ -152,7 +152,7 @@ fn test_dicom_object(with_std: bool) -> Result<(), Error> {
     }
     let mut parser: Parser<File> = parser.build();
 
-    let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+    let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
     let sop_class_uid: &DicomObject = dcmroot
         .get_child(tags::SOPClassUID.tag)
         .expect("Should have SOP Class UID");
@@ -367,7 +367,7 @@ fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     assert!(parser.get_dicom_prefix().is_none());
 
     // parse the rest of the stream into an object
-    let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+    let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
     assert_eq!(dcmroot.get_child_count(), 32);
     Ok(())
 }
