@@ -1,5 +1,5 @@
 use crate::core::charset::CSRef;
-use crate::core::dcmparser::should_parse_as_seq;
+use crate::core::dcmparser_util;
 use crate::core::tagpath::{TagPath, TagPathElement};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
@@ -146,7 +146,7 @@ impl DicomElement {
 
     /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence
     pub fn is_seq_like(&self) -> bool {
-        self.vr == &vr::SQ || should_parse_as_seq(self.tag, self.vr, self.vl)
+        self.vr == &vr::SQ || dcmparser_util::should_parse_as_seq(self.tag, self.vr, self.vl)
     }
 
     /// Returns whether the the size of the value for this element is zero
