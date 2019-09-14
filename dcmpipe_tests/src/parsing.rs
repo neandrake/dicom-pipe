@@ -1,5 +1,5 @@
-use crate::{parse_file, is_standard_dcm_file, parse_all_dicom_files};
 use crate::mock::MockDicomStream;
+use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::file_meta_elements as fme;
 use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
@@ -258,9 +258,15 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
     if with_std {
         assert_eq!(sopuid.parse_string()?, uids::MRImageStorage.uid);
     } else {
-        assert_eq!(sopuid.parse_string()?, format!("{}\u{0}", uids::MRImageStorage.uid));
+        assert_eq!(
+            sopuid.parse_string()?,
+            format!("{}\u{0}", uids::MRImageStorage.uid)
+        );
         // force parsing as UI should match exactly
-        assert_eq!(sopuid.parse_string_with_vr(&vr::UI)?, uids::MRImageStorage.uid);
+        assert_eq!(
+            sopuid.parse_string_with_vr(&vr::UI)?,
+            uids::MRImageStorage.uid
+        );
     }
 
     Ok(())
@@ -412,7 +418,7 @@ fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
         .as_element();
 
     let pc: String = pat_com.parse_string()?;
-    let pc_expected: String = String::from_utf8(vec![0,0,0,0,0,0,0,0,0,0,0,0])
+    let pc_expected: String = String::from_utf8(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
     assert_eq!(pc, pc_expected);
 
@@ -468,8 +474,10 @@ fn test_illegal_cp246_without_std() -> Result<(), Error> {
 
 /// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
 fn test_illegal_cp246(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) =
-        parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm", with_std)?;
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
@@ -485,28 +493,155 @@ fn test_no_preamble_start_with_0005_without_std() -> Result<(), Error> {
 }
 
 fn test_no_preamble_start_with_0005(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) =
-        parse_file("./fixtures/gdcm/gdcmData/US-IRAD-NoPreambleStartWith0005.dcm", with_std)?;
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/US-IRAD-NoPreambleStartWith0005.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
 
 #[test]
-//#[ignore]
+fn test_no_dicomv3_preamble_with_std() -> Result<(), Error> {
+    test_no_dicomv3_preamble(true)
+}
+
+#[test]
+fn test_no_dicomv3_preamble_without_std() -> Result<(), Error> {
+    test_no_dicomv3_preamble(false)
+}
+
+fn test_no_dicomv3_preamble(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/PICKER-16-MONO2-No_DicomV3_Preamble.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_private_ge_ts_with_std() -> Result<(), Error> {
+    test_private_ge_ts(true)
+}
+
+#[test]
+fn test_private_ge_ts_without_std() -> Result<(), Error> {
+    test_private_ge_ts(false)
+}
+
+fn test_private_ge_ts(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/PrivateGEImplicitVRBigEndianTransferSyntax16Bits.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_secured_dicomdir_with_std() -> Result<(), Error> {
+    test_secured_dicomdir(true)
+}
+
+#[test]
+fn test_secured_dicomdir_without_std() -> Result<(), Error> {
+    test_secured_dicomdir(false)
+}
+
+fn test_secured_dicomdir(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/securedicomfileset/DICOMDIR",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_secured_image_with_std() -> Result<(), Error> {
+    test_secured_image(true)
+}
+
+#[test]
+fn test_secured_image_without_std() -> Result<(), Error> {
+    test_secured_image(false)
+}
+
+fn test_secured_image(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/securedicomfileset/IMAGES/IMAGE1",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_private_ge_dlx_ts_with_std() -> Result<(), Error> {
+    test_private_ge_dlx_ts(true)
+}
+
+#[test]
+fn test_private_ge_dlx_ts_without_std() -> Result<(), Error> {
+    test_private_ge_dlx_ts(false)
+}
+
+fn test_private_ge_dlx_ts(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/GE_DLX-8-MONO2-PrivateSyntax.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_undefined_item_wrong_vl_with_std() -> Result<(), Error> {
+    test_undefined_item_wrong_vl(true)
+}
+
+#[test]
+fn test_undefined_item_wrong_vl_without_std() -> Result<(), Error> {
+    test_undefined_item_wrong_vl(false)
+}
+
+fn test_undefined_item_wrong_vl(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/BugGDCM2_UndefItemWrongVL.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_uncompressed_even_length_tag_with_std() -> Result<(), Error> {
+    test_uncompressed_even_length_tag(true)
+}
+
+#[test]
+fn test_uncompressed_even_length_tag_without_std() -> Result<(), Error> {
+    test_uncompressed_even_length_tag(false)
+}
+
+fn test_uncompressed_even_length_tag(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) = parse_file(
+        "./fixtures/gdcm/gdcmData/THERALYS-12-MONO2-Uncompressed-Even_Length_Tag.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
-    let errors: usize = parse_all_dicom_files(true)?;
-    // currently 12 files fail to parse -- when testing for regressions flip the comment
-    //assert_eq!(errors, 12);
-    assert_eq!(errors, 0);
-    Ok(())
+    parse_all_dicom_files(true)
 }
 
 #[test]
-//#[ignore]
+#[ignore]
 fn test_parse_all_dicom_files_without_std() -> Result<(), Error> {
-    let errors: usize = parse_all_dicom_files(false)?;
-    // currently 14 files fail to parse -- when testing for regressions flip the comment
-    //assert_eq!(errors, 14);
-    assert_eq!(errors, 0);
-    Ok(())
+    parse_all_dicom_files(false)
 }
