@@ -251,7 +251,8 @@ impl<StreamType: Read> Parser<StreamType> {
 
     /// Reads a tag attribute from the stream
     fn read_tag(&mut self, ts: TSRef) -> Result<u32, Error> {
-        let result: Result<u32, Error> = dcmparser_util::read_tag_from_stream(&mut self.stream, ts);
+        let result: Result<u32, Error> =
+            dcmparser_util::read_tag_from_stream(&mut self.stream, ts.is_big_endian());
         if result.is_ok() {
             self.bytes_read += 4;
         }
@@ -295,7 +296,7 @@ impl<StreamType: Read> Parser<StreamType> {
             self.read_value_length(vr, ts)?
         };
 
-        let parse_as_seq: bool = dcmparser_util::should_parse_as_seq(tag, vr, vl);
+        let parse_as_seq: bool = dcmparser_util::is_non_standard_seq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
             &ts::ImplicitVRLittleEndian
         } else {
@@ -537,7 +538,7 @@ impl<StreamType: Read> Parser<StreamType> {
         bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
-        let mut tag: u32 = dcmparser_util::read_tag_from_stream(&mut cursor, ts)?;
+        let mut tag: u32 = dcmparser_util::read_tag_from_stream(&mut cursor, ts.is_big_endian())?;
 
         // quick check for common case of being zeroed-out data
         if tag == 0 {
@@ -567,7 +568,7 @@ impl<StreamType: Read> Parser<StreamType> {
         if tag > tags::SOP_INSTANCE_UID {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
-            tag = dcmparser_util::read_tag_from_stream(&mut cursor, ts)?;
+            tag = dcmparser_util::read_tag_from_stream(&mut cursor, ts.is_big_endian())?;
         }
 
         // doesn't appear to be a valid tag in either big or little endian, assume it's preamble

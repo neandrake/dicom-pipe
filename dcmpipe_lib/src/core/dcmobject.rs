@@ -2,7 +2,7 @@ use crate::core::dcmelement::DicomElement;
 use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
 
-/// Trait for combining `DicomRoot` and `DicomObject`.
+/// Trait for a dicom node which contains child elements.
 pub trait DicomNode {
     /// Get the number of child node if this is a root or sequence-like node
     fn get_child_count(&self) -> usize;
@@ -14,7 +14,7 @@ pub trait DicomNode {
     fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject>;
 }
 
-/// A root node of a DICOM object. It does not represent an element but contains child elements.
+/// A root node of a DICOM dataset. It does not represent an element but contains child elements.
 #[derive(Default)]
 pub struct DicomRoot {
     child_nodes: BTreeMap<u32, DicomObject>,
@@ -40,9 +40,10 @@ impl DicomNode for DicomRoot {
 
 /// A DICOM object which represents a DICOM Element and may have child elements
 pub struct DicomObject {
-    /// The element of the current node. For sequence elements this will be the sequence element itself.
+    /// The element of the current node. For sequence elements this will be the sequence element
+    /// itself.
     element: DicomElement,
-    /// Child nodes which may be elements of sub-sequences
+    /// Child nodes which may be elements of sub-sequences.
     child_nodes: BTreeMap<u32, DicomObject>,
 }
 impl DicomObject {

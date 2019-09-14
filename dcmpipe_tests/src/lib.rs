@@ -6,7 +6,7 @@ use dcmpipe_lib::core::dcmobject::DicomRoot;
 use dcmpipe_lib::core::dcmparser::{
     Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
-use dcmpipe_lib::core::dcmreader::parse_stream;
+use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use std::fs::File;
 use std::io::{Error, Read};
 use std::path::{Path, PathBuf};
@@ -27,7 +27,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomRoot
         parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
     }
     let mut parser: Parser<File> = parser.build();
-    let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+    let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
     Ok((parser, dcmroot))
 }
 
