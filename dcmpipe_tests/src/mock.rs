@@ -2,18 +2,18 @@ use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::tagstop::TagStop;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
-pub struct MockDicomStream {
+pub struct MockDicomDataset {
     pub data: Vec<u8>,
     pub pos: usize,
 }
 
-impl MockDicomStream {
-    fn create_parser(mockup: MockDicomStream, tagstop: TagStop) -> Parser<MockDicomStream> {
+impl MockDicomDataset {
+    fn create_parser(mockup: MockDicomDataset, tagstop: TagStop) -> Parser<MockDicomDataset> {
         ParserBuilder::new(mockup).tagstop(tagstop).build()
     }
 
-    pub fn standard_dicom_preamble() -> Parser<MockDicomStream> {
-        let mockup: MockDicomStream = MockDicomStream {
+    pub fn standard_dicom_preamble() -> Parser<MockDicomDataset> {
+        let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
                 data[128] = 'D' as u8;
@@ -24,11 +24,11 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
+        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
     }
 
-    pub fn invalid_dicom_prefix() -> Parser<MockDicomStream> {
-        let mockup: MockDicomStream = MockDicomStream {
+    pub fn invalid_dicom_prefix() -> Parser<MockDicomDataset> {
+        let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
                 data[128] = 'D' as u8;
@@ -39,11 +39,11 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
+        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
     }
 
-    pub fn nonzero_preamble() -> Parser<MockDicomStream> {
-        let mockup: MockDicomStream = MockDicomStream {
+    pub fn nonzero_preamble() -> Parser<MockDicomDataset> {
+        let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0xFFu8; 132];
                 data[128] = 'D' as u8;
@@ -54,11 +54,11 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
+        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
     }
 
-    pub fn standard_dicom_preamble_diff_startpos_and_short_stream() -> Parser<MockDicomStream> {
-        let mockup: MockDicomStream = MockDicomStream {
+    pub fn standard_dicom_preamble_diff_startpos_and_short_dataset() -> Parser<MockDicomDataset> {
+        let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
                 data[128] = 'D' as u8;
@@ -69,11 +69,11 @@ impl MockDicomStream {
             },
             pos: 131,
         };
-        MockDicomStream::create_parser(mockup, TagStop::EndOfStream)
+        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
     }
 }
 
-impl Read for MockDicomStream {
+impl Read for MockDicomDataset {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         if self.pos >= self.data.len() {
             return Result::Ok(0);
@@ -92,7 +92,7 @@ impl Read for MockDicomStream {
     }
 }
 
-impl Seek for MockDicomStream {
+impl Seek for MockDicomDataset {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Error> {
         let newpos: usize = match pos {
             SeekFrom::Start(n) => 0usize.saturating_add(n as usize),

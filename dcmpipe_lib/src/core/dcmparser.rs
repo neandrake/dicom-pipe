@@ -19,35 +19,35 @@ pub type TagByValueLookup = &'static phf::Map<u32, TagRef>;
 
 pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
 
-/// The different parsing behaviors of the stream
+/// The different parsing behaviors of the dataset.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum ParseState {
     /// An initial state in which we're trying to detect if there is a preamble/prefix
     DetectState,
-    /// The File Preamble. This is not required for all dicom streams but is commonly present in
+    /// The File Preamble. This is not required for all dicom datasets but is commonly present in
     /// file media.
     Preamble,
     /// The DICOM prefix. This is only present if Preamble is present.
     Prefix,
-    /// The first element of a valid dicom stream which is from the File Meta group of tags which
-    /// are always encoded as `ExplicitVRLittleEndian`. The value of this first element is the
-    /// remaining bytes of the File Meta group.
+    /// The first element of most valid dicom datasets will be the Group Length element which is
+    /// always encoded as `ExplicitVRLittleEndian`. The value of this element is the number of
+    /// remaining bytes in the File Meta group.
     GroupLength,
-    /// The first set of elements of a valid dicom stream which provide details on how the dicom
-    /// stream is encoded. These elements are always encoded using `ExplicitVRLittleEndian`.
+    /// The first set of elements of a valid dicom dataset which provide details on how the dicom is
+    /// encoded. These elements are always encoded using `ExplicitVRLittleEndian`.
     FileMeta,
-    /// The primary content of a dicom stream. They are parsed using the transfer syntax specified
-    /// in the File Meta group
+    /// The primary content of a dicom dataset. They are parsed using the transfer syntax specified
+    /// in the File Meta group.
     Element,
 }
 
-/// A builder for constructing `Parser` with common default states
-pub struct ParserBuilder<StreamType: Read> {
-    /// The stream to parse dicom from.
-    stream: StreamType,
+/// A builder for constructing `Parser` with common default states.
+pub struct ParserBuilder<DatasetType: Read> {
+    /// The dataset to parse dicom from.
+    dataset: DatasetType,
     /// Initial parse state. Default is `ParseState::DetectState`.
     state: Option<ParseState>,
-    /// When to stop parsing the stream. Default is `TagStop::EndOfStream`.
+    /// When to stop parsing the dataset. Default is `TagStop::EndOfDataset`.
     tagstop: Option<TagStop>,
     /// Lookup of tags by tag number.
     tag_by_value: Option<TagByValueLookup>,
@@ -55,11 +55,11 @@ pub struct ParserBuilder<StreamType: Read> {
     ts_by_uid: Option<TsByUidLookup>,
 }
 
-impl<StreamType: Read> ParserBuilder<StreamType> {
-    /// Start a new default builder for the given stream.
-    pub fn new(stream: StreamType) -> ParserBuilder<StreamType> {
+impl<DatasetType: Read> ParserBuilder<DatasetType> {
+    /// Start a new default builder for the given dataset.
+    pub fn new(dataset: DatasetType) -> ParserBuilder<DatasetType> {
         ParserBuilder {
-            stream,
+            dataset,
             state: None,
             tagstop: None,
             tag_by_value: None,
@@ -67,7 +67,7 @@ impl<StreamType: Read> ParserBuilder<StreamType> {
         }
     }
 
-    /// Sets the `TagStop` for when to stop parsing the stream.
+    /// Sets the `TagStop` for when to stop parsing the dataset.
     pub fn tagstop(mut self, tagstop: TagStop) -> Self {
         self.tagstop = Some(tagstop);
         self
@@ -86,10 +86,10 @@ impl<StreamType: Read> ParserBuilder<StreamType> {
     }
 
     /// Constructs the parser from this builder.
-    pub fn build(self) -> Parser<StreamType> {
+    pub fn build(self) -> Parser<DatasetType> {
         Parser {
-            stream: self.stream,
-            tagstop: self.tagstop.unwrap_or(TagStop::EndOfStream),
+            dataset: self.dataset,
+            tagstop: self.tagstop.unwrap_or(TagStop::EndOfDataset),
             tag_by_value: self.tag_by_value,
             ts_by_uid: self.ts_by_uid,
             state: self.state.unwrap_or(ParseState::DetectState),
@@ -111,38 +111,37 @@ impl<StreamType: Read> ParserBuilder<StreamType> {
     }
 }
 
-/// Provides an iterator that parses through a dicom stream returning top-level elements
-pub struct Parser<StreamType: Read> {
-    /// The stream to parse dicom from.
-    stream: StreamType,
+/// Provides an iterator that parses through a dicom dataset returning dicom elements.
+pub struct Parser<DatasetType: Read> {
+    /// The dataset to parse dicom from.
+    dataset: DatasetType,
 
-    /// The current state of reading elements from the stream.
+    /// The current state of reading elements from the dataset.
     state: ParseState,
 
-    /// The condition under which this iterator should stop parsing elements from the stream.
-    /// This allows for partially parsing through the stream.
+    /// The condition under which this iterator should stop parsing elements from the dataset. This
+    /// can be used for only partially parsing through a dataset.
     tagstop: TagStop,
 
     /// Lookup map for identifying tags by their tag number. Needed for resolving implicit VRs.
     tag_by_value: Option<TagByValueLookup>,
 
-    /// Lookup map for identifying transfer sytnax by their UID.
+    /// Lookup map for identifying transfer sytnax by their UID. This is used for resolving transfer
+    /// syntaxes.
     ts_by_uid: Option<TsByUidLookup>,
 
-    /// Tracks the number of bytes read from the stream. We don't require that the stream implement
-    /// `Seek` (network streams won't implement `Seek` without a buffer). Bytes read from the stream
-    /// are counted in order to track relative positioning for allocating elements with defined
-    /// value lengths. Currently used for determining if still parsing File Meta elements vs.
-    /// switching to parsing regular dicom elements. This is also used for tracking when sequences
-    /// of explicit length begin/end.
+    /// Tracks the number of bytes read from the dataset. It's not required that the dataset
+    /// implement `Seek` (network streams won't implement `Seek` without a buffer). Bytes read from
+    /// the dataset are counted in order to track relative positioning for allocating elements with
+    /// defined value lengths. Used to determine if File Meta elements are being parsed vs. switch
+    /// to regular elements. Also used to track when sequences of explicit length begin/end.
     bytes_read: u64,
 
-    /// The file preamble read from the stream. Currently this doesn't differentiate between the
-    /// stream having a preamble of all zeros or not having a preamble at all.
+    /// The file preamble read from the dataset. Not all datasets may have a preamble.
     file_preamble: Option<[u8; FILE_PREAMBLE_LENGTH]>,
 
-    /// The prefix read from the stream. This should be a value of `"DICM"` but not all streams have
-    /// a prefix.
+    /// The prefix read from the dataset. This should be a value of `"DICM"` but not all datasets
+    /// have a prefix. If the dataset has a file preamble then it should also have a prefix.
     dicom_prefix: Option<[u8; DICOM_PREFIX_LENGTH]>,
 
     /// The number of bytes read just after having read the `FileMetaInformationGroupLength`. This
@@ -150,59 +149,59 @@ pub struct Parser<StreamType: Read> {
     /// DICOM elements, by checking `bytes_read` against `fmi_start + fmi_grouplength`.
     fmi_start: u64,
 
-    /// The value of the `FileMetaInformationGroupLength` tag, which is the number of bytes
-    /// remaining in the File Meta Information section until the non-meta section of the DICOM
-    /// stream starts. Only after the File Meta Information section does the transfer syntax and
-    /// character encoding take effect.
+    /// The value of the `FileMetaInformationGroupLength` tag if one is present. If present this is
+    /// is the number of bytes remaining in the File Meta Information section until the non-meta
+    /// section of the DICOM dataset starts. Only after the File Meta Information section does the
+    /// transfer syntax and character encoding take effect. If the dataset does not contain the
+    /// `FileMetaInformationGroupLength` element then this will have a value of zero and unused.
     fmi_grouplength: u32,
 
-    /// This is the last element tag successfully read from the stream, regardless of whether
+    /// This is the last element tag successfully read from the dataset, regardless of whether
     /// the element it's for was successfully finished parsing.
     tag_last_read: u32,
 
-    /// This is the element tag currently being read from the stream. It will be `Some` once the
+    /// This is the element tag currently being read from the dataset. It will be `Some` once the
     /// element starts parsing and will be `None` after the element has completed parsing. Elements
-    /// may be only partially parsed either due to IO errors or `TagStop`.
+    /// may be partially parsed either due to parsing errors or `TagStop`.
     partial_tag: Option<u32>,
 
-    /// This is the element's VR read from the stream when in `ParseState::DetectState`. This will
-    /// only ever be used once in this regard. Since bytes need to be parsed from the stream in
+    /// This is the element's VR read from the dataset when in `ParseState::DetectState`. This will
+    /// only ever be used once in this regard. Since bytes need to be parsed from the dataset in
     /// order to detect the transfer syntax, if the file preamble is missing then this will be
-    /// set as the vr parsed from the stream of the first valid dicom element (or it will be the
+    /// set as the vr parsed from the dataset of the first valid dicom element (or it will be the
     /// look-up if implicit vr is determined).
     partial_vr: Option<VRRef>,
 
-    /// This is the element's value length read from the stream when in `ParseState::DetectState`.
+    /// This is the element's value length read from the dataset when in `ParseState::DetectState`.
     /// This wll only ever be used once in this regard. Since bytes need to be parsed from the
-    /// stream in order to detect the transfer syntax, if the file preamble is missing then this
-    /// will be set as the value length parsed from the stream of the first valid dicom element.
+    /// dataset in order to detect the transfer syntax, if the file preamble is missing then this
+    /// will be set as the value length parsed from the dataset of the first valid dicom element.
     partial_vl: Option<ValueLength>,
 
-    /// The transfer syntax used for this stream. This defaults to `ExplicitVRLittleEndian` which is
-    /// the transfer syntax used for parsing File Meta section despite the default DICOM transfer
+    /// The transfer syntax used for this dataset. This defaults to `ExplicitVRLittleEndian` which
+    /// is the transfer syntax used for parsing File Meta section despite the default DICOM transfer
     /// syntax being `ImplicitVRLittleEndian`.
     ts: TSRef,
 
-    /// The specific character set used for this stream. This defaults to the dicom default which
-    /// is `WINDOWS_1252` but is changed after having successully parsed the specific character
-    /// set element.
+    /// The specific character set used for this dataset. This defaults to the dicom default which
+    /// is `WINDOWS_1252` but is changed after having successully parsed the specific character set
+    /// element.
     cs: CSRef,
 
     /// The current sequence stack. Whenever an SQ element is parsed a new `SequenceElement` is
-    /// appened to this stack. When the sequence ends (via byte position or
-    /// `SequenceDelimitationItem`) then the last element is popped off. This also tracks the
-    /// current `Item` within a sequence. Whenever an `Item` element is read the last element in
-    /// this list has its item count initialized/incremented. Every element parsed from the stream
-    /// clones this stack.
+    /// appened to this stack. The last element is popped of when the sequence ends (via byte
+    /// position or `SequenceDelimitationItem`). This also tracks the current `Item` within a
+    /// sequence. Whenever an `Item` element is read the last element in this list has its item
+    /// count initialized/incremented. Every element parsed from the dataset clones this stack.
     current_path: Vec<SequenceElement>,
 
     /// When the `next()` returns an `Error` or `None` future calls to `next()` should not attempt
-    /// to read from the stream. This is used to track when the iterator should be considered fully
-    /// consumed in those cases and prevent further attempts at reading from the stream.
+    /// to read from the dataset. This is used to track when the iterator should be considered fully
+    /// consumed in those cases and prevent further attempts at reading from the dataset.
     iterator_ended: bool,
 }
 
-impl<StreamType: Read> Parser<StreamType> {
+impl<DatasetType: Read> Parser<DatasetType> {
     pub fn get_bytes_read(&self) -> u64 {
         self.bytes_read
     }
@@ -236,7 +235,7 @@ impl<StreamType: Read> Parser<StreamType> {
     /// 2. After reading the tag value will catch `TagStop::BeforeTag` and `TagStop::AfterBytePos`
     fn is_at_tag_stop(&self) -> Result<bool, Error> {
         let is_at_tag_stop: bool = match self.tagstop {
-            TagStop::EndOfStream => false,
+            TagStop::EndOfDataset => false,
             TagStop::BeforeTag(before_tag) => {
                 self.current_path.is_empty() && self.tag_last_read >= before_tag
             }
@@ -249,18 +248,18 @@ impl<StreamType: Read> Parser<StreamType> {
         Ok(is_at_tag_stop)
     }
 
-    /// Reads a tag attribute from the stream
+    /// Reads a tag attribute from the dataset
     fn read_tag(&mut self, ts: TSRef) -> Result<u32, Error> {
         let result: Result<u32, Error> =
-            dcmparser_util::read_tag_from_stream(&mut self.stream, ts.is_big_endian());
+            dcmparser_util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian());
         if result.is_ok() {
             self.bytes_read += 4;
         }
         result
     }
 
-    /// Reads the remainder of the dicom element from the stream. This assumes `self.read_tag()` was
-    /// called just prior and its result passed as the tag parameter here.
+    /// Reads the remainder of the dicom element from the dataset. This assumes `self.read_tag()`
+    /// was called just prior and its result passed as the tag parameter here.
     fn read_dicom_element(&mut self, tag: u32, ts: TSRef) -> Result<DicomElement, Error> {
         // Part 5, Section 7.5
         // There are three special SQ related Data Elements that are not ruled by the VR encoding
@@ -317,20 +316,20 @@ impl<StreamType: Read> Parser<StreamType> {
         ))
     }
 
-    /// If the given transfer syntax has Explicit VR then this reads a VR attribute from the stream
+    /// If the given transfer syntax has Explicit VR then this reads a VR attribute from the dataset
     /// using the given transfer syntax. This returns a tuple of `(VRRef, TSRef)` as if the VR is
     /// written explicitly as `UN` but the tag dictionary being used for parsing knows the VR is
     /// non-`UN` then the element value should be read with IVRLE.
     ///
-    /// If the given transfer syntax is Implicit VR then this does not read from the stream but does
-    /// a lookup of the VR based on the tag dictionary used for parsing.
+    /// If the given transfer syntax is Implicit VR then this does not read from the dataset but
+    /// does a lookup of the VR based on the tag dictionary used for parsing.
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef), Error> {
         if !ts.explicit_vr {
             return Ok((self.lookup_vr(tag)?, ts));
         }
 
         let result: Result<Option<VRRef>, Error> =
-            dcmparser_util::read_vr_from_stream(&mut self.stream);
+            dcmparser_util::read_vr_from_dataset(&mut self.dataset);
         if let Ok(Some(vr)) = result {
             self.bytes_read += 2;
             if vr.has_explicit_2byte_pad {
@@ -355,7 +354,7 @@ impl<StreamType: Read> Parser<StreamType> {
         Ok((vr, ts))
     }
 
-    /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present
+    /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present.
     fn lookup_vr(&self, tag: u32) -> Result<VRRef, Error> {
         Ok(self
             .tag_by_value
@@ -366,11 +365,13 @@ impl<StreamType: Read> Parser<StreamType> {
             .unwrap_or(&vr::UN))
     }
 
-    /// Reads a Value Length attribute from the stream using the given transfer syntax.
+    /// Reads a Value Length attribute from the dataset using the given transfer syntax. The number
+    /// of bytes representing the value length depends on transfer syntax. If the VR has a 2-byte
+    /// padding then those bytes are also read from the dataset.
     fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
         let read_4bytes: bool = !ts.explicit_vr || vr.has_explicit_2byte_pad;
-        let result: Result<ValueLength, Error> = dcmparser_util::read_value_length_from_stream(
-            &mut self.stream,
+        let result: Result<ValueLength, Error> = dcmparser_util::read_value_length_from_dataset(
+            &mut self.dataset,
             read_4bytes,
             ts.big_endian,
         );
@@ -384,17 +385,17 @@ impl<StreamType: Read> Parser<StreamType> {
         result
     }
 
-    /// Reads the value field of the dicom element into a byte array. If the given `ValueLength` is
-    /// undefined then this returns an empty array as elements with undefined length should have its
-    /// contents parsed as dicom elements.
+    /// Reads the value field of the dicom element into a byte array. If the `ValueLength` is
+    /// undefined then this returns an empty array as elements with undefined length should have
+    /// their contents parsed as dicom elements.
     fn read_value_field(&mut self, vl: ValueLength) -> Result<Vec<u8>, Error> {
         match vl {
             // undefined length means that the contents of the element are other
-            // dicom elements to be parsed, so don't read data from the stream.
+            // dicom elements to be parsed, so don't read data from the dataset.
             ValueLength::Explicit(0) | ValueLength::UndefinedLength => Ok(Vec::new()),
             ValueLength::Explicit(value_length) => {
                 let mut bytes: Vec<u8> = vec![0; value_length as usize];
-                self.stream.read_exact(bytes.as_mut_slice())?;
+                self.dataset.read_exact(bytes.as_mut_slice())?;
                 self.bytes_read += u64::from(value_length);
                 Ok(bytes)
             }
@@ -428,7 +429,8 @@ impl<StreamType: Read> Parser<StreamType> {
             .nth(0);
 
         // TODO: There are options for what to do if we can't support the character repertoire
-        // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
+        //       See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of
+        //       Unsupported Character Sets"
 
         match new_cs {
             Some(cs) => {
@@ -444,7 +446,7 @@ impl<StreamType: Read> Parser<StreamType> {
     /// Performs the primary iteration for the parser but the return type is consistent for error
     /// handling and not iteration. This should be called once for each invocation of `next()`.
     fn iterate(&mut self) -> Result<Option<DicomElement>, Error> {
-        // The earlier parse states will read non-elements from the stream and move to another
+        // The earlier parse states will read non-elements from the dataset and move to another
         // state. A loop is used so once those succeed they continue the loop and move to next
         // states which will eventually return a dicom element.
         loop {
@@ -504,33 +506,33 @@ impl<StreamType: Read> Parser<StreamType> {
     }
 
     /// Performs the `ParserState::DetectState` iteration.
-    /// The strategy this uses is to parse just a few bytes from the stream to see if it looks like
+    /// The strategy this uses is to parse just a few bytes from the dataset to see if it looks like
     /// the start of a dicom element.
     /// 1. Parse a tag and check whether it looks like a valid tag value (`<= SOP_INSTANCE_UID`).
-    ///         The tag is parsed as both little-endian and as big-endian.
+    ///    The tag is parsed as both little-endian and as big-endian.
     /// 2. Parse a value length, assuming implicit vr. If the value length parsed is reasonable
-    ///         (`<MAX_VALUE_LENGTH_IN_DETECT`) then implicit vr is assumed. The elements at the
-    ///         beginning of a dataset should have fairly small values (for things like UIDs, etc.).
-    ///         The pixel-med library also uses this same value comparison.
+    ///    (`<MAX_VALUE_LENGTH_IN_DETECT`) then implicit vr is assumed. The elements at the
+    ///    beginning of a dataset should have fairly small values (for things like UIDs, etc.). The
+    ///    Pixel-med library also uses this same value comparison.
     /// 3. If value length is too large then it is re-parsed as a VR. If a valid VR was not found
-    ///         then we assume it's proprietary data in the preamble.
+    ///    then we assume it's proprietary data in the preamble.
     /// 4. If the VR is valid then attempt reading another value length (only 2-bytes since we know
-    ///         it's implicit vr and any valid vr this early in dataset should not have a 2-byte
-    ///         padding). If the value length is reasonable (`<MAX_VALUE_LENGTH_IN_DETECT`) then
-    ///         explicit vr is assumed.
+    ///    it's implicit vr and any valid vr this early in dataset should not have a 2-byte
+    ///    padding). If the value length is reasonable (`<MAX_VALUE_LENGTH_IN_DETECT`) then explict
+    ///    vr is assumed.
     /// 5. Otherwise it's assumed the start of the file is proprietary file preamble.
     fn iterate_detect_state(&mut self) -> Result<(), Error> {
         // start off assuming IVRLE
         let mut ts: TSRef = &ts::ImplicitVRLittleEndian;
 
-        // as bytes are read from `self.stream` they will be copied into this `file_preamble`, then
+        // as bytes are read from `self.dataset` they will be copied into this `file_preamble`, then
         // if it's determined that we're likely in a file preamble the rest of the standard
-        // preamble will be read from the stream and stored into `self.file_preamble`
+        // preamble will be read from the dataset and stored into `self.file_preamble`
         let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
         let mut bytes_read: usize = 0;
 
         let mut buf: [u8; 4] = [0; 4];
-        self.stream.read_exact(&mut buf)?;
+        self.dataset.read_exact(&mut buf)?;
 
         // copy the read bytes into preamble in case we determine this is a preamble -- use a
         // cursor to allow re-parsing the same bytes again for checking both endian
@@ -538,12 +540,12 @@ impl<StreamType: Read> Parser<StreamType> {
         bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
-        let mut tag: u32 = dcmparser_util::read_tag_from_stream(&mut cursor, ts.is_big_endian())?;
+        let mut tag: u32 = dcmparser_util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
 
         // quick check for common case of being zeroed-out data
         if tag == 0 {
             // read the remainder of the preamble, move onto reading prefix
-            self.stream
+            self.dataset
                 .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
             self.bytes_read += file_preamble.len() as u64;
             self.file_preamble = Some(file_preamble);
@@ -568,13 +570,13 @@ impl<StreamType: Read> Parser<StreamType> {
         if tag > tags::SOP_INSTANCE_UID {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
-            tag = dcmparser_util::read_tag_from_stream(&mut cursor, ts.is_big_endian())?;
+            tag = dcmparser_util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
         }
 
         // doesn't appear to be a valid tag in either big or little endian, assume it's preamble
         if tag > tags::SOP_INSTANCE_UID {
             // read the remainder of the preamble, move onto reading prefix
-            self.stream
+            self.dataset
                 .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
             self.bytes_read += file_preamble.len() as u64;
             self.file_preamble = Some(file_preamble);
@@ -585,7 +587,7 @@ impl<StreamType: Read> Parser<StreamType> {
         // read in 4 bytes. for implicit vr 4 bytes are used for value length. if it's not implicit
         // then the first two bytes are re-parsed as vr and the later two bytes are the value length
         let mut buf: [u8; 4] = [0; 4];
-        self.stream.read_exact(&mut buf)?;
+        self.dataset.read_exact(&mut buf)?;
 
         file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
         bytes_read += buf.len();
@@ -593,7 +595,7 @@ impl<StreamType: Read> Parser<StreamType> {
 
         // read value length and if it has a reasonably low number assume implicit VR
         let vl: ValueLength =
-            dcmparser_util::read_value_length_from_stream(&mut cursor, true, ts.big_endian)?;
+            dcmparser_util::read_value_length_from_dataset(&mut cursor, true, ts.big_endian)?;
         if let ValueLength::Explicit(len) = vl {
             if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.ts = ts;
@@ -608,11 +610,11 @@ impl<StreamType: Read> Parser<StreamType> {
 
         // otherwise backtrack and try to parse a vr and then vl
         cursor.set_position(0);
-        let vr: VRRef = match dcmparser_util::read_vr_from_stream(&mut cursor)? {
+        let vr: VRRef = match dcmparser_util::read_vr_from_dataset(&mut cursor)? {
             Some(vr) => vr,
             None => {
                 // garbage data so likely in preamble, finish reading preamble and jump to prefix
-                self.stream
+                self.dataset
                     .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
                 self.bytes_read += file_preamble.len() as u64;
                 self.file_preamble = Some(file_preamble);
@@ -623,7 +625,7 @@ impl<StreamType: Read> Parser<StreamType> {
 
         // read value length and if it has a reasonably low number assume explicit VR
         let vl: ValueLength =
-            dcmparser_util::read_value_length_from_stream(&mut cursor, false, ts.big_endian)?;
+            dcmparser_util::read_value_length_from_dataset(&mut cursor, false, ts.big_endian)?;
         if let ValueLength::Explicit(len) = vl {
             if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.ts = if ts.big_endian {
@@ -641,7 +643,7 @@ impl<StreamType: Read> Parser<StreamType> {
         }
 
         // garbage data so likely in preamble, finish reading preamble and jump to prefix
-        self.stream
+        self.dataset
             .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
         self.bytes_read += file_preamble.len() as u64;
         self.file_preamble = Some(file_preamble);
@@ -652,7 +654,7 @@ impl<StreamType: Read> Parser<StreamType> {
     /// Performs the `ParserState::Preamble` iteration
     fn iterate_preamble(&mut self) -> Result<(), Error> {
         let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
-        self.stream.read_exact(&mut file_preamble)?;
+        self.dataset.read_exact(&mut file_preamble)?;
         self.bytes_read += file_preamble.len() as u64;
         self.file_preamble = Some(file_preamble);
         self.state = ParseState::Prefix;
@@ -662,7 +664,7 @@ impl<StreamType: Read> Parser<StreamType> {
     /// Performs the `ParserState::Prefix` iteration
     fn iterate_prefix(&mut self) -> Result<(), Error> {
         let mut dicom_prefix: [u8; DICOM_PREFIX_LENGTH] = [0; DICOM_PREFIX_LENGTH];
-        self.stream.read_exact(&mut dicom_prefix)?;
+        self.dataset.read_exact(&mut dicom_prefix)?;
         self.bytes_read += dicom_prefix.len() as u64;
         for (n, prefix_item) in DICOM_PREFIX.iter().enumerate() {
             if dicom_prefix[n] != *prefix_item {
@@ -832,7 +834,7 @@ impl<StreamType: Read> Parser<StreamType> {
     }
 }
 
-impl<StreamType: Read> Iterator for Parser<StreamType> {
+impl<DatasetType: Read> Iterator for Parser<DatasetType> {
     type Item = Result<DicomElement, Error>;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {

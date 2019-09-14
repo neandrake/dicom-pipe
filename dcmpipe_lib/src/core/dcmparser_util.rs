@@ -17,18 +17,18 @@ pub fn is_non_standard_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
         && vl == ValueLength::UndefinedLength
 }
 
-/// Reads a tag attribute from a given stream
-pub fn read_tag_from_stream(stream: &mut impl Read, big_endian: bool) -> Result<u32, Error> {
+/// Reads a tag attribute from a given dataset
+pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32, Error> {
     let mut buf: [u8; 2] = [0; 2];
 
-    stream.read_exact(&mut buf)?;
+    dataset.read_exact(&mut buf)?;
     let group_number: u32 = if big_endian {
         u32::from(u16::from_be_bytes(buf)) << 16
     } else {
         u32::from(u16::from_le_bytes(buf)) << 16
     };
 
-    stream.read_exact(&mut buf)?;
+    dataset.read_exact(&mut buf)?;
     let element_number: u32 = if big_endian {
         u32::from(u16::from_be_bytes(buf))
     } else {
@@ -39,10 +39,10 @@ pub fn read_tag_from_stream(stream: &mut impl Read, big_endian: bool) -> Result<
     Ok(tag)
 }
 
-/// Reads a VR from a given stream
-pub fn read_vr_from_stream(stream: &mut impl Read) -> Result<Option<VRRef>, Error> {
+/// Reads a VR from a given dataset.
+pub fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<Option<VRRef>, Error> {
     let mut buf: [u8; 2] = [0; 2];
-    stream.read_exact(&mut buf)?;
+    dataset.read_exact(&mut buf)?;
     let first_char: u8 = buf[0];
     let second_char: u8 = buf[1];
 
@@ -50,7 +50,7 @@ pub fn read_vr_from_stream(stream: &mut impl Read) -> Result<Option<VRRef>, Erro
     let vr: VRRef = match VR::from_code(code) {
         Some(found_vr) => {
             if found_vr.has_explicit_2byte_pad {
-                stream.read_exact(&mut buf)?;
+                dataset.read_exact(&mut buf)?;
             }
             found_vr
         }
@@ -60,21 +60,21 @@ pub fn read_vr_from_stream(stream: &mut impl Read) -> Result<Option<VRRef>, Erro
     Ok(Some(vr))
 }
 
-/// Reads a Value Length from a given stream.
-/// `stream` The stream to read bytes from
-/// `read_4bytes` Whether 4 bytes or 2 bytes should be read from the stream. Refer to the dicom
+/// Reads a Value Length from a given dataset.
+/// `dataset` The dataset to read bytes from
+/// `read_4bytes` Whether 4 bytes or 2 bytes should be read from the dataset. Refer to the dicom
 ///                 standard -- implicit vr transfer syntax uses 4 bytes for value length, explicit
 ///                 vr uses 2 bytes, but if explicit and the VR has 2-byte padding then 4 bytes
 ///                 should be parsed.
 /// `big_endian` Whether to use big or little endian
-pub fn read_value_length_from_stream(
-    stream: &mut impl Read,
+pub fn read_value_length_from_dataset(
+    dataset: &mut impl Read,
     read_4bytes: bool,
     big_endian: bool,
 ) -> Result<ValueLength, Error> {
     let value_length: u32 = if read_4bytes {
         let mut buf: [u8; 4] = [0; 4];
-        stream.read_exact(&mut buf)?;
+        dataset.read_exact(&mut buf)?;
 
         if big_endian {
             u32::from_be_bytes(buf)
@@ -83,7 +83,7 @@ pub fn read_value_length_from_stream(
         }
     } else {
         let mut buf: [u8; 2] = [0; 2];
-        stream.read_exact(&mut buf)?;
+        dataset.read_exact(&mut buf)?;
 
         if big_endian {
             u32::from(u16::from_be_bytes(buf))
@@ -95,8 +95,8 @@ pub fn read_value_length_from_stream(
 }
 
 /// Parses elements to build a `DicomObject` tree to represent the dataset in-memory
-pub fn parse_into_object<StreamType: Read>(
-    parser: &mut Parser<StreamType>,
+pub fn parse_into_object<DatasetType: Read>(
+    parser: &mut Parser<DatasetType>,
 ) -> Result<DicomRoot, Error> {
     let mut root: DicomRoot = DicomRoot::default();
     if let Some(Err(e)) = parse_into_object_recurse(parser, &mut root) {
@@ -112,8 +112,8 @@ pub fn parse_into_object<StreamType: Read>(
 /// actually be the end of multiple sequences).
 /// `parser` The parser elements are being read from
 /// `parent` The current node elements will be added to
-fn parse_into_object_recurse<StreamType: Read>(
-    parser: &mut Parser<StreamType>,
+fn parse_into_object_recurse<DatasetType: Read>(
+    parser: &mut Parser<DatasetType>,
     parent: &mut impl DicomNode,
 ) -> Option<Result<DicomElement, Error>> {
     let mut prev_seq_path_len: usize = 0;
@@ -165,7 +165,7 @@ fn parse_into_object_recurse<StreamType: Read>(
             return possible_next_elem;
         }
 
-        // parse the next element from the stream
+        // parse the next element from the dataset
         next_element = parser.next();
     }
 
