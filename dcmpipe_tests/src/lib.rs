@@ -20,7 +20,7 @@ mod mock;
 mod parsing;
 
 /// Parses the given file into a `DicomObject`
-pub fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomRoot), Error> {
+pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot, Error> {
     let file: File = File::open(path)?;
     let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
     if with_std {
@@ -28,7 +28,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomRoot
     }
     let mut parser: Parser<File> = parser.build();
     let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
-    Ok((parser, dcmroot))
+    Ok(dcmroot)
 }
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies

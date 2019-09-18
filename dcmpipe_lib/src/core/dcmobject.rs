@@ -1,4 +1,7 @@
+use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
+use crate::core::dcmparser::{TagByValueLookup, TsByUidLookup};
+use crate::defn::ts::TSRef;
 use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
 
@@ -15,9 +18,45 @@ pub trait DicomNode {
 }
 
 /// A root node of a DICOM dataset. It does not represent an element but contains child elements.
-#[derive(Default)]
 pub struct DicomRoot {
+    ts: TSRef,
+    cs: CSRef,
+    ts_by_uid: Option<TsByUidLookup>,
+    tag_by_value: Option<TagByValueLookup>,
     child_nodes: BTreeMap<u32, DicomObject>,
+}
+impl DicomRoot {
+    pub fn new(
+        ts: TSRef,
+        cs: CSRef,
+        ts_by_uid: Option<TsByUidLookup>,
+        tag_by_value: Option<TagByValueLookup>,
+        child_nodes: BTreeMap<u32, DicomObject>,
+    ) -> DicomRoot {
+        DicomRoot {
+            ts,
+            cs,
+            ts_by_uid,
+            tag_by_value,
+            child_nodes,
+        }
+    }
+
+    pub fn get_ts(&self) -> TSRef {
+        self.ts
+    }
+
+    pub fn get_cs(&self) -> CSRef {
+        self.cs
+    }
+
+    pub fn get_ts_by_uid(&self) -> &Option<TsByUidLookup> {
+        &self.ts_by_uid
+    }
+
+    pub fn get_tag_by_value(&self) -> &Option<TagByValueLookup> {
+        &self.tag_by_value
+    }
 }
 impl DicomNode for DicomRoot {
     fn get_child_count(&self) -> usize {
@@ -51,6 +90,13 @@ impl DicomObject {
         DicomObject {
             element,
             child_nodes: BTreeMap::new(),
+        }
+    }
+
+    pub fn new_with_children(element: DicomElement, child_nodes: BTreeMap<u32, DicomObject>) -> DicomObject {
+        DicomObject {
+            element,
+            child_nodes,
         }
     }
 
