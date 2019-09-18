@@ -181,7 +181,7 @@ fn test_empty_seq_undefined_length_without_std() -> Result<(), Error> {
 /// elements defined with `UndefinedLength` and contain no data - the first element they have as
 /// contents are `SequenceDelimitationItem` which ends the sequence.
 fn test_empty_seq_undefined_length(with_std: bool) -> Result<(), Error> {
-    let (_parser, dcmroot) = parse_file(
+    let dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm",
         with_std,
     )?;
@@ -220,7 +220,7 @@ fn test_private_tag_un_sq_without_std() -> Result<(), Error> {
 /// Private tags with UN VR and UndefinedLength should be parsed as sequences. This file uses tags
 /// which are not known to the dictionaries we're parsing with.
 fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
-    let (_parser, dcmroot) =
+    let dcmroot: DicomRoot =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm", with_std)?;
 
     let private_un_seq_obj: &DicomObject = dcmroot
@@ -285,11 +285,11 @@ fn test_seq_switch_to_ivrle_without_std() -> Result<(), Error> {
 /// `SequenceDelimitationItem`, `Item`, and `ItemDelimitationItem` are always encoded as IVRLE
 /// despite what the transfer syntax is.
 fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
-    let (parser, dcmroot) = parse_file(
+    let dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
         with_std,
     )?;
-    assert_eq!(parser.get_ts(), &ts::ExplicitVRBigEndian);
+    assert_eq!(dcmroot.get_ts(), &ts::ExplicitVRBigEndian);
 
     let sis_obj: &DicomObject = dcmroot
         .get_child(tags::SourceImageSequence.tag)
@@ -309,7 +309,7 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
         assert_eq!(sis_elem.get_ts(), &ts::ImplicitVRLittleEndian);
     } else {
         // If not parsed as sequence then it should have the same TS as the parsed file
-        assert_eq!(sis_elem.get_ts(), parser.get_ts());
+        assert_eq!(sis_elem.get_ts(), dcmroot.get_ts());
         // Nothing else to test in this case
         return Ok(());
     }
@@ -384,7 +384,7 @@ fn test_undefined_charset_without_std() -> Result<(), Error> {
 
 /// This file has no Specific Character Set defined and tests the behavior of parsing string values.
 fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
-    let (_parser, dcmroot) = parse_file(
+    let dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/UndefinedValueLengthIllegalNonEncapsulatedTS.dcm",
         with_std,
     )?;
@@ -437,7 +437,7 @@ fn test_rle_without_std() -> Result<(), Error> {
 
 /// This file is RLE encoded. Eventually test the data can be decompressed properly.
 fn test_rle(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_RLE_FRAGS.dcm",
         with_std,
     )?;
@@ -456,7 +456,7 @@ fn test_deflated_evrle_without_std() -> Result<(), Error> {
 }
 
 fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) =
+    let _dcmroot: DicomRoot =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
     Ok(())
@@ -474,7 +474,7 @@ fn test_illegal_cp246_without_std() -> Result<(), Error> {
 
 /// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
 fn test_illegal_cp246(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
         with_std,
     )?;
@@ -493,7 +493,7 @@ fn test_no_preamble_start_with_0005_without_std() -> Result<(), Error> {
 }
 
 fn test_no_preamble_start_with_0005(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/US-IRAD-NoPreambleStartWith0005.dcm",
         with_std,
     )?;
@@ -512,7 +512,7 @@ fn test_no_dicomv3_preamble_without_std() -> Result<(), Error> {
 }
 
 fn test_no_dicomv3_preamble(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/PICKER-16-MONO2-No_DicomV3_Preamble.dcm",
         with_std,
     )?;
@@ -531,7 +531,7 @@ fn test_private_ge_ts_without_std() -> Result<(), Error> {
 }
 
 fn test_private_ge_ts(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/PrivateGEImplicitVRBigEndianTransferSyntax16Bits.dcm",
         with_std,
     )?;
@@ -550,7 +550,7 @@ fn test_secured_dicomdir_without_std() -> Result<(), Error> {
 }
 
 fn test_secured_dicomdir(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/DICOMDIR",
         with_std,
     )?;
@@ -569,7 +569,7 @@ fn test_secured_image_without_std() -> Result<(), Error> {
 }
 
 fn test_secured_image(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/IMAGES/IMAGE1",
         with_std,
     )?;
@@ -588,7 +588,7 @@ fn test_private_ge_dlx_ts_without_std() -> Result<(), Error> {
 }
 
 fn test_private_ge_dlx_ts(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/GE_DLX-8-MONO2-PrivateSyntax.dcm",
         with_std,
     )?;
@@ -607,7 +607,7 @@ fn test_undefined_item_wrong_vl_without_std() -> Result<(), Error> {
 }
 
 fn test_undefined_item_wrong_vl(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/BugGDCM2_UndefItemWrongVL.dcm",
         with_std,
     )?;
@@ -626,7 +626,7 @@ fn test_uncompressed_even_length_tag_without_std() -> Result<(), Error> {
 }
 
 fn test_uncompressed_even_length_tag(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmroot) = parse_file(
+    let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/THERALYS-12-MONO2-Uncompressed-Even_Length_Tag.dcm",
         with_std,
     )?;

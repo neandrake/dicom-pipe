@@ -222,6 +222,14 @@ impl<DatasetType: Read> Parser<DatasetType> {
         self.cs
     }
 
+    pub fn get_ts_by_uid(&self) -> Option<TsByUidLookup> {
+        self.ts_by_uid
+    }
+
+    pub fn get_tag_by_uid(&self) -> Option<TagByValueLookup> {
+        self.tag_by_value
+    }
+
     pub fn get_file_preamble(&self) -> &Option<[u8; FILE_PREAMBLE_LENGTH]> {
         &self.file_preamble
     }
@@ -303,8 +311,8 @@ impl<DatasetType: Read> Parser<DatasetType> {
         };
 
         let bytes: Vec<u8> = if vr == &vr::SQ || parse_as_seq || tag == tags::ITEM {
-            // Sequence and item elements should let the iterator handle parsing its contents
-            // and not associate bytes to the element's value
+            // Sequence and item elements should let the iterator handle parsing its contents and
+            // not associate bytes to the element's value
             Vec::new()
         } else {
             self.read_value_field(vl)?
@@ -339,9 +347,9 @@ impl<DatasetType: Read> Parser<DatasetType> {
         let mut vr: VRRef = result?.unwrap_or(&vr::UN);
 
         // Part 5 Section 6.2.2 Note 2
-        // If at some point an application knows the actual VR for an Attribute of VR UN
-        // (e.g., has its own applicable data dictionary), it can assume that the Value Field of
-        // the Attribute is encoded in Little Endian byte ordering with implicit VR encoding,
+        // If at some point an application knows the actual VR for an Attribute of VR UN (e.g., has
+        // has its own applicable data dictionary), it can assume that the Value Field of the
+        // Attribute is encoded in Little Endian byte ordering with implicit VR encoding,
         // irrespective of the current Transfer Syntax.
         let mut ts: TSRef = ts;
         if vr == &vr::UN {
@@ -390,8 +398,8 @@ impl<DatasetType: Read> Parser<DatasetType> {
     /// their contents parsed as dicom elements.
     fn read_value_field(&mut self, vl: ValueLength) -> Result<Vec<u8>, Error> {
         match vl {
-            // undefined length means that the contents of the element are other
-            // dicom elements to be parsed, so don't read data from the dataset.
+            // Undefined length means that the contents of the element are other dicom elements to
+            // be parsed. Don't read data from the dataset in this case.
             ValueLength::Explicit(0) | ValueLength::UndefinedLength => Ok(Vec::new()),
             ValueLength::Explicit(value_length) => {
                 let mut bytes: Vec<u8> = vec![0; value_length as usize];
@@ -432,14 +440,9 @@ impl<DatasetType: Read> Parser<DatasetType> {
         //       See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of
         //       Unsupported Character Sets"
 
-        match new_cs {
-            Some(cs) => {
-                self.cs = charset::lookup_charset(&cs).unwrap_or(charset::DEFAULT_CHARACTER_SET);
-            }
-            None => {
-                self.cs = charset::DEFAULT_CHARACTER_SET;
-            }
-        }
+        self.cs = new_cs
+            .and_then(|cs: String| charset::lookup_charset(&cs))
+            .unwrap_or(charset::DEFAULT_CHARACTER_SET);
         Ok(())
     }
 

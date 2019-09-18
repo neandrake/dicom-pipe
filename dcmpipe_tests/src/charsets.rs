@@ -2,7 +2,7 @@ use crate::parse_file;
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::DicomNode;
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use encoding::all;
 use std::io::Error;
 
@@ -128,9 +128,9 @@ fn test_scs_x2() -> Result<(), Error> {
 }
 
 fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> Result<(), Error> {
-    let (parser, dcmroot) = parse_file(path, with_std)?;
+    let dcmroot: DicomRoot = parse_file(path, with_std)?;
 
-    assert_eq!(parser.get_cs().name(), cs.name());
+    assert_eq!(dcmroot.get_cs().name(), cs.name());
 
     let scs_elem: &DicomElement = dcmroot
         .get_child(tags::SpecificCharacterSet.tag)
