@@ -4,8 +4,10 @@ use dcmpipe_lib::defn::tag::TagRef;
 use dcmpipe_lib::defn::uid::UIDRef;
 use crate::dict::lookup::{TS_BY_UID, TAG_BY_VALUE, TS_BY_IDENT, TAG_BY_IDENT, UID_BY_UID, UID_BY_IDENT};
 
+/// The Standard DICOM Dictionary
 pub static STANDARD_DICOM_DICTIONARY: StandardDicomDictionary = StandardDicomDictionary{};
 
+/// The Standard DICOM Dictionary
 pub struct StandardDicomDictionary {
 }
 impl DicomDictionary for StandardDicomDictionary {
