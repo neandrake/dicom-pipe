@@ -1,9 +1,9 @@
 use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
+use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::ts::TSRef;
 use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
-use crate::defn::dcmdict::DicomDictionary;
 
 /// Trait for a dicom node which contains child elements.
 pub trait DicomNode {
@@ -24,7 +24,7 @@ pub struct DicomRoot<'dict> {
     dictionary: &'dict dyn DicomDictionary,
     child_nodes: BTreeMap<u32, DicomObject>,
 }
-impl <'dict> DicomRoot<'dict> {
+impl<'dict> DicomRoot<'dict> {
     pub fn new(
         ts: TSRef,
         cs: CSRef,
@@ -51,7 +51,7 @@ impl <'dict> DicomRoot<'dict> {
         self.dictionary
     }
 }
-impl <'dict> DicomNode for DicomRoot<'dict> {
+impl<'dict> DicomNode for DicomRoot<'dict> {
     fn get_child_count(&self) -> usize {
         self.child_nodes.len()
     }
@@ -86,7 +86,10 @@ impl DicomObject {
         }
     }
 
-    pub fn new_with_children(element: DicomElement, child_nodes: BTreeMap<u32, DicomObject>) -> DicomObject {
+    pub fn new_with_children(
+        element: DicomElement,
+        child_nodes: BTreeMap<u32, DicomObject>,
+    ) -> DicomObject {
         DicomObject {
             element,
             child_nodes,

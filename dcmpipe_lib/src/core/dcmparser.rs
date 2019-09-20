@@ -2,14 +2,14 @@ use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, SequenceElement};
 use crate::core::dcmparser_util;
 use crate::core::tagstop::TagStop;
+use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use crate::defn::constants::{tags, ts};
-use crate::defn::tag::{Tag};
+use crate::defn::dcmdict::DicomDictionary;
+use crate::defn::tag::Tag;
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
 use std::io::{Cursor, Error, ErrorKind, Read};
-use crate::defn::dcmdict::DicomDictionary;
-use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
@@ -350,7 +350,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present.
     fn lookup_vr(&self, tag: u32) -> Result<VRRef, Error> {
-        Ok(self.dictionary.get_tag_by_number(tag)
+        Ok(self
+            .dictionary
+            .get_tag_by_number(tag)
             .and_then(|read_tag: &Tag| read_tag.implicit_vr)
             .unwrap_or(&vr::UN))
     }
@@ -398,7 +400,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<(), Error> {
         let ts_uid: String = element.parse_string()?;
 
-        self.ts = self.dictionary.get_ts_by_uid(ts_uid.as_ref())
+        self.ts = self
+            .dictionary
+            .get_ts_by_uid(ts_uid.as_ref())
             .unwrap_or(&ts::ImplicitVRLittleEndian);
 
         Ok(())

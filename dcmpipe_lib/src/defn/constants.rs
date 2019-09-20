@@ -116,19 +116,18 @@ pub mod uids {
 pub mod lookup {
     use super::ts;
     use super::uids;
-    use crate::defn::ts::TSRef;
     use crate::defn::dcmdict::DicomDictionary;
     use crate::defn::tag::TagRef;
+    use crate::defn::ts::TSRef;
     use crate::defn::uid::UIDRef;
 
     /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
     /// minimal set of `get_ts_by_uid`. All other functions return `None`.
-    pub static MINIMAL_DICOM_DICTIONARY: MinimalDicomDictionary = MinimalDicomDictionary{};
+    pub static MINIMAL_DICOM_DICTIONARY: MinimalDicomDictionary = MinimalDicomDictionary {};
 
     /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
     /// minimal set of `get_ts_by_uid`. All other functions return `None`.
-    pub struct MinimalDicomDictionary {
-    }
+    pub struct MinimalDicomDictionary {}
     impl DicomDictionary for MinimalDicomDictionary {
         fn get_ts_by_uid(&self, uid: &str) -> Option<TSRef> {
             if uid == uids::ImplicitVRLittleEndian.uid {
