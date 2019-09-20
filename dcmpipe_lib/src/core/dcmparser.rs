@@ -537,19 +537,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             return Ok(());
         }
 
-        // quick check if we're reading beginning of file meta, continue from there
-        if tag >= tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
-            // there's no preamble/prefix, set the partial tag read, jump right to file-meta
-            self.partial_tag = Some(tag);
-            self.bytes_read += bytes_read as u64;
-            if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
-                self.state = ParseState::GroupLength;
-            } else {
-                self.state = ParseState::FileMeta;
-            }
-            return Ok(());
-        }
-
         // if not an expected non-file-meta tag then try big-endian
         if tag > tags::SOP_INSTANCE_UID {
             cursor.set_position(0);
@@ -772,7 +759,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         let element: DicomElement = self.read_dicom_element(tag, ts)?;
-        if element.tag == tags::SPECIFIC_CHARACTER_SET {
+        // if the file-meta state was skipped due to the initial detection we may still need to
+        // switch transfer syntax -- only do this if the element is at the root of the dataset
+        if element.tag == tags::TRANSFER_SYNTAX_UID && element.get_sequence_path().len() == 0 {
+            self.parse_transfer_syntax(&element)?;
+        } else if element.tag == tags::SPECIFIC_CHARACTER_SET {
             self.parse_specific_character_set(&element)?;
         }
 
