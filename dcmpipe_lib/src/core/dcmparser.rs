@@ -2,22 +2,20 @@ use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, SequenceElement};
 use crate::core::dcmparser_util;
 use crate::core::tagstop::TagStop;
-use crate::defn::constants::{lookup, tags, ts};
-use crate::defn::tag::{Tag, TagRef};
+use crate::defn::constants::{tags, ts};
+use crate::defn::tag::{Tag};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
 use std::io::{Cursor, Error, ErrorKind, Read};
+use crate::defn::dcmdict::DicomDictionary;
+use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
 
 pub static DICOM_PREFIX: &[u8; DICOM_PREFIX_LENGTH] = b"DICM";
-
-pub type TagByValueLookup = &'static phf::Map<u32, TagRef>;
-
-pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
 
 /// The different parsing behaviors of the dataset.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -42,28 +40,25 @@ pub enum ParseState {
 }
 
 /// A builder for constructing `Parser` with common default states.
-pub struct ParserBuilder<DatasetType: Read> {
+pub struct ParserBuilder<'dict, DatasetType: Read> {
     /// The dataset to parse dicom from.
     dataset: DatasetType,
     /// Initial parse state. Default is `ParseState::DetectState`.
     state: Option<ParseState>,
     /// When to stop parsing the dataset. Default is `TagStop::EndOfDataset`.
     tagstop: Option<TagStop>,
-    /// Lookup of tags by tag number.
-    tag_by_value: Option<TagByValueLookup>,
-    /// Lookup of transfer syntax by uid.
-    ts_by_uid: Option<TsByUidLookup>,
+    /// The `DicomDictionary` to be used when parsing elements. Default is `MinimalDicomDictionary`.
+    dictionary: &'dict dyn DicomDictionary,
 }
 
-impl<DatasetType: Read> ParserBuilder<DatasetType> {
+impl<'dict, DatasetType: Read> ParserBuilder<'dict, DatasetType> {
     /// Start a new default builder for the given dataset.
-    pub fn new(dataset: DatasetType) -> ParserBuilder<DatasetType> {
+    pub fn new(dataset: DatasetType) -> ParserBuilder<'dict, DatasetType> {
         ParserBuilder {
             dataset,
             state: None,
             tagstop: None,
-            tag_by_value: None,
-            ts_by_uid: None,
+            dictionary: &MINIMAL_DICOM_DICTIONARY,
         }
     }
 
@@ -73,25 +68,21 @@ impl<DatasetType: Read> ParserBuilder<DatasetType> {
         self
     }
 
-    /// Sets the tag lookup map.
-    pub fn tag_by_value(mut self, tag_by_value: TagByValueLookup) -> Self {
-        self.tag_by_value = Some(tag_by_value);
-        self
-    }
-
-    /// Sets the transfer syntax lookup map.
-    pub fn ts_by_uid(mut self, ts_by_uid: TsByUidLookup) -> Self {
-        self.ts_by_uid = Some(ts_by_uid);
+    /// Sets the DICOM dictionary. The parser uses `get_ts_by_uid` to identify transfer syntax for
+    /// parsing through the stream, and `get_tag_by_number` for resolving VR of parsed elements. The
+    /// VR is not strictly necessary for parsing elements however there is potential for sequences
+    /// to not have their sub-elements parsed properly without this.
+    pub fn dictionary(mut self, dictionary: &'dict dyn DicomDictionary) -> Self {
+        self.dictionary = dictionary;
         self
     }
 
     /// Constructs the parser from this builder.
-    pub fn build(self) -> Parser<DatasetType> {
+    pub fn build(self) -> Parser<'dict, DatasetType> {
         Parser {
             dataset: self.dataset,
             tagstop: self.tagstop.unwrap_or(TagStop::EndOfDataset),
-            tag_by_value: self.tag_by_value,
-            ts_by_uid: self.ts_by_uid,
+            dictionary: self.dictionary,
             state: self.state.unwrap_or(ParseState::DetectState),
 
             bytes_read: 0,
@@ -112,7 +103,7 @@ impl<DatasetType: Read> ParserBuilder<DatasetType> {
 }
 
 /// Provides an iterator that parses through a dicom dataset returning dicom elements.
-pub struct Parser<DatasetType: Read> {
+pub struct Parser<'dict, DatasetType: Read> {
     /// The dataset to parse dicom from.
     dataset: DatasetType,
 
@@ -123,12 +114,11 @@ pub struct Parser<DatasetType: Read> {
     /// can be used for only partially parsing through a dataset.
     tagstop: TagStop,
 
-    /// Lookup map for identifying tags by their tag number. Needed for resolving implicit VRs.
-    tag_by_value: Option<TagByValueLookup>,
-
-    /// Lookup map for identifying transfer sytnax by their UID. This is used for resolving transfer
-    /// syntaxes.
-    ts_by_uid: Option<TsByUidLookup>,
+    /// The DICOM dictionary. Parsing uses `get_ts_by_uid` to identify transfer syntax for parsing
+    /// through the stream, and `get_tag_by_number` for resolving VR of parsed elements. The VR is
+    /// not strictly necessary for parsing elements however there is potential for sequences to not
+    /// have their sub-elements parsed properly without this.
+    dictionary: &'dict dyn DicomDictionary,
 
     /// Tracks the number of bytes read from the dataset. It's not required that the dataset
     /// implement `Seek` (network streams won't implement `Seek` without a buffer). Bytes read from
@@ -201,7 +191,7 @@ pub struct Parser<DatasetType: Read> {
     iterator_ended: bool,
 }
 
-impl<DatasetType: Read> Parser<DatasetType> {
+impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     pub fn get_bytes_read(&self) -> u64 {
         self.bytes_read
     }
@@ -222,12 +212,8 @@ impl<DatasetType: Read> Parser<DatasetType> {
         self.cs
     }
 
-    pub fn get_ts_by_uid(&self) -> Option<TsByUidLookup> {
-        self.ts_by_uid
-    }
-
-    pub fn get_tag_by_uid(&self) -> Option<TagByValueLookup> {
-        self.tag_by_value
+    pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
+        self.dictionary
     }
 
     pub fn get_file_preamble(&self) -> &Option<[u8; FILE_PREAMBLE_LENGTH]> {
@@ -364,12 +350,8 @@ impl<DatasetType: Read> Parser<DatasetType> {
 
     /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present.
     fn lookup_vr(&self, tag: u32) -> Result<VRRef, Error> {
-        Ok(self
-            .tag_by_value
-            .and_then(|map| {
-                map.get(&tag)
-                    .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
-            })
+        Ok(self.dictionary.get_tag_by_number(tag)
+            .and_then(|read_tag: &Tag| read_tag.implicit_vr)
             .unwrap_or(&vr::UN))
     }
 
@@ -416,12 +398,7 @@ impl<DatasetType: Read> Parser<DatasetType> {
     fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<(), Error> {
         let ts_uid: String = element.parse_string()?;
 
-        self.ts = self
-            .ts_by_uid
-            .and_then(|map| map.get::<str>(ts_uid.as_ref()))
-            .cloned()
-            .or_else(|| lookup::get_ts_by_uid(ts_uid.as_ref()))
-            // The default encoding
+        self.ts = self.dictionary.get_ts_by_uid(ts_uid.as_ref())
             .unwrap_or(&ts::ImplicitVRLittleEndian);
 
         Ok(())
@@ -837,7 +814,7 @@ impl<DatasetType: Read> Parser<DatasetType> {
     }
 }
 
-impl<DatasetType: Read> Iterator for Parser<DatasetType> {
+impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
     type Item = Result<DicomElement, Error>;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {

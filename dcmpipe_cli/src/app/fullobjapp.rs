@@ -1,5 +1,4 @@
 use crate::app::render_element;
-use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
@@ -9,6 +8,7 @@ use std::collections::btree_map::Iter;
 use std::fs::File;
 use std::io::{self, Error, ErrorKind, StdoutLock, Write};
 use std::path::Path;
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 pub struct FullObjApp {
     openpath: String,
@@ -31,8 +31,7 @@ impl FullObjApp {
 
         let file: File = File::open(path)?;
         let mut parser: Parser<File> = ParserBuilder::new(file)
-            .tag_by_value(&TAG_BY_VALUE)
-            .ts_by_uid(&TS_BY_UID)
+            .dictionary(&STANDARD_DICOM_DICTIONARY)
             .build();
 
         let stdout = io::stdout();

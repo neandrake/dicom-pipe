@@ -8,11 +8,11 @@ pub struct MockDicomDataset {
 }
 
 impl MockDicomDataset {
-    fn create_parser(mockup: MockDicomDataset, tagstop: TagStop) -> Parser<MockDicomDataset> {
+    fn create_parser(mockup: MockDicomDataset, tagstop: TagStop) -> Parser<'static, MockDicomDataset> {
         ParserBuilder::new(mockup).tagstop(tagstop).build()
     }
 
-    pub fn standard_dicom_preamble() -> Parser<MockDicomDataset> {
+    pub fn standard_dicom_preamble() -> Parser<'static, MockDicomDataset> {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
@@ -27,7 +27,7 @@ impl MockDicomDataset {
         MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
     }
 
-    pub fn invalid_dicom_prefix() -> Parser<MockDicomDataset> {
+    pub fn invalid_dicom_prefix() -> Parser<'static, MockDicomDataset> {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
@@ -42,7 +42,7 @@ impl MockDicomDataset {
         MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
     }
 
-    pub fn nonzero_preamble() -> Parser<MockDicomDataset> {
+    pub fn nonzero_preamble() -> Parser<'static, MockDicomDataset> {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0xFFu8; 132];
@@ -57,7 +57,7 @@ impl MockDicomDataset {
         MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
     }
 
-    pub fn standard_dicom_preamble_diff_startpos_and_short_dataset() -> Parser<MockDicomDataset> {
+    pub fn standard_dicom_preamble_diff_startpos_and_short_dataset() -> Parser<'static, MockDicomDataset> {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];

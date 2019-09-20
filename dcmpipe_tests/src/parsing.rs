@@ -2,7 +2,6 @@ use crate::mock::MockDicomDataset;
 use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::file_meta_elements as fme;
-use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
@@ -14,6 +13,7 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 #[test]
 fn test_good_preamble() {
@@ -97,7 +97,7 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
     let mut parser: ParserBuilder<File> =
         ParserBuilder::new(file).tagstop(TagStop::BeforeTag(tagstop));
     if with_std {
-        parser = parser.ts_by_uid(&TS_BY_UID).tag_by_value(&TAG_BY_VALUE);
+        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
     let mut parser: Parser<File> = parser.build();
 
@@ -148,7 +148,7 @@ fn test_dicom_object(with_std: bool) -> Result<(), Error> {
     let mut parser: ParserBuilder<File> =
         ParserBuilder::new(file).tagstop(TagStop::BeforeTag(tags::PixelData.tag));
     if with_std {
-        parser = parser.ts_by_uid(&TS_BY_UID).tag_by_value(&TAG_BY_VALUE);
+        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
     let mut parser: Parser<File> = parser.build();
 
@@ -351,7 +351,7 @@ fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
     let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
     if with_std {
-        parser = parser.ts_by_uid(&TS_BY_UID).tag_by_value(&TAG_BY_VALUE);
+        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
     let mut parser: Parser<File> = parser.build();
 
