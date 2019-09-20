@@ -117,17 +117,50 @@ pub mod lookup {
     use super::ts;
     use super::uids;
     use crate::defn::ts::TSRef;
+    use crate::defn::dcmdict::DicomDictionary;
+    use crate::defn::tag::TagRef;
+    use crate::defn::uid::UIDRef;
 
-    pub fn get_ts_by_uid(uid: &str) -> Option<TSRef> {
-        if uid == uids::ImplicitVRLittleEndian.uid {
-            Some(&ts::ImplicitVRLittleEndian)
-        } else if uid == uids::ExplicitVRLittleEndian.uid {
-            Some(&ts::ExplicitVRLittleEndian)
-        } else if uid == uids::DeflatedExplicitVRLittleEndian.uid {
-            Some(&ts::DeflatedExplicitVRLittleEndian)
-        } else if uid == uids::ExplicitVRBigEndian.uid {
-            Some(&ts::ExplicitVRBigEndian)
-        } else {
+    /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
+    /// minimal set of `get_ts_by_uid`. All other functions return `None`.
+    pub static MINIMAL_DICOM_DICTIONARY: MinimalDicomDictionary = MinimalDicomDictionary{};
+
+    /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
+    /// minimal set of `get_ts_by_uid`. All other functions return `None`.
+    pub struct MinimalDicomDictionary {
+    }
+    impl DicomDictionary for MinimalDicomDictionary {
+        fn get_ts_by_uid(&self, uid: &str) -> Option<TSRef> {
+            if uid == uids::ImplicitVRLittleEndian.uid {
+                Some(&ts::ImplicitVRLittleEndian)
+            } else if uid == uids::ExplicitVRLittleEndian.uid {
+                Some(&ts::ExplicitVRLittleEndian)
+            } else if uid == uids::DeflatedExplicitVRLittleEndian.uid {
+                Some(&ts::DeflatedExplicitVRLittleEndian)
+            } else if uid == uids::ExplicitVRBigEndian.uid {
+                Some(&ts::ExplicitVRBigEndian)
+            } else {
+                None
+            }
+        }
+
+        fn get_ts_by_name(&self, _name: &str) -> Option<TSRef> {
+            None
+        }
+
+        fn get_tag_by_number(&self, _number: u32) -> Option<TagRef> {
+            None
+        }
+
+        fn get_tag_by_name(&self, _name: &str) -> Option<TagRef> {
+            None
+        }
+
+        fn get_uid_by_uid(&self, _uid: &str) -> Option<UIDRef> {
+            None
+        }
+
+        fn get_uid_by_name(&self, _name: &str) -> Option<UIDRef> {
             None
         }
     }
