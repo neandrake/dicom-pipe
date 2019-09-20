@@ -5,8 +5,8 @@ use crate::defn::constants::tags;
 use crate::defn::vl;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, VR};
-use std::io::{Error, Read};
 use std::collections::BTreeMap;
+use std::io::{Error, Read};
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
 /// with a VR of `UN`, `OB`, or `OW` and have a value length of `UndefinedLength`. These types of

@@ -2,6 +2,7 @@ use crate::mock::MockDicomDataset;
 use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::file_meta_elements as fme;
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
@@ -13,7 +14,6 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 #[test]
 fn test_good_preamble() {

@@ -1,6 +1,7 @@
 extern crate encoding;
 extern crate walkdir;
 
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmobject::DicomRoot;
 use dcmpipe_lib::core::dcmparser::{
     Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
@@ -10,7 +11,6 @@ use std::fs::File;
 use std::io::{Error, Read};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 #[cfg(test)]
 mod charsets;
@@ -51,7 +51,9 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<(), Error> {
 /// Creates parsers for every dicom file in the `fixutres` folder. The `use_std_dict` argument
 /// specifies whether the standard dicom dictionary should be registered with the parser.
 /// See the `readme.md` in this project for information on obtaining test fixtures.
-pub fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser<'static, File>)>, Error> {
+pub fn get_all_dicom_file_parsers(
+    with_std: bool,
+) -> Result<Vec<(PathBuf, Parser<'static, File>)>, Error> {
     let fixtures_path: &Path = Path::new("./fixtures");
     assert!(
         fixtures_path.is_dir(),

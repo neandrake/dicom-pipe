@@ -1,5 +1,5 @@
-use crate::defn::ts::TSRef;
 use crate::defn::tag::TagRef;
+use crate::defn::ts::TSRef;
 use crate::defn::uid::UIDRef;
 
 /// Trait for looking up DICOM component definitions
