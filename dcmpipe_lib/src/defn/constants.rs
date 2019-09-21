@@ -63,6 +63,17 @@ pub mod ts {
         deflated: false,
         encapsulated: false,
     };
+
+    /// Implicit VR Big Endian (Virtual)
+    ///
+    /// - **UID:**
+    pub static ImplicitVRBigEndian: TransferSyntax = TransferSyntax {
+        uid: &&super::uids::ImplicitVRBigEndian,
+        explicit_vr: false,
+        big_endian: true,
+        deflated: false,
+        encapsulated: false,
+    };
 }
 
 /// The UIDs needed for parsing a DICOM dataset.
@@ -109,6 +120,16 @@ pub mod uids {
         ident: "ExplicitVRBigEndian",
         uid: "1.2.840.10008.1.2.2",
         name: "Explicit VR Big Endian (Retired)",
+    };
+
+    /// Implicit VR Big Endian (Virtual)
+    ///
+    /// - **UID:**
+    /// - **UID Type:** Transfer Syntax
+    pub static ImplicitVRBigEndian: UID = UID {
+        ident: "ImplicitVRBigEndian",
+        uid: "",
+        name: "Implicit VR Big Endian (Virtual)",
     };
 }
 
