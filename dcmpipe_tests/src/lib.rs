@@ -85,7 +85,7 @@ pub fn get_dicom_file_paths() -> impl Iterator<Item = PathBuf> {
             if filename.contains('.') && !filename.ends_with(".dcm") {
                 false
             } else {
-                filename.eq("README")
+                !filename.eq("README")
             }
         })
 }
