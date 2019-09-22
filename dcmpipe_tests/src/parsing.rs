@@ -747,6 +747,26 @@ fn test_illegal_group2_implicit_ts(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
+fn test_ul_is_2bytes_with_std() -> Result<(), Error> {
+    test_ul_is_2bytes(true)
+}
+
+#[test]
+fn test_ul_is_2bytes_without_std() -> Result<(), Error> {
+    test_ul_is_2bytes(false)
+}
+
+/// Contains a tag (0009,1130) which is explicit UL but value length is only 2 instead of 4
+fn test_ul_is_2bytes(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot = parse_file(
+        "./fixtures/gdcm/gdcmData/SIEMENS_GBS_III-16-ACR_NEMA_1-ULis2Bytes.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
 #[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
     let num_failed: usize = parse_all_dicom_files(true)?;
