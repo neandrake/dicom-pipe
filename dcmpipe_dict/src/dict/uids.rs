@@ -894,6 +894,56 @@ pub static PubChemCompoundCID: UID = UID {
     name: "PubChem Compound CID",
 };
 
+/// ICD-11
+///
+/// - **UID:** 1.2.840.10008.2.16.10
+/// - **UID Type:** Coding Scheme
+pub static ICD11: UID = UID {
+    ident: "ICD11",
+    uid: "1.2.840.10008.2.16.10",
+    name: "ICD-11",
+};
+
+/// New York University Melanoma Clinical Cooperative Group
+///
+/// - **UID:** 1.2.840.10008.2.16.11
+/// - **UID Type:** Coding Scheme
+pub static NewYorkUniversityMelanomaClinicalCooperativeGroup: UID = UID {
+    ident: "NewYorkUniversityMelanomaClinicalCooperativeGroup",
+    uid: "1.2.840.10008.2.16.11",
+    name: "New York University Melanoma Clinical Cooperative Group",
+};
+
+/// Mayo Clinic Non-radiological Images Specific Body Structure Anatomical Surface Region Guide
+///
+/// - **UID:** 1.2.840.10008.2.16.12
+/// - **UID Type:** Coding Scheme
+pub static MayoClinicNonradiologicalImagesSpecificBodyStructureAnatomicalSurfaceRegionGuide: UID = UID {
+    ident: "MayoClinicNonradiologicalImagesSpecificBodyStructureAnatomicalSurfaceRegionGuide",
+    uid: "1.2.840.10008.2.16.12",
+    name: "Mayo Clinic Non-radiological Images Specific Body Structure Anatomical Surface Region Guide",
+};
+
+/// Image Biomarker Standardisation Initiative
+///
+/// - **UID:** 1.2.840.10008.2.16.13
+/// - **UID Type:** Coding Scheme
+pub static ImageBiomarkerStandardisationInitiative: UID = UID {
+    ident: "ImageBiomarkerStandardisationInitiative",
+    uid: "1.2.840.10008.2.16.13",
+    name: "Image Biomarker Standardisation Initiative",
+};
+
+/// Radiomics Ontology
+///
+/// - **UID:** 1.2.840.10008.2.16.14
+/// - **UID Type:** Coding Scheme
+pub static RadiomicsOntology: UID = UID {
+    ident: "RadiomicsOntology",
+    uid: "1.2.840.10008.2.16.14",
+    name: "Radiomics Ontology",
+};
+
 /// DICOM Application Context Name
 ///
 /// - **UID:** 1.2.840.10008.3.1.1.1
@@ -2574,6 +2624,26 @@ pub static PatientRadiationDoseSRStorage: UID = UID {
     name: "Patient Radiation Dose SR Storage",
 };
 
+/// Planned Imaging Agent Administration SR Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.88.74
+/// - **UID Type:** SOP Class
+pub static PlannedImagingAgentAdministrationSRStorage: UID = UID {
+    ident: "PlannedImagingAgentAdministrationSRStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.88.74",
+    name: "Planned Imaging Agent Administration SR Storage",
+};
+
+/// Performed Imaging Agent Administration SR Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.88.75
+/// - **UID Type:** SOP Class
+pub static PerformedImagingAgentAdministrationSRStorage: UID = UID {
+    ident: "PerformedImagingAgentAdministrationSRStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.88.75",
+    name: "Performed Imaging Agent Administration SR Storage",
+};
+
 /// Content Assessment Results Storage
 ///
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.90.1
@@ -2812,6 +2882,26 @@ pub static RTIonBeamsTreatmentRecordStorage: UID = UID {
     ident: "RTIonBeamsTreatmentRecordStorage",
     uid: "1.2.840.10008.5.1.4.1.1.481.9",
     name: "RT Ion Beams Treatment Record Storage",
+};
+
+/// RT Physician Intent Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.10
+/// - **UID Type:** SOP Class
+pub static RTPhysicianIntentStorage: UID = UID {
+    ident: "RTPhysicianIntentStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.10",
+    name: "RT Physician Intent Storage",
+};
+
+/// RT Segment Annotation Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.11
+/// - **UID Type:** SOP Class
+pub static RTSegmentAnnotationStorage: UID = UID {
+    ident: "RTSegmentAnnotationStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.11",
+    name: "RT Segment Annotation Storage",
 };
 
 /// DICOS CT Image Storage
