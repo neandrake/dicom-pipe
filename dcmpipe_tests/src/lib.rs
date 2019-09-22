@@ -2,11 +2,15 @@ extern crate encoding;
 extern crate walkdir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::core::dcmobject::DicomRoot;
+use dcmpipe_lib::core::dcmelement::DicomElement;
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{
     Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
+use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::vl::ValueLength;
+use dcmpipe_lib::defn::vr;
 use std::fs::File;
 use std::io::{Error, Read};
 use std::path::{Path, PathBuf};
@@ -28,6 +32,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot, Error> {
     }
     let mut parser: Parser<File> = parser.build();
     let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
+    parse_all_values(&dcmroot)?;
     Ok(dcmroot)
 }
 
@@ -44,13 +49,25 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
         }
         let parser: Parser<File> = parser.build();
 
-        for elem in parser {
-            match elem {
-                Ok(_elem) => {}
+        for elem_result in parser {
+            match elem_result {
+                Ok(elem) => match parse_value(&elem) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        num_failed += 1;
+                        eprintln!(
+                            "Error parsing DICOM Element:\n\t{}\n\t{}\n\t{}",
+                            path_str,
+                            Tag::format_tag_to_display(elem.tag),
+                            e
+                        );
+                        break;
+                    },
+                },
                 Err(e) => {
                     num_failed += 1;
                     eprintln!("Error parsing DICOM:\n\t{}\n\t{}", path_str, e);
-                }
+                },
             }
         }
     }
@@ -119,4 +136,78 @@ where
         None => {}
     }
     true
+}
+
+pub fn parse_all_values(dcmroot: &DicomRoot) -> Result<(), Error> {
+    for (_tag, dcmobj) in dcmroot.iter() {
+        parse_all_values_dcmobj(dcmobj)?;
+    }
+    Ok(())
+}
+
+fn parse_all_values_dcmobj(dcmobj: &DicomObject) -> Result<(), Error> {
+    parse_value(dcmobj.as_element())?;
+    for (_tag, child_dcmobj) in dcmobj.iter() {
+        parse_all_values_dcmobj(child_dcmobj)?;
+    }
+    Ok(())
+}
+
+pub fn parse_value(elem: &DicomElement) -> Result<(), Error> {
+    if elem.vr == &vr::AT {
+        elem.parse_attribute()?;
+    } else if elem.vr == &vr::FD || elem.vr == &vr::OF || elem.vr == &vr::OD || elem.vr == &vr::FL {
+        match elem.vl {
+            ValueLength::Explicit(len)
+                if (elem.vr == &vr::OD || elem.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
+            {
+                elem.parse_f64s()?
+            }
+            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => elem
+                .parse_f32s()?
+                .into_iter()
+                .map(f64::from)
+                .collect::<Vec<f64>>(),
+            ValueLength::Explicit(1) => vec![f64::from(elem.get_data()[0])],
+            _ => vec![],
+        };
+    } else if elem.vr == &vr::SS {
+        match elem.vl {
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem.parse_i16s()?,
+            ValueLength::Explicit(1) => vec![i16::from(elem.get_data()[0])],
+            _ => vec![],
+        };
+    } else if elem.vr == &vr::SL {
+        match elem.vl {
+            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => elem.parse_i32s()?,
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
+                .parse_i16s()?
+                .into_iter()
+                .map(i32::from)
+                .collect::<Vec<i32>>(),
+            ValueLength::Explicit(1) => vec![i32::from(elem.get_data()[0])],
+            _ => vec![],
+        };
+    } else if elem.vr == &vr::UI {
+        elem.parse_string()?;
+    } else if elem.vr == &vr::UL || elem.vr == &vr::OL || elem.vr == &vr::OW || elem.vr == &vr::US {
+        match elem.vl {
+            ValueLength::Explicit(len)
+                if (elem.vr == &vr::UL || elem.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
+            {
+                elem.parse_u32s()?
+            }
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
+                .parse_u16s()?
+                .into_iter()
+                .map(u32::from)
+                .collect::<Vec<u32>>(),
+            ValueLength::Explicit(1) => vec![u32::from(elem.get_data()[0])],
+            _ => vec![],
+        };
+    } else if elem.vr.is_character_string {
+        elem.parse_strings()?;
+    }
+
+    Ok(())
 }
