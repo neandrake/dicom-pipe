@@ -131,9 +131,9 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => elem
                 .parse_f32s()?
                 .into_iter()
-                .map(|v| v as f64)
+                .map(f64::from)
                 .collect::<Vec<f64>>(),
-            ValueLength::Explicit(1) => vec![elem.get_data()[0] as f64],
+            ValueLength::Explicit(1) => vec![f64::from(elem.get_data()[0])],
             _ => vec![],
         };
         let vec_len: usize = vec.len();
@@ -146,7 +146,7 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
         sep = " / ";
         let vec: Vec<i16> = match elem.vl {
             ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem.parse_i16s()?,
-            ValueLength::Explicit(1) => vec![elem.get_data()[0] as i16],
+            ValueLength::Explicit(1) => vec![i16::from(elem.get_data()[0])],
             _ => vec![],
         };
         let vec_len: usize = vec.len();
@@ -162,9 +162,9 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
                 .parse_i16s()?
                 .into_iter()
-                .map(|v| v as i32)
+                .map(i32::from)
                 .collect::<Vec<i32>>(),
-            ValueLength::Explicit(1) => vec![elem.get_data()[0] as i32],
+            ValueLength::Explicit(1) => vec![i32::from(elem.get_data()[0])],
             _ => vec![],
         };
         let vec_len: usize = vec.len();
@@ -191,9 +191,9 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
                 .parse_u16s()?
                 .into_iter()
-                .map(|v| v as u32)
+                .map(u32::from)
                 .collect::<Vec<u32>>(),
-            ValueLength::Explicit(1) => vec![elem.get_data()[0] as u32],
+            ValueLength::Explicit(1) => vec![u32::from(elem.get_data()[0])],
             _ => vec![],
         };
         let vec_len: usize = vec.len();
