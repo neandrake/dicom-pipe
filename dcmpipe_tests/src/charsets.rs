@@ -1,10 +1,21 @@
-use crate::parse_file;
+use crate::{parse_file, parse_all_values};
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use encoding::all;
 use std::io::Error;
+
+/// This DICOMDIR has sequences with nested elements that change charsets
+#[test]
+fn test_parse_nested_charset_values() -> Result<(), Error> {
+    let dcmroot: DicomRoot = parse_file(
+        "./fixtures/dclunie/charsettests/DICOMDIR",
+        true,
+    )?;
+
+    parse_all_values(&dcmroot)
+}
 
 #[test]
 fn test_scs_arab() -> Result<(), Error> {
