@@ -540,15 +540,18 @@ fn test_private_ge_ts(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
+#[ignore]
 fn test_secured_dicomdir_with_std() -> Result<(), Error> {
     test_secured_dicomdir(true)
 }
 
 #[test]
+#[ignore]
 fn test_secured_dicomdir_without_std() -> Result<(), Error> {
     test_secured_dicomdir(false)
 }
 
+/// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
 fn test_secured_dicomdir(with_std: bool) -> Result<(), Error> {
     let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/DICOMDIR",
@@ -559,15 +562,18 @@ fn test_secured_dicomdir(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
+#[ignore]
 fn test_secured_image_with_std() -> Result<(), Error> {
     test_secured_image(true)
 }
 
 #[test]
+#[ignore]
 fn test_secured_image_without_std() -> Result<(), Error> {
     test_secured_image(false)
 }
 
+/// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
 fn test_secured_image(with_std: bool) -> Result<(), Error> {
     let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/IMAGES/IMAGE1",
