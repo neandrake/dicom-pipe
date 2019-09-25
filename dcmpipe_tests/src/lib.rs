@@ -121,7 +121,7 @@ where
 }
 
 pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot) -> Result<(), Error> {
-    for (_tag, dcmobj) in dcmroot.iter() {
+    for (_tag, dcmobj) in dcmroot.iter_child_nodes() {
         parse_all_dcmobj_values(dcmobj)?;
     }
     Ok(())
@@ -129,7 +129,7 @@ pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot) -> Result<(), Error> {
 
 fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<(), Error> {
     parse_element_value(dcmobj.as_element())?;
-    for (_tag, child_dcmobj) in dcmobj.iter() {
+    for (_tag, child_dcmobj) in dcmobj.iter_child_nodes() {
         parse_all_dcmobj_values(child_dcmobj)?;
     }
     Ok(())

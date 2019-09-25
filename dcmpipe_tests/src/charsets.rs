@@ -1,24 +1,63 @@
-use crate::{parse_all_element_values, parse_file};
+use crate::parse_file;
 use dcmpipe_dict::dict::dicom_elements as tags;
+use dcmpipe_dict::dict::dir_structure_elements as dse;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot, DicomObject};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use encoding::all;
 use std::fs::File;
 use std::io::Error;
+use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]
 fn test_parse_nested_charset_values() -> Result<(), Error> {
     let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
     let file: File = File::open(path_str)?;
-    let parser: Parser<File> = ParserBuilder::new(file)
+    let mut parser: Parser<File> = ParserBuilder::new(file)
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build();
 
-    parse_all_element_values(parser, path_str)
+    let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
+
+    test_nested_charset(&dcmroot, 0, all::ISO_8859_8, "ISO_IR 138", "שרון^דבורה")?;
+    test_nested_charset(&dcmroot, 4, all::ISO_8859_5, "ISO_IR 144", "Люкceмбypг")?;
+    test_nested_charset(&dcmroot, 8, all::ISO_8859_6, "ISO_IR 127", "قباني^لنزار")?;
+    test_nested_charset(&dcmroot, 12, all::WINDOWS_1252, "ISO_IR 100", "Äneas^Rüdiger")?;
+
+    Ok(())
+}
+
+fn test_nested_charset(dcmroot: &DicomRoot, item_num: usize, cs: CSRef, scs: &str, pn: &str) -> Result<(), Error> {
+    let item: &DicomObject = dcmroot.get_child(dse::DirectoryRecordSequence.tag)
+        .expect("Should have DirectoryRecordSequence")
+        .get_item(item_num)
+        .expect("Should have item");
+
+    let item_scs: String = item.get_child(tags::SpecificCharacterSet.tag)
+        .expect("Item should have SCS")
+        .as_element()
+        .parse_strings()?
+        .into_iter()
+        .filter(|cs_entry: &String| !cs_entry.is_empty())
+        .nth(0)
+        .expect("Should have at least one value for SCS");
+
+    assert_eq!(item_scs, scs);
+
+    let item_pn: &DicomElement = item.get_child(tags::PatientsName.tag)
+        .expect("Item should have PN")
+        .as_element();
+
+    assert_eq!(item_pn.get_cs().name(), cs.name());
+
+    let item_pn_value: String = item_pn.parse_string()?;
+
+    assert_eq!(item_pn_value, pn);
+
+    Ok(())
 }
 
 #[test]

@@ -2,7 +2,7 @@ use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::ts::TSRef;
-use std::collections::btree_map::Iter;
+use std::collections::btree_map;
 use std::collections::BTreeMap;
 
 /// Trait for a dicom node which contains child elements.
@@ -12,9 +12,13 @@ pub trait DicomNode {
     /// Get a child node with the given tag
     fn get_child(&self, tag: u32) -> Option<&DicomObject>;
     /// Iterator over the child nodes, in tag-ascending order
-    fn iter(&self) -> Iter<u32, DicomObject>;
+    fn iter_child_nodes(&self) -> btree_map::Iter<u32, DicomObject>;
     /// Inserts a child node
     fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject>;
+    /// Get the number of item nodes if this is a sequence-like node
+    fn get_item_count(&self) -> usize;
+    /// Get an item of the given index
+    fn get_item(&self, index: usize) -> Option<&DicomObject>;
 }
 
 /// A root node of a DICOM dataset. It does not represent an element but contains child elements.
@@ -60,13 +64,21 @@ impl<'dict> DicomNode for DicomRoot<'dict> {
         self.child_nodes.get(&tag)
     }
 
-    fn iter(&self) -> Iter<u32, DicomObject> {
+    fn iter_child_nodes(&self) -> btree_map::Iter<u32, DicomObject> {
         self.child_nodes.iter()
     }
 
     fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject> {
         let tag: u32 = object.as_element().tag;
         self.child_nodes.insert(tag, object)
+    }
+
+    fn get_item_count(&self) -> usize {
+        0
+    }
+
+    fn get_item(&self, _index: usize) -> Option<&DicomObject> {
+        None
     }
 }
 
@@ -77,22 +89,27 @@ pub struct DicomObject {
     element: DicomElement,
     /// Child nodes which may be elements of sub-sequences.
     child_nodes: BTreeMap<u32, DicomObject>,
+    /// Item nodes don't go into the map since there can be multiple of them.
+    items: Vec<DicomObject>,
 }
 impl DicomObject {
     pub fn new(element: DicomElement) -> DicomObject {
         DicomObject {
             element,
             child_nodes: BTreeMap::new(),
+            items: Vec::new(),
         }
     }
 
     pub fn new_with_children(
         element: DicomElement,
         child_nodes: BTreeMap<u32, DicomObject>,
+        items: Vec<DicomObject>,
     ) -> DicomObject {
         DicomObject {
             element,
             child_nodes,
+            items,
         }
     }
 
@@ -109,12 +126,20 @@ impl DicomNode for DicomObject {
         self.child_nodes.get(&tag)
     }
 
-    fn iter(&self) -> Iter<u32, DicomObject> {
+    fn iter_child_nodes(&self) -> btree_map::Iter<u32, DicomObject> {
         self.child_nodes.iter()
     }
 
     fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject> {
         let tag: u32 = object.as_element().tag;
         self.child_nodes.insert(tag, object)
+    }
+
+    fn get_item_count(&self) -> usize {
+        self.items.len()
+    }
+
+    fn get_item(&self, index: usize) -> Option<&DicomObject> {
+        self.items.get(index)
     }
 }
