@@ -4,12 +4,12 @@ use dcmpipe_dict::dict::dir_structure_elements as dse;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot, DicomObject};
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use encoding::all;
 use std::fs::File;
 use std::io::Error;
-use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]
@@ -22,21 +22,88 @@ fn test_parse_nested_charset_values() -> Result<(), Error> {
 
     let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
 
-    test_nested_charset(&dcmroot, 0, all::ISO_8859_8, "ISO_IR 138", "שרון^דבורה")?;
-    test_nested_charset(&dcmroot, 4, all::ISO_8859_5, "ISO_IR 144", "Люкceмбypг")?;
-    test_nested_charset(&dcmroot, 8, all::ISO_8859_6, "ISO_IR 127", "قباني^لنزار")?;
-    test_nested_charset(&dcmroot, 12, all::WINDOWS_1252, "ISO_IR 100", "Äneas^Rüdiger")?;
+    test_nested_charset(
+        &dcmroot,
+        0,
+        all::ISO_8859_8,
+        "ISO_IR 138",
+        "שרון^דבורה",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        4,
+        all::ISO_8859_5,
+        "ISO_IR 144",
+        "Люкceмбypг",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        8,
+        all::ISO_8859_6,
+        "ISO_IR 127",
+        "قباني^لنزار",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        12,
+        all::WINDOWS_1252,
+        "ISO_IR 100",
+        "Äneas^Rüdiger",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        16,
+        all::WINDOWS_1252,
+        "ISO_IR 100",
+        "Buc^Jérôme",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        20,
+        all::ISO_8859_7,
+        "ISO_IR 126",
+        "Διονυσιος",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        24,
+        all::GB18030,
+        "GB18030",
+        "Wang^XiaoDong=王^小东=",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        28,
+        all::UTF_8,
+        "ISO_IR 192",
+        "Wang^XiaoDong=王^小東=",
+    )?;
+    test_nested_charset(
+        &dcmroot,
+        32,
+        all::WINDOWS_1252,
+        "ISO 2022 IR 149",
+        "Hong^Gildong=\u{1b}$)Cûó^\u{1b}$)CÑÎÔ×=\u{1b}$)CÈ«^\u{1b}$)C±æµ¿",
+    )?;
 
     Ok(())
 }
 
-fn test_nested_charset(dcmroot: &DicomRoot, item_num: usize, cs: CSRef, scs: &str, pn: &str) -> Result<(), Error> {
-    let item: &DicomObject = dcmroot.get_child(dse::DirectoryRecordSequence.tag)
+fn test_nested_charset(
+    dcmroot: &DicomRoot,
+    item_num: usize,
+    cs: CSRef,
+    scs: &str,
+    pn: &str,
+) -> Result<(), Error> {
+    let item: &DicomObject = dcmroot
+        .get_child(dse::DirectoryRecordSequence.tag)
         .expect("Should have DirectoryRecordSequence")
         .get_item(item_num)
         .expect("Should have item");
 
-    let item_scs: String = item.get_child(tags::SpecificCharacterSet.tag)
+    let item_scs: String = item
+        .get_child(tags::SpecificCharacterSet.tag)
         .expect("Item should have SCS")
         .as_element()
         .parse_strings()?
@@ -47,7 +114,8 @@ fn test_nested_charset(dcmroot: &DicomRoot, item_num: usize, cs: CSRef, scs: &st
 
     assert_eq!(item_scs, scs);
 
-    let item_pn: &DicomElement = item.get_child(tags::PatientsName.tag)
+    let item_pn: &DicomElement = item
+        .get_child(tags::PatientsName.tag)
         .expect("Item should have PN")
         .as_element();
 

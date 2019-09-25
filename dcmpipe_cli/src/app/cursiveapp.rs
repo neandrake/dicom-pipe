@@ -31,11 +31,9 @@ enum DicomElementColumn {
 pub struct DicomElementValue<'me> {
     element: &'me DicomElement,
 }
-impl <'me> DicomElementValue<'me> {
+impl<'me> DicomElementValue<'me> {
     fn new(element: &'me DicomElement) -> DicomElementValue {
-        DicomElementValue {
-            element,
-        }
+        DicomElementValue { element }
     }
 }
 
@@ -51,10 +49,12 @@ impl DicomElementColumn {
     }
 }
 
-impl <'me> TableViewItem<DicomElementColumn> for DicomElementValue<'me> {
+impl<'me> TableViewItem<DicomElementColumn> for DicomElementValue<'me> {
     fn to_column(&self, column: DicomElementColumn) -> String {
         match column {
-            DicomElementColumn::Expand => if self.element.is_seq_like() { "+" } else { "" }.to_owned(),
+            DicomElementColumn::Expand => {
+                if self.element.is_seq_like() { "+" } else { "" }.to_owned()
+            }
             DicomElementColumn::Tag => Tag::format_tag_to_display(self.element.tag),
             DicomElementColumn::Name => if let Some(tag) = TAG_BY_VALUE.get(&self.element.tag) {
                 tag.ident
@@ -87,9 +87,12 @@ impl <'me> TableViewItem<DicomElementColumn> for DicomElementValue<'me> {
     }
 }
 
-impl <'me> CursiveApp {
+impl<'me> CursiveApp {
     pub fn new(openpath: String) -> CursiveApp {
-        CursiveApp { openpath, elements: Vec::new() }
+        CursiveApp {
+            openpath,
+            elements: Vec::new(),
+        }
     }
 
     pub fn run(&'me mut self) -> Result<(), Error> {
@@ -122,7 +125,8 @@ impl <'me> CursiveApp {
             }
         }
 
-        let _items: Vec<DicomElementValue> = self.elements
+        let _items: Vec<DicomElementValue> = self
+            .elements
             .iter()
             .map(DicomElementValue::new)
             .collect::<Vec<DicomElementValue>>();
@@ -157,7 +161,7 @@ impl <'me> CursiveApp {
                 |c| c,
             );
 
-//        table.set_items(items);
+        //        table.set_items(items);
 
         table.set_on_submit(|siv: &mut Cursive, row: usize, index: usize| {
             let value = siv

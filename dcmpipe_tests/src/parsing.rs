@@ -10,11 +10,11 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{ParseState, Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
-use dcmpipe_lib::defn::tag::Tag;
 
 #[test]
 fn test_good_preamble() {
@@ -126,7 +126,10 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
 
     // the iterator state should be just after having parsed the stop tag
     let stopped_at_tag: u32 = parser.get_tag_last_read();
-    assert_eq!(Tag::format_tag_to_display(stopped_at_tag), Tag::format_tag_to_display(tagstop));
+    assert_eq!(
+        Tag::format_tag_to_display(stopped_at_tag),
+        Tag::format_tag_to_display(tagstop)
+    );
 
     Ok(())
 }
