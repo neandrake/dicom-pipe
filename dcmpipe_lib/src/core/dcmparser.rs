@@ -316,9 +316,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.cs
         };
 
-        Ok(DicomElement::new(
-            tag, vr, vl, ts, cs, bytes, ancestors,
-        ))
+        Ok(DicomElement::new(tag, vr, vl, ts, cs, bytes, ancestors))
     }
 
     /// If the given transfer syntax has Explicit VR then this reads a VR attribute from the dataset
@@ -863,11 +861,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         } else if element.tag == tags::SPECIFIC_CHARACTER_SET {
             let cs: CSRef = self.parse_specific_character_set(&element)?;
             if element.get_sequence_path().is_empty() {
-                self.cs = cs
-            } else {
-                if let Some(sq) = self.current_path.last_mut() {
-                    sq.set_cs(cs);
-                }
+                self.cs = cs;
+            } else if let Some(sq) = self.current_path.last_mut() {
+                sq.set_cs(cs);
             }
         }
 
