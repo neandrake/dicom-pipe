@@ -5,7 +5,6 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::defn::ts::TSRef;
-use std::collections::btree_map::Iter;
 use std::fs::File;
 use std::io::{self, Error, ErrorKind, StdoutLock, Write};
 use std::path::Path;
@@ -43,19 +42,18 @@ impl FullObjApp {
         )?;
 
         let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
-        let obj_iter: Iter<u32, DicomObject> = dcmroot.iter();
-        self.render_objects(obj_iter, true, parser.get_ts(), &mut stdout)?;
+        self.render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)?;
         Ok(())
     }
 
     fn render_objects(
         &self,
-        obj_iter: Iter<u32, DicomObject>,
+        dcmnode: &impl DicomNode,
         mut prev_was_file_meta: bool,
         ts: TSRef,
         stdout: &mut StdoutLock,
     ) -> Result<(), Error> {
-        for (tag, obj) in obj_iter {
+        for (tag, obj) in dcmnode.iter_child_nodes() {
             let elem: &DicomElement = obj.as_element();
 
             if prev_was_file_meta && *tag > 0x0002_FFFF {
@@ -75,7 +73,15 @@ impl FullObjApp {
             }
 
             if obj.get_child_count() > 0 {
-                self.render_objects(obj.iter(), prev_was_file_meta, ts, stdout)?;
+                self.render_objects(obj, prev_was_file_meta, ts, stdout)?;
+            }
+            for index in 0..obj.get_item_count() {
+                let child_obj: &DicomObject = obj.get_item(index).unwrap();
+                let child_elem: &DicomElement = child_obj.as_element();
+                if let Some(printed) = render_element(child_elem)? {
+                    stdout.write_all(format!("{}\n", printed).as_ref())?;
+                }
+                self.render_objects(child_obj, prev_was_file_meta, ts, stdout)?;
             }
         }
 

@@ -200,6 +200,10 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         self.partial_tag
     }
 
+    pub fn get_tag_last_read(&self) -> u32 {
+        self.tag_last_read
+    }
+
     pub fn get_parser_state(&self) -> ParseState {
         self.state
     }
@@ -296,7 +300,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             vr_ts.1
         };
 
-        let bytes: Vec<u8> = if vr == &vr::SQ || parse_as_seq || tag == tags::ITEM {
+        let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::ITEM || parse_as_seq {
             // Sequence and item elements should let the iterator handle parsing its contents and
             // not associate bytes to the element's value
             Vec::new()
@@ -305,8 +309,15 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         };
 
         let ancestors: Vec<SequenceElement> = self.current_path.clone();
+
+        let cs: CSRef = if let Some(sq) = ancestors.last() {
+            sq.get_cs()
+        } else {
+            self.cs
+        };
+
         Ok(DicomElement::new(
-            tag, vr, vl, ts, self.cs, bytes, ancestors,
+            tag, vr, vl, ts, cs, bytes, ancestors,
         ))
     }
 
@@ -368,7 +379,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             ts.big_endian,
         );
         if result.is_ok() {
-            if !ts.explicit_vr || vr.has_explicit_2byte_pad {
+            if read_4bytes {
                 self.bytes_read += 4;
             } else {
                 self.bytes_read += 2;
@@ -394,23 +405,19 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
     }
 
-    /// Parses the value of the given element as the transfer syntax and sets the `ts` value on this
-    /// iterator to affect the reading of further dicom elements. If the transfer syntax cannot be
-    /// resolved then this sets it to the default DICOM transfer syntax which is IVRLE.
-    fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<(), Error> {
+    /// Parses the value of the given element as the transfer syntax return. If the transfer syntax
+    /// cannot be resolved then this sets it to the default DICOM transfer syntax which is IVRLE.
+    fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<TSRef, Error> {
         let ts_uid: String = element.parse_string()?;
-
-        self.ts = self
+        Ok(self
             .dictionary
             .get_ts_by_uid(ts_uid.as_ref())
-            .unwrap_or(&ts::ImplicitVRLittleEndian);
-
-        Ok(())
+            .unwrap_or(&ts::ImplicitVRLittleEndian))
     }
 
     /// Parses the value of the given element as the specific character set and sets the `cs` value
     /// on this iterator to affect the parsing of further text-type element values.
-    fn parse_specific_character_set(&mut self, element: &DicomElement) -> Result<(), Error> {
+    fn parse_specific_character_set(&mut self, element: &DicomElement) -> Result<CSRef, Error> {
         let new_cs: Option<String> = element
             .parse_strings()?
             .into_iter()
@@ -421,10 +428,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         //       See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of
         //       Unsupported Character Sets"
 
-        self.cs = new_cs
+        Ok(new_cs
             .and_then(|cs: String| charset::lookup_charset(&cs))
-            .unwrap_or(charset::DEFAULT_CHARACTER_SET);
-        Ok(())
+            .unwrap_or(charset::DEFAULT_CHARACTER_SET))
     }
 
     /// Performs the primary iteration for the parser but the return type is consistent for error
@@ -803,7 +809,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         let element: DicomElement = self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian)?;
         if element.tag == tags::TRANSFER_SYNTAX_UID {
-            self.parse_transfer_syntax(&element)?;
+            self.ts = self.parse_transfer_syntax(&element)?;
         }
 
         // if group length was read use the byte position to determine if we're out of file-meta
@@ -845,7 +851,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         if tag == tags::ITEM {
             // get the sequence this item is for and increment its item number
             if let Some(seq_elem) = self.current_path.last_mut() {
-                seq_elem.increment_item_number();
+                seq_elem.increment_item_num();
             }
         }
 
@@ -853,9 +859,16 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // if the file-meta state was skipped due to the initial detection we may still need to
         // switch transfer syntax -- only do this if the element is at the root of the dataset
         if element.tag == tags::TRANSFER_SYNTAX_UID && element.get_sequence_path().is_empty() {
-            self.parse_transfer_syntax(&element)?;
+            self.ts = self.parse_transfer_syntax(&element)?;
         } else if element.tag == tags::SPECIFIC_CHARACTER_SET {
-            self.parse_specific_character_set(&element)?;
+            let cs: CSRef = self.parse_specific_character_set(&element)?;
+            if element.get_sequence_path().is_empty() {
+                self.cs = cs
+            } else {
+                if let Some(sq) = self.current_path.last_mut() {
+                    sq.set_cs(cs);
+                }
+            }
         }
 
         // reset partial_tag to None
@@ -863,12 +876,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         // check for exiting a sequence based on being sequence delimiter
         // do this before checking against byte position
-        if element.tag == tags::SEQUENCE_DELIMITATION_ITEM {
+        if tag == tags::SEQUENCE_DELIMITATION_ITEM || tag == tags::ITEM_DELIMITATION_ITEM {
             self.current_path.pop();
-        } else if element.tag == tags::ITEM_DELIMITATION_ITEM {
-            if let Some(seq_elem) = self.current_path.last_mut() {
-                seq_elem.decrement_item_num();
-            }
         }
 
         // sequence may not have a delimiter and should end based on byte position
@@ -886,14 +895,27 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             }
         }
 
-        if element.is_seq_like() {
+        if element.is_seq_like() || tag == tags::ITEM {
+            let sq_ts: TSRef = if tag == tags::ITEM {
+                // item elements will have a TS of IVRLE but since this is indicates what contents
+                // should parse as use the original ts determined to parse regular elements
+                ts
+            } else {
+                // otherwise the element will have the transfer syntax for the sequence
+                element.get_ts()
+            };
             let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.vl {
                 Some(self.bytes_read + u64::from(len))
             } else {
                 None
             };
+            let sq_cs: CSRef = if let Some(sq) = self.current_path.last() {
+                sq.get_cs()
+            } else {
+                self.cs
+            };
             self.current_path
-                .push(SequenceElement::new(tag, seq_end_pos, element.get_ts()));
+                .push(SequenceElement::new(tag, seq_end_pos, sq_ts, sq_cs));
         }
 
         Ok(Some(element))
