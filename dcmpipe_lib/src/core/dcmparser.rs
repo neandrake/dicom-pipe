@@ -196,10 +196,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         self.bytes_read
     }
 
-    pub fn get_partial_tag(&self) -> Option<u32> {
-        self.partial_tag
-    }
-
     pub fn get_tag_last_read(&self) -> u32 {
         self.tag_last_read
     }
