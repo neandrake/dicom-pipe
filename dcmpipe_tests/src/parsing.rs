@@ -197,13 +197,12 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<(), Error> {
     let rss_elem: &DicomElement = rss_obj.as_element();
     assert_eq!(rss_elem.vl, ValueLength::UndefinedLength);
 
-    let sdi_pair: (&u32, &DicomObject) = rss_obj
+    let sdi_elem: &DicomElement = rss_obj
         .iter_child_nodes()
         .next()
-        .expect("Should be able to get single child item");
-    assert_eq!(*sdi_pair.0, tags::SequenceDelimitationItem.tag);
-
-    let sdi_elem: &DicomElement = sdi_pair.1.as_element();
+        .expect("Should be able to get single child item")
+        .1
+        .as_element();
     assert_eq!(sdi_elem.tag, tags::SequenceDelimitationItem.tag);
 
     Ok(())
@@ -243,7 +242,7 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
     let child_obj: &DicomObject = private_un_seq_obj
         .get_item(0)
         .expect("Private sequence should have one item");
-    // The first item has 28 elements
+    // The first item has 27 elements
     assert_eq!(child_obj.get_child_count(), 27);
 
     let sopuid: &DicomElement = child_obj
