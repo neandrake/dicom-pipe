@@ -13,7 +13,7 @@ use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 
@@ -748,20 +748,39 @@ fn test_illegal_group2_implicit_ts(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_ul_is_2bytes_with_std() -> Result<(), Error> {
-    test_ul_is_2bytes(true)
+#[should_panic(expected = "Unable to parse as u32(s)")]
+fn test_ul_is_2bytes_with_std() {
+    test_ul_is_2bytes(true).unwrap();
 }
 
 #[test]
-fn test_ul_is_2bytes_without_std() -> Result<(), Error> {
-    test_ul_is_2bytes(false)
+#[should_panic(expected = "Unable to parse as u32(s)")]
+fn test_ul_is_2bytes_without_std() {
+    test_ul_is_2bytes(false).unwrap();
 }
 
 /// Contains a tag (0009,1130) which is explicit UL but value length is only 2 instead of 4
 fn test_ul_is_2bytes(with_std: bool) -> Result<(), Error> {
-    let _dcmroot: DicomRoot = parse_file(
+    let dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/SIEMENS_GBS_III-16-ACR_NEMA_1-ULis2Bytes.dcm",
         with_std,
+    )?;
+
+    // should be able to parse the value as u16 since it has 2 bytes
+    let val: u16 = dcmroot
+        .get_child(0x0009_1130)
+        .expect("Tag should exist")
+        .as_element()
+        .try_into()?;
+
+    assert_eq!(val, 0x0800);
+
+    // this will return an error
+    TryInto::<u32>::try_into(
+        dcmroot
+            .get_child(0x0009_1130)
+            .expect("Tag should exist")
+            .as_element(),
     )?;
 
     Ok(())
