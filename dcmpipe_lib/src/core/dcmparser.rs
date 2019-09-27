@@ -1,6 +1,7 @@
 use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
-use crate::core::dcmelement::{DicomElement, SequenceElement};
+use crate::core::dcmelement::DicomElement;
 use crate::core::dcmparser_util;
+use crate::core::dcmsqelem::SequenceElement;
 use crate::core::tagstop::TagStop;
 use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use crate::defn::constants::{tags, ts};
