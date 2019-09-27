@@ -1,6 +1,6 @@
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, UID_BY_UID};
-use dcmpipe_lib::core::dcmelement::{DicomElement, SequenceElement};
+use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement, SequenceElement};
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vr;
 use std::io::Error;
@@ -13,6 +13,7 @@ pub use cursiveapp::CursiveApp;
 use dcmpipe_lib::defn::vl::ValueLength;
 pub use fullobjapp::FullObjApp;
 pub use lowmemapp::LowMemApp;
+use std::convert::TryFrom;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 16;
@@ -119,17 +120,16 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
     if elem.vr == &vr::AT {
-        str_vals.push(Tag::format_tag_to_display(elem.parse_attribute()?));
+        str_vals.push(Tag::format_tag_to_display(Attribute::try_from(elem)?.0));
     } else if elem.vr == &vr::FD || elem.vr == &vr::OF || elem.vr == &vr::OD || elem.vr == &vr::FL {
         sep = " / ";
         let vec: Vec<f64> = match elem.vl {
             ValueLength::Explicit(len)
                 if (elem.vr == &vr::OD || elem.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
             {
-                elem.parse_f64s()?
+                Vec::<f64>::try_from(elem)?
             }
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => elem
-                .parse_f32s()?
+            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<f32>::try_from(elem)?
                 .into_iter()
                 .map(f64::from)
                 .collect::<Vec<f64>>(),
@@ -145,7 +145,7 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
     } else if elem.vr == &vr::SS {
         sep = " / ";
         let vec: Vec<i16> = match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem.parse_i16s()?,
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?,
             ValueLength::Explicit(1) => vec![i16::from(elem.get_data()[0])],
             _ => vec![],
         };
@@ -158,9 +158,8 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
     } else if elem.vr == &vr::SL {
         sep = " / ";
         let vec: Vec<i32> = match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => elem.parse_i32s()?,
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
-                .parse_i16s()?
+            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<i32>::try_from(elem)?,
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?
                 .into_iter()
                 .map(i32::from)
                 .collect::<Vec<i32>>(),
@@ -174,7 +173,7 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             .for_each(|val: String| str_vals.push(val));
         ellipses = vec_len > str_vals.len();
     } else if elem.vr == &vr::UI {
-        let str_val: String = elem.parse_string()?;
+        let str_val: String = String::try_from(elem)?;
         if let Some(uid) = UID_BY_UID.get(str_val.as_str()) {
             str_vals.push(format!("{} ({})", str_val, uid.name));
         } else {
@@ -186,10 +185,9 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             ValueLength::Explicit(len)
                 if (elem.vr == &vr::UL || elem.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
             {
-                elem.parse_u32s()?
+                Vec::<u32>::try_from(elem)?
             }
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
-                .parse_u16s()?
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<u16>::try_from(elem)?
                 .into_iter()
                 .map(u32::from)
                 .collect::<Vec<u32>>(),
@@ -203,7 +201,7 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             .for_each(|val: String| str_vals.push(val));
         ellipses = vec_len > str_vals.len();
     } else if elem.vr.is_character_string {
-        let vec: Vec<String> = elem.parse_strings()?;
+        let vec: Vec<String> = Vec::<String>::try_from(elem)?;
         let vec_len: usize = vec.len();
         vec.iter()
             .take(MAX_ITEMS_DISPLAYED)
