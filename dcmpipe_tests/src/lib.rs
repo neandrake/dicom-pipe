@@ -2,7 +2,7 @@ extern crate encoding;
 extern crate walkdir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::core::dcmelement::DicomElement;
+use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{
     Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
@@ -11,6 +11,7 @@ use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{Error, Read};
 use std::path::{Path, PathBuf};
@@ -171,16 +172,15 @@ pub fn parse_all_element_values(parser: Parser<File>, path_str: &str) -> Result<
 
 pub fn parse_element_value(elem: &DicomElement) -> Result<(), Error> {
     if elem.vr == &vr::AT {
-        elem.parse_attribute()?;
+        Attribute::try_from(elem)?;
     } else if elem.vr == &vr::FD || elem.vr == &vr::OF || elem.vr == &vr::OD || elem.vr == &vr::FL {
         match elem.vl {
             ValueLength::Explicit(len)
                 if (elem.vr == &vr::OD || elem.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
             {
-                elem.parse_f64s()?
+                Vec::<f64>::try_from(elem)?
             }
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => elem
-                .parse_f32s()?
+            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<f32>::try_from(elem)?
                 .into_iter()
                 .map(f64::from)
                 .collect::<Vec<f64>>(),
@@ -189,15 +189,14 @@ pub fn parse_element_value(elem: &DicomElement) -> Result<(), Error> {
         };
     } else if elem.vr == &vr::SS {
         match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem.parse_i16s()?,
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?,
             ValueLength::Explicit(1) => vec![i16::from(elem.get_data()[0])],
             _ => vec![],
         };
     } else if elem.vr == &vr::SL {
         match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => elem.parse_i32s()?,
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
-                .parse_i16s()?
+            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<i32>::try_from(elem)?,
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?
                 .into_iter()
                 .map(i32::from)
                 .collect::<Vec<i32>>(),
@@ -205,16 +204,15 @@ pub fn parse_element_value(elem: &DicomElement) -> Result<(), Error> {
             _ => vec![],
         };
     } else if elem.vr == &vr::UI {
-        elem.parse_string()?;
+        String::try_from(elem)?;
     } else if elem.vr == &vr::UL || elem.vr == &vr::OL || elem.vr == &vr::OW || elem.vr == &vr::US {
         match elem.vl {
             ValueLength::Explicit(len)
                 if (elem.vr == &vr::UL || elem.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
             {
-                elem.parse_u32s()?
+                Vec::<u32>::try_from(elem)?
             }
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => elem
-                .parse_u16s()?
+            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<u16>::try_from(elem)?
                 .into_iter()
                 .map(u32::from)
                 .collect::<Vec<u32>>(),
@@ -222,7 +220,7 @@ pub fn parse_element_value(elem: &DicomElement) -> Result<(), Error> {
             _ => vec![],
         };
     } else if elem.vr.is_character_string {
-        elem.parse_strings()?;
+        Vec::<String>::try_from(elem)?;
     }
 
     Ok(())

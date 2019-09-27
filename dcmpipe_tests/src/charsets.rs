@@ -8,6 +8,7 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use encoding::all;
+use std::convert::{TryFrom, TryInto};
 use std::fs::File;
 use std::io::Error;
 
@@ -22,27 +23,9 @@ fn test_parse_nested_charset_values() -> Result<(), Error> {
 
     let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
 
-    test_nested_charset(
-        &dcmroot,
-        0,
-        all::ISO_8859_8,
-        "ISO_IR 138",
-        "שרון^דבורה",
-    )?;
-    test_nested_charset(
-        &dcmroot,
-        4,
-        all::ISO_8859_5,
-        "ISO_IR 144",
-        "Люкceмбypг",
-    )?;
-    test_nested_charset(
-        &dcmroot,
-        8,
-        all::ISO_8859_6,
-        "ISO_IR 127",
-        "قباني^لنزار",
-    )?;
+    test_nested_charset(&dcmroot, 0, all::ISO_8859_8, "ISO_IR 138", "שרון^דבורה")?;
+    test_nested_charset(&dcmroot, 4, all::ISO_8859_5, "ISO_IR 144", "Люкceмбypг")?;
+    test_nested_charset(&dcmroot, 8, all::ISO_8859_6, "ISO_IR 127", "قباني^لنزار")?;
     test_nested_charset(
         &dcmroot,
         12,
@@ -50,20 +33,8 @@ fn test_parse_nested_charset_values() -> Result<(), Error> {
         "ISO_IR 100",
         "Äneas^Rüdiger",
     )?;
-    test_nested_charset(
-        &dcmroot,
-        16,
-        all::WINDOWS_1252,
-        "ISO_IR 100",
-        "Buc^Jérôme",
-    )?;
-    test_nested_charset(
-        &dcmroot,
-        20,
-        all::ISO_8859_7,
-        "ISO_IR 126",
-        "Διονυσιος",
-    )?;
+    test_nested_charset(&dcmroot, 16, all::WINDOWS_1252, "ISO_IR 100", "Buc^Jérôme")?;
+    test_nested_charset(&dcmroot, 20, all::ISO_8859_7, "ISO_IR 126", "Διονυσιος")?;
     test_nested_charset(
         &dcmroot,
         24,
@@ -102,11 +73,13 @@ fn test_nested_charset(
         .get_item(item_num)
         .expect("Should have item");
 
-    let item_scs: String = item
+    let item_scs_values: Vec<String> = item
         .get_child(tags::SpecificCharacterSet.tag)
         .expect("Item should have SCS")
         .as_element()
-        .parse_strings()?
+        .try_into()?;
+
+    let item_scs: String = item_scs_values
         .into_iter()
         .filter(|cs_entry: &String| !cs_entry.is_empty())
         .nth(0)
@@ -121,7 +94,7 @@ fn test_nested_charset(
 
     assert_eq!(item_pn.get_cs().name(), cs.name());
 
-    let item_pn_value: String = item_pn.parse_string()?;
+    let item_pn_value: String = String::try_from(item_pn)?;
 
     assert_eq!(item_pn_value, pn);
 
@@ -260,8 +233,7 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
         .as_element();
 
     // value can be multiple and sometimes contains empties -- match logic from the parser
-    let scs_val: String = scs_elem
-        .parse_strings()?
+    let scs_val: String = Vec::<String>::try_from(scs_elem)?
         .into_iter()
         .filter(|cs_entry: &String| !cs_entry.is_empty())
         .nth(0)
@@ -273,7 +245,7 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
         .expect("Should have PN")
         .as_element();
 
-    let pn_val: String = pn_elem.parse_string()?;
+    let pn_val: String = String::try_from(pn_elem)?;
     assert_eq!(pn_val, pn);
 
     Ok(())
