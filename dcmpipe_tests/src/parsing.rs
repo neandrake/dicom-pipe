@@ -456,6 +456,11 @@ fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
     let _dcmroot: DicomRoot =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
+    assert!(
+        false,
+        "The file-meta parses but the body does not parse, does not cause parse error"
+    );
+
     Ok(())
 }
 
@@ -470,11 +475,17 @@ fn test_illegal_cp246_without_std() -> Result<(), Error> {
 }
 
 /// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
+/// TODO: Refer to https://github.com/fo-dicom/fo-dicom/issues/177
 fn test_illegal_cp246(with_std: bool) -> Result<(), Error> {
     let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
         with_std,
     )?;
+
+    assert!(
+        false,
+        "This test doesn't cause parsing failure but doesn't parse properly"
+    );
 
     Ok(())
 }
@@ -489,11 +500,32 @@ fn test_no_preamble_start_with_0005_without_std() -> Result<(), Error> {
     test_no_preamble_start_with_0005(false)
 }
 
+/// File has no preamble/prefix and also no File Meta Info header, should default to IVRLE
 fn test_no_preamble_start_with_0005(with_std: bool) -> Result<(), Error> {
-    let _dcmroot: DicomRoot = parse_file(
+    let dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/US-IRAD-NoPreambleStartWith0005.dcm",
         with_std,
     )?;
+
+    assert_eq!(dcmroot.get_ts(), &ts::ImplicitVRLittleEndian);
+
+    let study_desc_elem: &DicomElement = dcmroot
+        .get_child(tags::StudyDescription.tag)
+        .expect("Should have Study Description tag")
+        .as_element();
+
+    let study_desc: String = study_desc_elem.try_into()?;
+
+    if with_std {
+        assert_eq!(study_desc, "ABDOMEN");
+    } else {
+        // parsing without dictionary doesn't know VR since parsed as implicit, so it won't know to
+        // remove padding value.
+        assert_eq!(study_desc, "ABDOMEN ");
+        // force parsing using the actual VR should trim the padding
+        let study_desc: String = String::try_from(ElementWithVr(study_desc_elem, &vr::LO))?;
+        assert_eq!(study_desc, "ABDOMEN");
+    }
 
     Ok(())
 }
@@ -508,11 +540,21 @@ fn test_no_dicomv3_preamble_without_std() -> Result<(), Error> {
     test_no_dicomv3_preamble(false)
 }
 
+/// File has no preamble/prefix
 fn test_no_dicomv3_preamble(with_std: bool) -> Result<(), Error> {
-    let _dcmroot: DicomRoot = parse_file(
+    let dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/PICKER-16-MONO2-No_DicomV3_Preamble.dcm",
         with_std,
     )?;
+
+    // check we can read the first element just fine
+    let fme_length: u32 = dcmroot
+        .get_child(fme::FileMetaInformationGroupLength.tag)
+        .expect("Should have FileMetaInfo GroupLength tag")
+        .as_element()
+        .try_into()?;
+
+    assert_eq!(fme_length, 84);
 
     Ok(())
 }
@@ -759,29 +801,57 @@ fn test_ul_is_2bytes_without_std() {
     test_ul_is_2bytes(false).unwrap();
 }
 
-/// Contains a tag (0009,1130) which is explicit UL but value length is only 2 instead of 4
+/// Contains tags (0009,1130), (0009,1131), (0009,1140) with explicit VR of UL but value length is
+/// actually only 2 bytes instead of 4.
 fn test_ul_is_2bytes(with_std: bool) -> Result<(), Error> {
     let dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/SIEMENS_GBS_III-16-ACR_NEMA_1-ULis2Bytes.dcm",
         with_std,
     )?;
 
-    // should be able to parse the value as u16 since it has 2 bytes
-    let val: u16 = dcmroot
+    let element1: &DicomElement = dcmroot
         .get_child(0x0009_1130)
-        .expect("Tag should exist")
-        .as_element()
-        .try_into()?;
+        .expect("Element should exist")
+        .as_element();
+    assert_eq!(element1.vr, &vr::UL);
+    assert_eq!(element1.vl, ValueLength::Explicit(2));
+    // should be able to parse the value as u16 since it has 2 bytes
+    let element1_val: u16 = element1.try_into()?;
+    assert_eq!(element1_val, 0x0800);
 
-    assert_eq!(val, 0x0800);
+    let element2: &DicomElement = dcmroot
+        .get_child(0x0009_1131)
+        .expect("Element should exist")
+        .as_element();
+    assert_eq!(element2.vr, &vr::UL);
+    assert_eq!(element2.vl, ValueLength::Explicit(2));
+    // should be able to parse the value as u16 since it has 2 bytes
+    let element2_val: u16 = element1.try_into()?;
+    assert_eq!(element2_val, 0x0800);
+
+    let element3: &DicomElement = dcmroot
+        .get_child(0x0009_1140)
+        .expect("Element should exist")
+        .as_element();
+    assert_eq!(element3.vr, &vr::UL);
+    assert_eq!(element3.vl, ValueLength::Explicit(2));
+    // should be able to parse the value as u16 since it has 2 bytes
+    let element3_val: u16 = element1.try_into()?;
+    assert_eq!(element3_val, 0x0800);
+
+    // check that we can properly parse the element after the ones with incorrect value length
+    let element4: &DicomElement = dcmroot
+        .get_child(0x0009_1141)
+        .expect("Element should exist")
+        .as_element();
+    assert_eq!(element4.vr, &vr::UL);
+    assert_eq!(element4.vl, ValueLength::Explicit(4));
+
+    let element4_val: u32 = u32::try_from(element4)?;
+    assert_eq!(element4_val, 0x2_0000);
 
     // this will return an error
-    TryInto::<u32>::try_into(
-        dcmroot
-            .get_child(0x0009_1130)
-            .expect("Tag should exist")
-            .as_element(),
-    )?;
+    TryInto::<u32>::try_into(element1)?;
 
     Ok(())
 }
