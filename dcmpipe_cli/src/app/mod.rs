@@ -19,6 +19,9 @@ use std::convert::TryFrom;
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 16;
 
+static HIDE_GROUP_TAGS: bool = false;
+static HIDE_DELIMITATION_TAGS: bool = false;
+
 /// Renders an element on a single line, includes indentation based on depth in sequences
 /// ```
 /// (gggg,eeee) VR TagName | TagValue
@@ -29,15 +32,20 @@ static MAX_ITEMS_DISPLAYED: usize = 16;
 /// ```
 /// Names for private tags will render as `<PrivateTag>`
 fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
-    if element.tag.trailing_zeros() >= 16 {
-        // Group Length tags are deprecated, see note on Part 5 Section 7.2
-        return Ok(None);
+    // Group Length tags are deprecated, see note on Part 5 Section 7.2
+    if HIDE_GROUP_TAGS {
+        if element.tag.trailing_zeros() >= 16 {
+            return Ok(None);
+        }
     }
-    if element.tag == tags::ItemDelimitationItem.tag
-        || element.tag == tags::SequenceDelimitationItem.tag
-    {
-        // These are delimiter items that are not very useful to see
-        return Ok(None);
+
+    // These are delimiter items that are not very useful to see
+    if HIDE_DELIMITATION_TAGS {
+        if element.tag == tags::ItemDelimitationItem.tag
+            || element.tag == tags::SequenceDelimitationItem.tag
+        {
+            return Ok(None);
+        }
     }
 
     let tag_num: String = Tag::format_tag_to_display(element.tag);
@@ -51,8 +59,14 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
 
     let mut indent_width: usize = seq_path.len();
-    if indent_width > 0 && element.tag != tags::Item.tag {
-        indent_width += 1;
+    if indent_width > 0 {
+        if element.tag == tags::SequenceDelimitationItem.tag
+            || element.tag == tags::ItemDelimitationItem.tag
+        {
+            indent_width -= 1;
+        } else if element.tag != tags::Item.tag {
+            indent_width += 1;
+        }
     }
     indent_width *= 2;
 
@@ -61,18 +75,25 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
             .iter()
             .map(|seq_elem: &SequenceElement| {
                 format!(
-                    "{}[{}]",
+                    "{}{}",
                     Tag::format_tag_to_display(seq_elem.get_seq_tag()),
-                    seq_elem.get_item_number().unwrap_or(0xFFFF_FFFF)
+                    seq_elem
+                        .get_item_number()
+                        .map(|item_no: u32| format!("[{}]", item_no))
+                        .unwrap_or_else(|| "".to_string())
                 )
             })
             .collect::<Vec<String>>()
             .join(".");
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
             format!(
-                "#{} - {} [{:?}]",
-                last_seq_elem.get_item_number().unwrap_or(0xFFFF_FFFF),
+                "{} - {} {} [{:?}]",
+                last_seq_elem
+                    .get_item_number()
+                    .map(|item_no: u32| format!("#{}", item_no))
+                    .unwrap_or_else(|| "#[NO ITEM NUMBER]".to_string()),
                 path,
+                vr,
                 element.vl,
             )
         } else {
@@ -87,7 +108,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
         )));
     }
 
-    let mut tag_value: String = if element.vr == &vr::SQ {
+    let mut tag_value: String = if element.is_seq_like() {
         String::new()
     } else if element.is_empty() {
         "<empty>".to_owned()

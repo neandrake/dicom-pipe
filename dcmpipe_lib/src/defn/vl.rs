@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-const UNDEFINED_LENGTH: u32 = 0xFFFF_FFFF;
+pub const UNDEFINED_LENGTH: u32 = 0xFFFF_FFFF;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ValueLength {

@@ -298,12 +298,24 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             vr_ts.1
         };
 
-        let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::ITEM || parse_as_seq {
-            // Sequence and item elements should let the iterator handle parsing its contents and
-            // not associate bytes to the element's value
+        // Sequence and item elements should let the iterator handle parsing its contents and not
+        // associate bytes to the element's value. The exception are item elements within pixel data
+        // which are used to encapsulate frames; their value is pixel data and not other elements.
+        let in_pixel_data = if let Some(last_seq_elem) = self.current_path.last() {
+            last_seq_elem.get_seq_tag() == tags::FLOAT_PIXEL_DATA
+                || last_seq_elem.get_seq_tag() == tags::DOUBLE_PIXEL_DATA
+                || last_seq_elem.get_seq_tag() == tags::PIXEL_DATA
+        } else {
+            false
+        };
+
+        let skip_bytes: bool =
+            vr == &vr::SQ || (tag == tags::ITEM && !in_pixel_data) || parse_as_seq;
+
+        let bytes: Vec<u8> = if skip_bytes {
             Vec::new()
         } else {
-            self.read_value_field(vl)?
+            self.read_value_field(tag, vl)?
         };
 
         let ancestors: Vec<SequenceElement> = self.current_path.clone();
@@ -387,16 +399,41 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads the value field of the dicom element into a byte array. If the `ValueLength` is
     /// undefined then this returns an empty array as elements with undefined length should have
     /// their contents parsed as dicom elements.
-    fn read_value_field(&mut self, vl: ValueLength) -> Result<Vec<u8>, Error> {
+    fn read_value_field(&mut self, tag: u32, vl: ValueLength) -> Result<Vec<u8>, Error> {
         match vl {
             // Undefined length means that the contents of the element are other dicom elements to
             // be parsed. Don't read data from the dataset in this case.
             ValueLength::Explicit(0) | ValueLength::UndefinedLength => Ok(Vec::new()),
             ValueLength::Explicit(value_length) => {
-                let mut bytes: Vec<u8> = vec![0; value_length as usize];
-                self.dataset.read_exact(bytes.as_mut_slice())?;
+                // If length is odd we only read that exact bytes from the dataset but the bytes
+                // we should return from this should be padded with a zero in order to always
+                // return an even-length value.
+                let buffer_size: usize = if value_length % 2 != 0 {
+                    value_length as usize + 1
+                } else {
+                    value_length as usize
+                };
+                let mut buffer: Vec<u8> = vec![0; buffer_size];
+                let buffer_slice: &mut [u8] = &mut buffer.as_mut_slice()[0..value_length as usize];
+                let read_result: Result<(), Error> = self.dataset.read_exact(buffer_slice);
+
+                // Some datasets may end with this DataSetTrailingPadding tag and also have a value
+                // length which does not match the actual value field's size. The standard indicates
+                // that the content of the value field should hold no significance - so it should be
+                // okay to consider this not an error.
+                // See Part 10, Section 7.2
+                // TODO: Take what values were read and return that as a byte array, so the original
+                //       contents of the dataset are retained if the application needs it.
+                if tag == tags::DATASET_TRAILING_PADDING {
+                    if let Err(e) = read_result {
+                        if e.kind() == ErrorKind::UnexpectedEof {
+                            return Err(Error::new(ErrorKind::WriteZero, "expected end of file"));
+                        }
+                    }
+                }
+
                 self.bytes_read += u64::from(value_length);
-                Ok(bytes)
+                Ok(buffer)
             }
         }
     }
@@ -476,12 +513,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 },
                 ParseState::Element => match self.iterate_element() {
                     Err(e) => {
-                        // only check EOF when reading beginning of elements as it would
-                        // actually be expected in this scenario since the DICOM format provides
-                        // no determination for end of the dicom object
-                        if e.kind() == ErrorKind::UnexpectedEof {
-                            return Ok(None);
-                        }
                         return Err(e);
                     }
                     element_result => return element_result,
@@ -507,7 +538,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     ///    vr is assumed.
     /// 5. Otherwise it's assumed the start of the file is proprietary file preamble.
     fn iterate_detect_state(&mut self) -> Result<(), Error> {
-        // start off assuming IVRLE
+        // start off assuming EVRLE
         let mut ts: TSRef = &ts::ExplicitVRLittleEndian;
 
         // as bytes are read from `self.dataset` they will be copied into this `file_preamble`, then
@@ -555,6 +586,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             tag = dcmparser_util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
         }
 
+        // TODO: This should do as above if tag is zero - read in prefix and restart detection but
+        //       doing so is complex -- there are really two different detection states, one before
+        //       reading file-preamble/prefix and one after. This method needs refactored.
         // doesn't appear to be a valid tag in either big or little endian, assume it's preamble
         if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID {
             // if zeros were read earlier the preamble/prefix were already read and changed state
@@ -574,7 +608,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.bytes_read += file_preamble.len() as u64;
             self.file_preamble = Some(file_preamble);
             self.state = ParseState::Prefix;
-            // TODO: read tag and restart detection
             return Ok(());
         }
 
@@ -664,8 +697,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         };
 
         // if VR parsing succeeded and the VR indicates 2-byte padding then parsing VR will read 4
-        // bytes and an additional 2 need read in for parsing the value length
-        let mut buf: [u8; 2] = [0; 2];
+        // bytes and an additional 2 (4?!!) need read in for parsing the value length
+        // TODO: Reading 4 bytes here does not seem right - I think this should be reading 2 bytes
+        //       but then below for ValueLength it should be reading 4 -- however if reading VL
+        //       does not succeed then it needs to backtrack 2 bytes.
+        let mut buf: [u8; 4] = [0; 4];
         if vr.has_explicit_2byte_pad {
             self.dataset.read_exact(&mut buf)?;
             if self.state == ParseState::DetectState {
@@ -867,8 +903,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // reset partial_tag to None
         self.partial_tag.take();
 
-        // check for exiting a sequence based on being sequence delimiter
-        // do this before checking against byte position
+        // check for exiting a sequence based on being sequence delimiter - do before checking
+        // against byte position
         if tag == tags::SEQUENCE_DELIMITATION_ITEM || tag == tags::ITEM_DELIMITATION_ITEM {
             self.current_path.pop();
         }
@@ -902,11 +938,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             } else {
                 None
             };
+
             let sq_cs: CSRef = if let Some(sq) = self.current_path.last() {
                 sq.get_cs()
             } else {
                 self.cs
             };
+
             self.current_path
                 .push(SequenceElement::new(tag, seq_end_pos, sq_ts, sq_cs));
         }
@@ -922,11 +960,16 @@ impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
         if self.iterator_ended {
             return None;
         }
-
         match self.iterate() {
             Err(e) => {
                 self.iterator_ended = true;
-                Some(Err(e))
+                // this error kind is used to indicate end of file at the start of trying to read
+                // a new element
+                if e.kind() == ErrorKind::WriteZero {
+                    None
+                } else {
+                    Some(Err(e))
+                }
             }
             Ok(None) => {
                 self.iterator_ended = true;
