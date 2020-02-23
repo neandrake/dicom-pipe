@@ -152,7 +152,7 @@ impl<'me> TryFrom<ElementWithVr<'me>> for String {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr) -> Result<Self, Self::Error> {
+    fn try_from(value: ElementWithVr<'_>) -> Result<Self, Self::Error> {
         let element: &DicomElement = value.0;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
@@ -183,7 +183,7 @@ impl<'me> TryFrom<ElementWithVr<'me>> for Vec<String> {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr) -> Result<Self, Self::Error> {
+    fn try_from(value: ElementWithVr<'_>) -> Result<Self, Self::Error> {
         let element: &DicomElement = value.0;
         let vr: VRRef = value.1;
         let data: &[u8] = BytesWithoutPadding::from(value).0;

@@ -280,7 +280,7 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
         "pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = "
     )?;
     uid_id_lookup_phf.build(&mut lookup_file)?;
-    write!(&mut lookup_file, ";\n")?;
+    writeln!(&mut lookup_file, ";")?;
 
     Ok(())
 }

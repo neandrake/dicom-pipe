@@ -32,7 +32,7 @@ pub struct DicomElementValue<'me> {
     element: &'me DicomElement,
 }
 impl<'me> DicomElementValue<'me> {
-    fn new(element: &'me DicomElement) -> DicomElementValue {
+    fn new(element: &'me DicomElement) -> DicomElementValue<'_> {
         DicomElementValue { element }
     }
 }
@@ -106,7 +106,7 @@ impl<'me> CursiveApp {
         }
 
         let file: File = File::open(path)?;
-        let parser: Parser<File> = ParserBuilder::new(file).build();
+        let parser: Parser<'_, File> = ParserBuilder::new(file).build();
 
         let mut total_name_size: usize = 0;
         for elem in parser {
@@ -125,16 +125,16 @@ impl<'me> CursiveApp {
             }
         }
 
-        let _items: Vec<DicomElementValue> = self
+        let _items: Vec<DicomElementValue<'_>> = self
             .elements
             .iter()
             .map(DicomElementValue::new)
-            .collect::<Vec<DicomElementValue>>();
+            .collect::<Vec<DicomElementValue<'_>>>();
 
         let mut cursive: Cursive = Cursive::default();
         cursive.add_global_callback('q', Cursive::quit);
 
-        let mut table = TableView::<DicomElementValue, DicomElementColumn>::new()
+        let mut table = TableView::<DicomElementValue<'_>, DicomElementColumn>::new()
             .column(
                 DicomElementColumn::Expand,
                 DicomElementColumn::Expand.as_str(),
@@ -167,7 +167,7 @@ impl<'me> CursiveApp {
             let value = siv
                 .call_on_id(
                     "table",
-                    move |table: &mut TableView<DicomElementValue, DicomElementColumn>| {
+                    move |table: &mut TableView<DicomElementValue<'_>, DicomElementColumn>| {
                         let tag_info: String =
                             render_element_tag(table.borrow_item(index).unwrap().element);
                         let val_info: String =
