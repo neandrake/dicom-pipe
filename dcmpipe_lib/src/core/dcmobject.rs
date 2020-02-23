@@ -12,7 +12,7 @@ pub trait DicomNode {
     /// Get a child node with the given tag
     fn get_child(&self, tag: u32) -> Option<&DicomObject>;
     /// Iterator over the child nodes, in tag-ascending order
-    fn iter_child_nodes(&self) -> btree_map::Iter<u32, DicomObject>;
+    fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject>;
     /// Inserts a child node
     fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject>;
     /// Get the number of item nodes if this is a sequence-like node
@@ -34,7 +34,7 @@ impl<'dict> DicomRoot<'dict> {
         cs: CSRef,
         dictionary: &dyn DicomDictionary,
         child_nodes: BTreeMap<u32, DicomObject>,
-    ) -> DicomRoot {
+    ) -> DicomRoot<'_> {
         DicomRoot {
             ts,
             cs,
@@ -64,7 +64,7 @@ impl<'dict> DicomNode for DicomRoot<'dict> {
         self.child_nodes.get(&tag)
     }
 
-    fn iter_child_nodes(&self) -> btree_map::Iter<u32, DicomObject> {
+    fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
         self.child_nodes.iter()
     }
 
@@ -126,7 +126,7 @@ impl DicomNode for DicomObject {
         self.child_nodes.get(&tag)
     }
 
-    fn iter_child_nodes(&self) -> btree_map::Iter<u32, DicomObject> {
+    fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
         self.child_nodes.iter()
     }
 

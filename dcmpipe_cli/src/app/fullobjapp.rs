@@ -29,7 +29,7 @@ impl FullObjApp {
         }
 
         let file: File = File::open(path)?;
-        let mut parser: Parser<File> = ParserBuilder::new(file)
+        let mut parser: Parser<'_, File> = ParserBuilder::new(file)
             .dictionary(&STANDARD_DICOM_DICTIONARY)
             .build();
 
@@ -41,7 +41,7 @@ impl FullObjApp {
             parser.get_ts().uid.ident).as_ref()
         )?;
 
-        let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
+        let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
         self.render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)?;
         Ok(())
     }
@@ -51,7 +51,7 @@ impl FullObjApp {
         dcmnode: &impl DicomNode,
         mut prev_was_file_meta: bool,
         ts: TSRef,
-        stdout: &mut StdoutLock,
+        stdout: &mut StdoutLock<'_>,
     ) -> Result<(), Error> {
         for (tag, obj) in dcmnode.iter_child_nodes() {
             let elem: &DicomElement = obj.as_element();

@@ -106,7 +106,7 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
     }
     // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
     // and specfic character set.
-    let root: DicomRoot = DicomRoot::new(
+    let root: DicomRoot<'_> = DicomRoot::new(
         parser.get_ts(),
         parser.get_cs(),
         parser.get_dictionary(),
@@ -123,7 +123,7 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
 /// `parser` The parser elements are being read from
 /// `nodes` The map of nodes which elements should be parsed into
 fn parse_into_object_recurse<DatasetType: Read>(
-    parser: &mut Parser<DatasetType>,
+    parser: &mut Parser<'_, DatasetType>,
     child_nodes: &mut BTreeMap<u32, DicomObject>,
     items: &mut Vec<DicomObject>,
 ) -> Option<Result<DicomElement, Error>> {

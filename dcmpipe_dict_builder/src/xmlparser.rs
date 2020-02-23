@@ -112,7 +112,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
         }
     }
 
-    fn parse_text_bytes(&self, data: &BytesText) -> String {
+    fn parse_text_bytes(&self, data: &BytesText<'_>) -> String {
         data.unescape_and_decode(&self.parser)
             .unwrap_or_else(|_| panic!("Error parsing DICOM Entry Name: {:?}", data))
             .trim()
@@ -156,7 +156,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
             // TODO: Move buffer into a reusable field that gets cleared before each use here.
             // Currently unsure how to do this because it causes borrow problems.
             let mut buf: Vec<u8> = Vec::new();
-            let res: Result<Event, XmlError> = self.parser.read_event(&mut buf);
+            let res: Result<Event<'_>, XmlError> = self.parser.read_event(&mut buf);
             match res {
                 Ok(Event::Start(ref e)) => {
                     let local_name: &[u8] = e.local_name();
