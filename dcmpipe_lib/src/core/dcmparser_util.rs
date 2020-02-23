@@ -6,7 +6,7 @@ use crate::defn::vl;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, VR};
 use std::collections::BTreeMap;
-use std::io::{Error, Read};
+use std::io::{Error, ErrorKind, Read};
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
 /// with a VR of `UN`, `OB`, or `OW` and have a value length of `UndefinedLength`. These types of
@@ -18,11 +18,43 @@ pub fn is_non_standard_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
         && vl == ValueLength::UndefinedLength
 }
 
+/// This is a variation of `Read::read_exact` however if zero bytes are read instead of returning
+/// an error with `ErrorKind::UnexpectedEof` it will return an error with `ErrorKind::WriteZero`.
+/// Normally `WriteZero` can only be returned in calls to `write` however until error handling for
+/// this library is updated this is being used to allow for "expected end of file" handling.
+pub fn read_exact(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<(), Error> {
+    let mut bytes_read: usize = 0;
+    while !buf.is_empty() {
+        match dataset.read(buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                bytes_read += n;
+                let tmp = buf;
+                buf = &mut tmp[n..];
+            }
+            Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+    }
+    if !buf.is_empty() {
+        if bytes_read == 0 {
+            Err(Error::new(ErrorKind::WriteZero, "expected end of file"))
+        } else {
+            Err(Error::new(
+                ErrorKind::UnexpectedEof,
+                format!("failed to fill whole buffer, read {} bytes", bytes_read),
+            ))
+        }
+    } else {
+        Ok(())
+    }
+}
+
 /// Reads a tag attribute from a given dataset
 pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32, Error> {
     let mut buf: [u8; 2] = [0; 2];
 
-    dataset.read_exact(&mut buf)?;
+    read_exact(dataset, &mut buf)?;
     let group_number: u32 = if big_endian {
         u32::from(u16::from_be_bytes(buf)) << 16
     } else {
@@ -105,7 +137,7 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
         return Err(e);
     }
     // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
-    // and specfic character set.
+    // and specific character set.
     let root: DicomRoot<'_> = DicomRoot::new(
         parser.get_ts(),
         parser.get_cs(),
@@ -121,7 +153,8 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
 /// the current level a of recursion, and how far back up it should go (the end of a sequence can
 /// be the end of multiple sequences).
 /// `parser` The parser elements are being read from
-/// `nodes` The map of nodes which elements should be parsed into
+/// `child_nodes` The map of nodes which elements should be parsed into
+/// `item_nodes` The list of nodes which item elements should be parsed into
 fn parse_into_object_recurse<DatasetType: Read>(
     parser: &mut Parser<'_, DatasetType>,
     child_nodes: &mut BTreeMap<u32, DicomObject>,

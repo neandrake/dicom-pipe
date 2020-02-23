@@ -208,7 +208,7 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
     dir_structure_elements_file.push("dir_structure_elements.rs");
     let mut uids_file = path_buf.clone();
     uids_file.push("uids.rs");
-    let mut transfer_syntaxes_file = path_buf.clone();
+    let mut transfer_syntaxes_file = path_buf;
     transfer_syntaxes_file.push("transfer_syntaxes.rs");
 
     save_codefile(
@@ -233,7 +233,7 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
         &transfer_syntax_uids,
     )?;
 
-    let mut lookup_file_path: PathBuf = folder.to_path_buf().clone();
+    let mut lookup_file_path: PathBuf = folder.to_path_buf();
     lookup_file_path.push("lookup.rs");
 
     let mut lookup_file: BufWriter<File> =

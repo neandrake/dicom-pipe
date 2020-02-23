@@ -9,6 +9,12 @@ pub mod tags {
     pub const SPECIFIC_CHARACTER_SET: u32 = 0x0008_0005;
     pub const SOP_INSTANCE_UID: u32 = 0x0008_0018;
 
+    pub const FLOAT_PIXEL_DATA: u32 = 0x7FE0_0008;
+    pub const DOUBLE_PIXEL_DATA: u32 = 0x7FE0_0009;
+    pub const PIXEL_DATA: u32 = 0x7FE0_0010;
+
+    pub const DATASET_TRAILING_PADDING: u32 = 0xFFFC_FFFC;
+
     pub const ITEM: u32 = 0xFFFE_E000;
     pub const SEQUENCE_DELIMITATION_ITEM: u32 = 0xFFFE_E0DD;
     pub const ITEM_DELIMITATION_ITEM: u32 = 0xFFFE_E00D;

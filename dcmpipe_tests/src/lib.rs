@@ -24,14 +24,38 @@ mod parsing;
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
     let file: File = File::open(path)?;
+
+    let mut parser_builder: ParserBuilder<'_, File> = ParserBuilder::new(file);
+    if with_std {
+        parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
+    }
+    let parser: Parser<'_, File> = parser_builder.build();
+    parse_all_element_values(parser, path)?;
+
+    // TODO: There's a difference between parsing all values directly from parser vs. read in
+    //       from the dicom object?
+
+    let file: File = File::open(path)?;
+    let mut parser_builder: ParserBuilder<'_, File> = ParserBuilder::new(file);
+    if with_std {
+        parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
+    }
+    let mut parser: Parser<'_, File> = parser_builder.build();
+    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
+    parse_all_dcmroot_values(&dcmroot)?;
+    Ok(dcmroot)
+}
+
+pub fn parse_and_print_file(path: &str, with_std: bool) -> Result<(), Error> {
+    let file: File = File::open(path)?;
     let mut parser: ParserBuilder<'_, File> = ParserBuilder::new(file);
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
     let mut parser: Parser<'_, File> = parser.build();
-    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
-    parse_all_dcmroot_values(&dcmroot)?;
-    Ok(dcmroot)
+    while let Some(Ok(_elem)) = parser.next() {}
+
+    Ok(())
 }
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
