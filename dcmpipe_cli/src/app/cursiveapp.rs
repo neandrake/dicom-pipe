@@ -42,7 +42,8 @@ impl DicomElementValue {
             tag.ident
         } else {
             "<Private Tag>"
-        }.to_owned();
+        }
+        .to_owned();
 
         let value: String = if let Ok(value) = render_value(&element) {
             value
@@ -104,9 +105,7 @@ impl TableViewItem<DicomElementColumn> for DicomElementValue {
 
 impl<'me> CursiveApp {
     pub fn new(openpath: String) -> CursiveApp {
-        CursiveApp {
-            openpath,
-        }
+        CursiveApp { openpath }
     }
 
     pub fn run(&'me mut self) -> Result<(), Error> {
@@ -172,7 +171,7 @@ impl<'me> CursiveApp {
                 |c| c,
             );
 
-       table.set_items(items);
+        table.set_items(items);
 
         table.set_on_submit(|siv: &mut Cursive, _row: usize, index: usize| {
             let title: String = siv
@@ -193,17 +192,17 @@ impl<'me> CursiveApp {
                 )
                 .unwrap();
 
-            siv.add_layer(
-                Dialog::around(TextView::new(value))
-                    .title(title)
-                    .button("Close", move |s| {
-                        s.pop_layer();
-                    }),
-            );
+            siv.add_layer(Dialog::around(TextView::new(value)).title(title).button(
+                "Close",
+                move |s| {
+                    s.pop_layer();
+                },
+            ));
         });
 
-        cursive
-            .add_layer(Dialog::around(table.with_name("table").full_screen()).title("DICOM Viewer"));
+        cursive.add_layer(
+            Dialog::around(table.with_name("table").full_screen()).title("DICOM Viewer"),
+        );
 
         cursive.run();
 
