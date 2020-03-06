@@ -1,21 +1,20 @@
-use crate::app::{render_element_tag, render_value};
+use crate::app::render_value;
 use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
 use cursive_table_view::{TableView, TableViewItem};
 use dcmpipe_dict::dict::lookup::TAG_BY_VALUE;
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
-use std::ops::AddAssign;
 use std::path::Path;
 
 pub struct CursiveApp {
     openpath: String,
-    elements: Vec<DicomElement>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -28,12 +27,41 @@ enum DicomElementColumn {
 }
 
 #[derive(Clone)]
-pub struct DicomElementValue<'me> {
-    element: &'me DicomElement,
+pub struct DicomElementValue {
+    tag: u32,
+    seq: String,
+    tag_display: String,
+    name: String,
+    vr: String,
+    value: String,
 }
-impl<'me> DicomElementValue<'me> {
-    fn new(element: &'me DicomElement) -> DicomElementValue<'_> {
-        DicomElementValue { element }
+impl DicomElementValue {
+    fn new(element: DicomElement) -> DicomElementValue {
+        let seq: String = if element.is_seq_like() { "+" } else { "" }.to_owned();
+        let name: String = if let Some(tag) = TAG_BY_VALUE.get(&element.tag) {
+            tag.ident
+        } else {
+            "<Private Tag>"
+        }.to_owned();
+
+        let value: String = if let Ok(value) = render_value(&element) {
+            value
+        } else {
+            "<Error Parsing Value>".to_owned()
+        };
+
+        DicomElementValue {
+            tag: element.tag,
+            seq,
+            tag_display: Tag::format_tag_to_display(element.tag),
+            name,
+            vr: element.vr.ident.to_owned(),
+            value,
+        }
+    }
+
+    fn mini_display(&self) -> String {
+        format!("{} {} {}", self.tag_display, self.vr, self.name)
     }
 }
 
@@ -49,27 +77,14 @@ impl DicomElementColumn {
     }
 }
 
-impl<'me> TableViewItem<DicomElementColumn> for DicomElementValue<'me> {
+impl TableViewItem<DicomElementColumn> for DicomElementValue {
     fn to_column(&self, column: DicomElementColumn) -> String {
         match column {
-            DicomElementColumn::Expand => {
-                if self.element.is_seq_like() { "+" } else { "" }.to_owned()
-            }
-            DicomElementColumn::Tag => Tag::format_tag_to_display(self.element.tag),
-            DicomElementColumn::Name => if let Some(tag) = TAG_BY_VALUE.get(&self.element.tag) {
-                tag.ident
-            } else {
-                "<Private Tag>"
-            }
-            .to_owned(),
-            DicomElementColumn::VR => self.element.vr.ident.to_owned(),
-            DicomElementColumn::Value => {
-                if let Ok(value) = render_value(&self.element) {
-                    value
-                } else {
-                    "<Error Parsing Value>".to_owned()
-                }
-            }
+            DicomElementColumn::Expand => self.seq.clone(),
+            DicomElementColumn::Tag => self.tag_display.clone(),
+            DicomElementColumn::Name => self.name.clone(),
+            DicomElementColumn::VR => self.vr.clone(),
+            DicomElementColumn::Value => self.value.clone(),
         }
     }
 
@@ -79,7 +94,7 @@ impl<'me> TableViewItem<DicomElementColumn> for DicomElementValue<'me> {
     {
         match column {
             DicomElementColumn::Expand => Ordering::Equal,
-            DicomElementColumn::Tag => self.element.tag.cmp(&other.element.tag),
+            DicomElementColumn::Tag => self.tag.cmp(&other.tag),
             DicomElementColumn::Name => Ordering::Equal,
             DicomElementColumn::VR => Ordering::Equal,
             DicomElementColumn::Value => Ordering::Equal,
@@ -91,7 +106,6 @@ impl<'me> CursiveApp {
     pub fn new(openpath: String) -> CursiveApp {
         CursiveApp {
             openpath,
-            elements: Vec::new(),
         }
     }
 
@@ -106,8 +120,11 @@ impl<'me> CursiveApp {
         }
 
         let file: File = File::open(path)?;
-        let parser: Parser<'_, File> = ParserBuilder::new(file).build();
+        let parser: Parser<'_, File> = ParserBuilder::new(file)
+            .dictionary(&STANDARD_DICOM_DICTIONARY)
+            .build();
 
+        let mut items: Vec<DicomElementValue> = Vec::new();
         let mut total_name_size: usize = 0;
         for elem in parser {
             let elem: DicomElement = elem?;
@@ -121,20 +138,14 @@ impl<'me> CursiveApp {
 
                 total_name_size = name.len().max(total_name_size);
 
-                self.elements.push(elem);
+                items.push(DicomElementValue::new(elem));
             }
         }
-
-        let _items: Vec<DicomElementValue<'_>> = self
-            .elements
-            .iter()
-            .map(DicomElementValue::new)
-            .collect::<Vec<DicomElementValue<'_>>>();
 
         let mut cursive: Cursive = Cursive::default();
         cursive.add_global_callback('q', Cursive::quit);
 
-        let mut table = TableView::<DicomElementValue<'_>, DicomElementColumn>::new()
+        let mut table = TableView::<DicomElementValue, DicomElementColumn>::new()
             .column(
                 DicomElementColumn::Expand,
                 DicomElementColumn::Expand.as_str(),
@@ -161,29 +172,30 @@ impl<'me> CursiveApp {
                 |c| c,
             );
 
-        //        table.set_items(items);
+       table.set_items(items);
 
-        table.set_on_submit(|siv: &mut Cursive, row: usize, index: usize| {
-            let value = siv
-                .call_on_id(
+        table.set_on_submit(|siv: &mut Cursive, _row: usize, index: usize| {
+            let title: String = siv
+                .call_on_name(
                     "table",
-                    move |table: &mut TableView<DicomElementValue<'_>, DicomElementColumn>| {
-                        let tag_info: String =
-                            render_element_tag(table.borrow_item(index).unwrap().element);
-                        let val_info: String =
-                            render_value(table.borrow_item(index).unwrap().element).unwrap();
-                        let mut display: String = String::new();
-                        display.add_assign(tag_info.as_str());
-                        display.add_assign("\n");
-                        display.add_assign(val_info.as_str());
-                        display
+                    move |table: &mut TableView<DicomElementValue, DicomElementColumn>| {
+                        table.borrow_item(index).unwrap().mini_display()
+                    },
+                )
+                .unwrap();
+
+            let value: String = siv
+                .call_on_name(
+                    "table",
+                    move |table: &mut TableView<DicomElementValue, DicomElementColumn>| {
+                        table.borrow_item(index).unwrap().value.clone()
                     },
                 )
                 .unwrap();
 
             siv.add_layer(
                 Dialog::around(TextView::new(value))
-                    .title(format!("Viewing row # {}", row))
+                    .title(title)
                     .button("Close", move |s| {
                         s.pop_layer();
                     }),
@@ -191,7 +203,7 @@ impl<'me> CursiveApp {
         });
 
         cursive
-            .add_layer(Dialog::around(table.with_id("table").full_screen()).title("DICOM Viewer"));
+            .add_layer(Dialog::around(table.with_name("table").full_screen()).title("DICOM Viewer"));
 
         cursive.run();
 

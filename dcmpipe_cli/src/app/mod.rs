@@ -138,6 +138,10 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
 
 /// Formats the value of this element as a string based on the VR
 fn render_value(elem: &DicomElement) -> Result<String, Error> {
+    if elem.is_seq_like() {
+        return Ok(String::new());
+    }
+
     let mut ellipses: bool = false;
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
@@ -258,21 +262,4 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
         "[{}]",
         str_vals.into_iter().collect::<Vec<String>>().join(sep)
     ))
-}
-
-/// Renders an element's tag in the format
-/// ```
-/// (gggg,eeee) VR TagName
-/// ```
-/// Names for private tags will render as `<PrivateTag>`
-pub fn render_element_tag(element: &DicomElement) -> String {
-    let tag_num: String = Tag::format_tag_to_display(element.tag);
-
-    let tag_name: &str = if let Some(tag) = TAG_BY_VALUE.get(&element.tag) {
-        &tag.ident
-    } else {
-        "<Private Tag>"
-    };
-
-    format!("{} {} {}", tag_num, element.vr.ident, tag_name)
 }
