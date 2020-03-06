@@ -33,19 +33,16 @@ static HIDE_DELIMITATION_TAGS: bool = false;
 /// Names for private tags will render as `<PrivateTag>`
 fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     // Group Length tags are deprecated, see note on Part 5 Section 7.2
-    if HIDE_GROUP_TAGS {
-        if element.tag.trailing_zeros() >= 16 {
-            return Ok(None);
-        }
+    if HIDE_GROUP_TAGS && element.tag.trailing_zeros() >= 16 {
+        return Ok(None);
     }
 
     // These are delimiter items that are not very useful to see
-    if HIDE_DELIMITATION_TAGS {
-        if element.tag == tags::ItemDelimitationItem.tag
-            || element.tag == tags::SequenceDelimitationItem.tag
-        {
-            return Ok(None);
-        }
+    if HIDE_DELIMITATION_TAGS
+        && (element.tag == tags::ItemDelimitationItem.tag
+            || element.tag == tags::SequenceDelimitationItem.tag)
+    {
+        return Ok(None);
     }
 
     let tag_num: String = Tag::format_tag_to_display(element.tag);
