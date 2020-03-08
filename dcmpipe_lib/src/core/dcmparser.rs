@@ -512,9 +512,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     Some(element) => return Ok(Some(element)),
                 },
                 ParseState::Element => match self.iterate_element() {
-                    Err(e) => {
-                        return Err(e);
-                    }
+                    Err(e) => return Err(e),
                     element_result => return element_result,
                 },
             }
