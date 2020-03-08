@@ -286,14 +286,12 @@ impl TryFrom<&DicomElement> for Vec<f32> {
         let num_bytes: usize = value.data.len();
         let num_f32s: usize = num_bytes / F32_SIZE;
         let mut result: Vec<f32> = Vec::with_capacity(num_f32s);
-        // TODO: Change to f32::from_xx_bytes() once it stabilizes
-        //       see https://github.com/rust-lang/rust/issues/60446
         for i in 0..num_f32s {
             buf.copy_from_slice(&value.data[i..(i + F32_SIZE)]);
             let val: f32 = if value.ts.is_big_endian() {
-                f32::from_bits(u32::from_be_bytes(buf))
+                f32::from_be_bytes(buf)
             } else {
-                f32::from_bits(u32::from_le_bytes(buf))
+                f32::from_le_bytes(buf)
             };
             result.push(val);
         }
@@ -331,14 +329,12 @@ impl TryFrom<&DicomElement> for Vec<f64> {
         let mut buf: [u8; F64_SIZE] = [0; F64_SIZE];
         let num_f64s: usize = num_bytes / F64_SIZE;
         let mut result: Vec<f64> = Vec::with_capacity(num_f64s);
-        // TODO: Change to f64::from_xx_bytes() once it stabilizes
-        //       see https://github.com/rust-lang/rust/issues/60446
         for i in 0..num_f64s {
             buf.copy_from_slice(&value.data[i..(i + F64_SIZE)]);
             let val: f64 = if value.ts.is_big_endian() {
-                f64::from_bits(u64::from_be_bytes(buf))
+                f64::from_be_bytes(buf)
             } else {
-                f64::from_bits(u64::from_le_bytes(buf))
+                f64::from_le_bytes(buf)
             };
             result.push(val);
         }
