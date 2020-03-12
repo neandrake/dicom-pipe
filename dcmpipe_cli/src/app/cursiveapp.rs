@@ -1,4 +1,4 @@
-use crate::app::render_value;
+use crate::app::{CommandApplication, render_value};
 use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
@@ -11,10 +11,10 @@ use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub struct CursiveApp {
-    openpath: String,
+    openpath: PathBuf,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -104,13 +104,15 @@ impl TableViewItem<DicomElementColumn> for DicomElementValue {
     }
 }
 
-impl<'me> CursiveApp {
-    pub fn new(openpath: String) -> CursiveApp {
+impl CursiveApp {
+    pub fn new(openpath: PathBuf) -> CursiveApp {
         CursiveApp { openpath }
     }
+}
 
-    pub fn run(&'me mut self) -> Result<(), Error> {
-        let path: &Path = Path::new(&self.openpath);
+impl CommandApplication for CursiveApp {
+    fn run(&mut self) -> Result<(), Error> {
+        let path: &Path = self.openpath.as_path();
 
         if !path.is_file() {
             return Err(Error::new(

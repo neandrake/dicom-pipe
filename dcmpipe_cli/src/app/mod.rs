@@ -10,6 +10,7 @@ use dcmpipe_lib::defn::vr;
 use std::convert::TryFrom;
 use std::io::Error;
 
+pub(crate) mod args;
 pub(crate) mod cursiveapp;
 pub(crate) mod fullobjapp;
 pub(crate) mod lowmemapp;
@@ -19,6 +20,10 @@ static MAX_ITEMS_DISPLAYED: usize = 16;
 
 static HIDE_GROUP_TAGS: bool = false;
 static HIDE_DELIMITATION_TAGS: bool = false;
+
+pub(crate) trait CommandApplication {
+    fn run(&mut self) -> Result<(), Error>;
+}
 
 /// Renders an element on a single line, includes indentation based on depth in sequences
 /// ```
