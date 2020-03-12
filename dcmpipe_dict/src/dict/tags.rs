@@ -6,6 +6,409 @@ use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vm::VM;
 use dcmpipe_lib::defn::vr;
 
+/// File Meta Information Group Length
+///
+/// - **Tag:** (0002,0000)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static FileMetaInformationGroupLength: Tag = Tag {
+    ident: "FileMetaInformationGroupLength",
+    tag: 0x0002_0000,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "File Meta Information Group Length",
+};
+
+/// File Meta Information Version
+///
+/// - **Tag:** (0002,0001)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static FileMetaInformationVersion: Tag = Tag {
+    ident: "FileMetaInformationVersion",
+    tag: 0x0002_0001,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "File Meta Information Version",
+};
+
+/// Media Storage SOP Class UID
+///
+/// - **Tag:** (0002,0002)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static MediaStorageSOPClassUID: Tag = Tag {
+    ident: "MediaStorageSOPClassUID",
+    tag: 0x0002_0002,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Media Storage SOP Class UID",
+};
+
+/// Media Storage SOP Instance UID
+///
+/// - **Tag:** (0002,0003)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static MediaStorageSOPInstanceUID: Tag = Tag {
+    ident: "MediaStorageSOPInstanceUID",
+    tag: 0x0002_0003,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Media Storage SOP Instance UID",
+};
+
+/// Transfer Syntax UID
+///
+/// - **Tag:** (0002,0010)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static TransferSyntaxUID: Tag = Tag {
+    ident: "TransferSyntaxUID",
+    tag: 0x0002_0010,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Transfer Syntax UID",
+};
+
+/// Implementation Class UID
+///
+/// - **Tag:** (0002,0012)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static ImplementationClassUID: Tag = Tag {
+    ident: "ImplementationClassUID",
+    tag: 0x0002_0012,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Implementation Class UID",
+};
+
+/// Implementation Version Name
+///
+/// - **Tag:** (0002,0013)
+/// - **VR:** SH
+/// - **VM:** 1
+pub static ImplementationVersionName: Tag = Tag {
+    ident: "ImplementationVersionName",
+    tag: 0x0002_0013,
+    implicit_vr: Some(&vr::SH),
+    vm: &VM::Distinct(1),
+    desc: "Implementation Version Name",
+};
+
+/// Source Application Entity Title
+///
+/// - **Tag:** (0002,0016)
+/// - **VR:** AE
+/// - **VM:** 1
+pub static SourceApplicationEntityTitle: Tag = Tag {
+    ident: "SourceApplicationEntityTitle",
+    tag: 0x0002_0016,
+    implicit_vr: Some(&vr::AE),
+    vm: &VM::Distinct(1),
+    desc: "Source Application Entity Title",
+};
+
+/// Sending Application Entity Title
+///
+/// - **Tag:** (0002,0017)
+/// - **VR:** AE
+/// - **VM:** 1
+pub static SendingApplicationEntityTitle: Tag = Tag {
+    ident: "SendingApplicationEntityTitle",
+    tag: 0x0002_0017,
+    implicit_vr: Some(&vr::AE),
+    vm: &VM::Distinct(1),
+    desc: "Sending Application Entity Title",
+};
+
+/// Receiving Application Entity Title
+///
+/// - **Tag:** (0002,0018)
+/// - **VR:** AE
+/// - **VM:** 1
+pub static ReceivingApplicationEntityTitle: Tag = Tag {
+    ident: "ReceivingApplicationEntityTitle",
+    tag: 0x0002_0018,
+    implicit_vr: Some(&vr::AE),
+    vm: &VM::Distinct(1),
+    desc: "Receiving Application Entity Title",
+};
+
+/// Private Information Creator UID
+///
+/// - **Tag:** (0002,0100)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static PrivateInformationCreatorUID: Tag = Tag {
+    ident: "PrivateInformationCreatorUID",
+    tag: 0x0002_0100,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Private Information Creator UID",
+};
+
+/// Private Information
+///
+/// - **Tag:** (0002,0102)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static PrivateInformation: Tag = Tag {
+    ident: "PrivateInformation",
+    tag: 0x0002_0102,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "Private Information",
+};
+
+/// File-set ID
+///
+/// - **Tag:** (0004,1130)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static FilesetID: Tag = Tag {
+    ident: "FilesetID",
+    tag: 0x0004_1130,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "File-set ID",
+};
+
+/// File-set Descriptor File ID
+///
+/// - **Tag:** (0004,1141)
+/// - **VR:** CS
+/// - **VM:** 1-8
+pub static FilesetDescriptorFileID: Tag = Tag {
+    ident: "FilesetDescriptorFileID",
+    tag: 0x0004_1141,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::AtMost(8),
+    desc: "File-set Descriptor File ID",
+};
+
+/// Specific Character Set of File-set Descriptor File
+///
+/// - **Tag:** (0004,1142)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static SpecificCharacterSetofFilesetDescriptorFile: Tag = Tag {
+    ident: "SpecificCharacterSetofFilesetDescriptorFile",
+    tag: 0x0004_1142,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Specific Character Set of File-set Descriptor File",
+};
+
+/// Offset of the First Directory Record of the Root Directory Entity
+///
+/// - **Tag:** (0004,1200)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static OffsetoftheFirstDirectoryRecordoftheRootDirectoryEntity: Tag = Tag {
+    ident: "OffsetoftheFirstDirectoryRecordoftheRootDirectoryEntity",
+    tag: 0x0004_1200,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Offset of the First Directory Record of the Root Directory Entity",
+};
+
+/// Offset of the Last Directory Record of the Root Directory Entity
+///
+/// - **Tag:** (0004,1202)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static OffsetoftheLastDirectoryRecordoftheRootDirectoryEntity: Tag = Tag {
+    ident: "OffsetoftheLastDirectoryRecordoftheRootDirectoryEntity",
+    tag: 0x0004_1202,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Offset of the Last Directory Record of the Root Directory Entity",
+};
+
+/// File-set Consistency Flag
+///
+/// - **Tag:** (0004,1212)
+/// - **VR:** US
+/// - **VM:** 1
+pub static FilesetConsistencyFlag: Tag = Tag {
+    ident: "FilesetConsistencyFlag",
+    tag: 0x0004_1212,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "File-set Consistency Flag",
+};
+
+/// Directory Record Sequence
+///
+/// - **Tag:** (0004,1220)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DirectoryRecordSequence: Tag = Tag {
+    ident: "DirectoryRecordSequence",
+    tag: 0x0004_1220,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Directory Record Sequence",
+};
+
+/// Offset of the Next Directory Record
+///
+/// - **Tag:** (0004,1400)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static OffsetoftheNextDirectoryRecord: Tag = Tag {
+    ident: "OffsetoftheNextDirectoryRecord",
+    tag: 0x0004_1400,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Offset of the Next Directory Record",
+};
+
+/// Record In-use Flag
+///
+/// - **Tag:** (0004,1410)
+/// - **VR:** US
+/// - **VM:** 1
+pub static RecordInuseFlag: Tag = Tag {
+    ident: "RecordInuseFlag",
+    tag: 0x0004_1410,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Record In-use Flag",
+};
+
+/// Offset of Referenced Lower-Level Directory Entity
+///
+/// - **Tag:** (0004,1420)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static OffsetofReferencedLowerLevelDirectoryEntity: Tag = Tag {
+    ident: "OffsetofReferencedLowerLevelDirectoryEntity",
+    tag: 0x0004_1420,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Offset of Referenced Lower-Level Directory Entity",
+};
+
+/// Directory Record Type
+///
+/// - **Tag:** (0004,1430)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static DirectoryRecordType: Tag = Tag {
+    ident: "DirectoryRecordType",
+    tag: 0x0004_1430,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Directory Record Type",
+};
+
+/// Private Record UID
+///
+/// - **Tag:** (0004,1432)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static PrivateRecordUID: Tag = Tag {
+    ident: "PrivateRecordUID",
+    tag: 0x0004_1432,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Private Record UID",
+};
+
+/// Referenced File ID
+///
+/// - **Tag:** (0004,1500)
+/// - **VR:** CS
+/// - **VM:** 1-8
+pub static ReferencedFileID: Tag = Tag {
+    ident: "ReferencedFileID",
+    tag: 0x0004_1500,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::AtMost(8),
+    desc: "Referenced File ID",
+};
+
+/// MRDR Directory Record Offset
+///
+/// - **Tag:** (0004,1504)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static MRDRDirectoryRecordOffset: Tag = Tag {
+    ident: "MRDRDirectoryRecordOffset",
+    tag: 0x0004_1504,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "MRDR Directory Record Offset",
+};
+
+/// Referenced SOP Class UID in File
+///
+/// - **Tag:** (0004,1510)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static ReferencedSOPClassUIDinFile: Tag = Tag {
+    ident: "ReferencedSOPClassUIDinFile",
+    tag: 0x0004_1510,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Referenced SOP Class UID in File",
+};
+
+/// Referenced SOP Instance UID in File
+///
+/// - **Tag:** (0004,1511)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static ReferencedSOPInstanceUIDinFile: Tag = Tag {
+    ident: "ReferencedSOPInstanceUIDinFile",
+    tag: 0x0004_1511,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Referenced SOP Instance UID in File",
+};
+
+/// Referenced Transfer Syntax UID in File
+///
+/// - **Tag:** (0004,1512)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static ReferencedTransferSyntaxUIDinFile: Tag = Tag {
+    ident: "ReferencedTransferSyntaxUIDinFile",
+    tag: 0x0004_1512,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Transfer Syntax UID in File",
+};
+
+/// Referenced Related General SOP Class UID in File
+///
+/// - **Tag:** (0004,151A)
+/// - **VR:** UI
+/// - **VM:** 1-n
+pub static ReferencedRelatedGeneralSOPClassUIDinFile: Tag = Tag {
+    ident: "ReferencedRelatedGeneralSOPClassUIDinFile",
+    tag: 0x0004_151A,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::AtLeast(1),
+    desc: "Referenced Related General SOP Class UID in File",
+};
+
+/// Number of References
+///
+/// - **Tag:** (0004,1600)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static NumberofReferences: Tag = Tag {
+    ident: "NumberofReferences",
+    tag: 0x0004_1600,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Number of References",
+};
+
 /// Length to End
 ///
 /// - **Tag:** (0008,0001)
@@ -1189,19 +1592,6 @@ pub static NonidentifyingPrivateElements: Tag = Tag {
     desc: "Nonidentifying Private Elements",
 };
 
-/// Identifying Private Elements
-///
-/// - **Tag:** (0008,0306)
-/// - **VR:** US
-/// - **VM:** 1-n
-pub static IdentifyingPrivateElements: Tag = Tag {
-    ident: "IdentifyingPrivateElements",
-    tag: 0x0008_0306,
-    implicit_vr: Some(&vr::US),
-    vm: &VM::AtLeast(1),
-    desc: "Identifying Private Elements",
-};
-
 /// Deidentification Action Sequence
 ///
 /// - **Tag:** (0008,0305)
@@ -1213,6 +1603,19 @@ pub static DeidentificationActionSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Deidentification Action Sequence",
+};
+
+/// Identifying Private Elements
+///
+/// - **Tag:** (0008,0306)
+/// - **VR:** US
+/// - **VM:** 1-n
+pub static IdentifyingPrivateElements: Tag = Tag {
+    ident: "IdentifyingPrivateElements",
+    tag: 0x0008_0306,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::AtLeast(1),
+    desc: "Identifying Private Elements",
 };
 
 /// Deidentification Action
@@ -10450,8 +10853,8 @@ pub static SAR: Tag = Tag {
 /// - **Tag:** (0018,1318)
 /// - **VR:** DS
 /// - **VM:** 1
-pub static dBdt: Tag = Tag {
-    ident: "dBdt",
+pub static DBdt: Tag = Tag {
+    ident: "DBdt",
     tag: 0x0018_1318,
     implicit_vr: Some(&vr::DS),
     vm: &VM::Distinct(1),
@@ -13466,8 +13869,8 @@ pub static DecouplingChemicalShiftReference: Tag = Tag {
 /// - **Tag:** (0018,9064)
 /// - **VR:** CS
 /// - **VM:** 1
-pub static kspaceFiltering: Tag = Tag {
-    ident: "kspaceFiltering",
+pub static KspaceFiltering: Tag = Tag {
+    ident: "KspaceFiltering",
     tag: 0x0018_9064,
     implicit_vr: Some(&vr::CS),
     vm: &VM::Distinct(1),
@@ -29360,19 +29763,6 @@ pub static AcquisitionContextDescription: Tag = Tag {
     desc: "Acquisition Context Description",
 };
 
-/// Specimen Type Code Sequence
-///
-/// - **Tag:** (0040,059A)
-/// - **VR:** SQ
-/// - **VM:** 1
-pub static SpecimenTypeCodeSequence: Tag = Tag {
-    ident: "SpecimenTypeCodeSequence",
-    tag: 0x0040_059A,
-    implicit_vr: Some(&vr::SQ),
-    vm: &VM::Distinct(1),
-    desc: "Specimen Type Code Sequence",
-};
-
 /// Specimen Description Sequence
 ///
 /// - **Tag:** (0040,0560)
@@ -29397,6 +29787,19 @@ pub static IssueroftheSpecimenIdentifierSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Issuer of the Specimen Identifier Sequence",
+};
+
+/// Specimen Type Code Sequence
+///
+/// - **Tag:** (0040,059A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static SpecimenTypeCodeSequence: Tag = Tag {
+    ident: "SpecimenTypeCodeSequence",
+    tag: 0x0040_059A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Specimen Type Code Sequence",
 };
 
 /// Specimen Short Description

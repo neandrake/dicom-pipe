@@ -15,9 +15,7 @@ use dcmpipe_lib::defn::tag::TagRef;
 use dcmpipe_lib::defn::ts::TSRef;
 use dcmpipe_lib::defn::uid::UIDRef;
 
-use crate::dict::dicom_elements as tags;
-use crate::dict::dir_structure_elements as dse;
-use crate::dict::file_meta_elements as fme;
+use crate::dict::tags;
 use crate::dict::transfer_syntaxes as ts;
 use crate::dict::uids;
 
@@ -130,70 +128,67 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
     let mut ts_ident_lookup_phf: phf_codegen::Map<String> = phf_codegen::Map::new();
     let mut ts_id_lookup_phf: phf_codegen::Map<String> = phf_codegen::Map::new();
 
-    let mut dicom_elements: String = String::new();
-    let mut file_meta_elements: String = String::new();
-    let mut dir_structure_elements: String = String::new();
-    let mut uids: String = String::new();
-    let mut transfer_syntax_uids: String = String::new();
+    let mut xml_dicom_elements: Vec<XmlDicomElement> = Vec::new();
+    let mut xml_uids: Vec<XmlDicomUid> = Vec::new();
+    let mut xml_ts: Vec<XmlDicomUid> = Vec::new();
 
     for defn in xml_definitions {
         match defn {
-            XmlDicomDefinition::DicomElement(e) => {
-                if let Some(code) = process_element(
-                    &e,
-                    "tags::",
-                    &mut tag_ident_lookup_phf,
-                    &mut tag_tag_lookup_phf,
-                ) {
-                    dicom_elements.push_str(&code);
-                }
-            }
-            XmlDicomDefinition::FileMetaElement(e) => {
-                if let Some(code) = process_element(
-                    &e,
-                    "fme::",
-                    &mut tag_ident_lookup_phf,
-                    &mut tag_tag_lookup_phf,
-                ) {
-                    file_meta_elements.push_str(&code);
-                }
-            }
-            XmlDicomDefinition::DirStructureElement(e) => {
-                if let Some(code) = process_element(
-                    &e,
-                    "dse::",
-                    &mut tag_ident_lookup_phf,
-                    &mut tag_tag_lookup_phf,
-                ) {
-                    dir_structure_elements.push_str(&code);
-                }
-            }
-            XmlDicomDefinition::Uid(uid) => {
-                if let Some(code) =
-                    process_uid(&uid, &mut uid_ident_lookup_phf, &mut uid_id_lookup_phf)
-                {
-                    uids.push_str(&code);
-                }
-            }
+            XmlDicomDefinition::DicomElement(e) => xml_dicom_elements.push(e),
+            XmlDicomDefinition::FileMetaElement(e) => xml_dicom_elements.push(e),
+            XmlDicomDefinition::DirStructureElement(e) => xml_dicom_elements.push(e),
+            XmlDicomDefinition::Uid(uid) => xml_uids.push(uid),
             XmlDicomDefinition::TransferSyntax(uid) => {
-                if let Some(code) =
-                    process_uid(&uid, &mut uid_ident_lookup_phf, &mut uid_id_lookup_phf)
-                {
-                    uids.push_str(&code);
-                }
-                if let Some(code) =
-                    process_transfer_syntax(&uid, &mut ts_ident_lookup_phf, &mut ts_id_lookup_phf)
-                {
-                    transfer_syntax_uids.push_str(&code);
-                }
+                xml_uids.push(uid.clone());
+                xml_ts.push(uid);
             }
         }
     }
 
+    xml_dicom_elements.sort_by(|a, b| a.tag.cmp(&b.tag));
+    let mut dicom_elements = xml_dicom_elements
+        .iter()
+        .filter_map(|e| {
+            if let Some(code) = process_element(
+                e,
+                "tags::",
+                &mut tag_ident_lookup_phf,
+                &mut tag_tag_lookup_phf,
+            ) {
+                Some(code)
+            } else {
+                None
+            }
+        })
+        .collect::<String>();
+
+    let mut uids = xml_uids
+        .iter()
+        .filter_map(|uid| {
+            if let Some(code) = process_uid(&uid, &mut uid_ident_lookup_phf, &mut uid_id_lookup_phf)
+            {
+                Some(code)
+            } else {
+                None
+            }
+        })
+        .collect::<String>();
+
+    let mut transfer_syntax_uids = xml_ts
+        .iter()
+        .filter_map(|ts| {
+            if let Some(code) =
+                process_transfer_syntax(&ts, &mut ts_ident_lookup_phf, &mut ts_id_lookup_phf)
+            {
+                Some(code)
+            } else {
+                None
+            }
+        })
+        .collect::<String>();
+
     // Remove trailing newlines
     dicom_elements.remove(dicom_elements.len() - 2);
-    file_meta_elements.remove(file_meta_elements.len() - 2);
-    dir_structure_elements.remove(dir_structure_elements.len() - 2);
     uids.remove(uids.len() - 2);
     transfer_syntax_uids.remove(transfer_syntax_uids.len() - 2);
 
@@ -201,11 +196,7 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
 
     let path_buf: PathBuf = folder.to_path_buf();
     let mut dicom_elements_file = path_buf.clone();
-    dicom_elements_file.push("dicom_elements.rs");
-    let mut file_meta_elements_file = path_buf.clone();
-    file_meta_elements_file.push("file_meta_elements.rs");
-    let mut dir_structure_elements_file = path_buf.clone();
-    dir_structure_elements_file.push("dir_structure_elements.rs");
+    dicom_elements_file.push("tags.rs");
     let mut uids_file = path_buf.clone();
     uids_file.push("uids.rs");
     let mut transfer_syntaxes_file = path_buf;
@@ -215,16 +206,6 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
         dicom_elements_file.as_path(),
         DICOM_ELEMENT_PREAMBLE.to_owned(),
         &dicom_elements,
-    )?;
-    save_codefile(
-        file_meta_elements_file.as_path(),
-        DICOM_ELEMENT_PREAMBLE.to_owned(),
-        &file_meta_elements,
-    )?;
-    save_codefile(
-        dir_structure_elements_file.as_path(),
-        DICOM_ELEMENT_PREAMBLE.to_owned(),
-        &dir_structure_elements,
     )?;
     save_codefile(uids_file.as_path(), UID_PREAMBLE.to_owned(), &uids)?;
     save_codefile(
@@ -398,22 +379,14 @@ fn process_element(
         return None;
     }
 
-    let tag_value: u32 = u32::from_str_radix(
-        &element
-            .tag
-            .replace("(", "")
-            .replace(")", "")
-            .replace(",", ""),
-        16,
-    )
-    .unwrap_or(0);
-
-    if tag_value == 0 {
+    if element.tag == 0 {
         return None;
     }
 
-    let tag_group: u32 = (tag_value >> 16) & 0x0000_FFFF;
-    let tag_element: u32 = tag_value & 0x0000_FFFF;
+    let tag_group: u32 = (element.tag >> 16) & 0x0000_FFFF;
+    let tag_element: u32 = element.tag & 0x0000_FFFF;
+
+    let tag_display: String = format!("({:04X},{:04X})", tag_group, tag_element);
 
     let vr: &str = element.vr.split_whitespace().next().unwrap();
     let vr_value: String = if vr == "See" {
@@ -444,7 +417,7 @@ fn process_element(
 
     let code: String = dicom_element_definition!(
         element.name,
-        element.tag,
+        tag_display,
         vr,
         element.vm, // comment placeholders
         var_name,
@@ -458,7 +431,7 @@ fn process_element(
 
     let var_name_key: String = var_name.clone();
     ident_lookup.entry(var_name_key, &format!("&{}{}", dict, var_name));
-    tag_lookup.entry(tag_value, &format!("&{}{}", dict, var_name));
+    tag_lookup.entry(element.tag, &format!("&{}{}", dict, var_name));
 
     Some(code)
 }
@@ -545,6 +518,9 @@ fn sanitize_var_name(var_name: &str) -> String {
     if let Some(first_char) = sanitized.chars().next() {
         if !first_char.is_ascii() || !first_char.is_alphabetic() {
             return format!("Tag_{}", sanitized);
+        }
+        if !first_char.is_uppercase() {
+            return format!("{}{}", first_char.to_uppercase(), &sanitized[1..]);
         }
     }
     sanitized

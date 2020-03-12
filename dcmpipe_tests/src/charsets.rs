@@ -1,7 +1,6 @@
 use crate::parse_file;
-use dcmpipe_dict::dict::dicom_elements as tags;
-use dcmpipe_dict::dict::dir_structure_elements as dse;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
@@ -68,7 +67,7 @@ fn test_nested_charset(
     pn: &str,
 ) -> Result<(), Error> {
     let item: &DicomObject = dcmroot
-        .get_child(dse::DirectoryRecordSequence.tag)
+        .get_child(tags::DirectoryRecordSequence.tag)
         .expect("Should have DirectoryRecordSequence")
         .get_item(item_num)
         .expect("Should have item");

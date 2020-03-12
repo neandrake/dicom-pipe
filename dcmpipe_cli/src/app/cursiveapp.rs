@@ -3,10 +3,10 @@ use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
 use cursive_table_view::{TableView, TableViewItem};
-use dcmpipe_dict::dict::lookup::TAG_BY_VALUE;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
@@ -38,12 +38,13 @@ pub struct DicomElementValue {
 impl DicomElementValue {
     fn new(element: DicomElement) -> DicomElementValue {
         let seq: String = if element.is_seq_like() { "+" } else { "" }.to_owned();
-        let name: String = if let Some(tag) = TAG_BY_VALUE.get(&element.tag) {
-            tag.ident
-        } else {
-            "<Private Tag>"
-        }
-        .to_owned();
+        let name: String =
+            if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.tag) {
+                tag.ident
+            } else {
+                "<Private Tag>"
+            }
+            .to_owned();
 
         let value: String = if let Ok(value) = render_value(&element) {
             value
@@ -128,12 +129,13 @@ impl<'me> CursiveApp {
         for elem in parser {
             let elem: DicomElement = elem?;
             if elem.get_sequence_path().is_empty() {
-                let name: String = if let Some(tag) = TAG_BY_VALUE.get(&elem.tag) {
-                    tag.ident
-                } else {
-                    "<Private Tag>"
-                }
-                .to_owned();
+                let name: String =
+                    if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.tag) {
+                        tag.ident
+                    } else {
+                        "<Private Tag>"
+                    }
+                    .to_owned();
 
                 total_name_size = name.len().max(total_name_size);
 

@@ -1,7 +1,8 @@
 mod app;
 
-use crate::app::CursiveApp;
-use app::{FullObjApp, LowMemApp};
+use app::cursiveapp::CursiveApp;
+use app::fullobjapp::FullObjApp;
+use app::lowmemapp::LowMemApp;
 use std::io::{Error, ErrorKind};
 use std::{env, process};
 
