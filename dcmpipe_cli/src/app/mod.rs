@@ -1,20 +1,18 @@
-use dcmpipe_dict::dict::dicom_elements as tags;
-use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, UID_BY_UID};
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
+use dcmpipe_lib::core::dcmsqelem::SequenceElement;
+use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
+
+use std::convert::TryFrom;
 use std::io::Error;
 
-mod cursiveapp;
-mod fullobjapp;
-mod lowmemapp;
-
-pub use cursiveapp::CursiveApp;
-use dcmpipe_lib::core::dcmsqelem::SequenceElement;
-use dcmpipe_lib::defn::vl::ValueLength;
-pub use fullobjapp::FullObjApp;
-pub use lowmemapp::LowMemApp;
-use std::convert::TryFrom;
+pub(crate) mod cursiveapp;
+pub(crate) mod fullobjapp;
+pub(crate) mod lowmemapp;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 16;
@@ -46,7 +44,8 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     }
 
     let tag_num: String = Tag::format_tag_to_display(element.tag);
-    let tag_name: &str = if let Some(tag) = TAG_BY_VALUE.get(&element.tag) {
+    let tag_name: &str = if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.tag)
+    {
         tag.ident
     } else {
         "<Private Tag>"
@@ -197,7 +196,7 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
         ellipses = vec_len > str_vals.len();
     } else if elem.vr == &vr::UI {
         let str_val: String = String::try_from(elem)?;
-        if let Some(uid) = UID_BY_UID.get(str_val.as_str()) {
+        if let Some(uid) = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(str_val.as_str()) {
             str_vals.push(format!("{} ({})", str_val, uid.name));
         } else {
             str_vals.push(str_val);

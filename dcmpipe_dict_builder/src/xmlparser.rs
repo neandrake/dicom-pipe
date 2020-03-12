@@ -17,7 +17,7 @@ pub enum XmlDicomDefinition {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
 pub struct XmlDicomElement {
-    pub tag: String,
+    pub tag: u32,
     pub name: String,
     pub keyword: String,
     pub vr: String,
@@ -75,7 +75,7 @@ pub struct XmlDicomDefinitionIterator<R: BufRead> {
 
     table: XmlDicomDefinitionTable,
 
-    element_tag: Option<String>,
+    element_tag: Option<u32>,
     element_name: Option<String>,
     element_keyword: Option<String>,
     element_vr: Option<String>,
@@ -117,6 +117,18 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
             .unwrap_or_else(|_| panic!("Error parsing DICOM Entry Name: {:?}", data))
             .trim()
             .replace("\u{200b}", "")
+    }
+
+    fn parse_text_bytes_as_u32(&self, data: &BytesText<'_>) -> u32 {
+        u32::from_str_radix(
+            &self
+                .parse_text_bytes(data)
+                .replace("(", "")
+                .replace(")", "")
+                .replace(",", ""),
+            16,
+        )
+        .unwrap_or(0)
     }
 
     fn is_next_element_fully_read(&self) -> bool {
@@ -340,7 +352,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                 Ok(Event::Text(data)) => match self.state {
                     XmlDicomReadingState::InDicomElementCell(element_cell) => match element_cell {
                         XmlDicomElementCell::Tag => {
-                            self.element_tag = Some(self.parse_text_bytes(&data))
+                            self.element_tag = Some(self.parse_text_bytes_as_u32(&data))
                         }
                         XmlDicomElementCell::Name => {
                             self.element_name = Some(self.parse_text_bytes(&data))

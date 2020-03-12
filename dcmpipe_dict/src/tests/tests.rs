@@ -1,9 +1,7 @@
-use crate::dict::dicom_elements as tags;
-use crate::dict::dir_structure_elements as dse;
-use crate::dict::file_meta_elements as fme;
 use crate::dict::lookup::{
     TAG_BY_IDENT, TAG_BY_VALUE, TS_BY_IDENT, TS_BY_UID, UID_BY_IDENT, UID_BY_UID,
 };
+use crate::dict::tags;
 use crate::dict::transfer_syntaxes as ts;
 use crate::dict::uids;
 use dcmpipe_lib::defn::tag::Tag;
@@ -21,19 +19,19 @@ pub fn test_tags_lookup() {
 
     // Lookup a Directory Structure Element by identity/value from the TAG maps
     let fsid_by_ident: &Tag = TAG_BY_IDENT.get("FilesetID").expect("Tag not found");
-    assert_eq!(fsid_by_ident, &dse::FilesetID);
+    assert_eq!(fsid_by_ident, &tags::FilesetID);
 
     let fsid_by_tag: &Tag = TAG_BY_VALUE.get(&0x00041130).expect("Tag not found");
-    assert_eq!(fsid_by_tag, &dse::FilesetID);
+    assert_eq!(fsid_by_tag, &tags::FilesetID);
 
     // Lookup a File Meta Element by identity/value from the TAG maps
     let tsuid_by_ident: &Tag = TAG_BY_IDENT
         .get("TransferSyntaxUID")
         .expect("Tag not found");
-    assert_eq!(tsuid_by_ident, &fme::TransferSyntaxUID);
+    assert_eq!(tsuid_by_ident, &tags::TransferSyntaxUID);
 
     let tsuid_by_tag: &Tag = TAG_BY_VALUE.get(&0x00020010).expect("Tag not found");
-    assert_eq!(tsuid_by_tag, &fme::TransferSyntaxUID);
+    assert_eq!(tsuid_by_tag, &tags::TransferSyntaxUID);
 }
 
 #[test]
