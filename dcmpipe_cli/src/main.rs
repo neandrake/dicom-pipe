@@ -1,35 +1,34 @@
 mod app;
 
-use app::cursiveapp::CursiveApp;
-use app::fullobjapp::FullObjApp;
-use app::lowmemapp::LowMemApp;
-use std::io::{Error, ErrorKind};
-use std::{env, process};
-
-static APP_MODE: usize = 3;
+use crate::app::CommandApplication;
+use crate::app::args::{Arguments, Command};
+use crate::app::cursiveapp::CursiveApp;
+use crate::app::fullobjapp::FullObjApp;
+use crate::app::lowmemapp::LowMemApp;
+use std::process;
+use structopt::StructOpt;
 
 fn main() {
-    if let Err(e) = runapp() {
-        eprintln!("Error: {}", e);
+    let mut app: Box<dyn CommandApplication> = make_app();
+    if let Err(e) = app.run() {
+        eprintln!("Error: {:?}", e);
         process::exit(1);
     }
 }
 
-fn runapp() -> Result<(), Error> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "first and only argument should be a file",
-        ));
-    }
+fn make_app() -> Box<dyn CommandApplication> {
+    let args: Arguments = Arguments::from_args();
 
-    let openpath: String = args[1].to_owned();
-
-    match APP_MODE {
-        1 => LowMemApp::new(openpath).run(),
-        2 => FullObjApp::new(openpath).run(),
-        3 => CursiveApp::new(openpath).run(),
-        _ => Err(Error::new(ErrorKind::InvalidInput, "Invalid app mode")),
+    match args.command {
+        Command::Dump {stream, file} => {
+            if stream {
+                Box::new(LowMemApp::new(file))
+            } else {
+                Box::new(FullObjApp::new(file))
+            }
+        },
+        Command::Edit {file} => {
+            Box::new(CursiveApp::new(file))
+        },
     }
 }
