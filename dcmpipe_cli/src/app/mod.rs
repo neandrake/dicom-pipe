@@ -8,7 +8,11 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 
 use std::convert::TryFrom;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
+use std::fs::File;
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use std::path::Path;
+use std::iter::Peekable;
 
 pub(crate) mod args;
 pub(crate) mod cursiveapp;
@@ -23,6 +27,37 @@ static HIDE_DELIMITATION_TAGS: bool = false;
 
 pub(crate) trait CommandApplication {
     fn run(&mut self) -> Result<(), Error>;
+
+    fn parse_file(&self, path: &Path) -> Result<Parser<'_, File>, Error> {
+        if !path.is_file() {
+            return Err(Error::new(
+                ErrorKind::NotFound,
+                format!("invalid file: {}", path.display()),
+            ));
+        }
+
+        let file: File = File::open(path)?;
+        let mut parser: Parser<'_, File> = ParserBuilder::new(file)
+            .dictionary(&STANDARD_DICOM_DICTIONARY)
+            .build();
+
+        let mut peeker: Peekable<&mut Parser<'_, File>> = parser.by_ref().peekable();
+
+        let first: Option<&Result<DicomElement, Error>> = peeker.peek();
+        if let Some(Err(_)) = first {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("file is not dicom: {}", path.display()),
+            ));
+        } else if let None = first {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("file is empty: {}", path.display()),
+            ));
+        }
+
+        Ok(parser)
+    }
 }
 
 /// Renders an element on a single line, includes indentation based on depth in sequences
@@ -53,7 +88,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     {
         tag.ident
     } else {
-        "<Private Tag>"
+        "<Unknown Tag>"
     };
     let vr: &str = element.vr.ident;
 

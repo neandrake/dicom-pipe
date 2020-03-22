@@ -5,12 +5,12 @@ use cursive::Cursive;
 use cursive_table_view::{TableView, TableViewItem};
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::core::dcmparser::Parser;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 use std::path::{Path, PathBuf};
 
 pub struct CursiveApp {
@@ -113,18 +113,7 @@ impl CursiveApp {
 impl CommandApplication for CursiveApp {
     fn run(&mut self) -> Result<(), Error> {
         let path: &Path = self.openpath.as_path();
-
-        if !path.is_file() {
-            return Err(Error::new(
-                ErrorKind::NotFound,
-                format!("invalid file: {}", path.display()),
-            ));
-        }
-
-        let file: File = File::open(path)?;
-        let parser: Parser<'_, File> = ParserBuilder::new(file)
-            .dictionary(&STANDARD_DICOM_DICTIONARY)
-            .build();
+        let parser: Parser<'_, File> = self.parse_file(path)?;
 
         let mut items: Vec<DicomElementValue> = Vec::new();
         let mut total_name_size: usize = 0;
@@ -135,7 +124,7 @@ impl CommandApplication for CursiveApp {
                     if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.tag) {
                         tag.ident
                     } else {
-                        "<Private Tag>"
+                        "<Unknown Tag>"
                     }
                     .to_owned();
 
