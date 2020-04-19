@@ -1,4 +1,4 @@
-use crate::app::{CommandApplication, render_value};
+use crate::app::{CommandApplication, render_value, parse_file};
 use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
@@ -113,7 +113,7 @@ impl CursiveApp {
 impl CommandApplication for CursiveApp {
     fn run(&mut self) -> Result<(), Error> {
         let path: &Path = self.openpath.as_path();
-        let parser: Parser<'_, File> = self.parse_file(path)?;
+        let parser: Parser<'_, File> = parse_file(path)?;
 
         let mut items: Vec<DicomElementValue> = Vec::new();
         let mut total_name_size: usize = 0;

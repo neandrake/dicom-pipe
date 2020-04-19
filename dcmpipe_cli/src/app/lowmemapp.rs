@@ -1,4 +1,4 @@
-use crate::app::{CommandApplication, render_element};
+use crate::app::{CommandApplication, render_element, parse_file};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::Parser;
 use std::fs::File;
@@ -18,7 +18,7 @@ impl LowMemApp {
 impl CommandApplication for LowMemApp {
     fn run(&mut self) -> Result<(), Error> {
         let path: &Path = self.openpath.as_path();
-        let mut parser: Parser<'_, File> = self.parse_file(path)?;
+        let mut parser: Parser<'_, File> = parse_file(path)?;
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
