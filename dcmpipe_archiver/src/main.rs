@@ -37,7 +37,7 @@ fn setup() -> Result<(), Error> {
             let dicom_coll: Collection = get_dicom_collection(&mongo)?;
             scan_dir(file, dicom_coll)?;
         }
-        Command::Import { file: _ } => {}
+        Command::Import { .. } => {}
     }
     Ok(())
 }
@@ -70,7 +70,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
     entry
         .file_name()
         .to_str()
-        .map(|s| s.starts_with("."))
+        .map(|s| s.starts_with('.'))
         .unwrap_or(false)
 }
 
@@ -81,7 +81,7 @@ fn scan_dir(path: PathBuf, dicom_coll: Collection) -> Result<(), Error> {
         .filter_map(|e| e.ok());
 
     let mut uid_to_doc: HashMap<String, OrderedDocument> = HashMap::new();
-    let parser_builder: ParserBuilder = ParserBuilder::new()
+    let parser_builder: ParserBuilder = ParserBuilder::default()
         .tagstop(TagStop::BeforeTag(tags::PixelData.tag))
         .dictionary(&STANDARD_DICOM_DICTIONARY);
     for entry in walkdir {

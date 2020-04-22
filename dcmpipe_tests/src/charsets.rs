@@ -16,7 +16,7 @@ use std::io::Error;
 fn test_parse_nested_charset_values() -> Result<(), Error> {
     let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
     let file: File = File::open(path_str)?;
-    let mut parser: Parser<'_, File> = ParserBuilder::new()
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build(file);
 
