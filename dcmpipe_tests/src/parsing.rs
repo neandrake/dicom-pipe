@@ -95,7 +95,8 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
     let tagstop: u32 = tags::PixelData.tag;
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
-    let mut parser: ParserBuilder<'_> = ParserBuilder::new().tagstop(TagStop::BeforeTag(tagstop));
+    let mut parser: ParserBuilder<'_> =
+        ParserBuilder::default().tagstop(TagStop::BeforeTag(tagstop));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -147,7 +148,7 @@ fn test_dicom_object(with_std: bool) -> Result<(), Error> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::new().tagstop(TagStop::BeforeTag(tags::PixelData.tag));
+        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -345,7 +346,7 @@ fn test_missing_preamble_without_std() -> Result<(), Error> {
 /// This file has no preamble or file meta - should parse as the DICOM default IVRLE
 fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
-    let mut parser: ParserBuilder<'_> = ParserBuilder::new();
+    let mut parser: ParserBuilder<'_> = ParserBuilder::default();
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }

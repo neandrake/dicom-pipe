@@ -35,7 +35,7 @@ fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
     }
 
     let file: File = File::open(path)?;
-    let mut parser: Parser<'_, File> = ParserBuilder::new()
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build(file);
 
@@ -47,7 +47,7 @@ fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
             ErrorKind::InvalidData,
             format!("file is not dicom: {}", path.display()),
         ));
-    } else if let None = first {
+    } else if first.is_none() {
         return Err(Error::new(
             ErrorKind::InvalidData,
             format!("file is empty: {}", path.display()),

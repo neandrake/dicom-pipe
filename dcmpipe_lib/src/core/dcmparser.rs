@@ -52,15 +52,6 @@ pub struct ParserBuilder<'dict> {
 }
 
 impl<'dict> ParserBuilder<'dict> {
-    /// Start a new default builder for the given dataset.
-    pub fn new() -> ParserBuilder<'dict> {
-        ParserBuilder {
-            state: None,
-            tagstop: None,
-            dictionary: &MINIMAL_DICOM_DICTIONARY,
-        }
-    }
-
     /// Sets the `TagStop` for when to stop parsing the dataset.
     pub fn tagstop(mut self, tagstop: TagStop) -> Self {
         self.tagstop = Some(tagstop);
@@ -97,6 +88,16 @@ impl<'dict> ParserBuilder<'dict> {
             cs: DEFAULT_CHARACTER_SET,
             current_path: Vec::new(),
             iterator_ended: false,
+        }
+    }
+}
+
+impl<'dict> Default for ParserBuilder<'dict> {
+    fn default() -> Self {
+        ParserBuilder {
+            state: None,
+            tagstop: None,
+            dictionary: &MINIMAL_DICOM_DICTIONARY,
         }
     }
 }
@@ -451,7 +452,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let new_cs: Option<String> = Vec::<String>::try_from(element)?
             .into_iter()
             .filter(|cs_entry: &String| !cs_entry.is_empty())
-            .nth(0);
+            .next();
 
         // TODO: There are options for what to do if we can't support the character repertoire
         //       See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of

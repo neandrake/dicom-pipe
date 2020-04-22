@@ -25,7 +25,7 @@ mod parsing;
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
     let file: File = File::open(path)?;
 
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::new();
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default();
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -36,7 +36,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
     //       from the dicom object?
 
     let file: File = File::open(path)?;
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::new();
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default();
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -48,7 +48,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
 
 pub fn parse_and_print_file(path: &str, with_std: bool) -> Result<(), Error> {
     let file: File = File::open(path)?;
-    let mut parser: ParserBuilder<'_> = ParserBuilder::new();
+    let mut parser: ParserBuilder<'_> = ParserBuilder::default();
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -65,7 +65,7 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
     for path in get_dicom_file_paths() {
         let path_str: &str = path.to_str().expect("path");
         let file: File = File::open(path.clone())?;
-        let mut parser: ParserBuilder<'_> = ParserBuilder::new();
+        let mut parser: ParserBuilder<'_> = ParserBuilder::default();
         if with_std {
             parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
         }
