@@ -1,4 +1,4 @@
-use crate::app::{CommandApplication, render_element, parse_file};
+use crate::app::{parse_file, render_element, CommandApplication};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::Parser;
@@ -33,7 +33,7 @@ impl FullObjApp {
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                         ts.uid.ident
                     )
-                        .as_ref(),
+                    .as_ref(),
                 )?;
                 prev_was_file_meta = false;
             }
@@ -74,7 +74,8 @@ impl CommandApplication for FullObjApp {
             parser.get_ts().uid.ident).as_ref()
         )?;
 
-        let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
+        let dcmroot: DicomRoot<'_> =
+            parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
         self.render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)?;
         Ok(())
     }

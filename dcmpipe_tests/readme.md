@@ -1,4 +1,4 @@
-### dcmpipe_tests
+# dcmpipe_tests
 
 This crate has no content other than tests. The reason for splitting tests into a separate crate is due to needing to depend on both `dcmpipe_lib` and `dcmpipe_dict` in order to test the dicom parser with the standard dicom dictionary.
 

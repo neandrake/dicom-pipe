@@ -1,4 +1,4 @@
-use crate::app::{CommandApplication, render_element, parse_file};
+use crate::app::{parse_file, render_element, CommandApplication};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::Parser;
 use std::fs::File;

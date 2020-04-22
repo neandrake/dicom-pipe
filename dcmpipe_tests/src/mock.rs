@@ -12,7 +12,7 @@ impl MockDicomDataset {
         mockup: MockDicomDataset,
         tagstop: TagStop,
     ) -> Parser<'static, MockDicomDataset> {
-        ParserBuilder::new(mockup).tagstop(tagstop).build()
+        ParserBuilder::new().tagstop(tagstop).build(mockup)
     }
 
     pub fn standard_dicom_preamble() -> Parser<'static, MockDicomDataset> {

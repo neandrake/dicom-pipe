@@ -1,25 +1,22 @@
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
-use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
+use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
 use dcmpipe_lib::core::dcmsqelem::SequenceElement;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
-use dcmpipe_lib::defn::vl::ValueLength;
-use dcmpipe_lib::defn::vr;
 
-use std::convert::TryFrom;
-use std::io::{Error, ErrorKind};
-use std::fs::File;
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
-use std::path::Path;
+use std::fs::File;
+use std::io::{Error, ErrorKind};
 use std::iter::Peekable;
+use std::path::Path;
 
 pub(crate) mod args;
 pub(crate) mod cursiveapp;
 pub(crate) mod fullobjapp;
 pub(crate) mod lowmemapp;
+pub(crate) mod scanapp;
 
-static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 16;
 
 static HIDE_GROUP_TAGS: bool = false;
@@ -38,9 +35,9 @@ fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
     }
 
     let file: File = File::open(path)?;
-    let mut parser: Parser<'_, File> = ParserBuilder::new(file)
+    let mut parser: Parser<'_, File> = ParserBuilder::new()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
-        .build();
+        .build(file);
 
     let mut peeker: Peekable<&mut Parser<'_, File>> = parser.by_ref().peekable();
 
@@ -181,108 +178,47 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
     let mut ellipses: bool = false;
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
-    if elem.vr == &vr::AT {
-        str_vals.push(Tag::format_tag_to_display(Attribute::try_from(elem)?.0));
-    } else if elem.vr == &vr::FD || elem.vr == &vr::OF || elem.vr == &vr::OD || elem.vr == &vr::FL {
-        sep = " / ";
-        let vec: Vec<f64> = match elem.vl {
-            ValueLength::Explicit(len)
-                if (elem.vr == &vr::OD || elem.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
-            {
-                Vec::<f64>::try_from(elem)?
-            }
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<f32>::try_from(elem)?
-                .into_iter()
-                .map(f64::from)
-                .collect::<Vec<f64>>(),
-            ValueLength::Explicit(1) => vec![f64::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-        let vec_len: usize = vec.len();
-        vec.into_iter()
-            .take(MAX_ITEMS_DISPLAYED)
-            .map(|val: f64| format!("{:.2}", val))
-            .for_each(|val: String| str_vals.push(val));
-        ellipses = vec_len > str_vals.len();
-    } else if elem.vr == &vr::SS {
-        sep = " / ";
-        let vec: Vec<i16> = match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?,
-            ValueLength::Explicit(1) => vec![i16::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-        let vec_len: usize = vec.len();
-        vec.into_iter()
-            .take(MAX_ITEMS_DISPLAYED)
-            .map(|val: i16| format!("{}", val))
-            .for_each(|val: String| str_vals.push(val));
-        ellipses = vec_len > str_vals.len();
-    } else if elem.vr == &vr::SL {
-        sep = " / ";
-        let vec: Vec<i32> = match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<i32>::try_from(elem)?,
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?
-                .into_iter()
-                .map(i32::from)
-                .collect::<Vec<i32>>(),
-            ValueLength::Explicit(1) => vec![i32::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-        let vec_len: usize = vec.len();
-        vec.into_iter()
-            .take(MAX_ITEMS_DISPLAYED)
-            .map(|val: i32| format!("{}", val))
-            .for_each(|val: String| str_vals.push(val));
-        ellipses = vec_len > str_vals.len();
-    } else if elem.vr == &vr::UI {
-        let str_val: String = String::try_from(elem)?;
-        if let Some(uid) = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(str_val.as_str()) {
-            str_vals.push(format!("{} ({})", str_val, uid.name));
-        } else {
-            str_vals.push(str_val);
+
+    match elem.parse_value()? {
+        RawValue::Attribute(attr) => {
+            str_vals.push(Tag::format_tag_to_display(attr.0));
         }
-    } else if elem.vr == &vr::UL || elem.vr == &vr::OL || elem.vr == &vr::OW || elem.vr == &vr::US {
-        sep = " / ";
-        let vec: Vec<u32> = match elem.vl {
-            ValueLength::Explicit(len)
-                if (elem.vr == &vr::UL || elem.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
-            {
-                Vec::<u32>::try_from(elem)?
+        RawValue::Uid(uid_str) => {
+            if let Some(uid) = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str) {
+                str_vals.push(format!("{} ({})", uid_str, uid.name));
+            } else {
+                str_vals.push(uid_str);
             }
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<u16>::try_from(elem)?
-                .into_iter()
-                .map(u32::from)
-                .collect::<Vec<u32>>(),
-            ValueLength::Explicit(1) => vec![u32::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-        let vec_len: usize = vec.len();
-        vec.into_iter()
-            .take(MAX_ITEMS_DISPLAYED)
-            .map(|val: u32| format!("{}", val))
-            .for_each(|val: String| str_vals.push(val));
-        ellipses = vec_len > str_vals.len();
-    } else if elem.vr.is_character_string {
-        let vec: Vec<String> = Vec::<String>::try_from(elem)?;
-        let vec_len: usize = vec.len();
-        vec.iter()
-            .take(MAX_ITEMS_DISPLAYED)
-            .map(|val: &String| {
+        }
+        RawValue::Strings(strings) => {
+            ellipses = format_vec_to_strings(strings, &mut str_vals, |val: String| {
                 if val.is_empty() {
                     String::new()
                 } else {
                     format!("\"{}\"", val)
                 }
-            })
-            .for_each(|val: String| str_vals.push(val));
-        ellipses = vec_len > str_vals.len();
-    } else {
-        let vec: &Vec<u8> = elem.get_data();
-        vec.iter()
-            .take(MAX_BYTES_DISPLAY)
-            .map(|val: &u8| format!("{}", val))
-            .for_each(|val: String| str_vals.push(val));
-        ellipses = vec.len() > str_vals.len();
+            });
+        }
+        RawValue::Doubles(doubles) => {
+            sep = " / ";
+            ellipses =
+                format_vec_to_strings(doubles, &mut str_vals, |val: f64| format!("{:.2}", val));
+        }
+        RawValue::Shorts(shorts) => {
+            sep = " / ";
+            ellipses = format_vec_to_strings(shorts, &mut str_vals, |val: i16| format!("{}", val));
+        }
+        RawValue::Integers(ints) => {
+            sep = " / ";
+            ellipses = format_vec_to_strings(ints, &mut str_vals, |val: i32| format!("{}", val));
+        }
+        RawValue::UnsignedIntegers(uints) => {
+            sep = " / ";
+            ellipses = format_vec_to_strings(uints, &mut str_vals, |val: u32| format!("{}", val));
+        }
+        RawValue::Bytes(bytes) => {
+            ellipses = format_vec_to_strings(bytes, &mut str_vals, |val: u8| format!("{}", val));
+        }
     }
 
     if ellipses {
@@ -298,4 +234,17 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
         "[{}]",
         str_vals.into_iter().collect::<Vec<String>>().join(sep)
     ))
+}
+
+fn format_vec_to_strings<T, F: Fn(T) -> String>(
+    vec: Vec<T>,
+    str_vals: &mut Vec<String>,
+    func: F,
+) -> bool {
+    let vec_len: usize = vec.len();
+    vec.into_iter()
+        .take(MAX_ITEMS_DISPLAYED)
+        .map(func)
+        .for_each(|val: String| str_vals.push(val));
+    vec_len > str_vals.len()
 }
