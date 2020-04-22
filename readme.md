@@ -14,14 +14,14 @@ A set of crates for reading and writing DICOM.
 - `dcmpipe_dict_builder`: Functionality for parsing the dicom standard and output tags and uids along with map lookups using `phf`. This is intended to be used by `build.rs` scripts.
 - `dcmpipe_dict`: The standard dicom tags/uids generated using `dcmpipe_dict_builder`.
 - `dcmpipe_cli`: Several examples of parsing dicom streams to display the contents.
+- `dcmpipe_archive`: Command-line tool for managing DICOM archives
 
 {F19846}
 
-#### TODO
+#### Milestone v1.0 
 
-Short-term goals
-- [ ] Change errors to be custom instead of `std::io::Error`
-- [ ] Abide by [[ https://rust-lang-nursery.github.io/api-guidelines/checklist.html | Rust's API Guidelines ]]
-- [ ] Add support for logging
+- [ ] {T10} - Implement appropriate error handling for a library
+- [ ] {T11} Add support for logging
+- [ ] Conform to [[ https://rust-lang.github.io/api-guidelines/checklist.html | Rust's API Guidelines ]]
 - [ ] Add support for writing DICOM streams
 - [ ] Add support for DICOM network connectivity

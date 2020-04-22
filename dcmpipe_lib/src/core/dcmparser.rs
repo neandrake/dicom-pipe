@@ -42,9 +42,7 @@ pub enum ParseState {
 }
 
 /// A builder for constructing `Parser` with common default states.
-pub struct ParserBuilder<'dict, DatasetType: Read> {
-    /// The dataset to parse dicom from.
-    dataset: DatasetType,
+pub struct ParserBuilder<'dict> {
     /// Initial parse state. Default is `ParseState::DetectState`.
     state: Option<ParseState>,
     /// When to stop parsing the dataset. Default is `TagStop::EndOfDataset`.
@@ -53,11 +51,10 @@ pub struct ParserBuilder<'dict, DatasetType: Read> {
     dictionary: &'dict dyn DicomDictionary,
 }
 
-impl<'dict, DatasetType: Read> ParserBuilder<'dict, DatasetType> {
+impl<'dict> ParserBuilder<'dict> {
     /// Start a new default builder for the given dataset.
-    pub fn new(dataset: DatasetType) -> ParserBuilder<'dict, DatasetType> {
+    pub fn new() -> ParserBuilder<'dict> {
         ParserBuilder {
-            dataset,
             state: None,
             tagstop: None,
             dictionary: &MINIMAL_DICOM_DICTIONARY,
@@ -80,12 +77,12 @@ impl<'dict, DatasetType: Read> ParserBuilder<'dict, DatasetType> {
     }
 
     /// Constructs the parser from this builder.
-    pub fn build(self) -> Parser<'dict, DatasetType> {
+    pub fn build<DatasetType: Read>(&self, dataset: DatasetType) -> Parser<'dict, DatasetType> {
         Parser {
-            dataset: self.dataset,
-            tagstop: self.tagstop.unwrap_or(TagStop::EndOfDataset),
+            dataset,
+            tagstop: self.tagstop.clone().unwrap_or(TagStop::EndOfDataset),
             dictionary: self.dictionary,
-            state: self.state.unwrap_or(ParseState::DetectState),
+            state: self.state.clone().unwrap_or(ParseState::DetectState),
 
             bytes_read: 0,
             file_preamble: None,

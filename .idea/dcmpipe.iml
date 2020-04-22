@@ -3,47 +3,14 @@
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/cli/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/cli/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/cli/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/cli/benches" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/lib/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/lib/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/lib/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/lib/benches" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dict/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dict/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dict/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dict/benches" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_lib/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_lib/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_lib/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_lib/benches" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/benches" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_cli/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_cli/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_cli/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_cli/benches" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/fixtures" type="java-test-resource" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/benches" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_tests/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_tests/examples" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_tests/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_tests/benches" isTestSource="true" />
-      <excludeFolder url="file://$MODULE_DIR$/cli/target" />
-      <excludeFolder url="file://$MODULE_DIR$/dcmpipe_cli/target" />
-      <excludeFolder url="file://$MODULE_DIR$/dcmpipe_dict/target" />
-      <excludeFolder url="file://$MODULE_DIR$/dcmpipe_dict_builder/target" />
-      <excludeFolder url="file://$MODULE_DIR$/dcmpipe_lib/target" />
-      <excludeFolder url="file://$MODULE_DIR$/dcmpipe_tests/target" />
-      <excludeFolder url="file://$MODULE_DIR$/dict/target" />
-      <excludeFolder url="file://$MODULE_DIR$/lib/target" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_archiver/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/build" type="java-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_tests/fixtures" type="java-test-resource" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

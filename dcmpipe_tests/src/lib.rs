@@ -25,34 +25,34 @@ mod parsing;
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
     let file: File = File::open(path)?;
 
-    let mut parser_builder: ParserBuilder<'_, File> = ParserBuilder::new(file);
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::new();
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let parser: Parser<'_, File> = parser_builder.build();
+    let parser: Parser<'_, File> = parser_builder.build(file);
     parse_all_element_values(parser, path)?;
 
     // TODO: There's a difference between parsing all values directly from parser vs. read in
     //       from the dicom object?
 
     let file: File = File::open(path)?;
-    let mut parser_builder: ParserBuilder<'_, File> = ParserBuilder::new(file);
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::new();
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let mut parser: Parser<'_, File> = parser_builder.build();
-    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
+    let mut parser: Parser<'_, File> = parser_builder.build(file);
+    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
 }
 
 pub fn parse_and_print_file(path: &str, with_std: bool) -> Result<(), Error> {
     let file: File = File::open(path)?;
-    let mut parser: ParserBuilder<'_, File> = ParserBuilder::new(file);
+    let mut parser: ParserBuilder<'_> = ParserBuilder::new();
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let mut parser: Parser<'_, File> = parser.build();
+    let mut parser: Parser<'_, File> = parser.build(file);
     while let Some(Ok(_elem)) = parser.next() {}
 
     Ok(())
@@ -65,11 +65,11 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
     for path in get_dicom_file_paths() {
         let path_str: &str = path.to_str().expect("path");
         let file: File = File::open(path.clone())?;
-        let mut parser: ParserBuilder<'_, File> = ParserBuilder::new(file);
+        let mut parser: ParserBuilder<'_> = ParserBuilder::new();
         if with_std {
             parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
         }
-        let parser: Parser<'_, File> = parser.build();
+        let parser: Parser<'_, File> = parser.build(file);
 
         if parse_all_element_values(parser, path_str).is_err() {
             num_failed += 1;

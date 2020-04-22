@@ -127,15 +127,26 @@ pub fn read_value_length_from_dataset(
     Ok(vl::from_value_length(value_length))
 }
 
-/// Parses elements to build a `DicomObject` tree to represent the dataset in-memory
+/// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
+/// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
+/// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
 pub fn parse_into_object<'dict, DatasetType: Read>(
     parser: &mut Parser<'dict, DatasetType>,
-) -> Result<DicomRoot<'dict>, Error> {
+) -> Result<Option<DicomRoot<'dict>>, Error> {
     let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
     let mut items: Vec<DicomObject> = Vec::new();
-    if let Some(Err(e)) = parse_into_object_recurse(parser, &mut child_nodes, &mut items) {
+
+    let parse_result: Option<Result<DicomElement, Error>> =
+        parse_into_object_recurse(parser, &mut child_nodes, &mut items, true);
+    if let Some(Err(e)) = parse_result {
         return Err(e);
     }
+
+    // if no child elements were parsed then assume not a valid dicom file
+    if child_nodes.is_empty() {
+        return Ok(None);
+    }
+
     // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
     // and specific character set.
     let root: DicomRoot<'_> = DicomRoot::new(
@@ -144,7 +155,7 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
         parser.get_dictionary(),
         child_nodes,
     );
-    Ok(root)
+    Ok(Some(root))
 }
 
 /// Iterates through the parser populating values into the given `nodes` map. Elements which are
@@ -155,13 +166,23 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
 /// `parser` The parser elements are being read from
 /// `child_nodes` The map of nodes which elements should be parsed into
 /// `item_nodes` The list of nodes which item elements should be parsed into
+/// `is_first_level` Whether the root level is being parsed, or within child nodes
 fn parse_into_object_recurse<DatasetType: Read>(
     parser: &mut Parser<'_, DatasetType>,
     child_nodes: &mut BTreeMap<u32, DicomObject>,
     items: &mut Vec<DicomObject>,
+    is_root_level: bool,
 ) -> Option<Result<DicomElement, Error>> {
     let mut prev_seq_path_len: usize = 0;
     let mut next_element: Option<Result<DicomElement, Error>> = parser.next();
+
+    // if the first element at the root level is an error then this is probably not valid dicom
+    if is_root_level {
+        if let Some(Err(_)) = next_element {
+            return None;
+        }
+    }
+
     while let Some(Ok(element)) = next_element {
         let tag: u32 = element.tag;
         let cur_seq_path_len: usize = element.get_sequence_path().len() + 1;
@@ -183,7 +204,8 @@ fn parse_into_object_recurse<DatasetType: Read>(
         let dcmobj: DicomObject = if element.is_seq_like() || tag == tags::ITEM {
             let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
             let mut items: Vec<DicomObject> = Vec::new();
-            possible_next_elem = parse_into_object_recurse(parser, &mut child_nodes, &mut items);
+            possible_next_elem =
+                parse_into_object_recurse(parser, &mut child_nodes, &mut items, false);
             DicomObject::new_with_children(element, child_nodes, items)
         } else {
             DicomObject::new(element)

@@ -26,6 +26,18 @@ pub struct ElementWithVr<'me>(pub &'me DicomElement, pub VRRef);
 /// Wrapper around `u32` for parsing DICOM Attributes
 pub struct Attribute(pub u32);
 
+/// Wrapper around an element's value parsed into a native/raw type
+pub enum RawValue {
+    Attribute(Attribute),
+    Uid(String),
+    Strings(Vec<String>),
+    Doubles(Vec<f64>),
+    Shorts(Vec<i16>),
+    Integers(Vec<i32>),
+    UnsignedIntegers(Vec<u32>),
+    Bytes(Vec<u8>),
+}
+
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
 pub struct DicomElement {
@@ -96,6 +108,89 @@ impl DicomElement {
     /// Returns whether the the size of the value for this element is zero
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    /// Parses this element's data into native/raw value type
+    pub fn parse_value(&self) -> Result<RawValue, Error> {
+        if self.vr == &vr::AT {
+            let attr: Attribute = Attribute::try_from(self)?;
+            Ok(RawValue::Attribute(attr))
+        } else if self.vr == &vr::UI {
+            let uid: String = String::try_from(self)?;
+            Ok(RawValue::Uid(uid))
+        } else if self.vr.is_character_string {
+            let strings: Vec<String> = Vec::<String>::try_from(self)?;
+            Ok(RawValue::Strings(strings))
+        } else if self.vr == &vr::FD
+            || self.vr == &vr::OF
+            || self.vr == &vr::OD
+            || self.vr == &vr::FL
+        {
+            let doubles: Vec<f64> = match self.vl {
+                ValueLength::Explicit(len)
+                    if (self.vr == &vr::OD || self.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
+                {
+                    Vec::<f64>::try_from(self)?
+                }
+                ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => {
+                    Vec::<f32>::try_from(self)?
+                        .into_iter()
+                        .map(f64::from)
+                        .collect::<Vec<f64>>()
+                }
+                ValueLength::Explicit(1) => vec![f64::from(self.get_data()[0])],
+                _ => vec![],
+            };
+            Ok(RawValue::Doubles(doubles))
+        } else if self.vr == &vr::SS {
+            let shorts: Vec<i16> = match self.vl {
+                ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => {
+                    Vec::<i16>::try_from(self)?
+                }
+                ValueLength::Explicit(1) => vec![i16::from(self.get_data()[0])],
+                _ => vec![],
+            };
+            Ok(RawValue::Shorts(shorts))
+        } else if self.vr == &vr::SL {
+            let ints: Vec<i32> = match self.vl {
+                ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => {
+                    Vec::<i32>::try_from(self)?
+                }
+                ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => {
+                    Vec::<i16>::try_from(self)?
+                        .into_iter()
+                        .map(i32::from)
+                        .collect::<Vec<i32>>()
+                }
+                ValueLength::Explicit(1) => vec![i32::from(self.get_data()[0])],
+                _ => vec![],
+            };
+            Ok(RawValue::Integers(ints))
+        } else if self.vr == &vr::UL
+            || self.vr == &vr::OL
+            || self.vr == &vr::OW
+            || self.vr == &vr::US
+        {
+            let uints: Vec<u32> = match self.vl {
+                ValueLength::Explicit(len)
+                    if (self.vr == &vr::UL || self.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
+                {
+                    Vec::<u32>::try_from(self)?
+                }
+                ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => {
+                    Vec::<u16>::try_from(self)?
+                        .into_iter()
+                        .map(u32::from)
+                        .collect::<Vec<u32>>()
+                }
+                ValueLength::Explicit(1) => vec![u32::from(self.get_data()[0])],
+                _ => vec![],
+            };
+            Ok(RawValue::UnsignedIntegers(uints))
+        } else {
+            let bytes: Vec<u8> = self.get_data().clone();
+            Ok(RawValue::Bytes(bytes))
+        }
     }
 }
 
