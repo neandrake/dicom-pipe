@@ -9,8 +9,7 @@ A set of crates for reading and writing DICOM.
 - Provide basic command-line utilities for inspecting DICOM files and communicating with DICOM networks.
 
 == Crates ==
-- `dcmpipe_archive`: Command-line tool for managing DICOM archives
-- `dcmpipe_cli`: Several examples of parsing dicom streams to display the contents.
+- `dcmpipe_cli`: Several command-line tools utilizing `dcmpipe_lib`.
 - `dcmpipe_dict`: The standard dicom tags/uids generated using `dcmpipe_dict_builder`.
 - `dcmpipe_dict_builder`: Functionality for parsing the dicom standard and output tags and uids along with map lookups using `phf`. This is intended to be used by `build.rs` scripts.
 - `dcmpipe_lib`: The core library of definitions for the DICOM format and ability to read/write dicom.

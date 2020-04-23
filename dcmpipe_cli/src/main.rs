@@ -1,13 +1,17 @@
-mod app;
+use std::process;
 
+use structopt::StructOpt;
+
+use crate::app::archiveapp::ArchiveApp;
 use crate::app::args::{Arguments, Command};
 use crate::app::cursiveapp::CursiveApp;
 use crate::app::fullobjapp::FullObjApp;
+use crate::app::indexapp::IndexApp;
 use crate::app::lowmemapp::LowMemApp;
 use crate::app::scanapp::ScanApp;
 use crate::app::CommandApplication;
-use std::process;
-use structopt::StructOpt;
+
+mod app;
 
 fn main() {
     let mut app: Box<dyn CommandApplication> = make_app();
@@ -30,5 +34,10 @@ fn make_app() -> Box<dyn CommandApplication> {
         }
         Command::Edit { file } => Box::new(CursiveApp::new(file)),
         Command::Scan { folder } => Box::new(ScanApp::new(folder)),
+        Command::Index { mongo, folder } => Box::new(IndexApp::new(mongo, folder)),
+        Command::Archive {
+            source,
+            destination,
+        } => Box::new(ArchiveApp::new(source, destination)),
     }
 }
