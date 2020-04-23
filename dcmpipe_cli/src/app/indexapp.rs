@@ -6,10 +6,10 @@ use std::path::PathBuf;
 
 use bson::ordered::OrderedDocument;
 use bson::spec::BinarySubtype;
-use bson::Bson;
+use bson::{Array, Bson, Document};
 use mongodb::options::ClientOptions;
 use mongodb::{Client, Collection, Database};
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
@@ -59,7 +59,6 @@ impl IndexApp {
     fn scan_dir(&self, dicom_coll: Collection) -> Result<(), Error> {
         let walkdir = WalkDir::new(&self.folder)
             .into_iter()
-            .filter_entry(|e: &DirEntry| !is_hidden(e))
             .filter_map(|e| e.ok());
 
         let mut uid_to_doc: HashMap<String, OrderedDocument> = HashMap::new();
@@ -95,8 +94,21 @@ impl IndexApp {
             let uid_key: String = uid_obj.as_element().try_into()?;
             let mut dicom_doc: &mut OrderedDocument = uid_to_doc.entry(uid_key).or_default();
 
-            let files_entry = dicom_doc.entry("files".to_owned());
-            files_entry.or_insert(Bson::Array(Vec::<Bson>::new()));
+            let metadata_doc: &mut Document = dicom_doc
+                .entry("metadata".to_owned())
+                .or_insert_with(|| OrderedDocument::new().into())
+                .as_document_mut()
+                .ok_or_else(|| {
+                    Error::new(ErrorKind::InvalidData, "Field failure: metadata")
+                })?;
+            let files_field: &mut Array = metadata_doc
+                .entry("files".to_owned())
+                .or_insert_with(|| Vec::<String>::new().into())
+                .as_array_mut()
+                .ok_or_else(|| {
+                    Error::new(ErrorKind::InvalidData,"Field failure: metadata.files")
+                })?;
+            files_field.push(format!("{}", entry.path().display()).into());
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
                 let child_elem: &DicomElement = child_obj.as_element();
@@ -131,14 +143,6 @@ impl CommandApplication for IndexApp {
 
         Ok(())
     }
-}
-
-fn is_hidden(entry: &DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .map(|s| s.starts_with('.'))
-        .unwrap_or(false)
 }
 
 /// Inserts the dicom element entry into the given BSON document
