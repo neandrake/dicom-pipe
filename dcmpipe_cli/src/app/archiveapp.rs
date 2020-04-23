@@ -19,6 +19,8 @@ impl ArchiveApp {
 
 impl CommandApplication for ArchiveApp {
     fn run(&mut self) -> Result<(), Error> {
+        // use fields to stop getting dead code warnings
+        format!("{:?}, {:?}", self.source, self.destination);
         unimplemented!()
     }
 }
