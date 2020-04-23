@@ -5,10 +5,12 @@ authors = ["neandrake <die.drachen@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+bson = "0.14"
 crossterm = "0.17"
 cursive = { version = "0.14.0", default-features = false, features = ["crossterm-backend"] }
 cursive_table_view = "0.12"
 dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
 dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1" }
+mongodb = "0.9"
 structopt = "0.3"
 walkdir = "2.3"

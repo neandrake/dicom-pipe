@@ -451,8 +451,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     fn parse_specific_character_set(&mut self, element: &DicomElement) -> Result<CSRef, Error> {
         let new_cs: Option<String> = Vec::<String>::try_from(element)?
             .into_iter()
-            .filter(|cs_entry: &String| !cs_entry.is_empty())
-            .next();
+            .find(|cs_entry: &String| !cs_entry.is_empty());
 
         // TODO: There are options for what to do if we can't support the character repertoire
         //       See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of

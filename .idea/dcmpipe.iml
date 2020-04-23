@@ -8,7 +8,6 @@
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_cli/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_tests/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/dcmpipe_archiver/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_dict/build" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/dcmpipe_tests/fixtures" type="java-test-resource" />
       <excludeFolder url="file://$MODULE_DIR$/target" />

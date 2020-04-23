@@ -11,9 +11,11 @@ use std::io::{Error, ErrorKind};
 use std::iter::Peekable;
 use std::path::Path;
 
+pub(crate) mod archiveapp;
 pub(crate) mod args;
 pub(crate) mod cursiveapp;
 pub(crate) mod fullobjapp;
+pub(crate) mod indexapp;
 pub(crate) mod lowmemapp;
 pub(crate) mod scanapp;
 
