@@ -231,10 +231,28 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let is_at_tag_stop: bool = match self.tagstop {
             TagStop::EndOfDataset => false,
             TagStop::BeforeTag(before_tag) => {
-                self.current_path.is_empty() && self.tag_last_read >= before_tag
+                // TODO: Address this -- delimiter/item tags should not exist in the first level
+                //       of a dataset, so this shouldn't actually need checked. Reading into a
+                //       DicomObject must not be placing these items properly in the hierarchy.
+                // Don't consider item & delimiters as they have high values and are not valid
+                // tags for comparison related to tag-stop behavior - these tags can appear anywhere
+                // in the dataset disregarding any relation to other tags.
+                self.tag_last_read != tags::ITEM
+                    && self.tag_last_read != tags::ITEM_DELIMITATION_ITEM
+                    && self.tag_last_read != tags::SEQUENCE_DELIMITATION_ITEM
+                    && self.current_path.is_empty() && self.tag_last_read >= before_tag
             }
             TagStop::AfterTag(after_tag) => {
-                self.current_path.is_empty() && self.tag_last_read > after_tag
+                // TODO: Address this -- delimiter/item tags should not exist in the first level
+                //       of a dataset, so this shouldn't actually need checked. Reading into a
+                //       DicomObject must not be placing these items properly in the hierarchy.
+                // Don't consider item & delimiters as they have high values and are not valid
+                // tags for comparison related to tag-stop behavior - these tags can appear anywhere
+                // in the dataset disregarding any relation to other tags.
+                self.tag_last_read != tags::ITEM
+                    && self.tag_last_read != tags::ITEM_DELIMITATION_ITEM
+                    && self.tag_last_read != tags::SEQUENCE_DELIMITATION_ITEM
+                    && self.current_path.is_empty() && self.tag_last_read > after_tag
             }
             TagStop::AfterBytePos(byte_pos) => self.bytes_read > byte_pos,
         };
