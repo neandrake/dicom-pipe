@@ -106,28 +106,13 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     indent_width *= 2;
 
     if element.tag == tags::Item.tag {
-        let path: String = seq_path
-            .iter()
-            .map(|seq_elem: &SequenceElement| {
-                format!(
-                    "{}{}",
-                    Tag::format_tag_to_display(seq_elem.get_seq_tag()),
-                    seq_elem
-                        .get_item_number()
-                        .map(|item_no: u32| format!("[{}]", item_no))
-                        .unwrap_or_else(|| "".to_string())
-                )
-            })
-            .collect::<Vec<String>>()
-            .join(".");
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
             format!(
-                "{} - {} {} [{:?}]",
+                "{} {} [{:?}]",
                 last_seq_elem
                     .get_item_number()
                     .map(|item_no: u32| format!("#{}", item_no))
                     .unwrap_or_else(|| "#[NO ITEM NUMBER]".to_string()),
-                path,
                 vr,
                 element.vl,
             )
@@ -219,7 +204,7 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             ellipses = format_vec_to_strings(uints, &mut str_vals, |val: u32| format!("{}", val));
         }
         RawValue::Bytes(bytes) => {
-            ellipses = format_vec_to_strings(bytes, &mut str_vals, |val: u8| format!("{}", val));
+            ellipses = format_vec_to_strings(bytes, &mut str_vals, |val: u8| format!("{:02x}", val));
         }
     }
 

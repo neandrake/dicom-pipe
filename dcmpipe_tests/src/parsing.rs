@@ -173,6 +173,149 @@ fn test_dicom_object(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
+fn test_dicom_object_sequences_with_std() -> Result<(), Error> {
+    test_dicom_object_sequences(true)
+}
+
+#[test]
+fn test_dicom_object_sequences_without_std() -> Result<(), Error> {
+    test_dicom_object_sequences(false)
+}
+
+fn test_dicom_object_sequences(with_std: bool) -> Result<(), Error> {
+    let file: File =
+        File::open("./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?;
+    let mut parser: ParserBuilder<'_> =
+        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag));
+    if with_std {
+        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
+    }
+    let mut parser: Parser<'_, File> = parser.build(file);
+
+    let dcmroot: DicomRoot<'_> =
+        parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
+
+    // StructureSetTime is the last element before a sequence item
+    let ss_time: &DicomElement = dcmroot.get_child(tags::StructureSetTime.tag)
+        .expect("Should have StructureSetTime")
+        .as_element();
+    // pull value into local var so it can be typed properly, otherwise it defaults type to &Vec<u8>
+    let ss_time_bytes: &[u8] = ss_time.get_data().as_ref();
+    assert_eq!(ss_time_bytes, "092108.000".as_bytes());
+
+    // walk the depths of the first sequence to make sure the structure is setup as we expect
+    {
+        /* Output form dcmdump
+(3006,0010) SQ (Sequence with undefined length #=1)     # u/l, 1 ReferencedFrameOfReferenceSequence
+  (fffe,e000) na (Item with explicit length #=2)          # 1286, 1 Item
+    (0020,0052) UI [1.2.246.352.91.0000217.20050503182534.1.1] #  42, 1 FrameOfReferenceUID
+    (3006,0012) SQ (Sequence with undefined length #=1)     # u/l, 1 RTReferencedStudySequence
+      (fffe,e000) na (Item with explicit length #=3)          # 1208, 1 Item
+        (0008,1150) UI =RETIRED_DetachedStudyManagementSOPClass #  24, 1 ReferencedSOPClassUID
+        (0008,1155) UI [1.2.246.352.91.0000217.20050503182534]  #  38, 1 ReferencedSOPInstanceUID
+        (3006,0014) SQ (Sequence with undefined length #=1)     # u/l, 1 RTReferencedSeriesSequence
+          (fffe,e000) na (Item with explicit length #=2)          # 1102, 1 Item
+            (0020,000e) UI [1.2.246.352.91.0000217.20050503182534.1] #  40, 1 SeriesInstanceUID
+            (3006,0016) SQ (Sequence with undefined length #=11)    # u/l, 1 ContourImageSequence
+            [11 items, pairs of sop-class and sop-uid references]
+        */
+
+        // the first sequence item in this object
+        let rfor_sq: &DicomObject = dcmroot.get_child(tags::ReferencedFrameofReferenceSequence.tag)
+            .expect("Should have ReferencedFrameOfReferenceSequence");
+
+        assert_eq!(rfor_sq.get_item_count(), 1);
+        let item_obj: &DicomObject = rfor_sq.get_item(0).expect("Have first item");
+        assert_eq!(item_obj.get_child_count(), 2);
+        let item_foruid: &DicomObject = item_obj.get_child(tags::FrameofReferenceUID.tag)
+            .expect("Have FORUID");
+        let item_foruid_bytes: &[u8] = item_foruid.as_element().get_data().as_ref();
+        assert_eq!(item_foruid_bytes, "1.2.246.352.91.0000217.20050503182534.1.1\0".as_bytes());
+
+        assert_eq!(rfor_sq.get_child_count(), 1);
+        let child_obj: &DicomObject = rfor_sq.iter_child_nodes().next()
+            .expect("Have first child").1;
+        assert_eq!(child_obj.as_element().tag, tags::SequenceDelimitationItem.tag);
+
+        let rtrss_sq: &DicomObject = item_obj.get_child(tags::RTReferencedStudySequence.tag)
+            .expect("Have RTReferencedStudySequence");
+        assert_eq!(rtrss_sq.get_item_count(), 1);
+        assert_eq!(rtrss_sq.get_child_count(), 1);
+
+        let rtrss_sq_item: &DicomObject = rtrss_sq.get_item(0).expect("Have first item");
+        assert_eq!(rtrss_sq_item.get_child_count(), 3);
+        let ref_sopclass: &DicomElement = rtrss_sq_item.get_child(tags::ReferencedSOPClassUID.tag)
+            .expect("Have ref sop class")
+            .as_element();
+        let ref_sopclass_bytes: &[u8] = ref_sopclass.get_data().as_ref();
+        assert_eq!(ref_sopclass_bytes, "1.2.840.10008.3.1.2.3.1\0".as_bytes());
+
+        let ref_sopuid: &DicomElement = rtrss_sq_item.get_child(tags::ReferencedSOPInstanceUID.tag)
+            .expect("Have ref sop instance uid")
+            .as_element();
+        let ref_sopuid_bytes: &[u8] = ref_sopuid.get_data().as_ref();
+        assert_eq!(ref_sopuid_bytes, "1.2.246.352.91.0000217.20050503182534\0".as_bytes());
+
+        let rtref_ser_sq: &DicomObject = rtrss_sq_item.get_child(tags::RTReferencedSeriesSequence.tag)
+            .expect("Have ref series seq");
+        assert_eq!(rtref_ser_sq.get_item_count(), 1);
+        assert_eq!(rtref_ser_sq.get_child_count(), 1);
+
+        let rtref_ser_item: &DicomObject = rtref_ser_sq.get_item(0).expect("Have first item");
+        assert_eq!(rtref_ser_item.get_child_count(), 2);
+        let rtref_ser_uid: &DicomElement = rtref_ser_item.get_child(tags::SeriesInstanceUID.tag)
+            .expect("Have series uid")
+            .as_element();
+        let rtref_ser_uid_bytes: &[u8] = rtref_ser_uid.get_data().as_ref();
+        assert_eq!(rtref_ser_uid_bytes, "1.2.246.352.91.0000217.20050503182534.1\0".as_bytes());
+
+        let cont_img_sq: &DicomObject = rtref_ser_item.get_child(tags::ContourImageSequence.tag)
+            .expect("Have contour image seq");
+        assert_eq!(cont_img_sq.get_item_count(), 11);
+        assert_eq!(cont_img_sq.get_child_count(), 1);
+
+        let cont_img_sq_child: &DicomObject = cont_img_sq.iter_child_nodes().next()
+            .expect("Get only child of contour image seq").1;
+        assert_eq!(cont_img_sq_child.as_element().tag, tags::SequenceDelimitationItem.tag);
+        assert_eq!(cont_img_sq_child.get_child_count(), 0);
+        assert_eq!(cont_img_sq_child.get_item_count(), 0);
+
+        let last_sop_uid: &DicomElement = cont_img_sq.get_item(10)
+            .expect("Get last item")
+            .get_child(tags::ReferencedSOPInstanceUID.tag)
+            .expect("Get last item's ref sop uid")
+            .as_element();
+        let last_sop_uid_bytes: &[u8] = last_sop_uid.get_data().as_ref();
+        assert_eq!(last_sop_uid_bytes, "1.2.246.352.91.0000217.20050503182534671465\0".as_bytes());
+    }
+
+    // test next tag after the first sequence
+    let ssroi_sq: &DicomObject = dcmroot.get_child(tags::StructureSetROISequence.tag)
+        .expect("Should have StructureSetROISequence");
+    assert_eq!(ssroi_sq.get_item_count(), 4);
+
+    // ContourData's implicit VR is DS, however the first contour in this dataset is encoded
+    // explicitly with UN. Verify that it still parses as UN and not DS.
+    let contour_data: &DicomElement = dcmroot.get_child(tags::ROIContourSequence.tag)
+        .expect("Have roi contour seq")
+        .get_item(0)
+        .expect("Have first item")
+        .get_child(tags::ContourSequence.tag)
+        .expect("Have contour sequence")
+        .get_item(0)
+        .expect("Have first item")
+        .get_child(tags::ContourData.tag)
+        .expect("Have contour data")
+        .as_element();
+
+    assert_eq!(contour_data.vr, &vr::UN);
+    assert_eq!(contour_data.vl, ValueLength::Explicit(107074));
+    assert_eq!(contour_data.get_data().len(), 107074);
+
+    Ok(())
+}
+
+#[test]
 fn test_empty_seq_undefined_length_with_std() -> Result<(), Error> {
     test_empty_seq_undefined_length(true)
 }
