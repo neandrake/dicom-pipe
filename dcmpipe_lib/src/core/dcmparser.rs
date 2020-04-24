@@ -354,11 +354,14 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // has its own applicable data dictionary), it can assume that the Value Field of the
         // Attribute is encoded in Little Endian byte ordering with implicit VR encoding,
         // irrespective of the current Transfer Syntax.
+        // --
+        // Only do this for potential sequences and not elements which have values
         let mut ts: TSRef = ts;
         if vr == &vr::UN {
-            vr = self.lookup_vr(tag)?;
-            if vr != &vr::UN {
+            let found_vr: VRRef = self.lookup_vr(tag)?;
+            if found_vr == &vr::SQ {
                 ts = &ts::ImplicitVRLittleEndian;
+                vr = found_vr;
             }
         }
 
