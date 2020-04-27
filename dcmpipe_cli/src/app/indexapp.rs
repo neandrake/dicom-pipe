@@ -4,11 +4,10 @@ use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
-use bson::ordered::OrderedDocument;
 use bson::spec::BinarySubtype;
-use bson::{Array, Bson, Document};
-use mongodb::options::ClientOptions;
-use mongodb::{Client, Collection, Database};
+use bson::{doc, Array, Bson, Document};
+use mongodb::options::{ClientOptions};
+use mongodb::{Client, Collection, Database, Cursor};
 use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
@@ -21,47 +20,48 @@ use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 
 use crate::app::CommandApplication;
+use bson::oid::ObjectId;
+
+/// Tracks a dicom document scanned from disk or from the database. I was originally going to make
+/// this an enum with variants `FromDisk` and `FromDb` and then try to merge so that the same
+/// record is updated from disk contents rather than creating new records, however it was easier
+/// for the moment to just make an optional `id` field -- which if filled in means that it will
+/// correspond to an existing record otherwise it represents a brand new document.
+struct DicomDoc {
+    doc: Document,
+    id: Option<ObjectId>,
+}
+
+impl DicomDoc {
+    pub fn new() -> DicomDoc {
+        DicomDoc {
+            doc: Document::new(),
+            id: None,
+        }
+    }
+}
 
 pub struct IndexApp {
     mongo: String,
     folder: PathBuf,
+    uid_to_doc: HashMap<String, DicomDoc>,
 }
 
 impl IndexApp {
     pub fn new(mongo: String, folder: PathBuf) -> IndexApp {
-        IndexApp { mongo, folder }
+        IndexApp {
+            mongo,
+            folder,
+            uid_to_doc: HashMap::new(),
+        }
     }
 
-    fn get_dicom_collection(&self) -> Result<Collection, Error> {
-        let mongo_opts: ClientOptions = ClientOptions::parse(&self.mongo).map_err(|e| {
-            Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
-            )
-        })?;
-        let client: Client = Client::with_options(mongo_opts).map_err(|e| {
-            Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
-            )
-        })?;
-        let metabase_db: Database = client.database("metabase_rs");
-        metabase_db.drop(None).map_err(|e| {
-            Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
-            )
-        })?;
-        let dicom_coll: Collection = metabase_db.collection("dicom");
-        Ok(dicom_coll)
-    }
-
-    fn scan_dir(&self, dicom_coll: Collection) -> Result<(), Error> {
+    /// Scans a directory and builds `DicomDoc` to be inserted into `self.uid_to_doc`
+    fn scan_dir(&mut self) -> Result<(), Error> {
         let walkdir = WalkDir::new(&self.folder)
             .into_iter()
             .filter_map(|e| e.ok());
 
-        let mut uid_to_doc: HashMap<String, OrderedDocument> = HashMap::new();
         let parser_builder: ParserBuilder = ParserBuilder::default()
             .tagstop(TagStop::BeforeTag(tags::PixelData.tag))
             .dictionary(&STANDARD_DICOM_DICTIONARY);
@@ -92,11 +92,13 @@ impl IndexApp {
                     )
                 })?;
             let uid_key: String = uid_obj.as_element().try_into()?;
-            let mut dicom_doc: &mut OrderedDocument = uid_to_doc.entry(uid_key).or_default();
+            let dicom_doc: &mut DicomDoc = self.uid_to_doc.entry(uid_key)
+                .or_insert_with(|| DicomDoc::new());
 
             let metadata_doc: &mut Document = dicom_doc
+                .doc
                 .entry("metadata".to_owned())
-                .or_insert_with(|| OrderedDocument::new().into())
+                .or_insert_with(|| Document::new().into())
                 .as_document_mut()
                 .ok_or_else(|| {
                     Error::new(ErrorKind::InvalidData, "Field failure: metadata")
@@ -115,22 +117,116 @@ impl IndexApp {
                 if child_elem.is_seq_like() {
                     // TODO: handle sequences
                 } else {
-                    insert_elem_entry(child_elem, &mut dicom_doc)?;
+                    insert_elem_entry(child_elem, &mut dicom_doc.doc)?;
                 }
             }
         }
 
-        let docs: Vec<OrderedDocument> = uid_to_doc
-            .into_iter()
-            .map(|(_series_uid, doc)| doc)
-            .collect::<Vec<OrderedDocument>>();
+        Ok(())
+    }
 
-        dicom_coll.insert_many(docs, None).map_err(|e| {
+    /// Queries mongo for existing documents and updates `self.uid_to_doc` with a related id field
+    /// if appropriate, or marks the document as missing on-disk and then deletes it.
+    /// Performs all updates to mongo based on the scan results.
+    fn update_mongo(&mut self) -> Result<(), Error> {
+        let mongo_opts: ClientOptions = ClientOptions::parse(&self.mongo).map_err(|e| {
             Error::new(
                 ErrorKind::InvalidData,
-                format!("Error inserting into mongo: , {:?}", e),
+                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
             )
         })?;
+        let client: Client = Client::with_options(mongo_opts).map_err(|e| {
+            Error::new(
+                ErrorKind::InvalidData,
+                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
+            )
+        })?;
+        let metabase_db: Database = client.database("metabase_rs");
+        let dicom_coll: Collection = metabase_db.collection("dicom");
+
+        let series_uid_key: String = Tag::format_tag_to_path_display(tags::SeriesInstanceUID.tag);
+        let sop_uid_key: String = Tag::format_tag_to_path_display(tags::SOPInstanceUID.tag);
+        let all_dicom_docs: Cursor = dicom_coll.find(None, None).map_err(|e| {
+            Error::new(
+                ErrorKind::InvalidData,
+                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
+            )
+        })?;
+
+        let mut missing_records: Vec<Document> = Vec::new();
+        for doc in all_dicom_docs {
+            if let Err(_e) = doc {
+                // TODO: log
+                continue;
+            }
+            let doc: Document = doc.unwrap();
+            let doc_id = doc.get_object_id("_id");
+            if let Err(_e) = doc_id {
+                // TODO: log
+                continue;
+            }
+            let doc_id: ObjectId = doc_id.unwrap().clone();
+
+            let doc_key = doc.get_str(&series_uid_key)
+                .or(doc.get_str(&sop_uid_key));
+            if let Err(_e) = doc_key {
+                // TODO: log
+                continue;
+            }
+            let doc_key: &str = doc_key.unwrap();
+            match self.uid_to_doc.get_mut(doc_key) {
+                Some(dicom_doc) => dicom_doc.id = Some(doc_id),
+                None => missing_records.push(doc),
+            }
+        }
+
+        // There's api for insert_many or update_many but there doesn't appear to be a way to do
+        // something like upsert_many. The update_many does take an option to specify upsert
+        // behavior but it's unclear how that should be used, as the query for which documents
+        // to update would need to match all existing? For now just do individual updates.
+        let keys: Vec<String> = self.uid_to_doc.keys().into_iter().map(|s| s.to_owned()).collect();
+        for key in keys {
+            if let Some(mut dicom_doc) = self.uid_to_doc.remove(&key) {
+                match dicom_doc.id {
+                    None => {
+                        dicom_coll.insert_one(dicom_doc.doc, None).map_err(|e| {
+                            Error::new(
+                                ErrorKind::InvalidData,
+                                format!("Error inserting into mongo: , {:?}", e),
+                            )
+                        })?;
+                    }
+                    Some(doc_id) => {
+                        dicom_doc.doc.insert("_id", doc_id.clone());
+                        let mut query: Document = Document::new();
+                        query.insert("_id", doc_id);
+                        dicom_coll.update_one(query, dicom_doc.doc, None).map_err(|e| {
+                            Error::new(
+                                ErrorKind::InvalidData,
+                                format!("Error updating mongo: , {:?}", e),
+                            )
+                        })?;
+                    }
+                }
+            }
+        }
+
+        if !missing_records.is_empty() {
+            let ids: Vec<ObjectId> = missing_records.iter()
+                .filter_map(|doc| doc.get_object_id("_id").ok())
+                .map(|doc_id| doc_id.clone())
+                .collect();
+            let query = doc!{
+                "$or": ids,
+            };
+
+            dicom_coll.delete_many(query, None).map_err(|e| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Error updating mongo: , {:?}", e),
+                )
+            })?;
+        }
 
         Ok(())
     }
@@ -138,15 +234,14 @@ impl IndexApp {
 
 impl CommandApplication for IndexApp {
     fn run(&mut self) -> Result<(), Error> {
-        let dicom_coll: Collection = self.get_dicom_collection()?;
-        self.scan_dir(dicom_coll)?;
-
+        self.scan_dir()?;
+        self.update_mongo()?;
         Ok(())
     }
 }
 
-/// Inserts the dicom element entry into the given BSON document
-fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut OrderedDocument) -> Result<(), Error> {
+/// Builds a bson value from the given `DicomElement` and inserts it into the dicom element
+fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<(), Error> {
     let key: String = Tag::format_tag_to_path_display(elem.tag);
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {
