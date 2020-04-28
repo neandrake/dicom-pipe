@@ -47,6 +47,14 @@ pub struct IndexApp {
     uid_to_doc: HashMap<String, DicomDoc>,
 }
 
+impl CommandApplication for IndexApp {
+    fn run(&mut self) -> Result<(), Error> {
+        self.scan_dir()?;
+        self.update_mongo()?;
+        Ok(())
+    }
+}
+
 impl IndexApp {
     pub fn new(mongo: String, folder: PathBuf) -> IndexApp {
         IndexApp {
@@ -228,14 +236,6 @@ impl IndexApp {
             })?;
         }
 
-        Ok(())
-    }
-}
-
-impl CommandApplication for IndexApp {
-    fn run(&mut self) -> Result<(), Error> {
-        self.scan_dir()?;
-        self.update_mongo()?;
         Ok(())
     }
 }
