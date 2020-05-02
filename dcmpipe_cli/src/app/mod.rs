@@ -5,7 +5,7 @@ use dcmpipe_lib::core::dcmsqelem::SequenceElement;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 
-use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::core::dcmparser::{ParseError, Parser, ParserBuilder};
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::iter::Peekable;
@@ -43,7 +43,7 @@ fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
 
     let mut peeker: Peekable<&mut Parser<'_, File>> = parser.by_ref().peekable();
 
-    let first: Option<&Result<DicomElement, Error>> = peeker.peek();
+    let first: Option<&Result<DicomElement, ParseError>> = peeker.peek();
     if let Some(Err(_)) = first {
         return Err(Error::new(
             ErrorKind::InvalidData,
@@ -204,7 +204,8 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
             ellipses = format_vec_to_strings(uints, &mut str_vals, |val: u32| format!("{}", val));
         }
         RawValue::Bytes(bytes) => {
-            ellipses = format_vec_to_strings(bytes, &mut str_vals, |val: u8| format!("{:02x}", val));
+            ellipses =
+                format_vec_to_strings(bytes, &mut str_vals, |val: u8| format!("{:02x}", val));
         }
     }
 

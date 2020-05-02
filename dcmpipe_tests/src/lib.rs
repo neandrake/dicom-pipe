@@ -2,7 +2,7 @@ use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{
-    Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
+    Parser, ParserBuilder, Result, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::defn::tag::Tag;
@@ -10,7 +10,7 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::convert::TryFrom;
 use std::fs::File;
-use std::io::{Error, Read};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -22,7 +22,7 @@ mod mock;
 mod parsing;
 
 /// Parses the given file into a `DicomObject`
-pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
+pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
     let file: File = File::open(path)?;
 
     let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default();
@@ -46,7 +46,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
     Ok(dcmroot)
 }
 
-pub fn parse_and_print_file(path: &str, with_std: bool) -> Result<(), Error> {
+pub fn parse_and_print_file(path: &str, with_std: bool) -> Result<()> {
     let file: File = File::open(path)?;
     let mut parser: ParserBuilder<'_> = ParserBuilder::default();
     if with_std {
@@ -60,7 +60,7 @@ pub fn parse_and_print_file(path: &str, with_std: bool) -> Result<(), Error> {
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
 /// whether the standard dicom dictionary should be reigstered with the parser.
-pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
+pub fn parse_all_dicom_files(with_std: bool) -> Result<usize> {
     let mut num_failed: usize = 0;
     for path in get_dicom_file_paths() {
         let path_str: &str = path.to_str().expect("path");
@@ -142,14 +142,14 @@ where
     true
 }
 
-pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<(), Error> {
+pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<()> {
     for (_tag, dcmobj) in dcmroot.iter_child_nodes() {
         parse_all_dcmobj_values(dcmobj)?;
     }
     Ok(())
 }
 
-fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<(), Error> {
+fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<()> {
     parse_element_value(dcmobj.as_element())?;
     for (_tag, child_dcmobj) in dcmobj.iter_child_nodes() {
         parse_all_dcmobj_values(child_dcmobj)?;
@@ -157,7 +157,7 @@ fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Result<(), Error> {
+pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Result<()> {
     for elem_result in parser {
         match elem_result {
             Ok(elem) => {
@@ -191,7 +191,7 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
     Ok(())
 }
 
-pub fn parse_element_value(elem: &DicomElement) -> Result<(), Error> {
+pub fn parse_element_value(elem: &DicomElement) -> Result<()> {
     if elem.vr == &vr::AT {
         Attribute::try_from(elem)?;
     } else if elem.vr == &vr::FD || elem.vr == &vr::OF || elem.vr == &vr::OD || elem.vr == &vr::FL {
