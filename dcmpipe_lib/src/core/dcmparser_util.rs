@@ -1,12 +1,13 @@
 use crate::core::dcmelement::DicomElement;
 use crate::core::dcmobject::{DicomObject, DicomRoot};
-use crate::core::dcmparser::Parser;
+use crate::core::dcmparser::{ParseError, Parser, Result};
 use crate::defn::constants::tags;
 use crate::defn::vl;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, VR};
 use std::collections::BTreeMap;
-use std::io::{Error, ErrorKind, Read};
+use std::io::{ErrorKind, Read};
+
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
 /// with a VR of `UN`, `OB`, or `OW` and have a value length of `UndefinedLength`. These types of
@@ -22,7 +23,7 @@ pub fn is_non_standard_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
 /// an error with `ErrorKind::UnexpectedEof` it will return an error with `ErrorKind::WriteZero`.
 /// Normally `WriteZero` can only be returned in calls to `write` however until error handling for
 /// this library is updated this is being used to allow for "expected end of file" handling.
-pub fn read_exact(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<(), Error> {
+pub fn read_exact(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<()> {
     let mut bytes_read: usize = 0;
     while !buf.is_empty() {
         match dataset.read(buf) {
@@ -33,25 +34,33 @@ pub fn read_exact(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<(), Err
                 buf = &mut tmp[n..];
             }
             Err(ref e) if e.kind() == ErrorKind::Interrupted => {}
-            Err(e) => return Err(e),
+            Err(e) => return Err(e.into()),
         }
     }
     if !buf.is_empty() {
         if bytes_read == 0 {
-            Err(Error::new(ErrorKind::WriteZero, "expected end of file"))
+            Err(ParseError::ExpectedEOF)
         } else {
-            Err(Error::new(
-                ErrorKind::UnexpectedEof,
-                format!("failed to fill whole buffer, read {} bytes", bytes_read),
-            ))
+            Err(ParseError::IOError {
+                source: std::io::Error::new(
+                    ErrorKind::UnexpectedEof,
+                    format!("failed to fill whole buffer, read {} bytes", bytes_read),
+                ),
+            })
         }
     } else {
         Ok(())
     }
 }
 
+pub fn read_exact_trace(dataset: &mut impl Read, buf: &mut [u8]) -> Result<()> {
+    dataset
+        .read_exact(buf)
+        .map_err(|e| ParseError::IOError { source: e })
+}
+
 /// Reads a tag attribute from a given dataset
-pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32, Error> {
+pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32> {
     let mut buf: [u8; 2] = [0; 2];
 
     read_exact(dataset, &mut buf)?;
@@ -61,7 +70,7 @@ pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Resul
         u32::from(u16::from_le_bytes(buf)) << 16
     };
 
-    dataset.read_exact(&mut buf)?;
+    read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
     let element_number: u32 = if big_endian {
         u32::from(u16::from_be_bytes(buf))
     } else {
@@ -73,9 +82,9 @@ pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Resul
 }
 
 /// Reads a VR from a given dataset.
-pub fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<Option<VRRef>, Error> {
+pub fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
     let mut buf: [u8; 2] = [0; 2];
-    dataset.read_exact(&mut buf)?;
+    read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
     let first_char: u8 = buf[0];
     let second_char: u8 = buf[1];
 
@@ -83,14 +92,14 @@ pub fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<Option<VRRef>, Er
     let vr: VRRef = match VR::from_code(code) {
         Some(found_vr) => {
             if found_vr.has_explicit_2byte_pad {
-                dataset.read_exact(&mut buf)?;
+                read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
             }
             found_vr
         }
-        None => return Ok(None),
+        None => return Err(ParseError::UnknownExplicitVR(code)),
     };
 
-    Ok(Some(vr))
+    Ok(vr)
 }
 
 /// Reads a Value Length from a given dataset.
@@ -104,10 +113,10 @@ pub fn read_value_length_from_dataset(
     dataset: &mut impl Read,
     read_4bytes: bool,
     big_endian: bool,
-) -> Result<ValueLength, Error> {
+) -> Result<ValueLength> {
     let value_length: u32 = if read_4bytes {
         let mut buf: [u8; 4] = [0; 4];
-        dataset.read_exact(&mut buf)?;
+        read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
 
         if big_endian {
             u32::from_be_bytes(buf)
@@ -116,7 +125,7 @@ pub fn read_value_length_from_dataset(
         }
     } else {
         let mut buf: [u8; 2] = [0; 2];
-        dataset.read_exact(&mut buf)?;
+        read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
 
         if big_endian {
             u32::from(u16::from_be_bytes(buf))
@@ -132,11 +141,11 @@ pub fn read_value_length_from_dataset(
 /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
 pub fn parse_into_object<'dict, DatasetType: Read>(
     parser: &mut Parser<'dict, DatasetType>,
-) -> Result<Option<DicomRoot<'dict>>, Error> {
+) -> Result<Option<DicomRoot<'dict>>> {
     let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
     let mut items: Vec<DicomObject> = Vec::new();
 
-    let parse_result: Option<Result<DicomElement, Error>> =
+    let parse_result: Option<Result<DicomElement>> =
         parse_into_object_recurse(parser, &mut child_nodes, &mut items, true);
     if let Some(Err(e)) = parse_result {
         return Err(e);
@@ -172,9 +181,9 @@ fn parse_into_object_recurse<DatasetType: Read>(
     child_nodes: &mut BTreeMap<u32, DicomObject>,
     items: &mut Vec<DicomObject>,
     is_root_level: bool,
-) -> Option<Result<DicomElement, Error>> {
+) -> Option<Result<DicomElement>> {
     let mut prev_seq_path_len: usize = 0;
-    let mut next_element: Option<Result<DicomElement, Error>> = parser.next();
+    let mut next_element: Option<Result<DicomElement>> = parser.next();
 
     // if the first element at the root level is an error then this is probably not valid dicom
     if is_root_level {
@@ -197,7 +206,7 @@ fn parse_into_object_recurse<DatasetType: Read>(
             return Some(Ok(element));
         }
 
-        let mut possible_next_elem: Option<Result<DicomElement, Error>> = None;
+        let mut possible_next_elem: Option<Result<DicomElement>> = None;
         // checking sequence or item tag should match dcmparser.read_dicom_element() which
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.

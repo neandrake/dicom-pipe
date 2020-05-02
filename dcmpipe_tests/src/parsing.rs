@@ -6,7 +6,7 @@ use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::dcmparser::{ParseState, Parser, ParserBuilder};
+use dcmpipe_lib::core::dcmparser::{ParseError, ParseState, Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
@@ -14,7 +14,7 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
-use std::io::{Error, ErrorKind};
+use std::io::ErrorKind;
 
 #[test]
 fn test_good_preamble() {
@@ -43,24 +43,29 @@ fn test_nonzero_preamble() {
 }
 
 #[test]
-#[should_panic(expected = "Invalid DICOM Prefix")]
 fn test_bad_dicom_prefix_parser() {
     let mut parser: Parser<'_, MockDicomDataset> = MockDicomDataset::invalid_dicom_prefix();
 
     // reads the preamble, prefix, and first element
-    let _ = parser
-        .next()
-        .expect("Should have returned Some(Err)")
-        // This should fail: Invalid dicom prefix
-        .unwrap();
+    let result = parser.next();
+    assert!(result.is_some());
+
+    let result = result.unwrap();
+    assert!(result.is_err());
+
+    let parse_error: ParseError = result.err().unwrap();
+    match parse_error {
+        ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {}
+        other => assert!(false, format!("{:?}", other)),
+    };
 }
 
 /// Test that failure to read a single element into a `DicomObject` results in a `None` result
 /// rather than an error.
 #[test]
-fn test_invalid_dicom_is_none() {
+fn test_invalid_dicom_prefix_is_none() {
     let mut parser: Parser<'_, MockDicomDataset> = MockDicomDataset::invalid_dicom_prefix();
-    let parse_result: Option<DicomRoot> =
+    let parse_result: Option<DicomRoot<'_>> =
         parse_into_object(&mut parser).expect("Failed to parse DICOM");
     assert!(parse_result.is_none());
 }
@@ -84,16 +89,46 @@ fn test_failure_to_read_preamble() {
 }
 
 #[test]
-fn test_parser_state_with_std() -> Result<(), Error> {
+fn test_unknown_explicit_vr_is_error() {
+    let parser: Parser<'_, MockDicomDataset> =
+        MockDicomDataset::standard_dicom_header_bad_explicit_vr();
+
+    // a test dataset that has a regular file-meta section (defines explicit vr) and the first
+    // non-file-meta is the  specific character set, followed by zeros. this tests that parsing
+    // explicit element of all zeroes results in an UnknownExplicitVR. all other zeroes in an
+    // explicit element are valid (though we don't validate that tag numbers are ordered, an all
+    // zero tag is not technically valid but itself should't cause a parse error). for an implicit
+    // vr transfer syntax the VR will be selected as UN and should parse
+    let first_elem: Result<DicomElement> = parser
+        .skip_while(|x| x.is_ok() && x.as_ref().unwrap().tag <= tags::SpecificCharacterSet.tag)
+        .next()
+        .expect("Should have returned Some(Err)");
+
+    match first_elem {
+        Ok(element) => {
+            assert!(false);
+        },
+        Err(ParseError::UnknownExplicitVR(code)) =>  {
+            assert_eq!(code, 0);
+        },
+        Err(_) => {
+            assert!(false)
+        }
+    }
+}
+
+
+#[test]
+fn test_parser_state_with_std() -> Result<()> {
     test_parser_state(true)
 }
 
 #[test]
-fn test_parser_state_without_std() -> Result<(), Error> {
+fn test_parser_state_without_std() -> Result<()> {
     test_parser_state(false)
 }
 
-fn test_parser_state(with_std: bool) -> Result<(), Error> {
+fn test_parser_state(with_std: bool) -> Result<()> {
     let tagstop: u32 = tags::PixelData.tag;
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
@@ -123,7 +158,7 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
     // this test file uses implicit VR (FMI is encoded as explicit)
 
     // subsequent item should not advance reading elements
-    let next_elem: Option<Result<DicomElement, Error>> = parser.next();
+    let next_elem: Option<Result<DicomElement>> = parser.next();
     assert!(next_elem.is_none());
 
     // the iterator state should be just after having parsed the stop tag
@@ -137,16 +172,16 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_dicom_object_with_std() -> Result<(), Error> {
+fn test_dicom_object_with_std() -> Result<()> {
     test_dicom_object(true)
 }
 
 #[test]
-fn test_dicom_object_without_std() -> Result<(), Error> {
+fn test_dicom_object_without_std() -> Result<()> {
     test_dicom_object(false)
 }
 
-fn test_dicom_object(with_std: bool) -> Result<(), Error> {
+fn test_dicom_object(with_std: bool) -> Result<()> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
@@ -173,18 +208,17 @@ fn test_dicom_object(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_dicom_object_sequences_with_std() -> Result<(), Error> {
+fn test_dicom_object_sequences_with_std() -> Result<()> {
     test_dicom_object_sequences(true)
 }
 
 #[test]
-fn test_dicom_object_sequences_without_std() -> Result<(), Error> {
+fn test_dicom_object_sequences_without_std() -> Result<()> {
     test_dicom_object_sequences(false)
 }
 
-fn test_dicom_object_sequences(with_std: bool) -> Result<(), Error> {
-    let file: File =
-        File::open("./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?;
+fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
+    let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?;
     let mut parser: ParserBuilder<'_> =
         ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag));
     if with_std {
@@ -196,7 +230,8 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<(), Error> {
         parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
 
     // StructureSetTime is the last element before a sequence item
-    let ss_time: &DicomElement = dcmroot.get_child(tags::StructureSetTime.tag)
+    let ss_time: &DicomElement = dcmroot
+        .get_child(tags::StructureSetTime.tag)
         .expect("Should have StructureSetTime")
         .as_element();
     // pull value into local var so it can be typed properly, otherwise it defaults type to &Vec<u8>
@@ -206,97 +241,132 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<(), Error> {
     // walk the depths of the first sequence to make sure the structure is setup as we expect
     {
         /* Output form dcmdump
-(3006,0010) SQ (Sequence with undefined length #=1)     # u/l, 1 ReferencedFrameOfReferenceSequence
-  (fffe,e000) na (Item with explicit length #=2)          # 1286, 1 Item
-    (0020,0052) UI [1.2.246.352.91.0000217.20050503182534.1.1] #  42, 1 FrameOfReferenceUID
-    (3006,0012) SQ (Sequence with undefined length #=1)     # u/l, 1 RTReferencedStudySequence
-      (fffe,e000) na (Item with explicit length #=3)          # 1208, 1 Item
-        (0008,1150) UI =RETIRED_DetachedStudyManagementSOPClass #  24, 1 ReferencedSOPClassUID
-        (0008,1155) UI [1.2.246.352.91.0000217.20050503182534]  #  38, 1 ReferencedSOPInstanceUID
-        (3006,0014) SQ (Sequence with undefined length #=1)     # u/l, 1 RTReferencedSeriesSequence
-          (fffe,e000) na (Item with explicit length #=2)          # 1102, 1 Item
-            (0020,000e) UI [1.2.246.352.91.0000217.20050503182534.1] #  40, 1 SeriesInstanceUID
-            (3006,0016) SQ (Sequence with undefined length #=11)    # u/l, 1 ContourImageSequence
-            [11 items, pairs of sop-class and sop-uid references]
-        */
+        (3006,0010) SQ (Sequence with undefined length #=1)     # u/l, 1 ReferencedFrameOfReferenceSequence
+          (fffe,e000) na (Item with explicit length #=2)          # 1286, 1 Item
+            (0020,0052) UI [1.2.246.352.91.0000217.20050503182534.1.1] #  42, 1 FrameOfReferenceUID
+            (3006,0012) SQ (Sequence with undefined length #=1)     # u/l, 1 RTReferencedStudySequence
+              (fffe,e000) na (Item with explicit length #=3)          # 1208, 1 Item
+                (0008,1150) UI =RETIRED_DetachedStudyManagementSOPClass #  24, 1 ReferencedSOPClassUID
+                (0008,1155) UI [1.2.246.352.91.0000217.20050503182534]  #  38, 1 ReferencedSOPInstanceUID
+                (3006,0014) SQ (Sequence with undefined length #=1)     # u/l, 1 RTReferencedSeriesSequence
+                  (fffe,e000) na (Item with explicit length #=2)          # 1102, 1 Item
+                    (0020,000e) UI [1.2.246.352.91.0000217.20050503182534.1] #  40, 1 SeriesInstanceUID
+                    (3006,0016) SQ (Sequence with undefined length #=11)    # u/l, 1 ContourImageSequence
+                    [11 items, pairs of sop-class and sop-uid references]
+                */
 
         // the first sequence item in this object
-        let rfor_sq: &DicomObject = dcmroot.get_child(tags::ReferencedFrameofReferenceSequence.tag)
+        let rfor_sq: &DicomObject = dcmroot
+            .get_child(tags::ReferencedFrameofReferenceSequence.tag)
             .expect("Should have ReferencedFrameOfReferenceSequence");
 
         assert_eq!(rfor_sq.get_item_count(), 1);
         let item_obj: &DicomObject = rfor_sq.get_item(0).expect("Have first item");
         assert_eq!(item_obj.get_child_count(), 2);
-        let item_foruid: &DicomObject = item_obj.get_child(tags::FrameofReferenceUID.tag)
+        let item_foruid: &DicomObject = item_obj
+            .get_child(tags::FrameofReferenceUID.tag)
             .expect("Have FORUID");
         let item_foruid_bytes: &[u8] = item_foruid.as_element().get_data().as_ref();
-        assert_eq!(item_foruid_bytes, "1.2.246.352.91.0000217.20050503182534.1.1\0".as_bytes());
+        assert_eq!(
+            item_foruid_bytes,
+            "1.2.246.352.91.0000217.20050503182534.1.1\0".as_bytes()
+        );
 
         assert_eq!(rfor_sq.get_child_count(), 1);
-        let child_obj: &DicomObject = rfor_sq.iter_child_nodes().next()
-            .expect("Have first child").1;
-        assert_eq!(child_obj.as_element().tag, tags::SequenceDelimitationItem.tag);
+        let child_obj: &DicomObject = rfor_sq
+            .iter_child_nodes()
+            .next()
+            .expect("Have first child")
+            .1;
+        assert_eq!(
+            child_obj.as_element().tag,
+            tags::SequenceDelimitationItem.tag
+        );
 
-        let rtrss_sq: &DicomObject = item_obj.get_child(tags::RTReferencedStudySequence.tag)
+        let rtrss_sq: &DicomObject = item_obj
+            .get_child(tags::RTReferencedStudySequence.tag)
             .expect("Have RTReferencedStudySequence");
         assert_eq!(rtrss_sq.get_item_count(), 1);
         assert_eq!(rtrss_sq.get_child_count(), 1);
 
         let rtrss_sq_item: &DicomObject = rtrss_sq.get_item(0).expect("Have first item");
         assert_eq!(rtrss_sq_item.get_child_count(), 3);
-        let ref_sopclass: &DicomElement = rtrss_sq_item.get_child(tags::ReferencedSOPClassUID.tag)
+        let ref_sopclass: &DicomElement = rtrss_sq_item
+            .get_child(tags::ReferencedSOPClassUID.tag)
             .expect("Have ref sop class")
             .as_element();
         let ref_sopclass_bytes: &[u8] = ref_sopclass.get_data().as_ref();
         assert_eq!(ref_sopclass_bytes, "1.2.840.10008.3.1.2.3.1\0".as_bytes());
 
-        let ref_sopuid: &DicomElement = rtrss_sq_item.get_child(tags::ReferencedSOPInstanceUID.tag)
+        let ref_sopuid: &DicomElement = rtrss_sq_item
+            .get_child(tags::ReferencedSOPInstanceUID.tag)
             .expect("Have ref sop instance uid")
             .as_element();
         let ref_sopuid_bytes: &[u8] = ref_sopuid.get_data().as_ref();
-        assert_eq!(ref_sopuid_bytes, "1.2.246.352.91.0000217.20050503182534\0".as_bytes());
+        assert_eq!(
+            ref_sopuid_bytes,
+            "1.2.246.352.91.0000217.20050503182534\0".as_bytes()
+        );
 
-        let rtref_ser_sq: &DicomObject = rtrss_sq_item.get_child(tags::RTReferencedSeriesSequence.tag)
+        let rtref_ser_sq: &DicomObject = rtrss_sq_item
+            .get_child(tags::RTReferencedSeriesSequence.tag)
             .expect("Have ref series seq");
         assert_eq!(rtref_ser_sq.get_item_count(), 1);
         assert_eq!(rtref_ser_sq.get_child_count(), 1);
 
         let rtref_ser_item: &DicomObject = rtref_ser_sq.get_item(0).expect("Have first item");
         assert_eq!(rtref_ser_item.get_child_count(), 2);
-        let rtref_ser_uid: &DicomElement = rtref_ser_item.get_child(tags::SeriesInstanceUID.tag)
+        let rtref_ser_uid: &DicomElement = rtref_ser_item
+            .get_child(tags::SeriesInstanceUID.tag)
             .expect("Have series uid")
             .as_element();
         let rtref_ser_uid_bytes: &[u8] = rtref_ser_uid.get_data().as_ref();
-        assert_eq!(rtref_ser_uid_bytes, "1.2.246.352.91.0000217.20050503182534.1\0".as_bytes());
+        assert_eq!(
+            rtref_ser_uid_bytes,
+            "1.2.246.352.91.0000217.20050503182534.1\0".as_bytes()
+        );
 
-        let cont_img_sq: &DicomObject = rtref_ser_item.get_child(tags::ContourImageSequence.tag)
+        let cont_img_sq: &DicomObject = rtref_ser_item
+            .get_child(tags::ContourImageSequence.tag)
             .expect("Have contour image seq");
         assert_eq!(cont_img_sq.get_item_count(), 11);
         assert_eq!(cont_img_sq.get_child_count(), 1);
 
-        let cont_img_sq_child: &DicomObject = cont_img_sq.iter_child_nodes().next()
-            .expect("Get only child of contour image seq").1;
-        assert_eq!(cont_img_sq_child.as_element().tag, tags::SequenceDelimitationItem.tag);
+        let cont_img_sq_child: &DicomObject = cont_img_sq
+            .iter_child_nodes()
+            .next()
+            .expect("Get only child of contour image seq")
+            .1;
+        assert_eq!(
+            cont_img_sq_child.as_element().tag,
+            tags::SequenceDelimitationItem.tag
+        );
         assert_eq!(cont_img_sq_child.get_child_count(), 0);
         assert_eq!(cont_img_sq_child.get_item_count(), 0);
 
-        let last_sop_uid: &DicomElement = cont_img_sq.get_item(10)
+        let last_sop_uid: &DicomElement = cont_img_sq
+            .get_item(10)
             .expect("Get last item")
             .get_child(tags::ReferencedSOPInstanceUID.tag)
             .expect("Get last item's ref sop uid")
             .as_element();
         let last_sop_uid_bytes: &[u8] = last_sop_uid.get_data().as_ref();
-        assert_eq!(last_sop_uid_bytes, "1.2.246.352.91.0000217.20050503182534671465\0".as_bytes());
+        assert_eq!(
+            last_sop_uid_bytes,
+            "1.2.246.352.91.0000217.20050503182534671465\0".as_bytes()
+        );
     }
 
     // test next tag after the first sequence
-    let ssroi_sq: &DicomObject = dcmroot.get_child(tags::StructureSetROISequence.tag)
+    let ssroi_sq: &DicomObject = dcmroot
+        .get_child(tags::StructureSetROISequence.tag)
         .expect("Should have StructureSetROISequence");
     assert_eq!(ssroi_sq.get_item_count(), 4);
 
     // ContourData's implicit VR is DS, however the first contour in this dataset is encoded
     // explicitly with UN. Verify that it still parses as UN and not DS.
-    let contour_data: &DicomElement = dcmroot.get_child(tags::ROIContourSequence.tag)
+    let contour_data: &DicomElement = dcmroot
+        .get_child(tags::ROIContourSequence.tag)
         .expect("Have roi contour seq")
         .get_item(0)
         .expect("Have first item")
@@ -316,19 +386,19 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_empty_seq_undefined_length_with_std() -> Result<(), Error> {
+fn test_empty_seq_undefined_length_with_std() -> Result<()> {
     test_empty_seq_undefined_length(true)
 }
 
 #[test]
-fn test_empty_seq_undefined_length_without_std() -> Result<(), Error> {
+fn test_empty_seq_undefined_length_without_std() -> Result<()> {
     test_empty_seq_undefined_length(false)
 }
 
 /// In this file the `ReferencedStudySequence` and `ReferencedPatientSequence` tags are both `SQ`
 /// elements defined with `UndefinedLength` and contain no data - the first element they have as
 /// contents are `SequenceDelimitationItem` which ends the sequence.
-fn test_empty_seq_undefined_length(with_std: bool) -> Result<(), Error> {
+fn test_empty_seq_undefined_length(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm",
         with_std,
@@ -355,18 +425,18 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_private_tag_un_sq_with_std() -> Result<(), Error> {
+fn test_private_tag_un_sq_with_std() -> Result<()> {
     test_private_tag_un_sq(true)
 }
 
 #[test]
-fn test_private_tag_un_sq_without_std() -> Result<(), Error> {
+fn test_private_tag_un_sq_without_std() -> Result<()> {
     test_private_tag_un_sq(false)
 }
 
 /// Private tags with UN VR and UndefinedLength should be parsed as sequences. This file uses tags
 /// which are not known to the dictionaries we're parsing with.
-fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
+fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm", with_std)?;
 
@@ -416,18 +486,18 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_seq_switch_to_ivrle_with_std() -> Result<(), Error> {
+fn test_seq_switch_to_ivrle_with_std() -> Result<()> {
     test_seq_switch_to_ivrle(true)
 }
 
 #[test]
-fn test_seq_switch_to_ivrle_without_std() -> Result<(), Error> {
+fn test_seq_switch_to_ivrle_without_std() -> Result<()> {
     test_seq_switch_to_ivrle(false)
 }
 
 /// `SequenceDelimitationItem`, `Item`, and `ItemDelimitationItem` are always encoded as IVRLE
 /// despite what the transfer syntax is.
-fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
+fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
         with_std,
@@ -479,17 +549,17 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_missing_preamble_with_std() -> Result<(), Error> {
+fn test_missing_preamble_with_std() -> Result<()> {
     test_missing_preamble(true)
 }
 
 #[test]
-fn test_missing_preamble_without_std() -> Result<(), Error> {
+fn test_missing_preamble_without_std() -> Result<()> {
     test_missing_preamble(false)
 }
 
 /// This file has no preamble or file meta - should parse as the DICOM default IVRLE
-fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
+fn test_missing_preamble(with_std: bool) -> Result<()> {
     let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
     let mut parser: ParserBuilder<'_> = ParserBuilder::default();
     if with_std {
@@ -516,17 +586,17 @@ fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_undefined_charset_with_std() -> Result<(), Error> {
+fn test_undefined_charset_with_std() -> Result<()> {
     test_undefined_charset(true)
 }
 
 #[test]
-fn test_undefined_charset_without_std() -> Result<(), Error> {
+fn test_undefined_charset_without_std() -> Result<()> {
     test_undefined_charset(false)
 }
 
 /// This file has no Specific Character Set defined and tests the behavior of parsing string values.
-fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
+fn test_undefined_charset(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/UndefinedValueLengthIllegalNonEncapsulatedTS.dcm",
         with_std,
@@ -561,25 +631,29 @@ fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
         .as_element();
 
     let pc: String = String::try_from(pat_com)?;
-    let pc_expected: String = String::from_utf8(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+    let pc_expected: String =
+        String::from_utf8(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).map_err(|e| {
+            ParseError::IOError {
+                source: std::io::Error::new(ErrorKind::InvalidData, format!("{:?}", e)),
+            }
+        })?;
     assert_eq!(pc, pc_expected);
 
     Ok(())
 }
 
 #[test]
-fn test_rle_with_std() -> Result<(), Error> {
+fn test_rle_with_std() -> Result<()> {
     test_rle(true)
 }
 
 #[test]
-fn test_rle_without_std() -> Result<(), Error> {
+fn test_rle_without_std() -> Result<()> {
     test_rle(false)
 }
 
 /// This file is RLE encoded. Eventually test the data can be decompressed properly.
-fn test_rle(with_std: bool) -> Result<(), Error> {
+fn test_rle(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_RLE_FRAGS.dcm",
         with_std,
@@ -589,16 +663,16 @@ fn test_rle(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_deflated_evrle_with_std() -> Result<(), Error> {
+fn test_deflated_evrle_with_std() -> Result<()> {
     test_deflated_evrle(true)
 }
 
 #[test]
-fn test_deflated_evrle_without_std() -> Result<(), Error> {
+fn test_deflated_evrle_without_std() -> Result<()> {
     test_deflated_evrle(false)
 }
 
-fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
+fn test_deflated_evrle(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
@@ -606,17 +680,17 @@ fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_illegal_cp246_with_std() -> Result<(), Error> {
+fn test_illegal_cp246_with_std() -> Result<()> {
     test_illegal_cp246(true)
 }
 
 #[test]
-fn test_illegal_cp246_without_std() -> Result<(), Error> {
+fn test_illegal_cp246_without_std() -> Result<()> {
     test_illegal_cp246(false)
 }
 
 /// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
-fn test_illegal_cp246(with_std: bool) -> Result<(), Error> {
+fn test_illegal_cp246(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
         with_std,
@@ -642,17 +716,17 @@ fn test_illegal_cp246(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_no_preamble_start_with_0005_with_std() -> Result<(), Error> {
+fn test_no_preamble_start_with_0005_with_std() -> Result<()> {
     test_no_preamble_start_with_0005(true)
 }
 
 #[test]
-fn test_no_preamble_start_with_0005_without_std() -> Result<(), Error> {
+fn test_no_preamble_start_with_0005_without_std() -> Result<()> {
     test_no_preamble_start_with_0005(false)
 }
 
 /// File has no preamble/prefix and also no File Meta Info header, should default to IVRLE
-fn test_no_preamble_start_with_0005(with_std: bool) -> Result<(), Error> {
+fn test_no_preamble_start_with_0005(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/US-IRAD-NoPreambleStartWith0005.dcm",
         with_std,
@@ -682,17 +756,17 @@ fn test_no_preamble_start_with_0005(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_no_dicomv3_preamble_with_std() -> Result<(), Error> {
+fn test_no_dicomv3_preamble_with_std() -> Result<()> {
     test_no_dicomv3_preamble(true)
 }
 
 #[test]
-fn test_no_dicomv3_preamble_without_std() -> Result<(), Error> {
+fn test_no_dicomv3_preamble_without_std() -> Result<()> {
     test_no_dicomv3_preamble(false)
 }
 
 /// File has no preamble/prefix
-fn test_no_dicomv3_preamble(with_std: bool) -> Result<(), Error> {
+fn test_no_dicomv3_preamble(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/PICKER-16-MONO2-No_DicomV3_Preamble.dcm",
         with_std,
@@ -711,16 +785,16 @@ fn test_no_dicomv3_preamble(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_private_ge_ts_with_std() -> Result<(), Error> {
+fn test_private_ge_ts_with_std() -> Result<()> {
     test_private_ge_ts(true)
 }
 
 #[test]
-fn test_private_ge_ts_without_std() -> Result<(), Error> {
+fn test_private_ge_ts_without_std() -> Result<()> {
     test_private_ge_ts(false)
 }
 
-fn test_private_ge_ts(with_std: bool) -> Result<(), Error> {
+fn test_private_ge_ts(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/PrivateGEImplicitVRBigEndianTransferSyntax16Bits.dcm",
         with_std,
@@ -731,18 +805,18 @@ fn test_private_ge_ts(with_std: bool) -> Result<(), Error> {
 
 #[test]
 #[ignore]
-fn test_secured_dicomdir_with_std() -> Result<(), Error> {
+fn test_secured_dicomdir_with_std() -> Result<()> {
     test_secured_dicomdir(true)
 }
 
 #[test]
 #[ignore]
-fn test_secured_dicomdir_without_std() -> Result<(), Error> {
+fn test_secured_dicomdir_without_std() -> Result<()> {
     test_secured_dicomdir(false)
 }
 
 /// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
-fn test_secured_dicomdir(with_std: bool) -> Result<(), Error> {
+fn test_secured_dicomdir(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/DICOMDIR",
         with_std,
@@ -753,18 +827,18 @@ fn test_secured_dicomdir(with_std: bool) -> Result<(), Error> {
 
 #[test]
 #[ignore]
-fn test_secured_image_with_std() -> Result<(), Error> {
+fn test_secured_image_with_std() -> Result<()> {
     test_secured_image(true)
 }
 
 #[test]
 #[ignore]
-fn test_secured_image_without_std() -> Result<(), Error> {
+fn test_secured_image_without_std() -> Result<()> {
     test_secured_image(false)
 }
 
 /// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
-fn test_secured_image(with_std: bool) -> Result<(), Error> {
+fn test_secured_image(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/IMAGES/IMAGE1",
         with_std,
@@ -774,16 +848,16 @@ fn test_secured_image(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_private_ge_dlx_ts_with_std() -> Result<(), Error> {
+fn test_private_ge_dlx_ts_with_std() -> Result<()> {
     test_private_ge_dlx_ts(true)
 }
 
 #[test]
-fn test_private_ge_dlx_ts_without_std() -> Result<(), Error> {
+fn test_private_ge_dlx_ts_without_std() -> Result<()> {
     test_private_ge_dlx_ts(false)
 }
 
-fn test_private_ge_dlx_ts(with_std: bool) -> Result<(), Error> {
+fn test_private_ge_dlx_ts(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/GE_DLX-8-MONO2-PrivateSyntax.dcm",
         with_std,
@@ -793,16 +867,16 @@ fn test_private_ge_dlx_ts(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_undefined_item_wrong_vl_with_std() -> Result<(), Error> {
+fn test_undefined_item_wrong_vl_with_std() -> Result<()> {
     test_undefined_item_wrong_vl(true)
 }
 
 #[test]
-fn test_undefined_item_wrong_vl_without_std() -> Result<(), Error> {
+fn test_undefined_item_wrong_vl_without_std() -> Result<()> {
     test_undefined_item_wrong_vl(false)
 }
 
-fn test_undefined_item_wrong_vl(with_std: bool) -> Result<(), Error> {
+fn test_undefined_item_wrong_vl(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/BugGDCM2_UndefItemWrongVL.dcm",
         with_std,
@@ -812,16 +886,16 @@ fn test_undefined_item_wrong_vl(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_uncompressed_even_length_tag_with_std() -> Result<(), Error> {
+fn test_uncompressed_even_length_tag_with_std() -> Result<()> {
     test_uncompressed_even_length_tag(true)
 }
 
 #[test]
-fn test_uncompressed_even_length_tag_without_std() -> Result<(), Error> {
+fn test_uncompressed_even_length_tag_without_std() -> Result<()> {
     test_uncompressed_even_length_tag(false)
 }
 
-fn test_uncompressed_even_length_tag(with_std: bool) -> Result<(), Error> {
+fn test_uncompressed_even_length_tag(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/THERALYS-12-MONO2-Uncompressed-Even_Length_Tag.dcm",
         with_std,
@@ -831,17 +905,17 @@ fn test_uncompressed_even_length_tag(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_dicomdir_with_embedded_icons_with_std() -> Result<(), Error> {
+fn test_dicomdir_with_embedded_icons_with_std() -> Result<()> {
     test_dicomdir_with_embedded_icons(true)
 }
 
 #[test]
-fn test_dicomdir_with_embedded_icons_without_std() -> Result<(), Error> {
+fn test_dicomdir_with_embedded_icons_without_std() -> Result<()> {
     test_dicomdir_with_embedded_icons(false)
 }
 
 /// High number of items in a sequence
-fn test_dicomdir_with_embedded_icons(with_std: bool) -> Result<(), Error> {
+fn test_dicomdir_with_embedded_icons(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/dicomdir_With_embedded_icons",
         with_std,
@@ -851,16 +925,16 @@ fn test_dicomdir_with_embedded_icons(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_radbw_lossless_with_std() -> Result<(), Error> {
+fn test_radbw_lossless_with_std() -> Result<()> {
     test_radbw_lossless(true)
 }
 
 #[test]
-fn test_radbw_lossless_without_std() -> Result<(), Error> {
+fn test_radbw_lossless_without_std() -> Result<()> {
     test_radbw_lossless(false)
 }
 
-fn test_radbw_lossless(with_std: bool) -> Result<(), Error> {
+fn test_radbw_lossless(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmData/RadBWLossLess.dcm", with_std)?;
 
@@ -868,16 +942,16 @@ fn test_radbw_lossless(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_derma_color_lossless_with_std() -> Result<(), Error> {
+fn test_derma_color_lossless_with_std() -> Result<()> {
     test_derma_color_lossless(true)
 }
 
 #[test]
-fn test_derma_color_lossless_without_std() -> Result<(), Error> {
+fn test_derma_color_lossless_without_std() -> Result<()> {
     test_derma_color_lossless(false)
 }
 
-fn test_derma_color_lossless(with_std: bool) -> Result<(), Error> {
+fn test_derma_color_lossless(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmData/DermaColorLossLess.dcm", with_std)?;
 
@@ -885,16 +959,16 @@ fn test_derma_color_lossless(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_libido_16_acr_nema_volume_with_std() -> Result<(), Error> {
+fn test_libido_16_acr_nema_volume_with_std() -> Result<()> {
     test_libido_16_acr_nema_volume(true)
 }
 
 #[test]
-fn test_libido_16_acr_nema_volume_without_std() -> Result<(), Error> {
+fn test_libido_16_acr_nema_volume_without_std() -> Result<()> {
     test_libido_16_acr_nema_volume(false)
 }
 
-fn test_libido_16_acr_nema_volume(with_std: bool) -> Result<(), Error> {
+fn test_libido_16_acr_nema_volume(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/LIBIDO-16-ACR_NEMA-Volume.dcm",
         with_std,
@@ -904,16 +978,16 @@ fn test_libido_16_acr_nema_volume(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_jpeg_lossless_zerolength_sq_with_std() -> Result<(), Error> {
+fn test_jpeg_lossless_zerolength_sq_with_std() -> Result<()> {
     test_jpeg_lossless_zerolength_sq(true)
 }
 
 #[test]
-fn test_jpeg_lossless_zerolength_sq_without_std() -> Result<(), Error> {
+fn test_jpeg_lossless_zerolength_sq_without_std() -> Result<()> {
     test_jpeg_lossless_zerolength_sq(false)
 }
 
-fn test_jpeg_lossless_zerolength_sq(with_std: bool) -> Result<(), Error> {
+fn test_jpeg_lossless_zerolength_sq(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/MARCONI_MxTWin-12-MONO2-JpegLossless-ZeroLengthSQ.dcm",
         with_std,
@@ -923,16 +997,16 @@ fn test_jpeg_lossless_zerolength_sq(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_illegal_group2_implicit_ts_with_std() -> Result<(), Error> {
+fn test_illegal_group2_implicit_ts_with_std() -> Result<()> {
     test_illegal_group2_implicit_ts(true)
 }
 
 #[test]
-fn test_illegal_group2_implicit_ts_without_std() -> Result<(), Error> {
+fn test_illegal_group2_implicit_ts_without_std() -> Result<()> {
     test_illegal_group2_implicit_ts(false)
 }
 
-fn test_illegal_group2_implicit_ts(with_std: bool) -> Result<(), Error> {
+fn test_illegal_group2_implicit_ts(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/IllegalGroup2ImplicitTS.dcm",
         with_std,
@@ -955,7 +1029,7 @@ fn test_ul_is_2bytes_without_std() {
 
 /// Contains tags (0009,1130), (0009,1131), (0009,1140) with explicit VR of UL but value length is
 /// actually only 2 bytes instead of 4.
-fn test_ul_is_2bytes(with_std: bool) -> Result<(), Error> {
+fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/SIEMENS_GBS_III-16-ACR_NEMA_1-ULis2Bytes.dcm",
         with_std,
@@ -1009,16 +1083,16 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-fn test_dicomdir_with_std() -> Result<(), Error> {
+fn test_dicomdir_with_std() -> Result<()> {
     test_dicomdir(true)
 }
 
 #[test]
-fn test_dicomdir_without_std() -> Result<(), Error> {
+fn test_dicomdir_without_std() -> Result<()> {
     test_dicomdir(false)
 }
 
-fn test_dicomdir(with_std: bool) -> Result<(), Error> {
+fn test_dicomdir(with_std: bool) -> Result<()> {
     let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/dclunie/charsettests/DICOMDIR", with_std)?;
 
     Ok(())
@@ -1026,13 +1100,15 @@ fn test_dicomdir(with_std: bool) -> Result<(), Error> {
 
 #[test]
 #[ignore]
-fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
+fn test_parse_all_dicom_files_with_std() -> Result<()> {
     let num_failed: usize = parse_all_dicom_files(true)?;
     if num_failed > 0 {
-        Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("DICOM files failed to parse: {}", num_failed),
-        ))
+        Err(ParseError::IOError {
+            source: std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!("Failed to parse DICOM files: {}", num_failed),
+            ),
+        })
     } else {
         Ok(())
     }
@@ -1040,13 +1116,15 @@ fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
 
 #[test]
 #[ignore]
-fn test_parse_all_dicom_files_without_std() -> Result<(), Error> {
+fn test_parse_all_dicom_files_without_std() -> Result<()> {
     let num_failed: usize = parse_all_dicom_files(false)?;
     if num_failed > 0 {
-        Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("DICOM files failed to parse: {}", num_failed),
-        ))
+        Err(ParseError::IOError {
+            source: std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!("Failed to parse DICOM files: {}", num_failed),
+            ),
+        })
     } else {
         Ok(())
     }

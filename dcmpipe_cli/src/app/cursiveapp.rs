@@ -10,7 +10,7 @@ use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
 pub struct CursiveApp {
@@ -118,7 +118,12 @@ impl CommandApplication for CursiveApp {
         let mut items: Vec<DicomElementValue> = Vec::new();
         let mut total_name_size: usize = 0;
         for elem in parser {
-            let elem: DicomElement = elem?;
+            let elem: DicomElement = elem.map_err(|e| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Error reading dicom element: {:?}", e),
+                )
+            })?;
             if elem.get_sequence_path().is_empty() {
                 let name: String =
                     if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.tag) {

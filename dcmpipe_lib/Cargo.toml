@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 encoding = "0.2"
+thiserror = "1.0"
 
 [lib]
 name="dcmpipe_lib"
