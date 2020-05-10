@@ -105,7 +105,7 @@ fn test_unknown_explicit_vr_is_error() {
         .expect("Should have returned Some(Err)");
 
     match first_elem {
-        Ok(element) => {
+        Ok(_) => {
             assert!(false);
         },
         Err(ParseError::UnknownExplicitVR(code)) =>  {

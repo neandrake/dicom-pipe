@@ -375,7 +375,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let skip_bytes: bool =
             vr == &vr::SQ || (tag == tags::ITEM && !in_pixel_data) || parse_as_seq;
 
-        // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, in_pixel_data: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, in_pixel_data);
+        // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, ts: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, ts.uid.ident);
         let bytes: Vec<u8> = if skip_bytes {
             Vec::new()
         } else {
@@ -778,24 +778,26 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             }
         };
 
-        // if VR parsing succeeded and the VR indicates 2-byte padding then parsing VR will read 4
-        // bytes and an additional 2 (4?!!) need read in for parsing the value length
-        // TODO: Reading 4 bytes here does not seem right - I think this should be reading 2 bytes
-        //       but then below for ValueLength it should be reading 4 -- however if reading VL
-        //       does not succeed then it needs to backtrack 2 bytes.
+        // from here we assume explicit vr
+
+        // if vr has explicit 2-byte padding then the last buffer has already read that in and can
+        // be ignored. read in new 4 bytes as the value length. if vr does not have explicit 2-byte
+        // padding then value length is 2 bytes and will be in the last buffer. the cursor should
+        // already be in the right place to read 2 bytes since vr was successfully parsed in the
+        // first 2 bytes of buffer.
         let mut buf: [u8; 4] = [0; 4];
-        if ts.is_explicit_vr() && vr.has_explicit_2byte_pad {
+        if vr.has_explicit_2byte_pad {
             self.dataset.read_exact(&mut buf)?;
             if !already_read_preamble {
                 file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
             }
             bytes_read += buf.len();
-            cursor = Cursor::new(&buf[2..4]);
+            cursor = Cursor::new(&buf);
         }
 
         // found a valid VR, read value length and if reasonable assume explicit VR
         let vl: ValueLength =
-            dcmparser_util::read_value_length_from_dataset(&mut cursor, false, ts.is_big_endian())?;
+            dcmparser_util::read_value_length_from_dataset(&mut cursor, vr.has_explicit_2byte_pad, ts.is_big_endian())?;
         if let ValueLength::Explicit(len) = vl {
             if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.ts = if ts.big_endian {
