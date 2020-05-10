@@ -5,6 +5,7 @@ use dcmpipe_lib::core::dcmparser::{
     Parser, ParserBuilder, Result, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
+use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
@@ -21,11 +22,18 @@ mod mock;
 #[cfg(test)]
 mod parsing;
 
+
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
+    parse_file_with_tagstop(path, with_std, TagStop::EndOfDataset)
+}
+
+/// Parses the given file into a `DicomObject` using the given tagstop
+pub fn parse_file_with_tagstop(path: &str, with_std: bool, tagstop: TagStop) -> Result<DicomRoot<'_>> {
     let file: File = File::open(path)?;
 
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default();
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default()
+        .tagstop(tagstop);
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -36,10 +44,6 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
     //       from the dicom object?
 
     let file: File = File::open(path)?;
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default();
-    if with_std {
-        parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
-    }
     let mut parser: Parser<'_, File> = parser_builder.build(file);
     let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
