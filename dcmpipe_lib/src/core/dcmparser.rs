@@ -332,10 +332,20 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.partial_vr.take();
             (partial_vr, ts)
         } else {
-            self.read_vr(tag, ts)?
+            if ts.explicit_vr {
+                self.read_vr(tag, ts)?
+            } else {
+                let vr: VRRef = if let Some(vr) = self.lookup_vr(tag) {
+                    vr
+                } else {
+                    &vr::UN
+                };
+                (vr, ts)
+            }
         };
 
         let vr: VRRef = vr_ts.0;
+        let vl_read_4bytes: bool = !ts.explicit_vr || vr.has_explicit_2byte_pad;
         // If VR is explicitly UN but we can tell it's SQ then the inner elements are encoded as
         // IVRLE -- but only the contents should be parsed as such, do not switch transfer syntax
         // prior to reading in the value length.
@@ -343,7 +353,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.partial_vl.take();
             partial_vl
         } else {
-            self.read_value_length(vr, ts)?
+            self.read_value_length(vl_read_4bytes, ts)?
         };
 
         let parse_as_seq: bool = dcmparser_util::is_non_standard_seq(tag, vr, vl);
@@ -357,17 +367,17 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // associate bytes to the element's value. The exception are item elements within pixel data
         // which are used to encapsulate frames; their value is pixel data and not other elements.
         let mut in_pixel_data: bool = false;
-        for x in self.current_path.iter().rev() {
-            if x.get_seq_tag() == tags::FLOAT_PIXEL_DATA
-                || x.get_seq_tag() == tags::DOUBLE_PIXEL_DATA
-                || x.get_seq_tag() == tags::PIXEL_DATA {
+        for seq_elem in self.current_path.iter().rev() {
+            if seq_elem.get_seq_tag() == tags::FLOAT_PIXEL_DATA
+                || seq_elem.get_seq_tag() == tags::DOUBLE_PIXEL_DATA
+                || seq_elem.get_seq_tag() == tags::PIXEL_DATA {
                 in_pixel_data = true;
                 break;
             }
             // If the parent element is an ITEM then keep walking up the chain to check against the
             // actual sequence element -- if it's not ITEM and not a PixelData then it's something
             // else and we can assume to not be within PixelData.
-            if x.get_seq_tag() != tags::ITEM {
+            if seq_elem.get_seq_tag() != tags::ITEM {
                 break;
             }
         }
@@ -375,7 +385,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let skip_bytes: bool =
             vr == &vr::SQ || (tag == tags::ITEM && !in_pixel_data) || parse_as_seq;
 
-        // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, ts: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, ts.uid.ident);
+        // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, bytesread: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, self.bytes_read);
         let bytes: Vec<u8> = if skip_bytes {
             Vec::new()
         } else {
@@ -393,18 +403,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         Ok(DicomElement::new(tag, vr, vl, ts, cs, bytes, ancestors))
     }
 
-    /// If the given transfer syntax has Explicit VR then this reads a VR attribute from the dataset
-    /// using the given transfer syntax. This returns a tuple of `(VRRef, TSRef)` as if the VR is
-    /// written explicitly as `UN` but the tag dictionary being used for parsing knows the VR is
-    /// non-`UN` then the element value should be read with IVRLE.
-    ///
-    /// If the given transfer syntax is Implicit VR then this does not read from the dataset but
-    /// does a lookup of the VR based on the tag dictionary used for parsing.
+    /// Reads a VR attribute from the dataset. This returns a tuple of `(VRRef, TSRef)` containing
+    /// the parsed VR and the passed in transfer syntax. If the VR is explicitly written as `UN`
+    /// then the dictionary used for parsing is checked for the default/implicit VR. If the VR found
+    /// from the dictionary is `SQ` then the returned transfer syntax will be IVRLE as it is assumed
+    /// the value field is encoded this way, irrespective of defined transfer syntax.
+    /// See Part 5 Section 6.2.2 Note 2.
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef)> {
-        if !ts.explicit_vr {
-            return Ok((self.lookup_vr(tag)?, ts));
-        }
-
         let mut vr: VRRef = dcmparser_util::read_vr_from_dataset(&mut self.dataset)?;
         self.bytes_read += 2;
         if vr.has_explicit_2byte_pad {
@@ -420,10 +425,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // Only do this for potential sequences and not elements which have values
         let mut ts: TSRef = ts;
         if vr == &vr::UN {
-            let found_vr: VRRef = self.lookup_vr(tag)?;
-            if found_vr == &vr::SQ {
-                ts = &ts::ImplicitVRLittleEndian;
-                vr = found_vr;
+            if let Some(found_vr) = self.lookup_vr(tag) {
+                if found_vr == &vr::SQ {
+                    ts = &ts::ImplicitVRLittleEndian;
+                    vr = &vr::SQ;
+                }
             }
         }
 
@@ -431,19 +437,17 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present.
-    fn lookup_vr(&self, tag: u32) -> Result<VRRef> {
-        Ok(self
+    fn lookup_vr(&self, tag: u32) -> Option<VRRef> {
+        self
             .dictionary
             .get_tag_by_number(tag)
             .and_then(|read_tag: &Tag| read_tag.implicit_vr)
-            .unwrap_or(&vr::UN))
     }
 
     /// Reads a Value Length attribute from the dataset using the given transfer syntax. The number
     /// of bytes representing the value length depends on transfer syntax. If the VR has a 2-byte
     /// padding then those bytes are also read from the dataset.
-    fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength> {
-        let read_4bytes: bool = !ts.explicit_vr || vr.has_explicit_2byte_pad;
+    fn read_value_length(&mut self, read_4bytes: bool, ts: TSRef) -> Result<ValueLength> {
         let result: Result<ValueLength> = dcmparser_util::read_value_length_from_dataset(
             &mut self.dataset,
             read_4bytes,
@@ -728,7 +732,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     self.ts = &ts::ImplicitVRLittleEndian;
                 }
                 self.partial_tag = Some(tag);
-                self.partial_vr = Some(self.lookup_vr(tag)?);
+                self.partial_vr = self.lookup_vr(tag);
                 self.partial_vl = Some(vl);
                 self.bytes_read += bytes_read as u64;
                 // FileMeta is coded to read as ExplicitVRLittleEndian and since we've determined
