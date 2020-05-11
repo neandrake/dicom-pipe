@@ -689,7 +689,8 @@ fn test_illegal_cp246_without_std() -> Result<()> {
     test_illegal_cp246(false)
 }
 
-/// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
+/// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1] - also can't be parsed by
+/// dcmtk for the same reason.
 fn test_illegal_cp246(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file_with_tagstop(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
@@ -1100,6 +1101,130 @@ fn test_dicomdir(with_std: bool) -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+#[ignore]   // this is a deflated dataset
+fn test_sq_with_undefined_length_converted_to_defined_length_with_std() -> Result<()> {
+    test_sq_with_undefined_length_converted_to_defined_length(true)
+}
+
+#[test]
+#[ignore]   // this is a deflated dataset
+fn test_sq_with_undefined_length_converted_to_defined_length_without_std() -> Result<()> {
+    test_sq_with_undefined_length_converted_to_defined_length(false)
+}
+
+fn test_sq_with_undefined_length_converted_to_defined_length(with_std: bool) -> Result<()> {
+    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthConvertedToDefinedLength.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
+fn test_sq_with_undefined_length_unconvertable_to_defined_length_with_std() -> Result<()> {
+    test_sq_with_undefined_length_unconvertable_to_defined_length(true)
+}
+
+#[test]
+#[ignore]
+fn test_sq_with_undefined_length_unconvertable_to_defined_length_without_std() -> Result<()> {
+    test_sq_with_undefined_length_unconvertable_to_defined_length(false)
+}
+
+/// This is a deflated dataset
+fn test_sq_with_undefined_length_unconvertable_to_defined_length(with_std: bool) -> Result<()> {
+    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_with_std() -> Result<()> {
+    test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(true)
+}
+
+#[test]
+#[ignore]
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std() -> Result<()> {
+    test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(false)
+}
+
+/// This dataset seems partially malformed. It looks like after the SourceImageSequence the transfer
+/// syntax of elements at the root switch to being ImplicitVR rather than the defined ExplicitVR.
+/// It's not clear if this is something that we can handle -- dcmtk also is unable to parse this
+/// though it's not clear if for the same reason.
+/// See: http://compgroups.net/comp.protocols.dicom/mixing-explicit-and-implicit-transfer-sy/2221446
+/// >Pre-1996 versions of DCMTK (then still called the European CTN software) had some
+/// >code that would "guess" the transfer syntax for every sequence item and would even
+/// >handle implicit VR big endian encoding. However, the heuristics created more problems
+/// >then they solved.
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bool) -> Result<()> {
+    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
+fn test_explicit_implicit_bogus_iop_with_std() -> Result<()> {
+    test_explicit_implicit_bogus_iop(true)
+}
+
+#[test]
+#[ignore]
+fn test_explicit_implicit_bogus_iop_without_std() -> Result<()> {
+    test_explicit_implicit_bogus_iop(false)
+}
+
+/// This dataset also randomly switches between implicit and explicit transfer syntax. This one
+/// switches to implicit after Modality, and seems to switch back shortly after SeriesDescription.
+fn test_explicit_implicit_bogus_iop(with_std: bool) -> Result<()> {
+    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/DMCPACS_ExplicitImplicit_BogusIOP.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
+fn test_jpeg_lossless3a_with_std() -> Result<()> {
+    test_jpeg_lossless3a(true)
+}
+
+#[test]
+#[ignore]
+fn test_jpeg_lossless3a_without_std() -> Result<()> {
+    test_jpeg_lossless3a(false)
+}
+
+/// This dataset has a non-standard pixel-data structure. The second item/frame seems to be encoded
+/// in a different transfer syntax. This also fails parsing in dcmtk for the same reason.
+fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
+    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+fn test_kodak_compressed_icon_with_std() -> Result<()> {
+    test_kodak_compressed_icon(true)
+}
+
+#[test]
+fn test_kodak_compressed_icon_without_std() -> Result<()> {
+    test_kodak_compressed_icon(false)
+}
+
+/// This dataset has a pixel data inside IconImageSqeuence - the pixel data itself having 2 items.
+/// This pixel data is undefined length and its items are defined so do not have item delimiters,
+/// but does have a sequence delimiter which should pop off the inner item.
+fn test_kodak_compressed_icon(with_std: bool) -> Result<()> {
+    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/KODAK_CompressedIcon.dcm", with_std)?;
+
+    Ok(())
+}
+
 
 #[test]
 #[ignore]

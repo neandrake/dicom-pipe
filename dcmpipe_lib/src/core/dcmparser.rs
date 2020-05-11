@@ -28,7 +28,7 @@ pub enum ParseError {
     BadDICOMPrefix([u8; DICOM_PREFIX_LENGTH]),
 
     /// If an unknown VR is parsed from an ExplicitVR stream.
-    #[error("unknown explicit vr: {0}")]
+    #[error("unknown explicit vr: {0:#06X}")]
     UnknownExplicitVR(u16),
 
     #[error("file/stream ended between dicom elements")]
@@ -121,7 +121,8 @@ impl<'dict> ParserBuilder<'dict> {
             partial_tag: None,
             partial_vr: None,
             partial_vl: None,
-            ts: &ts::ExplicitVRLittleEndian,
+            detected_ts: &ts::ExplicitVRLittleEndian,
+            dataset_ts: None,
             cs: DEFAULT_CHARACTER_SET,
             current_path: Vec::new(),
             iterator_ended: false,
@@ -189,7 +190,10 @@ pub struct Parser<'dict, DatasetType: Read> {
 
     /// This is the element tag currently being read from the dataset. It will be `Some` once the
     /// element starts parsing and will be `None` after the element has completed parsing. Elements
-    /// may be partially parsed either due to parsing errors or `TagStop`.
+    /// may be partially parsed either due to parsing errors or `TagStop`. This is used regularly
+    /// through all element parsing as a means of "peeking" what tag is next, particularly for
+    /// checking `self.tagstop` for when to stop parsing. This is done in the case of wanting to
+    /// parse all tags up to a commonly large tag such as `PixelData`.
     partial_tag: Option<u32>,
 
     /// This is the element's VR read from the dataset when in `ParseState::DetectState`. This will
@@ -205,10 +209,22 @@ pub struct Parser<'dict, DatasetType: Read> {
     /// will be set as the value length parsed from the dataset of the first valid dicom element.
     partial_vl: Option<ValueLength>,
 
-    /// The transfer syntax used for this dataset. This defaults to `ExplicitVRLittleEndian` which
-    /// is the transfer syntax used for parsing File Meta section despite the default DICOM transfer
-    /// syntax being `ImplicitVRLittleEndian`.
-    ts: TSRef,
+    /// This should start as `ExplicitVRLittleEndian` which is the standard transfer syntax for
+    /// file meta elements (not all dicom will follow the standard and may have file meta encoded
+    /// using a different transfer syntax). During detection of transfer syntax this may change to
+    /// another transfer syntax.
+    ///
+    /// **Note**: This will be the detected transfer syntax of the first elements read in from the
+    ///           dataset. It *may* represent the main dataset's transfer syntax if there is no
+    ///           `TransferSyntax` element parsed. If a `TransferSyntax` element exists in the
+    ///           dataset then `self.dataset_ts` will be that value, and should be used to parse
+    ///           the primary dataset.
+    detected_ts: TSRef,
+
+    /// The transfer syntax used for this dataset (not for the file-meta). This is only populated if
+    /// the dataset specifies a transfer syntax via tag `TransferSyntax`. If this is not populated
+    /// then the dataset should be read using `self.detected_ts`.
+    dataset_ts: Option<TSRef>,
 
     /// The specific character set used for this dataset. This defaults to the dicom default which
     /// is `WINDOWS_1252` but is changed after having successully parsed the specific character set
@@ -241,8 +257,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         self.state
     }
 
+    /// Returns the transfer syntax the dataset is encoded in.
     pub fn get_ts(&self) -> TSRef {
-        self.ts
+        self.dataset_ts.unwrap_or(self.detected_ts)
     }
 
     pub fn get_cs(&self) -> CSRef {
@@ -299,14 +316,54 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         Ok(is_at_tag_stop)
     }
 
+    /// Checks if the current path is within a pixeldata tag.
+    fn is_in_pixeldata(&self) -> bool {
+        for seq_elem in self.current_path.iter().rev() {
+            if seq_elem.get_seq_tag() == tags::FLOAT_PIXEL_DATA
+                || seq_elem.get_seq_tag() == tags::DOUBLE_PIXEL_DATA
+                || seq_elem.get_seq_tag() == tags::PIXEL_DATA {
+                return true;
+            }
+            // If the parent element is an ITEM then keep walking up the chain to check against the
+            // actual sequence element -- if it's not ITEM and not a PixelData then it's something
+            // else and we can assume to not be within PixelData.
+            if seq_elem.get_seq_tag() != tags::ITEM {
+                break;
+            }
+        }
+        false
+    }
+
+    /// Datasets don't always end their sequences/items with delimiters. This will pop items off
+    /// `self.current_path` which have indicated their length and the `self.bytes_read` indicate
+    /// the stream has already passed this position.
+    fn pop_sequence_items_base_on_byte_pos(&mut self) {
+        while let Some(seq_elem) = self.current_path.last() {
+            if let Some(seq_end_pos) = seq_elem.get_seq_end_pos() {
+                if self.bytes_read >= seq_end_pos {
+                    self.current_path.pop();
+                } else {
+                    break;
+                }
+            } else {
+                // undefined length, stop checking the sequence path
+                break;
+            }
+        }
+    }
+
     /// Reads a tag attribute from the dataset
     fn read_tag(&mut self, ts: TSRef) -> Result<u32> {
-        let result: Result<u32> =
-            dcmparser_util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian());
-        if result.is_ok() {
+        let tag: u32 = if let Some(partial_tag) = self.partial_tag {
+            partial_tag
+        } else {
+            let tag: u32 = dcmparser_util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian())?;
             self.bytes_read += 4;
-        }
-        result
+            self.partial_tag.replace(tag);
+            tag
+        };
+        self.tag_last_read = tag;
+        Ok(tag)
     }
 
     /// Reads the remainder of the dicom element from the dataset. This assumes `self.read_tag()`
@@ -338,6 +395,14 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 let vr: VRRef = if let Some(vr) = self.lookup_vr(tag) {
                     vr
                 } else {
+                    // TODO: This might cause incorrect behavior with reading value length. If the
+                    //       transfer syntax is Explicit then assuming `UN` here when the tag's VR
+                    //       is not a byte-oriented VR (OW, OB, OD, UN, etc.) then an additional
+                    //       reserved 2-bytes are read below when they shouldn't be, causing an
+                    //       incorrect offset of bytes to read. There isn't much we can do here that
+                    //       I'm aware of, except that it might make sense to explicitly flag not
+                    //       reading in the 2-bytes reserved assuming that the VR would be known and
+                    //       not byte-oriented.
                     &vr::UN
                 };
                 (vr, ts)
@@ -366,26 +431,14 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // Sequence and item elements should let the iterator handle parsing its contents and not
         // associate bytes to the element's value. The exception are item elements within pixel data
         // which are used to encapsulate frames; their value is pixel data and not other elements.
-        let mut in_pixel_data: bool = false;
-        for seq_elem in self.current_path.iter().rev() {
-            if seq_elem.get_seq_tag() == tags::FLOAT_PIXEL_DATA
-                || seq_elem.get_seq_tag() == tags::DOUBLE_PIXEL_DATA
-                || seq_elem.get_seq_tag() == tags::PIXEL_DATA {
-                in_pixel_data = true;
-                break;
-            }
-            // If the parent element is an ITEM then keep walking up the chain to check against the
-            // actual sequence element -- if it's not ITEM and not a PixelData then it's something
-            // else and we can assume to not be within PixelData.
-            if seq_elem.get_seq_tag() != tags::ITEM {
-                break;
-            }
-        }
+        let in_pixeldata: bool = self.is_in_pixeldata();
 
+        // Determine whether the value should be read in as byte values or instead should continue
+        // being parsed as more elements.
         let skip_bytes: bool =
-            vr == &vr::SQ || (tag == tags::ITEM && !in_pixel_data) || parse_as_seq;
+            vr == &vr::SQ || (tag == tags::ITEM && !in_pixeldata) || parse_as_seq;
 
-        // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, bytesread: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, self.bytes_read);
+        // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, ts: {}, bytesread: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, ts.uid.ident, self.bytes_read);
         let bytes: Vec<u8> = if skip_bytes {
             Vec::new()
         } else {
@@ -436,7 +489,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         Ok((vr, ts))
     }
 
-    /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present.
+    /// Looks up the VR of the given tag in the current lookup dictionary.
     fn lookup_vr(&self, tag: u32) -> Option<VRRef> {
         self
             .dictionary
@@ -544,7 +597,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             if self.is_at_tag_stop()? {
                 return Ok(None);
             }
-
             match self.state {
                 ParseState::DetectState => {
                     self.iterate_detect_state()?;
@@ -580,34 +632,36 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     }
                     Some(element) => return Ok(Some(element)),
                 },
-                ParseState::Element => match self.iterate_element() {
-                    Err(e) => return Err(e),
-                    element_result => return element_result,
-                },
+                ParseState::Element => { return self.iterate_element(); },
             }
         }
     }
 
     /// Performs the `ParserState::DetectState` iteration.
+    /// Detects little-vs-big endian and implicit-vs-explicit endian. This strategy is not fully
+    /// complete however it does cover a wide variety of cases. It does not cover scenarios where
+    /// endian-detection could possibly succeed incorrectly however these scenarios would likely
+    /// be very odd dicom cases that most other libraries are also unable to parse.
+    ///
+    /// After this iteration runs once the `self.partial_` fields may be filled in,
+    /// `self.file_preamble` may be filled in, and `self.detected_ts` may be changed.
+    ///
     /// The strategy this uses is to parse just a few bytes from the dataset to see if it looks like
-    /// the start of a dicom element. While detecting if a valid dicom element can't be parsed
-    /// then the preamble/prefix will be read-in and detection will be re-started by exiting the
-    /// loop while `self.state` is still `ParseState::DetectState`.
-    /// 1. Parse a tag and check whether it looks like a valid tag value (`<= SOP_INSTANCE_UID`).
-    ///    The tag is parsed as both little-endian and as big-endian.
-    /// 2. Parse a value length, assuming implicit vr. If the value length parsed is reasonable
-    ///    (`<MAX_VALUE_LENGTH_IN_DETECT`) then implicit vr is assumed. The elements at the
-    ///    beginning of a dataset should have fairly small values (for things like UIDs, etc.). The
-    ///    Pixel-med library also uses this same value comparison.
-    /// 3. If value length is too large then it is re-parsed as a VR. If a valid VR was not found
-    ///    then we assume it's proprietary data in the preamble.
-    /// 4. If the VR is valid then attempt reading another value length (only 2-bytes since we know
-    ///    it's implicit vr and any valid vr this early in dataset should not have a 2-byte
-    ///    padding). If the value length is reasonable (`<MAX_VALUE_LENGTH_IN_DETECT`) then explict
-    ///    vr is assumed.
-    /// 5. Otherwise it's assumed the start of the file is proprietary file preamble.
+    /// the start of a dicom element, back-tracking the read bytes if they are not interpretable as
+    /// valid parts of a dicom element. The steps for parsing are based on
+    /// 1. Parse a tag and check whether it looks like a valid tag value
+    ///    (`0 < tag < SOP_INSTANCE_UID`). The tag is parsed as both little and big endian.
+    /// 2. Parse a VR assuming it's explicit. If the VR does not match a known VR then it's assumed
+    ///    the transfer syntax is implicit.
+    /// 3. Parse a value length. The value length parsed is checked to be reasonable for a dicom
+    ///    element that would appear early in a dicom dataset (file-meta or early group `0008`,
+    ///    which would be `< MAX_VALUE_LENGTH_IN_DETECT`). The elements at the beginning of a
+    ///    dataset should have fairly small values (for things like UIDs, etc.). The Pixel-med
+    ///    library also uses this same value comparison.
+    /// 4. Otherwise it's assumed the start of the file is proprietary file preamble. These bytes
+    ///    are then skipped and detection begins again.
     fn iterate_detect_state(&mut self) -> Result<()> {
-        // start off assuming EVRLE
+        // start off assuming EVRLE, the default for File-Meta
         let mut ts: TSRef = &ts::ExplicitVRLittleEndian;
 
         // if this function has been called previously it will have read data into
@@ -637,7 +691,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
             // if file preamble was already read then flip into Element mode and let it fail
             if already_read_preamble {
-                self.ts = &ts::ImplicitVRLittleEndian;
+                self.detected_ts = &ts::ImplicitVRLittleEndian;
                 self.partial_tag = Some(tag);
                 self.bytes_read += bytes_read as u64;
                 self.state = ParseState::Element;
@@ -661,7 +715,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID {
                 // if file preamble was already read then flip into Element mode and let it fail
                 if already_read_preamble {
-                    self.ts = &ts::ImplicitVRLittleEndian;
+                    self.detected_ts = &ts::ImplicitVRLittleEndian;
                     self.partial_tag = Some(tag);
                     self.bytes_read += bytes_read as u64;
                     self.state = ParseState::Element;
@@ -693,7 +747,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             || tag > tags::SOP_INSTANCE_UID && already_read_preamble
         {
             // testing tag in either endian didn't seem to work, set as DICOM default
-            self.ts = &ts::ImplicitVRLittleEndian;
+            self.detected_ts = &ts::ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
             self.bytes_read += bytes_read as u64;
             self.state = ParseState::Element;
@@ -715,121 +769,80 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         bytes_read += buf.len();
         cursor = Cursor::new(&buf);
 
+        let mut vr_is_explicit_padded: bool = false;
+        match dcmparser_util::read_vr_from_dataset(&mut cursor) {
+            Ok(vr) => {
+                self.partial_vr = Some(vr);
+                if vr.has_explicit_2byte_pad {
+                    vr_is_explicit_padded = true;
+                    // if explict & padded then the padding was read-in already and we have to read
+                    // in the next 4 bytes for the value length.
+                    self.dataset.read_exact(&mut buf)?;
+                    if !already_read_preamble {
+                        file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
+                    }
+                    bytes_read += buf.len();
+                    cursor = Cursor::new(&buf);
+                } else {
+                    // with no padding value length is only 2 bytes and was read-in as part of the
+                    // buffer for vr above.
+                    cursor.set_position(2);
+                }
+
+                if ts.is_big_endian() {
+                    ts = &ts::ExplicitVRBigEndian;
+                } else {
+                    ts = &ts::ExplicitVRLittleEndian;
+                }
+            },
+            Err(ParseError::UnknownExplicitVR(_)) => {
+                // unknown VR so this was likely a value length read in, reset the 4-byte buffer
+                // read in as vr and next read it as value length.
+                cursor.set_position(0);
+                if ts.is_big_endian() {
+                    ts = &ts::ImplicitVRBigEndian;
+                } else {
+                    ts = &ts::ImplicitVRLittleEndian;
+                }
+            },
+            Err(e) => { return Err(e); },
+        }
+
+        let vl_read_4bytes: bool = !ts.is_explicit_vr() || vr_is_explicit_padded;
+
         // assume implicit VR so read a value length and and if it's reasonably low then this is
         // likely implicit
         let vl: ValueLength = dcmparser_util::read_value_length_from_dataset(
             &mut cursor,
-            !ts.is_big_endian(),
+            vl_read_4bytes,
             ts.is_big_endian(),
         )?;
         if let ValueLength::Explicit(len) = vl {
             // if a value length is read which makes sense for file-meta elements then assume this
             // is implicit endian and let regular parsing continue
             if len < MAX_VALUE_LENGTH_IN_DETECT {
-                if ts.is_big_endian() {
-                    self.ts = &ts::ImplicitVRBigEndian;
-                } else {
-                    self.ts = &ts::ImplicitVRLittleEndian;
-                }
+                self.detected_ts = ts;
                 self.partial_tag = Some(tag);
-                self.partial_vr = self.lookup_vr(tag);
                 self.partial_vl = Some(vl);
                 self.bytes_read += bytes_read as u64;
                 // FileMeta is coded to read as ExplicitVRLittleEndian and since we've determined
                 // this is implicit we skip to Element which will follow self.ts
-                self.state = ParseState::Element;
-                return Ok(());
-            }
-        }
-
-        // otherwise backtrack and try to parse a vr and then vl
-        cursor.set_position(0);
-        let vr: VRRef = match dcmparser_util::read_vr_from_dataset(&mut cursor) {
-            // a valid VR was parsed, assume explicit
-            Ok(vr) => vr,
-            // no valid VR, assume implicit or garbage data
-            Err(ParseError::UnknownExplicitVR(_)) => {
-                // above this wasn't determined to be readable as value length and now it's not
-                // VR so this is likely garbage or preamble
-
-                // if we already read preamble above then this not a valid DICOM dataset
-                if already_read_preamble {
-                    if ts.is_big_endian() {
-                        self.ts = &ts::ImplicitVRBigEndian;
+                if tag < tags::FILE_META_GROUP_END {
+                    if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
+                        self.state = ParseState::GroupLength;
                     } else {
-                        self.ts = &ts::ImplicitVRLittleEndian;
+                        self.state = ParseState::FileMeta;
                     }
-                    self.partial_tag = Some(tag);
-                    self.partial_vl = Some(vl);
-                    self.bytes_read += bytes_read as u64;
+                } else {
                     self.state = ParseState::Element;
-                    return Ok(());
                 }
-
-                // if we didn't already read a preamble we need to read in the preamble and then
-                // start the entire detection over again
-                self.dataset
-                    .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
-                self.bytes_read += file_preamble.len() as u64;
-                self.file_preamble = Some(file_preamble);
-                self.partial_tag = None;
-                self.iterate_prefix()?;
-                self.state = ParseState::DetectState;
-                return Ok(());
-            },
-            Err(e) => {
-                return Err(e);
-            }
-        };
-
-        // from here we assume explicit vr
-
-        // if vr has explicit 2-byte padding then the last buffer has already read that in and can
-        // be ignored. read in new 4 bytes as the value length. if vr does not have explicit 2-byte
-        // padding then value length is 2 bytes and will be in the last buffer. the cursor should
-        // already be in the right place to read 2 bytes since vr was successfully parsed in the
-        // first 2 bytes of buffer.
-        let mut buf: [u8; 4] = [0; 4];
-        if vr.has_explicit_2byte_pad {
-            self.dataset.read_exact(&mut buf)?;
-            if !already_read_preamble {
-                file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
-            }
-            bytes_read += buf.len();
-            cursor = Cursor::new(&buf);
-        }
-
-        // found a valid VR, read value length and if reasonable assume explicit VR
-        let vl: ValueLength =
-            dcmparser_util::read_value_length_from_dataset(&mut cursor, vr.has_explicit_2byte_pad, ts.is_big_endian())?;
-        if let ValueLength::Explicit(len) = vl {
-            if len < MAX_VALUE_LENGTH_IN_DETECT {
-                self.ts = if ts.big_endian {
-                    &ts::ExplicitVRBigEndian
-                } else {
-                    &ts::ExplicitVRLittleEndian
-                };
-                self.partial_tag = Some(tag);
-                self.partial_vr = Some(vr);
-                self.partial_vl = Some(vl);
-                self.bytes_read += bytes_read as u64;
-                // using explicit VR, if tag is file-meta then it appears the file-meta is properly
-                // encoded so continue from there which ignores self.ts
-                self.state = if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
-                    ParseState::GroupLength
-                } else if tag < tags::FILE_META_GROUP_END {
-                    ParseState::FileMeta
-                } else {
-                    ParseState::Element
-                };
                 return Ok(());
             }
         }
 
         if already_read_preamble {
-            self.ts = &ts::ImplicitVRLittleEndian;
+            self.detected_ts = &ts::ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
-            self.partial_vr = Some(vr);
             self.partial_vl = Some(vl);
             self.bytes_read += bytes_read as u64;
             self.state = ParseState::Element;
@@ -842,6 +855,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         self.bytes_read += file_preamble.len() as u64;
         self.file_preamble = Some(file_preamble);
         self.partial_tag = None;
+        self.partial_vr = None;
+        self.partial_vl = None;
         self.iterate_prefix()?;
         self.state = ParseState::DetectState;
         Ok(())
@@ -874,16 +889,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Performs the `ParserState::GroupLength` iteration
     fn iterate_group_length(&mut self) -> Result<Option<DicomElement>> {
-        let ts: TSRef = &ts::ExplicitVRLittleEndian;
-        let tag: u32 = if let Some(partial_tag) = self.partial_tag {
-            partial_tag
-        } else {
-            let tag: u32 = self.read_tag(ts)?;
-            self.partial_tag.replace(tag);
-            tag
-        };
-        self.tag_last_read = tag;
-
+        let ts: TSRef = self.detected_ts;
+        let tag: u32 = self.read_tag(ts)?;
         if self.is_at_tag_stop()? {
             return Ok(None);
         }
@@ -910,49 +917,46 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Performs the `ParserState::FileMeta` iteration
     fn iterate_file_meta(&mut self) -> Result<Option<DicomElement>> {
-        let tag: u32 = if let Some(partial_tag) = self.partial_tag {
-            partial_tag
-        } else {
-            let tag: u32 = self.read_tag(&ts::ExplicitVRLittleEndian)?;
-            self.partial_tag.replace(tag);
-            tag
-        };
-        self.tag_last_read = tag;
+        // check if we're about to read an element which is outside the file meta section, if so
+        // then change states outside of this one.
+        if self.fmi_grouplength > 0
+            && (self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength))
+        {
+            // if we never read a transfer syntax in the file-meta then jump back to detecting the
+            // transfer syntax of the main dataset.
+            self.state = if self.dataset_ts.is_some() {
+                ParseState::Element
+            } else {
+                ParseState::DetectState
+            };
+            return Ok(None);
+        }
 
+        let tag: u32 = self.read_tag(&ts::ExplicitVRLittleEndian)?;
         if self.is_at_tag_stop()? {
             return Ok(None);
         }
 
-        // if group length wasn't read then check the group value of the tag just read before
-        // parsing the element
-        if self.fmi_grouplength == 0
-            && (tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::FILE_META_GROUP_END)
-        {
-            self.state = ParseState::Element;
-            return Ok(None);
-        }
-
-        let element: DicomElement = self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian)?;
-        let mut valid_ts: bool = false;
+        let element: DicomElement = self.read_dicom_element(tag, self.detected_ts)?;
         if element.tag == tags::TRANSFER_SYNTAX_UID {
             match self.parse_transfer_syntax(&element) {
                 Ok(Some(ts)) => {
-                    self.ts = ts;
-                    valid_ts = true;
+                    self.dataset_ts = Some(ts);
                 }
-                Ok(None) => self.ts = &ts::ImplicitVRLittleEndian,
+                Ok(None) => {},
                 Err(e) => return Err(e),
             }
         }
 
         // if group length was read use the byte position to determine if we're out of file-meta
-        if self.fmi_grouplength > 0
-            && (self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength))
+        if (self.fmi_grouplength > 0
+            && (self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength)))
+            || tag > tags::FILE_META_GROUP_END
         {
             // if we exit file-meta without having parsed transfer-syntax or if the ts is unknown to
             // the dictionary used for parsing then flip to DetectState so the implicit vs. explicit
-            // can be detected.
-            self.state = if valid_ts {
+            // can be detected since it's likely to change after file-meta.
+            self.state = if self.dataset_ts.is_some() {
                 ParseState::Element
             } else {
                 ParseState::DetectState
@@ -972,20 +976,17 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             .current_path
             .last()
             .map(SequenceElement::get_ts)
-            .unwrap_or(self.ts);
+            .or(self.dataset_ts)
+            .unwrap_or(self.detected_ts);
 
-        let tag: u32 = if let Some(partial_tag) = self.partial_tag {
-            partial_tag
-        } else {
-            let tag: u32 = self.read_tag(ts)?;
-            self.partial_tag.replace(tag);
-            tag
-        };
-        self.tag_last_read = tag;
-
+        let tag: u32 = self.read_tag(ts)?;
         if self.is_at_tag_stop()? {
             return Ok(None);
         }
+
+        // check after reading a tag - some items seem to have 0-length and are followed by another
+        // item. without popping here it will create an item-in-item structure.
+        self.pop_sequence_items_base_on_byte_pos();
 
         // reading element clones the current path so update prior to reading element
         if tag == tags::ITEM {
@@ -999,9 +1000,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // if the file-meta state was skipped due to the initial detection we may still need to
         // switch transfer syntax -- only do this if the element is at the root of the dataset
         if element.tag == tags::TRANSFER_SYNTAX_UID && element.get_sequence_path().is_empty() {
-            self.ts = self
+            self.dataset_ts = self
                 .parse_transfer_syntax(&element)?
-                .unwrap_or(&ts::ImplicitVRLittleEndian);
+                .or(Some(&ts::ImplicitVRLittleEndian));
         } else if element.tag == tags::SPECIFIC_CHARACTER_SET {
             let cs: CSRef = self.parse_specific_character_set(&element)?;
             if element.get_sequence_path().is_empty() {
@@ -1017,23 +1018,19 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // check for exiting a sequence based on being sequence delimiter - do before checking
         // against byte position
         if tag == tags::SEQUENCE_DELIMITATION_ITEM || tag == tags::ITEM_DELIMITATION_ITEM {
-            self.current_path.pop();
-        }
-
-        // sequence may not have a delimiter and should end based on byte position
-        // multiple sequences may have been exited based off byte position
-        while let Some(seq_elem) = self.current_path.last() {
-            if let Some(seq_end_pos) = seq_elem.get_seq_end_pos() {
-                if self.bytes_read >= seq_end_pos {
+            if let Some(seq_elem) = self.current_path.last() {
+                // if the parent is item then pop at least once for end of item
+                if seq_elem.get_seq_tag() == tags::ITEM {
                     self.current_path.pop();
-                } else {
-                    break;
                 }
-            } else {
-                // undefined length, stop checking the sequence path
-                break;
+            }
+            // if the sequence ended we pop again to get out of the sequence
+            if tag == tags::SEQUENCE_DELIMITATION_ITEM {
+                self.current_path.pop();
             }
         }
+
+        self.pop_sequence_items_base_on_byte_pos();
 
         if element.is_seq_like() || tag == tags::ITEM {
             let sq_ts: TSRef = if tag == tags::ITEM {
@@ -1044,6 +1041,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 // otherwise the element will have the transfer syntax for the sequence
                 element.get_ts()
             };
+
             let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.vl {
                 Some(self.bytes_read + u64::from(len))
             } else {
