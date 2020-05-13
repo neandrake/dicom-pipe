@@ -720,7 +720,7 @@ pub static OV: VR = VR {
 /// see Transfer Syntax definition
 pub static OW: VR = VR {
     ident: "OW",
-    name: "Other Float",
+    name: "Other Word",
     code: 0x4F57,
     padding: NULL_PADDING,
     has_explicit_2byte_pad: true,
