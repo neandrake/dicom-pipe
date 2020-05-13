@@ -118,6 +118,12 @@ impl DicomElement {
         } else if self.vr == &vr::UI {
             let uid: String = String::try_from(self)?;
             Ok(RawValue::Uid(uid))
+        } else if self.vr == &vr::DS {
+            let val: Vec<f64> = Vec::<f64>::try_from(self)?;
+            return Ok(RawValue::Doubles(val));
+        } else if self.vr == &vr::IS {
+            let val: Vec<i32> = Vec::<i32>::try_from(self)?;
+            return Ok(RawValue::Integers(val));
         } else if self.vr.is_character_string {
             let strings: Vec<String> = Vec::<String>::try_from(self)?;
             Ok(RawValue::Strings(strings))
@@ -319,7 +325,8 @@ impl<'me> From<ElementWithVr<'me>> for BytesWithoutPadding<'me> {
             if value.1.padding == vr::SPACE_PADDING {
                 // space padding should strip all trailing spaces
                 while rindex > lindex {
-                    if data[rindex] == value.1.padding {
+                    // character string vr's also sometimes seem to be zero-padded
+                    if data[rindex] == vr::SPACE_PADDING || data[rindex] == vr::NULL_PADDING {
                         rindex -= 1;
                     } else {
                         break;
@@ -327,7 +334,7 @@ impl<'me> From<ElementWithVr<'me>> for BytesWithoutPadding<'me> {
                 }
             } else if value.1.padding == vr::NULL_PADDING {
                 // null byte padding is only singular and only if used to achieve even length
-                if data.len() % 2 == 0 && data[rindex] == value.1.padding {
+                if data.len() % 2 == 0 && data[rindex] == vr::NULL_PADDING {
                     rindex -= 1;
                 }
             }
@@ -337,7 +344,7 @@ impl<'me> From<ElementWithVr<'me>> for BytesWithoutPadding<'me> {
             // space padding should strip all leading spaces
             if value.1.padding == vr::SPACE_PADDING {
                 while lindex < rindex {
-                    if data[lindex] == value.1.padding {
+                    if data[lindex] == vr::SPACE_PADDING {
                         lindex += 1;
                     } else {
                         break;
@@ -346,7 +353,14 @@ impl<'me> From<ElementWithVr<'me>> for BytesWithoutPadding<'me> {
             }
             // no such thing as leading padding of null bytes
         }
-        BytesWithoutPadding(&data[lindex..=rindex])
+
+        // if a character string is trimmed down to just a null byte then return empty data.
+        // use `..` to return empty slice instead of `..=`.
+        if lindex == rindex && value.1.is_character_string && data[lindex] == vr::NULL_PADDING {
+            BytesWithoutPadding(&data[lindex..rindex])
+        } else {
+            BytesWithoutPadding(&data[lindex..=rindex])
+        }
     }
 }
 
@@ -369,6 +383,19 @@ impl TryFrom<&DicomElement> for Vec<f32> {
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: OF
     fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+        if value.vr.is_character_string {
+            let parse_results: Vec<Result<f32, Error>> = Vec::<String>::try_from(value)?
+                .iter()
+                .map(|s| s.parse::<f32>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
+                .collect::<Vec<Result<f32, Error>>>();
+
+            let mut results: Vec<f32> = Vec::with_capacity(parse_results.len());
+            for parse_result in parse_results {
+                results.push(parse_result?);
+            }
+            return Ok(results);
+        }
+
         let num_bytes: usize = value.data.len();
         if num_bytes < F32_SIZE || num_bytes % F32_SIZE != 0 {
             return Err(Error::new(
@@ -413,6 +440,19 @@ impl TryFrom<&DicomElement> for Vec<f64> {
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: OD
     fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+        if value.vr.is_character_string {
+            let parse_results: Vec<Result<f64, Error>> = Vec::<String>::try_from(value)?
+                .iter()
+                .map(|s| s.parse::<f64>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
+                .collect::<Vec<Result<f64, Error>>>();
+
+            let mut results: Vec<f64> = Vec::with_capacity(parse_results.len());
+            for parse_result in parse_results {
+                results.push(parse_result?);
+            }
+            return Ok(results);
+        }
+
         let num_bytes: usize = value.data.len();
         if num_bytes < F64_SIZE || num_bytes % F64_SIZE != 0 {
             return Err(Error::new(
@@ -456,6 +496,19 @@ impl TryFrom<&DicomElement> for Vec<i16> {
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: OW
     fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+        if value.vr.is_character_string {
+            let parse_results: Vec<Result<i16, Error>> = Vec::<String>::try_from(value)?
+                .iter()
+                .map(|s| s.parse::<i16>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
+                .collect::<Vec<Result<i16, Error>>>();
+
+            let mut results: Vec<i16> = Vec::with_capacity(parse_results.len());
+            for parse_result in parse_results {
+                results.push(parse_result?);
+            }
+            return Ok(results);
+        }
+
         let num_bytes: usize = value.data.len();
         if num_bytes < I16_SIZE || num_bytes % I16_SIZE != 0 {
             return Err(Error::new(
@@ -500,6 +553,19 @@ impl TryFrom<&DicomElement> for Vec<i32> {
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: OL
     fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+        if value.vr.is_character_string {
+            let parse_results: Vec<Result<i32, Error>> = Vec::<String>::try_from(value)?
+                .iter()
+                .map(|s| s.parse::<i32>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
+                .collect::<Vec<Result<i32, Error>>>();
+
+            let mut results: Vec<i32> = Vec::with_capacity(parse_results.len());
+            for parse_result in parse_results {
+                results.push(parse_result?);
+            }
+            return Ok(results);
+        }
+
         let num_bytes: usize = value.data.len();
         if num_bytes < I32_SIZE || num_bytes % I32_SIZE != 0 {
             return Err(Error::new(
@@ -543,6 +609,19 @@ impl TryFrom<&DicomElement> for Vec<u32> {
     /// Parses the value for this element as a list of unsigned 32bit integer values
     /// Associated VRs: UL, OL
     fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+        if value.vr.is_character_string {
+            let parse_results: Vec<Result<u32, Error>> = Vec::<String>::try_from(value)?
+                .iter()
+                .map(|s| s.parse::<u32>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
+                .collect::<Vec<Result<u32, Error>>>();
+
+            let mut results: Vec<u32> = Vec::with_capacity(parse_results.len());
+            for parse_result in parse_results {
+                results.push(parse_result?);
+            }
+            return Ok(results);
+        }
+
         let num_bytes: usize = value.data.len();
         if num_bytes < U32_SIZE || num_bytes % U32_SIZE != 0 {
             return Err(Error::new(
@@ -586,6 +665,19 @@ impl TryFrom<&DicomElement> for Vec<u16> {
     /// Parses the value for this element as a list of unsigned 16bit integer values
     /// Associated VRs: US, OW
     fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+        if value.vr.is_character_string {
+            let parse_results: Vec<Result<u16, Error>> = Vec::<String>::try_from(value)?
+                .iter()
+                .map(|s| s.parse::<u16>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
+                .collect::<Vec<Result<u16, Error>>>();
+
+            let mut results: Vec<u16> = Vec::with_capacity(parse_results.len());
+            for parse_result in parse_results {
+                results.push(parse_result?);
+            }
+            return Ok(results);
+        }
+
         let num_bytes: usize = value.data.len();
         if num_bytes < U16_SIZE || num_bytes % U16_SIZE != 0 {
             return Err(Error::new(

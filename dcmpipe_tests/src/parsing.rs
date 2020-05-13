@@ -628,12 +628,18 @@ fn test_undefined_charset(with_std: bool) -> Result<()> {
         .as_element();
 
     let pc: String = String::try_from(pat_com)?;
-    let pc_expected: String =
+    // this value is a bunch of null bytes. with the standard dictionary this will attempt to parse
+    // as a string based on the known VR and be stripped of all null bytes.
+    let pc_expected: String = if with_std {
+        String::new()
+    } else {
         String::from_utf8(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).map_err(|e| {
             ParseError::IOError {
                 source: std::io::Error::new(ErrorKind::InvalidData, format!("{:?}", e)),
             }
-        })?;
+        })?
+    };
+
     assert_eq!(pc, pc_expected);
 
     Ok(())
