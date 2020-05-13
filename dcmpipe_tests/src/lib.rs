@@ -22,18 +22,20 @@ mod mock;
 #[cfg(test)]
 mod parsing;
 
-
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
     parse_file_with_tagstop(path, with_std, TagStop::EndOfDataset)
 }
 
 /// Parses the given file into a `DicomObject` using the given tagstop
-pub fn parse_file_with_tagstop(path: &str, with_std: bool, tagstop: TagStop) -> Result<DicomRoot<'_>> {
+pub fn parse_file_with_tagstop(
+    path: &str,
+    with_std: bool,
+    tagstop: TagStop,
+) -> Result<DicomRoot<'_>> {
     let file: File = File::open(path)?;
 
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default()
-        .tagstop(tagstop);
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default().tagstop(tagstop);
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }

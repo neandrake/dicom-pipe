@@ -8,7 +8,6 @@ use crate::defn::vr::{self, VRRef, VR};
 use std::collections::BTreeMap;
 use std::io::{ErrorKind, Read};
 
-
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
 /// with a VR of `UN`, `OB`, or `OW` and have a value length of `UndefinedLength`. These types of
 /// elements are considered either private-tag sequences or otherwise whose contents are encoded
@@ -232,15 +231,19 @@ fn parse_into_object_recurse<DatasetType: Read>(
         // it should instead be added elsewhere up the tree.
         if let Some(Ok(next_elem)) = possible_next_elem {
             let next_seq_path_len: usize = next_elem.get_sequence_path().len() + 1;
-            if next_seq_path_len < cur_seq_path_len {
-                // if that element is still shorter than the current then it needs passed up further
-                return Some(Ok(next_elem));
-            } else if next_seq_path_len == cur_seq_path_len {
-                // if it matches the same level as the current node then it should be "inserted"
-                // into the element iteration so it will be checked for being sequence-like and
-                // then added into the current node.
-                next_element = Some(Ok(next_elem));
-                continue;
+            match next_seq_path_len {
+                val if val < cur_seq_path_len => {
+                    // if that element is still shorter than the current then it needs passed up further
+                    return Some(Ok(next_elem));
+                }
+                val if val == cur_seq_path_len => {
+                    // if it matches the same level as the current node then it should be "inserted"
+                    // into the element iteration so it will be checked for being sequence-like and
+                    // then added into the current node.
+                    next_element = Some(Ok(next_elem));
+                    continue;
+                }
+                _ => {}
             }
         } else if let Some(Err(_)) = possible_next_elem {
             // errors need propagated all the way back up

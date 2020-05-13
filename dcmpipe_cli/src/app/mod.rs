@@ -187,9 +187,7 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
                 if val.is_empty() {
                     String::new()
                 } else {
-                    let formatted: String = val
-                        .replace("\r\n", " / ")
-                        .replace("\n", " / ");
+                    let formatted: String = val.replace("\r\n", " / ").replace("\n", " / ");
                     format!("\"{}\"", formatted)
                 }
             });

@@ -107,16 +107,13 @@ fn test_unknown_explicit_vr_is_error() {
     match first_elem {
         Ok(_) => {
             assert!(false);
-        },
-        Err(ParseError::UnknownExplicitVR(code)) =>  {
-            assert_eq!(code, 0);
-        },
-        Err(_) => {
-            assert!(false)
         }
+        Err(ParseError::UnknownExplicitVR(code)) => {
+            assert_eq!(code, 0);
+        }
+        Err(_) => assert!(false),
     }
 }
-
 
 #[test]
 fn test_parser_state_with_std() -> Result<()> {
@@ -697,7 +694,7 @@ fn test_illegal_cp246(with_std: bool) -> Result<()> {
         with_std,
         // this file has invalid tag after this position, sequence-contained tag (0700,0300) which
         // has a massive value length which goes past the file contents.
-        TagStop::AfterBytePos(6484)
+        TagStop::AfterBytePos(6484),
     )?;
 
     let ref_sop_class_uid: String = dcmroot
@@ -1103,13 +1100,13 @@ fn test_dicomdir(with_std: bool) -> Result<()> {
 }
 
 #[test]
-#[ignore]   // this is a deflated dataset
+#[ignore] // this is a deflated dataset
 fn test_sq_with_undefined_length_converted_to_defined_length_with_std() -> Result<()> {
     test_sq_with_undefined_length_converted_to_defined_length(true)
 }
 
 #[test]
-#[ignore]   // this is a deflated dataset
+#[ignore] // this is a deflated dataset
 fn test_sq_with_undefined_length_converted_to_defined_length_without_std() -> Result<()> {
     test_sq_with_undefined_length_converted_to_defined_length(false)
 }
@@ -1161,7 +1158,10 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std(
 /// >handle implicit VR big endian encoding. However, the heuristics created more problems
 /// >then they solved.
 fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bool) -> Result<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file(
+        "./fixtures/gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
@@ -1181,7 +1181,10 @@ fn test_explicit_implicit_bogus_iop_without_std() -> Result<()> {
 /// This dataset also randomly switches between implicit and explicit transfer syntax. This one
 /// switches to implicit after Modality, and seems to switch back shortly after SeriesDescription.
 fn test_explicit_implicit_bogus_iop(with_std: bool) -> Result<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/DMCPACS_ExplicitImplicit_BogusIOP.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file(
+        "./fixtures/gdcm/gdcmData/DMCPACS_ExplicitImplicit_BogusIOP.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
@@ -1201,7 +1204,10 @@ fn test_jpeg_lossless3a_without_std() -> Result<()> {
 /// This dataset has a non-standard pixel-data structure. The second item/frame seems to be encoded
 /// in a different transfer syntax. This also fails parsing in dcmtk for the same reason.
 fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file(
+        "./fixtures/gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
@@ -1220,11 +1226,13 @@ fn test_kodak_compressed_icon_without_std() -> Result<()> {
 /// This pixel data is undefined length and its items are defined so do not have item delimiters,
 /// but does have a sequence delimiter which should pop off the inner item.
 fn test_kodak_compressed_icon(with_std: bool) -> Result<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmData/KODAK_CompressedIcon.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file(
+        "./fixtures/gdcm/gdcmData/KODAK_CompressedIcon.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
-
 
 #[test]
 #[ignore]
