@@ -321,7 +321,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         for seq_elem in self.current_path.iter().rev() {
             if seq_elem.get_seq_tag() == tags::FLOAT_PIXEL_DATA
                 || seq_elem.get_seq_tag() == tags::DOUBLE_PIXEL_DATA
-                || seq_elem.get_seq_tag() == tags::PIXEL_DATA {
+                || seq_elem.get_seq_tag() == tags::PIXEL_DATA
+            {
                 return true;
             }
             // If the parent element is an ITEM then keep walking up the chain to check against the
@@ -357,7 +358,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let tag: u32 = if let Some(partial_tag) = self.partial_tag {
             partial_tag
         } else {
-            let tag: u32 = dcmparser_util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian())?;
+            let tag: u32 =
+                dcmparser_util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian())?;
             self.bytes_read += 4;
             self.partial_tag.replace(tag);
             tag
@@ -388,25 +390,23 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let vr_ts: (VRRef, TSRef) = if let Some(partial_vr) = self.partial_vr {
             self.partial_vr.take();
             (partial_vr, ts)
+        } else if ts.explicit_vr {
+            self.read_vr(tag, ts)?
         } else {
-            if ts.explicit_vr {
-                self.read_vr(tag, ts)?
+            let vr: VRRef = if let Some(vr) = self.lookup_vr(tag) {
+                vr
             } else {
-                let vr: VRRef = if let Some(vr) = self.lookup_vr(tag) {
-                    vr
-                } else {
-                    // TODO: This might cause incorrect behavior with reading value length. If the
-                    //       transfer syntax is Explicit then assuming `UN` here when the tag's VR
-                    //       is not a byte-oriented VR (OW, OB, OD, UN, etc.) then an additional
-                    //       reserved 2-bytes are read below when they shouldn't be, causing an
-                    //       incorrect offset of bytes to read. There isn't much we can do here that
-                    //       I'm aware of, except that it might make sense to explicitly flag not
-                    //       reading in the 2-bytes reserved assuming that the VR would be known and
-                    //       not byte-oriented.
-                    &vr::UN
-                };
-                (vr, ts)
-            }
+                // TODO: This might cause incorrect behavior with reading value length. If the
+                //       transfer syntax is Explicit then assuming `UN` here when the tag's VR
+                //       is not a byte-oriented VR (OW, OB, OD, UN, etc.) then an additional
+                //       reserved 2-bytes are read below when they shouldn't be, causing an
+                //       incorrect offset of bytes to read. There isn't much we can do here that
+                //       I'm aware of, except that it might make sense to explicitly flag not
+                //       reading in the 2-bytes reserved assuming that the VR would be known and
+                //       not byte-oriented.
+                &vr::UN
+            };
+            (vr, ts)
         };
 
         let vr: VRRef = vr_ts.0;
@@ -491,8 +491,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Looks up the VR of the given tag in the current lookup dictionary.
     fn lookup_vr(&self, tag: u32) -> Option<VRRef> {
-        self
-            .dictionary
+        self.dictionary
             .get_tag_by_number(tag)
             .and_then(|read_tag: &Tag| read_tag.implicit_vr)
     }
@@ -632,7 +631,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     }
                     Some(element) => return Ok(Some(element)),
                 },
-                ParseState::Element => { return self.iterate_element(); },
+                ParseState::Element => {
+                    return self.iterate_element();
+                }
             }
         }
     }
@@ -794,7 +795,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 } else {
                     ts = &ts::ExplicitVRLittleEndian;
                 }
-            },
+            }
             Err(ParseError::UnknownExplicitVR(_)) => {
                 // unknown VR so this was likely a value length read in, reset the 4-byte buffer
                 // read in as vr and next read it as value length.
@@ -804,8 +805,10 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 } else {
                     ts = &ts::ImplicitVRLittleEndian;
                 }
-            },
-            Err(e) => { return Err(e); },
+            }
+            Err(e) => {
+                return Err(e);
+            }
         }
 
         let vl_read_4bytes: bool = !ts.is_explicit_vr() || vr_is_explicit_padded;
@@ -943,7 +946,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 Ok(Some(ts)) => {
                     self.dataset_ts = Some(ts);
                 }
-                Ok(None) => {},
+                Ok(None) => {}
                 Err(e) => return Err(e),
             }
         }
