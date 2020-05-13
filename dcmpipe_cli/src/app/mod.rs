@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
@@ -7,7 +8,6 @@ use dcmpipe_lib::defn::tag::Tag;
 
 use dcmpipe_lib::core::dcmparser::{ParseError, Parser, ParserBuilder};
 use std::fs::File;
-use std::io::{Error, ErrorKind};
 use std::iter::Peekable;
 use std::path::Path;
 
@@ -25,15 +25,12 @@ static HIDE_GROUP_TAGS: bool = false;
 static HIDE_DELIMITATION_TAGS: bool = false;
 
 pub(crate) trait CommandApplication {
-    fn run(&mut self) -> Result<(), Error>;
+    fn run(&mut self) -> Result<()>;
 }
 
-fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
+fn parse_file(path: &Path) -> Result<Parser<'_, File>> {
     if !path.is_file() {
-        return Err(Error::new(
-            ErrorKind::NotFound,
-            format!("invalid file: {}", path.display()),
-        ));
+        return Err(anyhow!("invalid file: {}", path.display()));
     }
 
     let file: File = File::open(path)?;
@@ -45,15 +42,9 @@ fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
 
     let first: Option<&Result<DicomElement, ParseError>> = peeker.peek();
     if let Some(Err(_)) = first {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("file is not dicom: {}", path.display()),
-        ));
+        return Err(anyhow!("file is not dicom: {}", path.display()));
     } else if first.is_none() {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("file is empty: {}", path.display()),
-        ));
+        return Err(anyhow!("file is empty: {}", path.display()));
     }
 
     Ok(parser)
@@ -68,7 +59,7 @@ fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
 /// (gggg,eeee) VR TagName <empty>
 /// ```
 /// Names for unknown tags will render as `<UnknownTag>`
-fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
+fn render_element(element: &DicomElement) -> Result<Option<String>> {
     // Group Length tags are deprecated, see note on Part 5 Section 7.2
     if HIDE_GROUP_TAGS && element.tag.trailing_zeros() >= 16 {
         return Ok(None);
@@ -157,7 +148,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
 }
 
 /// Formats the value of this element as a string based on the VR
-fn render_value(elem: &DicomElement) -> Result<String, Error> {
+fn render_value(elem: &DicomElement) -> Result<String> {
     if elem.is_seq_like() {
         return Ok(String::new());
     }
