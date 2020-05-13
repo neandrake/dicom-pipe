@@ -4,10 +4,10 @@ use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
+use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
 use bson::{doc, Array, Bson, Document};
-use mongodb::options::ClientOptions;
-use mongodb::{Client, Collection, Cursor, Database};
+use mongodb::sync::{Client, Collection, Cursor, Database};
 use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
@@ -20,7 +20,6 @@ use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 
 use crate::app::CommandApplication;
-use bson::oid::ObjectId;
 
 /// Tracks a dicom document scanned from disk or from the database. I was originally going to make
 /// this an enum with variants `FromDisk` and `FromDb` and then try to merge so that the same
@@ -140,13 +139,7 @@ impl IndexApp {
     /// if appropriate, or marks the document as missing on-disk and then deletes it.
     /// Performs all updates to mongo based on the scan results.
     fn update_mongo(&mut self) -> Result<(), Error> {
-        let mongo_opts: ClientOptions = ClientOptions::parse(&self.mongo).map_err(|e| {
-            Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
-            )
-        })?;
-        let client: Client = Client::with_options(mongo_opts).map_err(|e| {
+        let client: Client = Client::with_uri_str(&self.mongo).map_err(|e| {
             Error::new(
                 ErrorKind::InvalidData,
                 format!("Invalid mongo: {}, {:?}", &self.mongo, e),
