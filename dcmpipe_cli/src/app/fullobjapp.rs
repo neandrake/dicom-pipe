@@ -1,11 +1,12 @@
 use crate::app::{parse_file, render_element, CommandApplication};
+use anyhow::Result;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::Parser;
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::defn::ts::TSRef;
 use std::fs::File;
-use std::io::{self, Error, ErrorKind, StdoutLock, Write};
+use std::io::{self, StdoutLock, Write};
 use std::path::{Path, PathBuf};
 
 pub struct FullObjApp {
@@ -23,7 +24,7 @@ impl FullObjApp {
         mut prev_was_file_meta: bool,
         ts: TSRef,
         stdout: &mut StdoutLock<'_>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         for (tag, obj) in dcmnode.iter_child_nodes() {
             let elem: &DicomElement = obj.as_element();
 
@@ -61,7 +62,7 @@ impl FullObjApp {
 }
 
 impl CommandApplication for FullObjApp {
-    fn run(&mut self) -> Result<(), Error> {
+    fn run(&mut self) -> Result<()> {
         let path_buf: PathBuf = self.openpath.clone();
         let path: &Path = path_buf.as_path();
         let mut parser: Parser<'_, File> = parse_file(path)?;
@@ -74,14 +75,8 @@ impl CommandApplication for FullObjApp {
             parser.get_ts().uid.ident).as_ref()
         )?;
 
-        let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)
-            .map_err(|e| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Error reading dicom element: {:?}", e),
-                )
-            })?
-            .expect("Failed to parse any dicom elements");
+        let dcmroot: DicomRoot<'_> =
+            parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
         self.render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)?;
         Ok(())
     }

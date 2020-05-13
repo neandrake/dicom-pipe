@@ -1,4 +1,5 @@
 use crate::core::charset::CSRef;
+use crate::core::dcmparser::{ParseError, Result};
 use crate::core::dcmparser_util;
 use crate::core::dcmsqelem::SequenceElement;
 use crate::core::tagpath::{TagPath, TagPathElement};
@@ -8,7 +9,6 @@ use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
 use encoding::types::DecoderTrap;
 use std::borrow::Cow;
 use std::convert::TryFrom;
-use std::io::{Error, ErrorKind};
 
 const U16_SIZE: usize = std::mem::size_of::<u16>();
 const I16_SIZE: usize = std::mem::size_of::<i16>();
@@ -16,6 +16,8 @@ const U32_SIZE: usize = std::mem::size_of::<u32>();
 const I32_SIZE: usize = std::mem::size_of::<i32>();
 const F32_SIZE: usize = std::mem::size_of::<f32>();
 const F64_SIZE: usize = std::mem::size_of::<f64>();
+
+const MAX_BYTES_IN_ERROR: usize = 16;
 
 /// Wrapper around `&[u8]` for getting a slice of the element value without the padding values
 struct BytesWithoutPadding<'me>(&'me [u8]);
@@ -36,6 +38,20 @@ pub enum RawValue {
     Integers(Vec<i32>),
     UnsignedIntegers(Vec<u32>),
     Bytes(Vec<u8>),
+}
+
+fn error(message: &str, value: &DicomElement) -> ParseError {
+    ParseError::ValueParseError {
+        message: message.to_owned(),
+        tag: value.tag,
+        vr: value.vr,
+        bytes: value
+            .data
+            .iter()
+            .take(MAX_BYTES_IN_ERROR)
+            .cloned()
+            .collect::<Vec<u8>>(),
+    }
 }
 
 /// Represents a DICOM Element including its Tag, VR, and Value
@@ -111,7 +127,7 @@ impl DicomElement {
     }
 
     /// Parses this element's data into native/raw value type
-    pub fn parse_value(&self) -> Result<RawValue, Error> {
+    pub fn parse_value(&self) -> Result<RawValue> {
         if self.vr == &vr::AT {
             let attr: Attribute = Attribute::try_from(self)?;
             Ok(RawValue::Attribute(attr))
@@ -119,11 +135,22 @@ impl DicomElement {
             let uid: String = String::try_from(self)?;
             Ok(RawValue::Uid(uid))
         } else if self.vr == &vr::DS {
-            let val: Vec<f64> = Vec::<f64>::try_from(self)?;
-            return Ok(RawValue::Doubles(val));
+            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(self);
+            if let Ok(doubles) = parsed {
+                Ok(RawValue::Doubles(doubles))
+            } else {
+                let parsed: Vec<String> = Vec::<String>::try_from(self)?;
+                Ok(RawValue::Strings(parsed))
+            }
         } else if self.vr == &vr::IS {
-            let val: Vec<i32> = Vec::<i32>::try_from(self)?;
-            return Ok(RawValue::Integers(val));
+            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(self);
+            if let Ok(doubles) = parsed {
+                let ints: Vec<i32> = doubles.into_iter().map(|v| v as i32).collect::<Vec<i32>>();
+                Ok(RawValue::Integers(ints))
+            } else {
+                let parsed: Vec<String> = Vec::<String>::try_from(self)?;
+                Ok(RawValue::Strings(parsed))
+            }
         } else if self.vr.is_character_string {
             let strings: Vec<String> = Vec::<String>::try_from(self)?;
             Ok(RawValue::Strings(strings))
@@ -201,16 +228,13 @@ impl DicomElement {
 }
 
 impl TryFrom<&DicomElement> for Attribute {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         if value.data.len() < 4 {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Unable to parse attribute",
-            ));
+            return Err(error("value is less than 4 bytes", value));
         }
 
         let mut buf: [u8; 2] = [0; 2];
@@ -233,19 +257,19 @@ impl TryFrom<&DicomElement> for Attribute {
 }
 
 impl<'me> TryFrom<&DicomElement> for String {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value of this element as a string using the element's encoding and VR
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         String::try_from(ElementWithVr(value, value.vr))
     }
 }
 
 impl<'me> TryFrom<ElementWithVr<'me>> for String {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value of this element as a string using the element's encoding and the specified
     /// VR. This can be used in the event the parser of the element did not have an appropriate
@@ -253,30 +277,30 @@ impl<'me> TryFrom<ElementWithVr<'me>> for String {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr<'_>) -> Result<Self, Self::Error> {
+    fn try_from(value: ElementWithVr<'_>) -> Result<Self> {
         let element: &DicomElement = value.0;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
             .cs
             .decode(data, DecoderTrap::Strict)
-            .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+            .map_err(|e: Cow<'static, str>| error(e.as_ref(), element))
     }
 }
 
 impl TryFrom<&DicomElement> for Vec<String> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value of this element as a list of strings using the element's encoding and vr.
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         Vec::<String>::try_from(ElementWithVr(value, value.vr))
     }
 }
 
 impl<'me> TryFrom<ElementWithVr<'me>> for Vec<String> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value of this element as a list of strings using the element's encoding and the
     /// specified VR. This can be used in the event the parser of the element did not have an appropriate
@@ -284,14 +308,14 @@ impl<'me> TryFrom<ElementWithVr<'me>> for Vec<String> {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr<'_>) -> Result<Self, Self::Error> {
+    fn try_from(value: ElementWithVr<'_>) -> Result<Self> {
         let element: &DicomElement = value.0;
         let vr: VRRef = value.1;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
             .cs
             .decode(data, DecoderTrap::Strict)
-            .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+            .map_err(|e: Cow<'static, str>| error(e.as_ref(), element))
             .map(|multivalue: String| {
                 if !vr.allows_backslash_text_value {
                     multivalue
@@ -365,43 +389,41 @@ impl<'me> From<ElementWithVr<'me>> for BytesWithoutPadding<'me> {
 }
 
 impl TryFrom<&DicomElement> for f32 {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a 32bit floating point
     /// Associated VRs: FL
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         Vec::<f32>::try_from(value)?
-            .first()
-            .copied()
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse as f32"))
+            .into_iter()
+            .next()
+            .ok_or_else(|| error("no f32's parsed", value))
     }
 }
 
 impl TryFrom<&DicomElement> for Vec<f32> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: OF
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let parse_results: Vec<Result<f32, Error>> = Vec::<String>::try_from(value)?
-                .iter()
-                .map(|s| s.parse::<f32>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
-                .collect::<Vec<Result<f32, Error>>>();
-
-            let mut results: Vec<f32> = Vec::with_capacity(parse_results.len());
-            for parse_result in parse_results {
-                results.push(parse_result?);
+            let (values, errors): (Vec<Result<f32>>, Vec<Result<f32>>) =
+                Vec::<String>::try_from(value)?
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.parse::<f32>().map_err(|e| error(&e.to_string(), value)))
+                    .partition(Result::is_ok);
+            if let Some(Err(e)) = errors.into_iter().last() {
+                return Err(e);
             }
-            return Ok(results);
+            let values: Vec<f32> = values.into_iter().map(Result::unwrap).collect::<Vec<f32>>();
+            return Ok(values);
         }
 
         let num_bytes: usize = value.data.len();
         if num_bytes < F32_SIZE || num_bytes % F32_SIZE != 0 {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Unable to parse as f32(s)",
-            ));
+            return Err(error("num bytes not multiple of size of f32", value));
         }
 
         let mut buf: [u8; F32_SIZE] = [0; F32_SIZE];
@@ -422,43 +444,41 @@ impl TryFrom<&DicomElement> for Vec<f32> {
 }
 
 impl TryFrom<&DicomElement> for f64 {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a 64bit floating point
     /// Associated VRs: FD
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         Vec::<f64>::try_from(value)?
-            .first()
-            .copied()
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse as f64"))
+            .into_iter()
+            .next()
+            .ok_or_else(|| error("no f64's parsed", value))
     }
 }
 
 impl TryFrom<&DicomElement> for Vec<f64> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: OD
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let parse_results: Vec<Result<f64, Error>> = Vec::<String>::try_from(value)?
-                .iter()
-                .map(|s| s.parse::<f64>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
-                .collect::<Vec<Result<f64, Error>>>();
-
-            let mut results: Vec<f64> = Vec::with_capacity(parse_results.len());
-            for parse_result in parse_results {
-                results.push(parse_result?);
+            let (values, errors): (Vec<Result<f64>>, Vec<Result<f64>>) =
+                Vec::<String>::try_from(value)?
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.parse::<f64>().map_err(|e| error(&e.to_string(), value)))
+                    .partition(Result::is_ok);
+            if let Some(Err(e)) = errors.into_iter().last() {
+                return Err(e);
             }
-            return Ok(results);
+            let values: Vec<f64> = values.into_iter().map(Result::unwrap).collect::<Vec<f64>>();
+            return Ok(values);
         }
 
         let num_bytes: usize = value.data.len();
         if num_bytes < F64_SIZE || num_bytes % F64_SIZE != 0 {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Unable to parse as f64(s)",
-            ));
+            return Err(error("num bytes not multiple of size of f64", value));
         }
 
         let mut buf: [u8; F64_SIZE] = [0; F64_SIZE];
@@ -478,43 +498,41 @@ impl TryFrom<&DicomElement> for Vec<f64> {
 }
 
 impl TryFrom<&DicomElement> for i16 {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a signed 16bit integer
     /// Associated VRs: SS
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         Vec::<i16>::try_from(value)?
-            .first()
-            .copied()
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse as i16"))
+            .into_iter()
+            .next()
+            .ok_or_else(|| error("no i16's parsed", value))
     }
 }
 
 impl TryFrom<&DicomElement> for Vec<i16> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: OW
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let parse_results: Vec<Result<i16, Error>> = Vec::<String>::try_from(value)?
-                .iter()
-                .map(|s| s.parse::<i16>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
-                .collect::<Vec<Result<i16, Error>>>();
-
-            let mut results: Vec<i16> = Vec::with_capacity(parse_results.len());
-            for parse_result in parse_results {
-                results.push(parse_result?);
+            let (values, errors): (Vec<Result<i16>>, Vec<Result<i16>>) =
+                Vec::<String>::try_from(value)?
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.parse::<i16>().map_err(|e| error(&e.to_string(), value)))
+                    .partition(Result::is_ok);
+            if let Some(Err(e)) = errors.into_iter().last() {
+                return Err(e);
             }
-            return Ok(results);
+            let values: Vec<i16> = values.into_iter().map(Result::unwrap).collect::<Vec<i16>>();
+            return Ok(values);
         }
 
         let num_bytes: usize = value.data.len();
         if num_bytes < I16_SIZE || num_bytes % I16_SIZE != 0 {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Unable to parse as i16(s)",
-            ));
+            return Err(error("num bytes not multiple of size of i16", value));
         }
 
         let mut buf: [u8; I16_SIZE] = [0; I16_SIZE];
@@ -535,43 +553,41 @@ impl TryFrom<&DicomElement> for Vec<i16> {
 }
 
 impl TryFrom<&DicomElement> for i32 {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a signed 32bit integer
     /// Associated VRs: SL
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         Vec::<i32>::try_from(value)?
-            .first()
-            .copied()
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse as i32"))
+            .into_iter()
+            .next()
+            .ok_or_else(|| error("no i32's parsed", value))
     }
 }
 
 impl TryFrom<&DicomElement> for Vec<i32> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: OL
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let parse_results: Vec<Result<i32, Error>> = Vec::<String>::try_from(value)?
-                .iter()
-                .map(|s| s.parse::<i32>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
-                .collect::<Vec<Result<i32, Error>>>();
-
-            let mut results: Vec<i32> = Vec::with_capacity(parse_results.len());
-            for parse_result in parse_results {
-                results.push(parse_result?);
+            let (values, errors): (Vec<Result<i32>>, Vec<Result<i32>>) =
+                Vec::<String>::try_from(value)?
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.parse::<i32>().map_err(|e| error(&e.to_string(), value)))
+                    .partition(Result::is_ok);
+            if let Some(Err(e)) = errors.into_iter().last() {
+                return Err(e);
             }
-            return Ok(results);
+            let values: Vec<i32> = values.into_iter().map(Result::unwrap).collect::<Vec<i32>>();
+            return Ok(values);
         }
 
         let num_bytes: usize = value.data.len();
         if num_bytes < I32_SIZE || num_bytes % I32_SIZE != 0 {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Unable to parse as i32(s)",
-            ));
+            return Err(error("num bytes not multiple of size of i32", value));
         }
 
         let mut buf: [u8; I32_SIZE] = [0; I32_SIZE];
@@ -591,43 +607,41 @@ impl TryFrom<&DicomElement> for Vec<i32> {
 }
 
 impl TryFrom<&DicomElement> for u32 {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as an unsigned 32bit integer
     /// Associated VRs: UL
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         Vec::<u32>::try_from(value)?
-            .first()
-            .copied()
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse as u32"))
+            .into_iter()
+            .next()
+            .ok_or_else(|| error("no u32's parsed", value))
     }
 }
 
 impl TryFrom<&DicomElement> for Vec<u32> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 32bit integer values
     /// Associated VRs: UL, OL
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let parse_results: Vec<Result<u32, Error>> = Vec::<String>::try_from(value)?
-                .iter()
-                .map(|s| s.parse::<u32>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
-                .collect::<Vec<Result<u32, Error>>>();
-
-            let mut results: Vec<u32> = Vec::with_capacity(parse_results.len());
-            for parse_result in parse_results {
-                results.push(parse_result?);
+            let (values, errors): (Vec<Result<u32>>, Vec<Result<u32>>) =
+                Vec::<String>::try_from(value)?
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.parse::<u32>().map_err(|e| error(&e.to_string(), value)))
+                    .partition(Result::is_ok);
+            if let Some(Err(e)) = errors.into_iter().last() {
+                return Err(e);
             }
-            return Ok(results);
+            let values: Vec<u32> = values.into_iter().map(Result::unwrap).collect::<Vec<u32>>();
+            return Ok(values);
         }
 
         let num_bytes: usize = value.data.len();
         if num_bytes < U32_SIZE || num_bytes % U32_SIZE != 0 {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Unable to parse as u32(s)",
-            ));
+            return Err(error("num bytes not multiple of size of u32", value));
         }
 
         let mut buf: [u8; U32_SIZE] = [0; U32_SIZE];
@@ -647,43 +661,41 @@ impl TryFrom<&DicomElement> for Vec<u32> {
 }
 
 impl TryFrom<&DicomElement> for u16 {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as an unsigned 16bit integer
     /// Associated VRs: US
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         Vec::<u16>::try_from(value)?
-            .first()
-            .copied()
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse as u16"))
+            .into_iter()
+            .next()
+            .ok_or_else(|| error("no u16's parsed", value))
     }
 }
 
 impl TryFrom<&DicomElement> for Vec<u16> {
-    type Error = Error;
+    type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 16bit integer values
     /// Associated VRs: US, OW
-    fn try_from(value: &DicomElement) -> Result<Self, Self::Error> {
+    fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let parse_results: Vec<Result<u16, Error>> = Vec::<String>::try_from(value)?
-                .iter()
-                .map(|s| s.parse::<u16>().map_err(|e| Error::new(ErrorKind::InvalidData, e)))
-                .collect::<Vec<Result<u16, Error>>>();
-
-            let mut results: Vec<u16> = Vec::with_capacity(parse_results.len());
-            for parse_result in parse_results {
-                results.push(parse_result?);
+            let (values, errors): (Vec<Result<u16>>, Vec<Result<u16>>) =
+                Vec::<String>::try_from(value)?
+                    .into_iter()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.parse::<u16>().map_err(|e| error(&e.to_string(), value)))
+                    .partition(Result::is_ok);
+            if let Some(Err(e)) = errors.into_iter().last() {
+                return Err(e);
             }
-            return Ok(results);
+            let values: Vec<u16> = values.into_iter().map(Result::unwrap).collect::<Vec<u16>>();
+            return Ok(values);
         }
 
         let num_bytes: usize = value.data.len();
         if num_bytes < U16_SIZE || num_bytes % U16_SIZE != 0 {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Unable to parse as u16(s)",
-            ));
+            return Err(error("num bytes not multiple of size of u16", value));
         }
 
         let mut buf: [u8; U16_SIZE] = [0; U16_SIZE];

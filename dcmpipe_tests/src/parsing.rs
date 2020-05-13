@@ -1023,13 +1023,13 @@ fn test_illegal_group2_implicit_ts(with_std: bool) -> Result<()> {
 }
 
 #[test]
-#[should_panic(expected = "Unable to parse as u32(s)")]
+#[should_panic(expected = "num bytes not multiple of size of u32")]
 fn test_ul_is_2bytes_with_std() {
     test_ul_is_2bytes(true).unwrap();
 }
 
 #[test]
-#[should_panic(expected = "Unable to parse as u32(s)")]
+#[should_panic(expected = "num bytes not multiple of size of u32")]
 fn test_ul_is_2bytes_without_std() {
     test_ul_is_2bytes(false).unwrap();
 }

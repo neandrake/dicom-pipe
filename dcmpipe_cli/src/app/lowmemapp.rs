@@ -1,8 +1,9 @@
 use crate::app::{parse_file, render_element, CommandApplication};
+use anyhow::Result;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::Parser;
 use std::fs::File;
-use std::io::{self, Error, ErrorKind, Write};
+use std::io::{self, StdoutLock, Write};
 use std::path::{Path, PathBuf};
 
 pub struct LowMemApp {
@@ -16,12 +17,12 @@ impl LowMemApp {
 }
 
 impl CommandApplication for LowMemApp {
-    fn run(&mut self) -> Result<(), Error> {
+    fn run(&mut self) -> Result<()> {
         let path: &Path = self.openpath.as_path();
         let mut parser: Parser<'_, File> = parse_file(path)?;
 
         let stdout = io::stdout();
-        let mut stdout = stdout.lock();
+        let mut stdout: StdoutLock<'_> = stdout.lock();
         stdout.write_all(format!(
             "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
             path,
@@ -31,12 +32,7 @@ impl CommandApplication for LowMemApp {
         let mut prev_was_file_meta: bool = true;
 
         while let Some(elem) = parser.next() {
-            let elem: DicomElement = elem.map_err(|e| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Error reading dicom element: {:?}", e),
-                )
-            })?;
+            let elem: DicomElement = elem?;
             if prev_was_file_meta && elem.tag > 0x0002_FFFF {
                 stdout.write_all(
                     format!(

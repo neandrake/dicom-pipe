@@ -1,4 +1,4 @@
-use std::io::Error;
+use anyhow::Result;
 use std::path::PathBuf;
 
 use crate::app::CommandApplication;
@@ -18,7 +18,7 @@ impl ArchiveApp {
 }
 
 impl CommandApplication for ArchiveApp {
-    fn run(&mut self) -> Result<(), Error> {
+    fn run(&mut self) -> Result<()> {
         // use fields to stop getting dead code warnings
         format!("{:?}, {:?}", self.source, self.destination);
         unimplemented!()
