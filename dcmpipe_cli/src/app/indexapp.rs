@@ -19,6 +19,7 @@ use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 
+use crate::app::args::IndexCommand;
 use crate::app::CommandApplication;
 
 /// Tracks a dicom document scanned from disk or from the database. I was originally going to make
@@ -41,33 +42,37 @@ impl DicomDoc {
 }
 
 pub struct IndexApp {
-    mongo: String,
-    folder: PathBuf,
+    db: String,
+    cmd: IndexCommand,
     uid_to_doc: HashMap<String, DicomDoc>,
 }
 
 impl CommandApplication for IndexApp {
     fn run(&mut self) -> Result<()> {
-        self.scan_dir()?;
-        self.update_mongo()?;
+        match &self.cmd {
+            IndexCommand::Scan { folder } => {
+                let folder = folder.clone();
+                self.scan_dir(folder)?;
+                self.update_mongo()?;
+            }
+            IndexCommand::Verify {} => {}
+        }
         Ok(())
     }
 }
 
 impl IndexApp {
-    pub fn new(mongo: String, folder: PathBuf) -> IndexApp {
+    pub fn new(db: String, cmd: IndexCommand) -> IndexApp {
         IndexApp {
-            mongo,
-            folder,
+            db,
+            cmd,
             uid_to_doc: HashMap::new(),
         }
     }
 
     /// Scans a directory and builds `DicomDoc` to be inserted into `self.uid_to_doc`
-    fn scan_dir(&mut self) -> Result<()> {
-        let walkdir = WalkDir::new(&self.folder)
-            .into_iter()
-            .filter_map(|e| e.ok());
+    fn scan_dir(&mut self, folder: PathBuf) -> Result<()> {
+        let walkdir = WalkDir::new(&folder).into_iter().filter_map(|e| e.ok());
 
         let parser_builder: ParserBuilder<'_> = ParserBuilder::default()
             .tagstop(TagStop::BeforeTag(tags::PixelData.tag))
@@ -129,8 +134,8 @@ impl IndexApp {
     /// if appropriate, or marks the document as missing on-disk and then deletes it.
     /// Performs all updates to mongo based on the scan results.
     fn update_mongo(&mut self) -> Result<()> {
-        let client: Client = Client::with_uri_str(&self.mongo)
-            .with_context(|| format!("Invalid mongo: {}", &self.mongo))?;
+        let client: Client = Client::with_uri_str(&self.db)
+            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
         let metabase_db: Database = client.database("metabase_rs");
         let dicom_coll: Collection = metabase_db.collection("dicom");
 
@@ -138,7 +143,7 @@ impl IndexApp {
         let sop_uid_key: String = Tag::format_tag_to_path_display(tags::SOPInstanceUID.tag);
         let all_dicom_docs: Cursor = dicom_coll
             .find(None, None)
-            .with_context(|| format!("Invalid mongo: {}", &self.mongo))?;
+            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
 
         let mut missing_records: Vec<Document> = Vec::new();
         for doc in all_dicom_docs {
@@ -190,15 +195,17 @@ impl IndexApp {
         }
 
         if !missing_records.is_empty() {
-            let ids: Vec<ObjectId> = missing_records
+            let ids: Vec<Bson> = missing_records
                 .iter()
                 .filter_map(|doc| doc.get_object_id("_id").ok())
-                .cloned()
-                .collect();
-            let query = doc! {
-                "$or": ids,
-            };
+                .map(|oid| Bson::from(oid))
+                .collect::<Vec<Bson>>();
 
+            let query = doc! {
+                "_id" : {
+                    "$in": ids
+                }
+            };
             dicom_coll.delete_many(query, None)?;
         }
 
