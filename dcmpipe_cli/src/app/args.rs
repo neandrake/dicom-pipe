@@ -11,7 +11,7 @@ pub struct Arguments {
 #[derive(StructOpt, Debug)]
 pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
-    Dump {
+    Show {
         #[structopt(short, long)]
         /// Process the dataset as a stream.
         ///
@@ -27,21 +27,24 @@ pub enum Command {
         /// The file to process as a DICOM dataset.
         file: PathBuf,
     },
-    /// Scans a folder recursively for DICOM datasets and prints results of found DICOM.
-    Scan {
+    /// Recursively parses a folder of DICOM datasets and prints results of parsing.
+    ///
+    /// This is primarily useful for locating DICOM files which fail to parse.
+    Parse {
         /// The folder to recursively scan for DICOM datasets.
         folder: PathBuf,
     },
-    /// Index a directory of unstructured DICOM files.
+    /// Manage a databse index of DICOM on disk.
     ///
     /// Recursively scans a folder for DICOM datasets, indexing them into a database.
     Index {
         #[structopt(short, long)]
-        /// The mongo URI to insert dicom records into.
-        mongo: String,
+        /// The db URI of the index.
+        db: String,
 
-        /// The folder to scan for DICOM datasets.
-        folder: PathBuf,
+        #[structopt(subcommand)]
+        /// Index sub-command
+        cmd: IndexCommand,
     },
     /// Archives DICOM datasets from a source folder into a destination folder.
     ///
@@ -56,4 +59,15 @@ pub enum Command {
         /// The destination folder to archive datasets into.
         destination: PathBuf,
     },
+}
+
+#[derive(StructOpt, Debug)]
+pub enum IndexCommand {
+    /// Recursively scans a folder for DICOM datasets, indexing them into a database.
+    Scan {
+        /// The folder to scan for DICOM datasets.
+        folder: PathBuf,
+    },
+    /// Verify records in the database reference valid files on-disk.
+    Verify {},
 }
