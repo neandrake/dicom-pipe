@@ -13,10 +13,12 @@ pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
     Print {
         #[structopt(short, long)]
-        /// Process the dataset as a stream.
+        /// Process the dataset as a stream instead of loading fully into memory.
         ///
-        /// If specified, instead of reading the entire dataset into memory will print elements as
-        /// they are parsed.
+        /// If printing a DICOM dataset which fails to fully parse and this argument is not
+        /// specified then no elements will be printed to stdout, only an error. Specifying this
+        /// argument will result in all elements which succeed in parsing to be printed to stdout
+        /// until the error is encountered.
         stream: bool,
 
         /// The file to process as a DICOM dataset.
