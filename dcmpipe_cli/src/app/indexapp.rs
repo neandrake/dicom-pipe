@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
@@ -19,9 +19,8 @@ use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 
-use crate::app::args::IndexCommand;
 use crate::app::CommandApplication;
-
+use crate::args::IndexCommand;
 
 static SERIES_UID_KEY: &str = "0020000E";
 static SOP_UID_KEY: &str = "00080018";
@@ -70,10 +69,7 @@ impl CommandApplication for IndexApp {
 
 impl IndexApp {
     pub fn new(db: String, cmd: IndexCommand) -> IndexApp {
-        IndexApp {
-            db,
-            cmd,
-        }
+        IndexApp { db, cmd }
     }
 
     fn get_dicom_coll(&self) -> Result<Collection> {
@@ -158,16 +154,15 @@ impl IndexApp {
         for key in uid_to_doc.keys() {
             serieskeys.push(Bson::String(key.clone()));
         }
-        let query: Document = doc!{
+        let query: Document = doc! {
             "metadata.serieskey" : {
                 "$in" : serieskeys
             }
         };
 
         for dicom_doc in self.query_docs(&dicom_coll, Some(query))? {
-            match uid_to_doc.get_mut(&dicom_doc.key) {
-                Some(existing) => existing.id = dicom_doc.id,
-                None => {},
+            if let Some(existing) = uid_to_doc.get_mut(&dicom_doc.key) {
+                existing.id = dicom_doc.id;
             }
         }
 
@@ -181,7 +176,7 @@ impl IndexApp {
                     Some(id) => {
                         dicom_doc.doc.insert("_id", id.clone());
                         updates.push((id, dicom_doc.doc));
-                    },
+                    }
                 }
             }
         }
@@ -209,7 +204,8 @@ impl IndexApp {
         let mut missing_records: Vec<Document> = Vec::new();
         for mut dicom_doc in self.query_docs(&dicom_coll, None)? {
             record_count += 1;
-            let md_doc_opt = dicom_doc.doc
+            let md_doc_opt = dicom_doc
+                .doc
                 .get_mut("metadata")
                 .and_then(|md_doc| md_doc.as_document_mut());
             let metadata_doc: &mut Document;
@@ -234,17 +230,15 @@ impl IndexApp {
             }
 
             let num_files: usize = files_array.len();
-            files_array.retain(|bson| {
-                match bson.as_str() {
-                    None => false,
-                    Some(path) => Path::new(path).is_file(),
-                }
+            files_array.retain(|bson| match bson.as_str() {
+                None => false,
+                Some(path) => Path::new(path).is_file(),
             });
 
             match files_array.len() {
                 0 => missing_records.push(dicom_doc.doc),
                 x if x != num_files => updated_records.push(dicom_doc.doc),
-                _ => {},
+                _ => {}
             }
         }
 
@@ -260,7 +254,7 @@ impl IndexApp {
             let ids: Vec<Bson> = missing_records
                 .iter()
                 .filter_map(|doc| doc.get_object_id("_id").ok())
-                .map(|oid| Bson::from(oid))
+                .map(Bson::from)
                 .collect::<Vec<Bson>>();
 
             let query = doc! {
@@ -275,42 +269,44 @@ impl IndexApp {
     }
 
     /// Query for all dicom records in the given collection and returns an iterator over `DicomDoc`
-    fn query_docs(&mut self, dicom_coll: &Collection, query: Option<Document>) -> Result<impl Iterator<Item = DicomDoc>> {
+    fn query_docs(
+        &mut self,
+        dicom_coll: &Collection,
+        query: Option<Document>,
+    ) -> Result<impl Iterator<Item = DicomDoc>> {
         let all_dicom_docs: Cursor = dicom_coll
             .find(query, None)
             .with_context(|| format!("Invalid mongo: {}", &self.db))?;
 
-        let doc_iter = all_dicom_docs
-            .into_iter()
-            .filter_map(|doc_res| {
-                let doc: Document;
-                match doc_res {
-                    Err(_e) => return None,
-                    Ok(d) => doc = d,
-                }
+        let doc_iter = all_dicom_docs.filter_map(|doc_res| {
+            let doc: Document;
+            match doc_res {
+                Err(_e) => return None,
+                Ok(d) => doc = d,
+            }
 
-                let doc_id_res = doc.get_object_id("_id");
-                let doc_id: ObjectId;
-                match doc_id_res {
-                    Err(_e) => return None,
-                    Ok(d) => doc_id = d.clone(),
-                }
+            let doc_id_res = doc.get_object_id("_id");
+            let doc_id: ObjectId;
+            match doc_id_res {
+                Err(_e) => return None,
+                Ok(d) => doc_id = d.clone(),
+            }
 
-                let doc_key_res = doc
-                    .get_str(SERIES_UID_KEY)
-                    .or_else(|_| doc.get_str(SOP_UID_KEY));
-                let doc_key: String;
-                match doc_key_res {
-                    Err(_e) => return None,
-                    Ok(d) => doc_key = d.to_owned(),
-                }
+            let doc_key_res = doc
+                .get_str(SERIES_UID_KEY)
+                .or_else(|_| doc.get_str(SOP_UID_KEY));
+            let doc_key: String;
+            match doc_key_res {
+                Err(_e) => return None,
+                Ok(d) => doc_key = d.to_owned(),
+            }
 
-                Some(DicomDoc {
-                    key: doc_key,
-                    doc,
-                    id: Some(doc_id),
-                })
-            });
+            Some(DicomDoc {
+                key: doc_key,
+                doc,
+                id: Some(doc_id),
+            })
+        });
 
         Ok(doc_iter)
     }

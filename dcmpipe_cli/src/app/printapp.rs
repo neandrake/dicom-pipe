@@ -15,7 +15,7 @@ use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::ts::TSRef;
 
-use crate::app::{CommandApplication, parse_file};
+use crate::app::{parse_file, CommandApplication};
 
 static HIDE_GROUP_TAGS: bool = false;
 static HIDE_DELIMITATION_TAGS: bool = false;
@@ -54,17 +54,14 @@ impl CommandApplication for PrintApp {
     }
 }
 
-fn render_stream(
-    mut parser: Parser<'_, File>,
-    stdout: &mut StdoutLock<'_>,
-) -> Result<()> {
+fn render_stream(mut parser: Parser<'_, File>, stdout: &mut StdoutLock<'_>) -> Result<()> {
     let mut prev_was_file_meta: bool = true;
 
     while let Some(elem) = parser.next() {
         let elem: DicomElement = elem?;
         if prev_was_file_meta && elem.tag > 0x0002_FFFF {
             stdout.write_all(
-            format!(
+                format!(
                     "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                     parser.get_ts().uid.ident
                 )
@@ -82,10 +79,7 @@ fn render_stream(
     Ok(())
 }
 
-fn render_root(
-    mut parser: Parser<'_, File>,
-    mut stdout: &mut StdoutLock<'_>,
-) -> Result<()> {
+fn render_root(mut parser: Parser<'_, File>, mut stdout: &mut StdoutLock<'_>) -> Result<()> {
     let dcmroot: DicomRoot<'_> =
         parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
     render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)
@@ -106,7 +100,7 @@ fn render_objects(
                     "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                     ts.uid.ident
                 )
-                    .as_ref(),
+                .as_ref(),
             )?;
             prev_was_file_meta = false;
         }
@@ -150,7 +144,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
     // These are delimiter items that are not very useful to see
     if HIDE_DELIMITATION_TAGS
         && (element.tag == tags::ItemDelimitationItem.tag
-        || element.tag == tags::SequenceDelimitationItem.tag)
+            || element.tag == tags::SequenceDelimitationItem.tag)
     {
         return Ok(None);
     }
