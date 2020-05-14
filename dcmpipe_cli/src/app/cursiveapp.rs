@@ -1,4 +1,5 @@
-use crate::app::{parse_file, render_value, CommandApplication};
+use crate::app::{CommandApplication, parse_file};
+use crate::app::printapp::render_value;
 use anyhow::Result;
 use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};

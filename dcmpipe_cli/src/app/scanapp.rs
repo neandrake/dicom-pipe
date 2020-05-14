@@ -6,7 +6,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-enum ParseResult {
+enum ScanResult {
     Success,
     NotDicom,
     InvalidData(Box<dyn std::error::Error>),
@@ -28,27 +28,27 @@ impl ScanApp {
             .filter(|path: &PathBuf| path.is_file())
     }
 
-    fn parse_all_element_values(&self, parser: Parser<'_, File>) -> ParseResult {
+    fn parse_all_element_values(&self, parser: Parser<'_, File>) -> ScanResult {
         let mut is_first_elem: bool = true;
         for elem_result in parser {
             match elem_result {
                 Ok(elem) => {
                     match elem.parse_value() {
                         Ok(_) => {}
-                        Err(e) => return ParseResult::InvalidData(Box::new(e)),
+                        Err(e) => return ScanResult::InvalidData(Box::new(e)),
                     };
                 }
                 Err(e) => {
                     if is_first_elem {
-                        return ParseResult::NotDicom;
+                        return ScanResult::NotDicom;
                     }
-                    return ParseResult::InvalidData(Box::new(e));
+                    return ScanResult::InvalidData(Box::new(e));
                 }
             };
             is_first_elem = false;
         }
 
-        ParseResult::Success
+        ScanResult::Success
     }
 }
 
@@ -67,9 +67,9 @@ impl CommandApplication for ScanApp {
                 .expect("relative path");
 
             match self.parse_all_element_values(parser) {
-                ParseResult::Success => {}  /*println!("Valid DICOM: {}", path_str),*/
-                ParseResult::NotDicom => {} /*println!("Not DICOM: {}", relative_path),*/
-                ParseResult::InvalidData(e) => {
+                ScanResult::Success => {}  /*println!("Valid DICOM: {}", path_str),*/
+                ScanResult::NotDicom => {} /*println!("Not DICOM: {}", relative_path),*/
+                ScanResult::InvalidData(e) => {
                     println!("Failure Parsing: {}\n\t{}", relative_path, e)
                 }
             };

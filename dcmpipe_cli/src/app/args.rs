@@ -11,7 +11,7 @@ pub struct Arguments {
 #[derive(StructOpt, Debug)]
 pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
-    Show {
+    Print {
         #[structopt(short, long)]
         /// Process the dataset as a stream.
         ///
