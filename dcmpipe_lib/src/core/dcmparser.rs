@@ -399,19 +399,17 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.partial_vr.take();
             (partial_vr, ts)
         } else if ts.explicit_vr {
-            self.read_vr(tag, ts)?
+            match self.read_vr(tag, ts) {
+                Err(ParseError::UnknownExplicitVR(_code)) => {
+                    (&vr::INVALID, ts)
+                },
+                Err(e) => return Err(e),
+                Ok(vr_ts) => vr_ts,
+            }
         } else {
             let vr: VRRef = if let Some(vr) = self.lookup_vr(tag) {
                 vr
             } else {
-                // TODO: This might cause incorrect behavior with reading value length. If the
-                //       transfer syntax is Explicit then assuming `UN` here when the tag's VR
-                //       is not a byte-oriented VR (OW, OB, OD, UN, etc.) then an additional
-                //       reserved 2-bytes are read below when they shouldn't be, causing an
-                //       incorrect offset of bytes to read. There isn't much we can do here that
-                //       I'm aware of, except that it might make sense to explicitly flag not
-                //       reading in the 2-bytes reserved assuming that the VR would be known and
-                //       not byte-oriented.
                 &vr::UN
             };
             (vr, ts)
@@ -471,8 +469,14 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// the value field is encoded this way, irrespective of defined transfer syntax.
     /// See Part 5 Section 6.2.2 Note 2.
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef)> {
-        let mut vr: VRRef = dcmparser_util::read_vr_from_dataset(&mut self.dataset)?;
-        self.bytes_read += 2;
+        let vr_res: Result<VRRef> = dcmparser_util::read_vr_from_dataset(&mut self.dataset);
+        match vr_res {
+            // if the VR couldn't be matched to a known VR there were still 2 bytes read from stream
+            Ok(_) | Err(ParseError::UnknownExplicitVR(_)) => self.bytes_read += 2,
+            _ => {},
+        }
+
+        let mut vr: VRRef = vr_res?;
         if vr.has_explicit_2byte_pad {
             self.bytes_read += 2;
         }
