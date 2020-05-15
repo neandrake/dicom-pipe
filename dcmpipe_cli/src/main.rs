@@ -3,7 +3,7 @@ use std::process;
 use structopt::StructOpt;
 
 use crate::app::archiveapp::ArchiveApp;
-use crate::app::cursiveapp::CursiveApp;
+use crate::app::editapp::EditApp;
 use crate::app::indexapp::IndexApp;
 use crate::app::printapp::PrintApp;
 use crate::app::scanapp::ScanApp;
@@ -26,7 +26,7 @@ fn make_app() -> Box<dyn CommandApplication> {
 
     match args.command {
         Command::Print { stream, file } => Box::new(PrintApp::new(stream, file)),
-        Command::Edit { file } => Box::new(CursiveApp::new(file)),
+        Command::Edit { file } => Box::new(EditApp::new(file)),
         Command::Parse { folder } => Box::new(ScanApp::new(folder)),
         Command::Index { db, cmd } => Box::new(IndexApp::new(db, cmd)),
         Command::Archive {
