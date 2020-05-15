@@ -36,7 +36,7 @@ pub enum Command {
         /// The folder to recursively scan for DICOM datasets.
         folder: PathBuf,
     },
-    /// Manage a databse index of DICOM on disk.
+    /// Manage a database index of DICOM on disk.
     ///
     /// Recursively scans a folder for DICOM datasets, indexing them into a database.
     Index {
