@@ -14,7 +14,7 @@ use std::cmp::Ordering;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-pub struct CursiveApp {
+pub struct EditApp {
     openpath: PathBuf,
 }
 
@@ -105,13 +105,13 @@ impl TableViewItem<DicomElementColumn> for DicomElementValue {
     }
 }
 
-impl CursiveApp {
-    pub fn new(openpath: PathBuf) -> CursiveApp {
-        CursiveApp { openpath }
+impl EditApp {
+    pub fn new(openpath: PathBuf) -> EditApp {
+        EditApp { openpath }
     }
 }
 
-impl CommandApplication for CursiveApp {
+impl CommandApplication for EditApp {
     fn run(&mut self) -> Result<()> {
         let path: &Path = self.openpath.as_path();
         let parser: Parser<'_, File> = parse_file(path)?;
