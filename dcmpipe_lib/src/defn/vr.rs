@@ -620,7 +620,7 @@ pub static OB: VR = VR {
 /// (2^32) - 8 bytes maximum
 pub static OD: VR = VR {
     ident: "OD",
-    name: "Other Byte",
+    name: "Other Double",
     code: 0x4F44,
     padding: NULL_PADDING,
     has_explicit_2byte_pad: true,
@@ -1220,6 +1220,34 @@ pub static UV: VR = VR {
     code: 0x5556,
     padding: NULL_PADDING,
     has_explicit_2byte_pad: true,
+    is_character_string: false,
+    decode_text_with_replaced_cs: false,
+    allows_backslash_text_value: false,
+    can_pad_front: false,
+    can_pad_end: false,
+};
+
+
+/// # Invalid
+///
+/// ## Definition
+/// This is a virtual/sentinel value for an invalid/unknown VR parsed from
+/// an explicit VR transfer syntax. The value should be interpreted as an
+/// octet stream similar to `UN` however unlike `UN` this does not indicate
+/// it has a 2-byte padding after the VR, as most non-byte-oriented VRs
+/// (UN, OB, OW, OD, etc.) do not have 2-byte padding
+///
+/// ## Character Repertoire
+/// N/A
+///
+/// ## Length of Value
+/// Any length valid for any of the other DICOM Value Representations
+pub static INVALID: VR = VR {
+    ident: "",
+    name: "Unknown",
+    code: 0x0000,
+    padding: NULL_PADDING,
+    has_explicit_2byte_pad: false,
     is_character_string: false,
     decode_text_with_replaced_cs: false,
     allows_backslash_text_value: false,
