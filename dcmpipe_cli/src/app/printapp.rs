@@ -32,6 +32,90 @@ impl PrintApp {
     }
 }
 
+impl PrintApp {
+    fn render_stream(
+        &mut self,
+        mut parser: Parser<'_, File>,
+        stdout: &mut StdoutLock<'_>,
+    ) -> Result<()> {
+        let mut prev_was_file_meta: bool = true;
+
+        while let Some(elem) = parser.next() {
+            let elem: DicomElement = elem?;
+
+            if prev_was_file_meta && elem.tag > 0x0002_FFFF {
+                stdout.write_all(
+                    format!(
+                        "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
+                        parser.get_ts().uid.ident
+                    )
+                    .as_ref(),
+                )?;
+                prev_was_file_meta = false;
+            }
+
+            let printed: Option<String> = render_element(&elem)?;
+
+            if let Some(printed) = printed {
+                stdout.write_all(format!("{}\n", printed).as_ref())?;
+            }
+        }
+        Ok(())
+    }
+
+    fn render_root(
+        &mut self,
+        mut parser: Parser<'_, File>,
+        mut stdout: &mut StdoutLock<'_>,
+    ) -> Result<()> {
+        let dcmroot: DicomRoot<'_> =
+            parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
+        self.render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)
+    }
+
+    fn render_objects(
+        &mut self,
+        dcmnode: &impl DicomNode,
+        mut prev_was_file_meta: bool,
+        ts: TSRef,
+        stdout: &mut StdoutLock<'_>,
+    ) -> Result<()> {
+        for (tag, obj) in dcmnode.iter_child_nodes() {
+            let elem: &DicomElement = obj.as_element();
+
+            if prev_was_file_meta && *tag > 0x0002_FFFF {
+                stdout.write_all(
+                    format!(
+                        "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
+                        ts.uid.ident
+                    )
+                    .as_ref(),
+                )?;
+                prev_was_file_meta = false;
+            }
+
+            let printed: Option<String> = render_element(&elem)?;
+            if let Some(printed) = printed {
+                stdout.write_all(format!("{}\n", printed).as_ref())?;
+            }
+
+            if obj.get_child_count() > 0 {
+                self.render_objects(obj, prev_was_file_meta, ts, stdout)?;
+            }
+            for index in 0..obj.get_item_count() {
+                let child_obj: &DicomObject = obj.get_item(index + 1).unwrap();
+                let child_elem: &DicomElement = child_obj.as_element();
+                if let Some(printed) = render_element(child_elem)? {
+                    stdout.write_all(format!("{}\n", printed).as_ref())?;
+                }
+                self.render_objects(child_obj, prev_was_file_meta, ts, stdout)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl CommandApplication for PrintApp {
     fn run(&mut self) -> Result<()> {
         let path_buf: PathBuf = self.file.clone();
@@ -47,83 +131,13 @@ impl CommandApplication for PrintApp {
         )?;
 
         if self.stream {
-            render_stream(parser, &mut stdout)
+            self.render_stream(parser, &mut stdout)?;
         } else {
-            render_root(parser, &mut stdout)
+            self.render_root(parser, &mut stdout)?;
         }
+
+        Ok(())
     }
-}
-
-fn render_stream(mut parser: Parser<'_, File>, stdout: &mut StdoutLock<'_>) -> Result<()> {
-    let mut prev_was_file_meta: bool = true;
-
-    while let Some(elem) = parser.next() {
-        let elem: DicomElement = elem?;
-        if prev_was_file_meta && elem.tag > 0x0002_FFFF {
-            stdout.write_all(
-                format!(
-                    "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
-                    parser.get_ts().uid.ident
-                )
-                .as_ref(),
-            )?;
-            prev_was_file_meta = false;
-        }
-
-        let printed: Option<String> = render_element(&elem)?;
-
-        if let Some(printed) = printed {
-            stdout.write_all(format!("{}\n", printed).as_ref())?;
-        }
-    }
-    Ok(())
-}
-
-fn render_root(mut parser: Parser<'_, File>, mut stdout: &mut StdoutLock<'_>) -> Result<()> {
-    let dcmroot: DicomRoot<'_> =
-        parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
-    render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)
-}
-
-fn render_objects(
-    dcmnode: &impl DicomNode,
-    mut prev_was_file_meta: bool,
-    ts: TSRef,
-    stdout: &mut StdoutLock<'_>,
-) -> Result<()> {
-    for (tag, obj) in dcmnode.iter_child_nodes() {
-        let elem: &DicomElement = obj.as_element();
-
-        if prev_was_file_meta && *tag > 0x0002_FFFF {
-            stdout.write_all(
-                format!(
-                    "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
-                    ts.uid.ident
-                )
-                .as_ref(),
-            )?;
-            prev_was_file_meta = false;
-        }
-
-        let printed: Option<String> = render_element(&elem)?;
-        if let Some(printed) = printed {
-            stdout.write_all(format!("{}\n", printed).as_ref())?;
-        }
-
-        if obj.get_child_count() > 0 {
-            render_objects(obj, prev_was_file_meta, ts, stdout)?;
-        }
-        for index in 0..obj.get_item_count() {
-            let child_obj: &DicomObject = obj.get_item(index).unwrap();
-            let child_elem: &DicomElement = child_obj.as_element();
-            if let Some(printed) = render_element(child_elem)? {
-                stdout.write_all(format!("{}\n", printed).as_ref())?;
-            }
-            render_objects(child_obj, prev_was_file_meta, ts, stdout)?;
-        }
-    }
-
-    Ok(())
 }
 
 /// Renders an element on a single line, includes indentation based on depth in sequences
@@ -178,7 +192,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
                 "{} {} [{:?}]",
                 last_seq_elem
                     .get_item_number()
-                    .map(|item_no: u32| format!("#{}", item_no))
+                    .map(|item_no: usize| format!("#{}", item_no))
                     .unwrap_or_else(|| "#[NO ITEM NUMBER]".to_string()),
                 vr,
                 element.vl,

@@ -22,35 +22,35 @@ fn test_parse_nested_charset_values() -> Result<()> {
     let dcmroot: DicomRoot<'_> =
         parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
 
-    test_nested_charset(&dcmroot, 0, all::ISO_8859_8, "ISO_IR 138", "שרון^דבורה")?;
-    test_nested_charset(&dcmroot, 4, all::ISO_8859_5, "ISO_IR 144", "Люкceмбypг")?;
-    test_nested_charset(&dcmroot, 8, all::ISO_8859_6, "ISO_IR 127", "قباني^لنزار")?;
+    test_nested_charset(&dcmroot, 1, all::ISO_8859_8, "ISO_IR 138", "שרון^דבורה")?;
+    test_nested_charset(&dcmroot, 5, all::ISO_8859_5, "ISO_IR 144", "Люкceмбypг")?;
+    test_nested_charset(&dcmroot, 9, all::ISO_8859_6, "ISO_IR 127", "قباني^لنزار")?;
     test_nested_charset(
         &dcmroot,
-        12,
+        13,
         all::WINDOWS_1252,
         "ISO_IR 100",
         "Äneas^Rüdiger",
     )?;
-    test_nested_charset(&dcmroot, 16, all::WINDOWS_1252, "ISO_IR 100", "Buc^Jérôme")?;
-    test_nested_charset(&dcmroot, 20, all::ISO_8859_7, "ISO_IR 126", "Διονυσιος")?;
+    test_nested_charset(&dcmroot, 17, all::WINDOWS_1252, "ISO_IR 100", "Buc^Jérôme")?;
+    test_nested_charset(&dcmroot, 21, all::ISO_8859_7, "ISO_IR 126", "Διονυσιος")?;
     test_nested_charset(
         &dcmroot,
-        24,
+        25,
         all::GB18030,
         "GB18030",
         "Wang^XiaoDong=王^小东=",
     )?;
     test_nested_charset(
         &dcmroot,
-        28,
+        29,
         all::UTF_8,
         "ISO_IR 192",
         "Wang^XiaoDong=王^小東=",
     )?;
     test_nested_charset(
         &dcmroot,
-        32,
+        33,
         all::WINDOWS_1252,
         "ISO 2022 IR 149",
         "Hong^Gildong=\u{1b}$)Cûó^\u{1b}$)CÑÎÔ×=\u{1b}$)CÈ«^\u{1b}$)C±æµ¿",
