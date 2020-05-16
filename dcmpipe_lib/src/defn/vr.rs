@@ -1227,7 +1227,6 @@ pub static UV: VR = VR {
     can_pad_end: false,
 };
 
-
 /// # Invalid
 ///
 /// ## Definition

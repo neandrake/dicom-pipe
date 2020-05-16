@@ -400,9 +400,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             (partial_vr, ts)
         } else if ts.explicit_vr {
             match self.read_vr(tag, ts) {
-                Err(ParseError::UnknownExplicitVR(_code)) => {
-                    (&vr::INVALID, ts)
-                },
+                Err(ParseError::UnknownExplicitVR(_code)) => (&vr::INVALID, ts),
                 Err(e) => return Err(e),
                 Ok(vr_ts) => vr_ts,
             }
@@ -473,7 +471,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         match vr_res {
             // if the VR couldn't be matched to a known VR there were still 2 bytes read from stream
             Ok(_) | Err(ParseError::UnknownExplicitVR(_)) => self.bytes_read += 2,
-            _ => {},
+            _ => {}
         }
 
         let mut vr: VRRef = vr_res?;
