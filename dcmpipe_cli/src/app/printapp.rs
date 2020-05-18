@@ -178,12 +178,12 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
     let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
 
     let mut indent_width: usize = seq_path.len();
-    if indent_width > 0 {
-        if element.tag != tags::SequenceDelimitationItem.tag
-            && element.tag != tags::ItemDelimitationItem.tag
-            && element.tag != tags::Item.tag {
-            indent_width += 1;
-        }
+    if indent_width > 0
+        && element.tag != tags::SequenceDelimitationItem.tag
+        && element.tag != tags::ItemDelimitationItem.tag
+        && element.tag != tags::Item.tag
+    {
+        indent_width += 1;
     }
     indent_width *= 2;
 
