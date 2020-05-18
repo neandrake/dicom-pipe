@@ -115,7 +115,7 @@ impl From<&u32> for TagNode {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct TagPath(pub Vec<TagNode>);
 
 impl TagPath {
