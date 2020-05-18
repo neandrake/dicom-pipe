@@ -132,7 +132,7 @@ fn test_parser_state(with_std: bool) -> Result<()> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().tagstop(TagStop::BeforeTag(tagstop));
+        ParserBuilder::default().tagstop(TagStop::BeforeTag(tagstop.into()));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -184,7 +184,7 @@ fn test_dicom_object(with_std: bool) -> Result<()> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag));
+        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag.into()));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -219,7 +219,7 @@ fn test_dicom_object_sequences_without_std() -> Result<()> {
 fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
     let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag));
+        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag.into()));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
