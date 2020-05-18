@@ -3,6 +3,7 @@
 use crate::defn::vm::VMRef;
 use crate::defn::vr::VRRef;
 use std::hash::{Hash, Hasher};
+use std::fmt::{Debug, Formatter};
 
 pub type TagRef = &'static Tag;
 
@@ -66,7 +67,7 @@ impl Hash for Tag {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TagNode {
     tag: u32,
     item: Option<usize>,
@@ -87,6 +88,15 @@ impl TagNode {
 
     pub fn get_item_mut(&mut self) -> &mut Option<usize> {
         &mut self.item
+    }
+}
+
+impl Debug for TagNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.item {
+            None => write!(f, "{}", Tag::format_tag_to_display(self.tag)),
+            Some(item) => write!(f, "{}[{}]", Tag::format_tag_to_display(self.tag), item)
+        }
     }
 }
 

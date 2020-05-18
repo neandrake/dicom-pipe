@@ -293,22 +293,22 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let is_at_tag_stop: bool = match self.tagstop {
             TagStop::EndOfDataset => false,
             TagStop::BeforeTag(before_tag) => {
-                // TODO: Address this -- delimiter/item tags should not exist in the first level
-                //       of a dataset, so this shouldn't actually need checked. Reading into a
-                //       DicomObject must not be placing these items properly in the hierarchy.
+                // TODO: Address this -- self.tag_last_read is not necessarily at the same level
+                //       as self.current_path when this is called. This API should fully support
+                //       TagPath.
                 // Don't consider item & delimiters as they have high values and are not valid
                 // tags for comparison related to tag-stop behavior - these tags can appear anywhere
                 // in the dataset disregarding any relation to other tags.
                 self.tag_last_read != tags::ITEM
                     && self.tag_last_read != tags::ITEM_DELIMITATION_ITEM
                     && self.tag_last_read != tags::SEQUENCE_DELIMITATION_ITEM
-                    && self.current_path.is_empty()
+                    &&self.current_path.is_empty()
                     && self.tag_last_read >= before_tag
             }
             TagStop::AfterTag(after_tag) => {
-                // TODO: Address this -- delimiter/item tags should not exist in the first level
-                //       of a dataset, so this shouldn't actually need checked. Reading into a
-                //       DicomObject must not be placing these items properly in the hierarchy.
+                // TODO: Address this -- self.tag_last_read is not necessarily at the same level
+                //       as self.current_path when this is called. This API should fully support
+                //       TagPath.
                 // Don't consider item & delimiters as they have high values and are not valid
                 // tags for comparison related to tag-stop behavior - these tags can appear anywhere
                 // in the dataset disregarding any relation to other tags.
@@ -998,7 +998,16 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         // check after reading a tag - some items seem to have 0-length and are followed by another
-        // item. without popping here it will create an item-in-item structure.
+        // item. without popping here it will create an item-in-item structure. also need to check
+        // if a sequence delimiter is ending an item which didn't have item delimiter - otherwise
+        // the sequence delimiter will not be parented properly
+        if tag == tags::SEQUENCE_DELIMITATION_ITEM {
+            if let Some(seq_elem) = self.current_path.last() {
+                if seq_elem.get_seq_tag() == tags::ITEM {
+                    self.current_path.pop();
+                }
+            }
+        }
         self.pop_sequence_items_base_on_byte_pos();
 
         // reading element clones the current path so update prior to reading element

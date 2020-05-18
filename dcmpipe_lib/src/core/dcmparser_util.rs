@@ -199,10 +199,7 @@ fn parse_into_object_recurse<DatasetType: Read>(
             prev_seq_path_len = cur_seq_path_len;
         }
 
-        if cur_seq_path_len < prev_seq_path_len
-            && tag != tags::SEQUENCE_DELIMITATION_ITEM
-            && tag != tags::ITEM_DELIMITATION_ITEM
-        {
+        if cur_seq_path_len < prev_seq_path_len {
             // if the next element has a shorter path than the previous one it should not be added
             // to the given node but returned so it can be added to a parent node.
             return Some(Ok(element));
