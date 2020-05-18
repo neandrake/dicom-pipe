@@ -8,15 +8,15 @@ use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::dcmparser::{ParseError, Parser, ParserBuilder, ParseState, Result};
+use dcmpipe_lib::core::dcmparser::{ParseError, ParseState, Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 
-use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_tagstop};
 use crate::mock::MockDicomDataset;
+use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_tagstop};
 
 #[test]
 fn test_good_preamble() {
@@ -484,7 +484,10 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
         .expect("Private sequence should have one item");
     // The item has 26 elements, plus item delimiter
     assert_eq!(child_obj.get_child_count(), 27);
-    assert_eq!(*child_obj.iter_child_nodes().last().unwrap().0, tags::ItemDelimitationItem.tag);
+    assert_eq!(
+        *child_obj.iter_child_nodes().last().unwrap().0,
+        tags::ItemDelimitationItem.tag
+    );
 
     let sopuid: &DicomElement = child_obj
         .get_child(tags::SOPClassUID.tag)

@@ -2,8 +2,8 @@
 
 use crate::defn::vm::VMRef;
 use crate::defn::vr::VRRef;
-use std::hash::{Hash, Hasher};
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 
 pub type TagRef = &'static Tag;
 
@@ -95,7 +95,7 @@ impl Debug for TagNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.item {
             None => write!(f, "{}", Tag::format_tag_to_display(self.tag)),
-            Some(item) => write!(f, "{}[{}]", Tag::format_tag_to_display(self.tag), item)
+            Some(item) => write!(f, "{}[{}]", Tag::format_tag_to_display(self.tag), item),
         }
     }
 }

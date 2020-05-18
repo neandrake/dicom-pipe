@@ -292,14 +292,18 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     fn is_at_tag_stop(&self) -> Result<bool> {
         let is_at_tag_stop: bool = match &self.tagstop {
             TagStop::EndOfDataset => false,
-            TagStop::BeforeTag(tagpath) => {
-                TagStop::check_tagpath(tagpath, &self.current_path, self.tag_last_read,
-                                       |(to_check, current)| current >= to_check)
-            }
-            TagStop::AfterTag(tagpath) => {
-                TagStop::check_tagpath(tagpath, &self.current_path, self.tag_last_read,
-                                       |(to_check, current)| current > to_check)
-            }
+            TagStop::BeforeTag(tagpath) => TagStop::eval_tagpath(
+                tagpath,
+                &self.current_path,
+                self.tag_last_read,
+                |(to_check, current)| current >= to_check,
+            ),
+            TagStop::AfterTag(tagpath) => TagStop::eval_tagpath(
+                tagpath,
+                &self.current_path,
+                self.tag_last_read,
+                |(to_check, current)| current > to_check,
+            ),
             TagStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
         };
 
