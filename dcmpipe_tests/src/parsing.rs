@@ -1,20 +1,22 @@
-use crate::mock::MockDicomDataset;
-use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_tagstop};
+use std::convert::{TryFrom, TryInto};
+use std::fs::File;
+use std::io::ErrorKind;
+
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::dcmparser::{ParseError, ParseState, Parser, ParserBuilder, Result};
+use dcmpipe_lib::core::dcmparser::{ParseError, Parser, ParserBuilder, ParseState, Result};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
-use std::convert::{TryFrom, TryInto};
-use std::fs::File;
-use std::io::ErrorKind;
+
+use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_tagstop};
+use crate::mock::MockDicomDataset;
 
 #[test]
 fn test_good_preamble() {
@@ -469,6 +471,7 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
         .get_child(0x2005_140E)
         .expect("This sequence should have private element as child");
     assert_eq!(private_un_seq_obj.get_item_count(), 1);
+    assert_eq!(private_un_seq_obj.get_child_count(), 1);
 
     let private_un_seq_elem: &DicomElement = private_un_seq_obj.as_element();
     assert_eq!(private_un_seq_elem.vr, &vr::UN);
@@ -479,8 +482,9 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
     let child_obj: &DicomObject = private_un_seq_obj
         .get_item(1)
         .expect("Private sequence should have one item");
-    // The first item has 27 elements
+    // The item has 26 elements, plus item delimiter
     assert_eq!(child_obj.get_child_count(), 27);
+    assert_eq!(*child_obj.iter_child_nodes().last().unwrap().0, tags::ItemDelimitationItem.tag);
 
     let sopuid: &DicomElement = child_obj
         .get_child(tags::SOPClassUID.tag)
