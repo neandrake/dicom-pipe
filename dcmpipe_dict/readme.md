@@ -1,4 +1,4 @@
-= dcmpipe_dict =
+# dcmpipe_dict #
 
 This crate is a library containing definitions from the DICOM standard. It uses the `dcmpipe_dict_builder` crate as a
 build-dependency to parse the DICOM standard XML into rust code.
