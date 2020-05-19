@@ -81,7 +81,7 @@ impl PrintApp {
         stdout: &mut StdoutLock<'_>,
     ) -> Result<()> {
         for (tag, obj) in dcmnode.iter_child_nodes() {
-            let elem: &DicomElement = obj.as_element();
+            let elem: &DicomElement = obj.get_element();
 
             if prev_was_file_meta && *tag > 0x0002_FFFF {
                 stdout.write_all(
@@ -103,8 +103,8 @@ impl PrintApp {
             // may have both items and children is a sequence with items whose only child is
             // its ending sequence delimiter.
             for index in 0..obj.get_item_count() {
-                let child_obj: &DicomObject = obj.get_item(index + 1).unwrap();
-                let child_elem: &DicomElement = child_obj.as_element();
+                let child_obj: &DicomObject = obj.get_item_by_index(index + 1).unwrap();
+                let child_elem: &DicomElement = child_obj.get_element();
                 if let Some(printed) = render_element(child_elem)? {
                     stdout.write_all(format!("{}\n", printed).as_ref())?;
                 }

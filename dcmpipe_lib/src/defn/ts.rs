@@ -1,7 +1,8 @@
 //! Transfer Syntax UIDs
 
-use crate::defn::uid::UIDRef;
 use std::hash::{Hash, Hasher};
+
+use crate::defn::uid::UIDRef;
 
 pub type TSRef = &'static TransferSyntax;
 
