@@ -10,7 +10,7 @@ pub static DEFAULT_CHARACTER_SET: CSRef = WINDOWS_1252 as CSRef;
 /// - Added `ISO-IR-192` mapping for `UTF-8`
 /// See DICOM Part 2 Appendix D.6.2 Support of Character Sets - Character Sets
 /// http://dicom.nema.org/medical/dicom/current/output/chtml/part02/sect_D.6.2.html
-pub fn lookup_charset(label: &str) -> Option<CSRef> {
+pub(crate) fn lookup_charset(label: &str) -> Option<CSRef> {
     let label: String = label
         .chars()
         .map(|c| match c {

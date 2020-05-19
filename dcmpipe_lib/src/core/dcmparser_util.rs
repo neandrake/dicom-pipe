@@ -1,3 +1,6 @@
+use std::collections::BTreeMap;
+use std::io::{ErrorKind, Read};
+
 use crate::core::dcmelement::DicomElement;
 use crate::core::dcmobject::{DicomObject, DicomRoot};
 use crate::core::dcmparser::{ParseError, Parser, Result};
@@ -5,24 +8,20 @@ use crate::defn::constants::tags;
 use crate::defn::vl;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, VR};
-use std::collections::BTreeMap;
-use std::io::{ErrorKind, Read};
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
 /// with a VR of `UN`, `OB`, or `OW` and have a value length of `UndefinedLength`. These types of
 /// elements are considered either private-tag sequences or otherwise whose contents are encoded
 /// as IVRLE.
-pub fn is_non_standard_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
+pub(crate) fn is_non_standard_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
     tag != tags::ITEM
         && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OW)
         && vl == ValueLength::UndefinedLength
 }
 
 /// This is a variation of `Read::read_exact` however if zero bytes are read instead of returning
-/// an error with `ErrorKind::UnexpectedEof` it will return an error with `ErrorKind::WriteZero`.
-/// Normally `WriteZero` can only be returned in calls to `write` however until error handling for
-/// this library is updated this is being used to allow for "expected end of file" handling.
-pub fn read_exact(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<()> {
+/// an error with `ErrorKind::UnexpectedEof` it will return an error with `ParseError::ExpectedEOF`.
+fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<()> {
     let mut bytes_read: usize = 0;
     while !buf.is_empty() {
         match dataset.read(buf) {
@@ -52,24 +51,18 @@ pub fn read_exact(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<()> {
     }
 }
 
-pub fn read_exact_trace(dataset: &mut impl Read, buf: &mut [u8]) -> Result<()> {
-    dataset
-        .read_exact(buf)
-        .map_err(|e| ParseError::IOError { source: e })
-}
-
 /// Reads a tag attribute from a given dataset
-pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32> {
+pub(crate) fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32> {
     let mut buf: [u8; 2] = [0; 2];
 
-    read_exact(dataset, &mut buf)?;
+    read_exact_expect_eof(dataset, &mut buf)?;
     let group_number: u32 = if big_endian {
         u32::from(u16::from_be_bytes(buf)) << 16
     } else {
         u32::from(u16::from_le_bytes(buf)) << 16
     };
 
-    read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
+    dataset.read_exact(&mut buf)?;
     let element_number: u32 = if big_endian {
         u32::from(u16::from_be_bytes(buf))
     } else {
@@ -81,9 +74,9 @@ pub fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Resul
 }
 
 /// Reads a VR from a given dataset.
-pub fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
+pub(crate) fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
     let mut buf: [u8; 2] = [0; 2];
-    read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
+    dataset.read_exact(&mut buf)?;
     let first_char: u8 = buf[0];
     let second_char: u8 = buf[1];
 
@@ -91,7 +84,7 @@ pub fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
     let vr: VRRef = match VR::from_code(code) {
         Some(found_vr) => {
             if found_vr.has_explicit_2byte_pad {
-                read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
+                dataset.read_exact(&mut buf)?;
             }
             found_vr
         }
@@ -108,14 +101,14 @@ pub fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
 ///                 vr uses 2 bytes, but if explicit and the VR has 2-byte padding then 4 bytes
 ///                 should be parsed.
 /// `big_endian` Whether to use big or little endian
-pub fn read_value_length_from_dataset(
+pub(crate) fn read_value_length_from_dataset(
     dataset: &mut impl Read,
     read_4bytes: bool,
     big_endian: bool,
 ) -> Result<ValueLength> {
     let value_length: u32 = if read_4bytes {
         let mut buf: [u8; 4] = [0; 4];
-        read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
+        dataset.read_exact(&mut buf)?;
 
         if big_endian {
             u32::from_be_bytes(buf)
@@ -124,7 +117,7 @@ pub fn read_value_length_from_dataset(
         }
     } else {
         let mut buf: [u8; 2] = [0; 2];
-        read_exact_trace(dataset, &mut buf)?; //dataset.read_exact(&mut buf)?;
+        dataset.read_exact(&mut buf)?;
 
         if big_endian {
             u32::from(u16::from_be_bytes(buf))

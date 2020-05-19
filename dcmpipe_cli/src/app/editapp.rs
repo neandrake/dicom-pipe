@@ -1,18 +1,21 @@
-use crate::app::printapp::render_value;
-use crate::app::{parse_file, CommandApplication};
+use std::cmp::Ordering;
+use std::fs::File;
+use std::path::{Path, PathBuf};
+
 use anyhow::Result;
 use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
 use cursive_table_view::{TableView, TableViewItem};
+
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::Parser;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
-use std::cmp::Ordering;
-use std::fs::File;
-use std::path::{Path, PathBuf};
+
+use crate::app::printapp::render_value;
+use crate::app::{parse_file, CommandApplication};
 
 pub struct EditApp {
     openpath: PathBuf,

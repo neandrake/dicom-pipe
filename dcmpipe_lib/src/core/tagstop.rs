@@ -1,6 +1,7 @@
+use std::iter::once;
+
 use crate::core::dcmsqelem::SequenceElement;
 use crate::defn::tag::{TagNode, TagPath};
-use std::iter::once;
 
 /// TagStop specifies the stopping point at which parsing of a DICOM dataset should end.
 #[derive(Clone)]
@@ -36,7 +37,7 @@ impl TagStop {
     ///       be true.
     pub(crate) fn eval_tagpath<F>(
         tagpath: &TagPath,
-        current_path: &Vec<SequenceElement>,
+        current_path: &[SequenceElement],
         tag_last_read: u32,
         f: F,
     ) -> bool

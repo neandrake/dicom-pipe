@@ -1,8 +1,8 @@
+use std::io::BufRead;
+
 use quick_xml::events::{BytesText, Event};
 use quick_xml::Error as XmlError;
 use quick_xml::Reader;
-
-use std::io::BufRead;
 
 pub type XmlDicomDefinitionResult = Result<XmlDicomDefinition, XmlError>;
 

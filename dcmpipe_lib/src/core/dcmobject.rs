@@ -1,40 +1,44 @@
+use std::collections::btree_map;
+use std::collections::BTreeMap;
+
 use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
-use std::collections::btree_map;
-use std::collections::BTreeMap;
 
 /// Trait for a dicom node which contains child elements.
 pub trait DicomNode {
-    /// Get the number of child node if this is a root or sequence-like node
+    /// Get the number of child node if this is a root or sequence-like node.
     fn get_child_count(&self) -> usize;
-    /// Get a child node with the given tag
-    fn get_child(&self, tag: u32) -> Option<&DicomObject>;
-    /// Iterator over the child nodes, in tag-ascending order
+    /// Get a child node with the given tag.
+    fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject>;
+    /// Iterator over the child nodes, in tag-ascending order.
     fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject>;
-    /// Inserts a child node
-    fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject>;
-    /// Get the number of item nodes if this is a sequence-like node
+    /// Get the number of item nodes if this is a sequence-like node.
     fn get_item_count(&self) -> usize;
-    /// Get an item of the given index
-    fn get_item(&self, index: usize) -> Option<&DicomObject>;
+    /// Get an item of the given index. Index is 1-based.
+    fn get_item_by_index(&self, index: usize) -> Option<&DicomObject>;
 
-    fn get_child_node(&self, node: &TagNode) -> Option<&DicomObject> {
-        self.get_child(node.get_tag())
+    /// Get a child node with the given `TagNode`.
+    fn get_child_by_tagnode(&self, node: &TagNode) -> Option<&DicomObject> {
+        self.get_child_by_tag(node.get_tag())
             .and_then(|o| match node.get_item() {
                 None => Some(o),
-                Some(item_num) => o.get_item(item_num),
+                Some(item_num) => o.get_item_by_index(item_num),
             })
     }
 
-    fn get(&self, tagpath: &TagPath) -> Option<&DicomObject> {
+    /// Get a child node with the given `TagPath`.
+    fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
         if tagpath.0.is_empty() {
             return None;
         }
 
-        let obj = tagpath.0.get(0).and_then(|node| self.get_child_node(node));
+        let obj = tagpath
+            .0
+            .get(0)
+            .and_then(|node| self.get_child_by_tagnode(node));
 
         if tagpath.0.len() == 1 {
             return obj;
@@ -45,7 +49,7 @@ pub trait DicomNode {
             obj = tagpath
                 .0
                 .get(index)
-                .and_then(|node| obj.get_child_node(node))?;
+                .and_then(|node| obj.get_child_by_tagnode(node))?;
         }
         Some(obj)
     }
@@ -74,14 +78,17 @@ impl<'dict> DicomRoot<'dict> {
         }
     }
 
+    /// Get the transfer syntax used to encode the dataset.
     pub fn get_ts(&self) -> TSRef {
         self.ts
     }
 
+    /// Get the character set used to encode string values.
     pub fn get_cs(&self) -> CSRef {
         self.cs
     }
 
+    /// Get the dictionary used to encode the dataset.
     pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
         self.dictionary
     }
@@ -92,7 +99,7 @@ impl<'dict> DicomNode for DicomRoot<'dict> {
         self.child_nodes.len()
     }
 
-    fn get_child(&self, tag: u32) -> Option<&DicomObject> {
+    fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
         self.child_nodes.get(&tag)
     }
 
@@ -100,16 +107,11 @@ impl<'dict> DicomNode for DicomRoot<'dict> {
         self.child_nodes.iter()
     }
 
-    fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject> {
-        let tag: u32 = object.as_element().tag;
-        self.child_nodes.insert(tag, object)
-    }
-
     fn get_item_count(&self) -> usize {
         0
     }
 
-    fn get_item(&self, _index: usize) -> Option<&DicomObject> {
+    fn get_item_by_index(&self, _index: usize) -> Option<&DicomObject> {
         None
     }
 }
@@ -146,7 +148,8 @@ impl DicomObject {
         }
     }
 
-    pub fn as_element(&self) -> &DicomElement {
+    /// Gets the underlying `DicomElement` for this `DicomObject`
+    pub fn get_element(&self) -> &DicomElement {
         &self.element
     }
 }
@@ -156,7 +159,7 @@ impl DicomNode for DicomObject {
         self.child_nodes.len()
     }
 
-    fn get_child(&self, tag: u32) -> Option<&DicomObject> {
+    fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
         self.child_nodes.get(&tag)
     }
 
@@ -164,16 +167,11 @@ impl DicomNode for DicomObject {
         self.child_nodes.iter()
     }
 
-    fn insert_child(&mut self, object: DicomObject) -> Option<DicomObject> {
-        let tag: u32 = object.as_element().tag;
-        self.child_nodes.insert(tag, object)
-    }
-
     fn get_item_count(&self) -> usize {
         self.items.len()
     }
 
-    fn get_item(&self, index: usize) -> Option<&DicomObject> {
+    fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
         self.items.get(index - 1)
     }
 }

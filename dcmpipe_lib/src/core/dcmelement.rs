@@ -1,3 +1,9 @@
+use std::borrow::Cow;
+use std::convert::TryFrom;
+use std::iter::once;
+
+use encoding::types::DecoderTrap;
+
 use crate::core::charset::CSRef;
 use crate::core::dcmparser::{ParseError, Result};
 use crate::core::dcmparser_util;
@@ -7,9 +13,6 @@ use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
-use encoding::types::DecoderTrap;
-use std::borrow::Cow;
-use std::convert::TryFrom;
 
 const U16_SIZE: usize = std::mem::size_of::<u16>();
 const I16_SIZE: usize = std::mem::size_of::<i16>();
@@ -117,15 +120,15 @@ impl DicomElement {
         self.data.is_empty()
     }
 
+    /// Creates a `TagPath` for the current element
     pub fn get_tagpath(&self) -> TagPath {
-        let mut nodes: Vec<TagNode> = self
-            .sq_path
+        self.sq_path
             .iter()
             .filter(|sq| sq.get_seq_tag() != tags::ITEM)
             .map(|sq| sq.get_node().clone())
-            .collect::<Vec<TagNode>>();
-        nodes.push(self.tag.into());
-        nodes.into()
+            .chain(once(self.tag.into()))
+            .collect::<Vec<TagNode>>()
+            .into()
     }
 
     /// Parses this element's data into native/raw value type

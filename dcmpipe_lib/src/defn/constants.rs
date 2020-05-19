@@ -141,12 +141,13 @@ pub mod uids {
 
 /// The transfer syntax lookup for parsing a DICOM dataset.
 pub mod lookup {
-    use super::ts;
-    use super::uids;
     use crate::defn::dcmdict::DicomDictionary;
     use crate::defn::tag::TagRef;
     use crate::defn::ts::TSRef;
     use crate::defn::uid::UIDRef;
+
+    use super::ts;
+    use super::uids;
 
     /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
     /// minimal set of `get_ts_by_uid`. All other functions return `None`.

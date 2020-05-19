@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
@@ -10,6 +9,7 @@ use bson::{doc, Array, Bson, Document};
 use mongodb::sync::{Client, Collection, Cursor, Database};
 use walkdir::WalkDir;
 
+use anyhow::{anyhow, Context, Result};
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
@@ -24,6 +24,11 @@ use crate::args::IndexCommand;
 
 static SERIES_UID_KEY: &str = "0020000E";
 static SOP_UID_KEY: &str = "00080018";
+
+static DATABASE_NAME: &str = "dicom_database";
+static COLLECTION_NAME: &str = "series";
+
+static MONGO_ID_KEY: &str = "_id";
 
 /// Tracks a dicom document scanned from disk or from the database. I was originally going to make
 /// this an enum with variants `FromDisk` and `FromDb` and then try to merge so that the same
@@ -74,9 +79,9 @@ impl IndexApp {
 
     fn get_dicom_coll(&self) -> Result<Collection> {
         let client: Client = Client::with_uri_str(&self.db)
-            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
-        let metabase_db: Database = client.database("metabase_rs");
-        Ok(metabase_db.collection("dicom"))
+            .with_context(|| format!("Invalid database URI: {}", &self.db))?;
+        let database: Database = client.database(DATABASE_NAME);
+        Ok(database.collection(COLLECTION_NAME))
     }
 
     /// Scans a directory and returns the map of all scanned documents
@@ -103,15 +108,15 @@ impl IndexApp {
             let dcm_root: DicomRoot<'_> = dcm_root.unwrap();
 
             let uid_obj: &DicomObject = dcm_root
-                .get_child(tags::SeriesInstanceUID.tag)
-                .or_else(|| dcm_root.get_child(tags::SOPInstanceUID.tag))
+                .get_child_by_tag(tags::SeriesInstanceUID.tag)
+                .or_else(|| dcm_root.get_child_by_tag(tags::SOPInstanceUID.tag))
                 .ok_or_else(|| {
                     anyhow!(
                         "DICOM file has no SeriesInstanceUID or SOPInstanceUID: {:?}",
                         entry.path().display()
                     )
                 })?;
-            let uid_key: String = uid_obj.as_element().try_into()?;
+            let uid_key: String = uid_obj.get_element().try_into()?;
             let entry_key: String = uid_key.clone();
             let dicom_doc: &mut DicomDoc = uid_to_doc
                 .entry(entry_key)
@@ -132,7 +137,7 @@ impl IndexApp {
             metadata_doc.insert("serieskey", uid_key);
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
-                let child_elem: &DicomElement = child_obj.as_element();
+                let child_elem: &DicomElement = child_obj.get_element();
                 if child_elem.is_seq_like() {
                     // TODO: handle sequences
                 } else {
@@ -174,7 +179,7 @@ impl IndexApp {
                 match dicom_doc.id {
                     None => inserts.push(dicom_doc.doc),
                     Some(id) => {
-                        dicom_doc.doc.insert("_id", id.clone());
+                        dicom_doc.doc.insert(MONGO_ID_KEY, id.clone());
                         updates.push((id, dicom_doc.doc));
                     }
                 }
@@ -189,7 +194,7 @@ impl IndexApp {
         // There's no API for mass replacing documents, so do one-by-one.
         println!("Updating {} records", updates.len());
         for (id, doc) in updates.into_iter() {
-            let query: Document = doc! { "_id": id };
+            let query: Document = doc! { MONGO_ID_KEY: id };
             dicom_coll.update_one(query, doc, None)?;
         }
 
@@ -253,12 +258,12 @@ impl IndexApp {
         if !missing_records.is_empty() {
             let ids: Vec<Bson> = missing_records
                 .iter()
-                .filter_map(|doc| doc.get_object_id("_id").ok())
+                .filter_map(|doc| doc.get_object_id(MONGO_ID_KEY).ok())
                 .map(Bson::from)
                 .collect::<Vec<Bson>>();
 
             let query = doc! {
-                "_id" : {
+                MONGO_ID_KEY : {
                     "$in": ids
                 }
             };
@@ -276,7 +281,7 @@ impl IndexApp {
     ) -> Result<impl Iterator<Item = DicomDoc>> {
         let all_dicom_docs: Cursor = dicom_coll
             .find(query, None)
-            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
+            .with_context(|| format!("Invalid database: {}", &self.db))?;
 
         let doc_iter = all_dicom_docs.filter_map(|doc_res| {
             let doc: Document;
@@ -285,7 +290,7 @@ impl IndexApp {
                 Ok(d) => doc = d,
             }
 
-            let doc_id_res = doc.get_object_id("_id");
+            let doc_id_res = doc.get_object_id(MONGO_ID_KEY);
             let doc_id: ObjectId;
             match doc_id_res {
                 Err(_e) => return None,
