@@ -108,12 +108,12 @@ fn test_unknown_explicit_vr_is_error() {
 
     match first_elem {
         Ok(_) => {
-            assert!(false);
+            panic!("first element after SpecificCharacterSet should not parse");
         }
         Err(ParseError::UnknownExplicitVR(code)) => {
             assert_eq!(code, 0);
         }
-        Err(_) => assert!(false),
+        Err(e) => panic!("unexpected error: {:?}", e),
     }
 }
 
@@ -1164,13 +1164,11 @@ fn test_dicomdir(with_std: bool) -> Result<()> {
 }
 
 #[test]
-#[ignore] // this is a deflated dataset
 fn test_sq_with_undefined_length_converted_to_defined_length_with_std() -> Result<()> {
     test_sq_with_undefined_length_converted_to_defined_length(true)
 }
 
 #[test]
-#[ignore] // this is a deflated dataset
 fn test_sq_with_undefined_length_converted_to_defined_length_without_std() -> Result<()> {
     test_sq_with_undefined_length_converted_to_defined_length(false)
 }
@@ -1182,13 +1180,11 @@ fn test_sq_with_undefined_length_converted_to_defined_length(with_std: bool) -> 
 }
 
 #[test]
-#[ignore]
 fn test_sq_with_undefined_length_unconvertable_to_defined_length_with_std() -> Result<()> {
     test_sq_with_undefined_length_unconvertable_to_defined_length(true)
 }
 
 #[test]
-#[ignore]
 fn test_sq_with_undefined_length_unconvertable_to_defined_length_without_std() -> Result<()> {
     test_sq_with_undefined_length_unconvertable_to_defined_length(false)
 }

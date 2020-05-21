@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::DicomElement;
+use crate::core::dcmparser::dataset::Dataset;
 use crate::core::dcmparser_util;
 use crate::core::dcmsqelem::SequenceElement;
 use crate::core::tagstop::TagStop;
@@ -15,6 +16,7 @@ use crate::defn::tag::Tag;
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
+
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
@@ -54,7 +56,7 @@ pub enum ParseError {
         detail: String,
     },
 
-    #[error("error parsing element value: {} [{vr:?}], {message} {bytes:?}", Tag::format_tag_to_display(*tag))]
+    #[error("error parsing element value: {} [{vr:?}], {message} {bytes:?}", Tag::format_tag_to_display(* tag))]
     ValueParseError {
         message: String,
         tag: u32,
@@ -96,6 +98,8 @@ pub struct ParserBuilder<'dict> {
     tagstop: Option<TagStop>,
     /// The `DicomDictionary` to be used when parsing elements. Default is `MinimalDicomDictionary`.
     dictionary: &'dict dyn DicomDictionary,
+    /// The dataset will be wrapped in a `BufReader`, this lets the buffere size be set.
+    buffsize: usize,
 }
 
 impl<'dict> ParserBuilder<'dict> {
@@ -114,10 +118,16 @@ impl<'dict> ParserBuilder<'dict> {
         self
     }
 
+    /// Set the buffer size to use when parsing the dataset.
+    pub fn buffsize(mut self, buffsize: usize) -> Self {
+        self.buffsize = buffsize;
+        self
+    }
+
     /// Constructs the parser from this builder.
     pub fn build<DatasetType: Read>(&self, dataset: DatasetType) -> Parser<'dict, DatasetType> {
         Parser {
-            dataset,
+            dataset: Dataset::new(dataset, self.buffsize),
             tagstop: self.tagstop.clone().unwrap_or(TagStop::EndOfDataset),
             dictionary: self.dictionary,
             state: self
@@ -149,6 +159,8 @@ impl<'dict> Default for ParserBuilder<'dict> {
             state: None,
             tagstop: None,
             dictionary: &MINIMAL_DICOM_DICTIONARY,
+            // BufReader's current default buffer size is 8k
+            buffsize: 8 * 1024,
         }
     }
 }
@@ -156,7 +168,7 @@ impl<'dict> Default for ParserBuilder<'dict> {
 /// Provides an iterator that parses through a dicom dataset returning dicom elements.
 pub struct Parser<'dict, DatasetType: Read> {
     /// The dataset to parse dicom from.
-    dataset: DatasetType,
+    dataset: Dataset<DatasetType>,
 
     /// The current state of reading elements from the dataset.
     state: ParseState,
@@ -632,7 +644,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                             Ok(None)
                         }
                         Some(element) => Ok(Some(element)),
-                    }
+                    };
                 }
                 ParseState::FileMeta => {
                     return match self.iterate_file_meta()? {
@@ -645,7 +657,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                             Ok(None)
                         }
                         Some(element) => Ok(Some(element)),
-                    }
+                    };
                 }
                 ParseState::Element => {
                     return self.iterate_element();
@@ -998,6 +1010,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             .or(self.dataset_ts)
             .unwrap_or(self.detected_ts);
 
+        #[cfg(feature = "deflate")]
+        if ts.deflated {
+            self.dataset.set_read_deflated(true);
+        }
+
         let tag: u32 = self.read_tag(ts)?;
         if self.is_at_tag_stop() {
             return Ok(None);
@@ -1111,6 +1128,63 @@ impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
                 None
             }
             Ok(Some(element)) => Some(Ok(element)),
+        }
+    }
+}
+
+#[cfg(feature = "deflate")]
+mod dataset {
+    use libflate::deflate::Decoder;
+    use std::io::{BufReader, Read, Result};
+
+    pub(crate) struct Dataset<DatasetType: Read> {
+        deflated: Decoder<BufReader<DatasetType>>,
+        read_deflated: bool,
+    }
+
+    impl<DatasetType: Read> Dataset<DatasetType> {
+        pub fn new(dataset: DatasetType, buffsize: usize) -> Dataset<DatasetType> {
+            Dataset {
+                deflated: Decoder::new(BufReader::with_capacity(buffsize, dataset)),
+                read_deflated: false,
+            }
+        }
+
+        pub fn set_read_deflated(&mut self, read_deflated: bool) {
+            self.read_deflated = read_deflated;
+        }
+    }
+
+    impl<DatasetType: Read> Read for Dataset<DatasetType> {
+        fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+            if self.read_deflated {
+                self.deflated.read(buf)
+            } else {
+                self.deflated.as_inner_mut().read(buf)
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "deflate"))]
+mod dataset {
+    use std::io::{BufReader, Read, Result};
+
+    pub(crate) struct Dataset<DatasetType: Read> {
+        dataset: BufReader<DatasetType>,
+    }
+
+    impl<DatasetType: Read> Dataset<DatasetType> {
+        pub fn new(dataset: DatasetType, buffsize: usize) -> Dataset<DatasetType> {
+            Dataset {
+                dataset: BufReader::with_capacity(buffsize, dataset),
+            }
+        }
+    }
+
+    impl<DatasetType: Read> Read for Dataset<DatasetType> {
+        fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+            self.dataset.read(buf)
         }
     }
 }
