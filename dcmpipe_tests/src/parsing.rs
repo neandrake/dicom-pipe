@@ -1148,11 +1148,13 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
 }
 
 #[test]
+#[ignore]
 fn test_dicomdir_with_std() -> Result<()> {
     test_dicomdir(true)
 }
 
 #[test]
+#[ignore]
 fn test_dicomdir_without_std() -> Result<()> {
     test_dicomdir(false)
 }

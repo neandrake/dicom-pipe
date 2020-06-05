@@ -159,6 +159,7 @@ fn test_scs_h31() -> Result<()> {
 }
 
 #[test]
+#[ignore]
 fn test_scs_h32() -> Result<()> {
     test_scs_file(
         true,
