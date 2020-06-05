@@ -5,14 +5,16 @@ use std::iter::once;
 use encoding::types::DecoderTrap;
 
 use crate::core::charset::CSRef;
-use crate::core::dcmparser::{ParseError, Result};
-use crate::core::dcmparser_util;
+use crate::core::parser::error::{ParseError};
+use crate::core::parser::parser::{Result};
+use crate::core::parser;
 use crate::core::dcmsqelem::SequenceElement;
 use crate::defn::constants::tags;
 use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
+
 
 const U16_SIZE: usize = std::mem::size_of::<u16>();
 const I16_SIZE: usize = std::mem::size_of::<i16>();
@@ -112,7 +114,7 @@ impl DicomElement {
 
     /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence
     pub fn is_seq_like(&self) -> bool {
-        self.vr == &vr::SQ || dcmparser_util::is_non_standard_seq(self.tag, self.vr, self.vl)
+        self.vr == &vr::SQ || parser::util::is_non_standard_seq(self.tag, self.vr, self.vl)
     }
 
     /// Returns whether the the size of the value for this element is zero
