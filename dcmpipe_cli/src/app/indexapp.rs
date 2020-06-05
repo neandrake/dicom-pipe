@@ -14,7 +14,7 @@ use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::parser::{parser::Parser, builder::ParserBuilder};
+use dcmpipe_lib::core::parser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::parser::util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;

@@ -8,7 +8,7 @@ use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::parser::{error::ParseError, parser::ParseState, parser::Parser, builder::ParserBuilder, parser::Result};
+use dcmpipe_lib::core::parser::{ParseError, ParseState, Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::parser::util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
