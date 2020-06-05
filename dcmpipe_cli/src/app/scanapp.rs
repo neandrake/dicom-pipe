@@ -5,7 +5,7 @@ use anyhow::Result;
 use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::core::parser::{parser::Parser, builder::ParserBuilder};
+use dcmpipe_lib::core::parser::{Parser, ParserBuilder};
 
 use crate::app::CommandApplication;
 
