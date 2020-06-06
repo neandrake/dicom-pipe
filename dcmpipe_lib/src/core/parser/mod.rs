@@ -8,7 +8,7 @@ pub use error::ParseError;
 pub use builder::ParserBuilder;
 
 pub mod builder;
-pub mod dataset;
+pub(crate) mod ds;
 pub mod error;
 pub mod iter;
 pub mod parser;

@@ -1,7 +1,7 @@
 use std::io::{Read};
 
 use crate::core::charset::{DEFAULT_CHARACTER_SET};
-use crate::core::parser::dataset::dataset::Dataset;
+use crate::core::parser::ds::dataset::Dataset;
 use super::parser::ParseState;
 use super::parser::Parser;
 use crate::core::tagstop::TagStop;

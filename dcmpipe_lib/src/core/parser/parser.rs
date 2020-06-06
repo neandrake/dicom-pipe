@@ -3,7 +3,7 @@ use std::io::{Cursor, ErrorKind, Read};
 
 use crate::core::charset::{self, CSRef};
 use crate::core::dcmelement::DicomElement;
-use crate::core::parser::dataset::dataset::Dataset;
+use crate::core::parser::ds::dataset::Dataset;
 use crate::core::parser;
 use crate::core::parser::error::{ParseError};
 use crate::core::dcmsqelem::SequenceElement;

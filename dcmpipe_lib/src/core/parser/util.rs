@@ -23,7 +23,6 @@ pub(crate) fn is_non_standard_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool 
 
 /// This is a variation of `Read::read_exact` however if zero bytes are read instead of returning
 /// an error with `ErrorKind::UnexpectedEof` it will return an error with `ParseError::ExpectedEOF`.
-#[allow(dead_code)]
 fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<()> {
     let mut bytes_read: usize = 0;
     while !buf.is_empty() {
@@ -55,7 +54,6 @@ fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<
 }
 
 /// Reads a tag attribute from a given dataset
-#[allow(dead_code)]
 pub(crate) fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32> {
     let mut buf: [u8; 2] = [0; 2];
 
@@ -135,7 +133,6 @@ pub(crate) fn read_value_length_from_dataset(
 /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
 /// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
 /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
-#[allow(dead_code)]
 pub fn parse_into_object<'dict, DatasetType: Read>(
     parser: &mut Parser<'dict, DatasetType>,
 ) -> Result<Option<DicomRoot<'dict>>> {
@@ -173,7 +170,6 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
 /// `child_nodes` The map of nodes which elements should be parsed into
 /// `item_nodes` The list of nodes which item elements should be parsed into
 /// `is_first_level` Whether the root level is being parsed, or within child nodes
-#[allow(dead_code)]
 fn parse_into_object_recurse<DatasetType: Read>(
     parser: &mut Parser<'_, DatasetType>,
     child_nodes: &mut BTreeMap<u32, DicomObject>,
