@@ -10,7 +10,7 @@ use cursive_table_view::{TableView, TableViewItem};
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::parser::Parser;
+use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 

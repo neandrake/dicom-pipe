@@ -8,8 +8,8 @@ use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::parser::{Parser, ParserBuilder, Result};
-use dcmpipe_lib::core::parser::util::parse_into_object;
+use dcmpipe_lib::core::read::util::parse_into_object;
+use dcmpipe_lib::core::read::{Parser, ParserBuilder, Result};
 
 use crate::parse_file;
 

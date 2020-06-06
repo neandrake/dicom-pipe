@@ -1,12 +1,12 @@
-use std::io::{Read};
+use std::io::Read;
 
-use crate::core::charset::{DEFAULT_CHARACTER_SET};
-use crate::core::parser::dataset::dataset::Dataset;
 use super::parser::ParseState;
 use super::parser::Parser;
+use crate::core::charset::DEFAULT_CHARACTER_SET;
+use crate::core::read::ds::dataset::Dataset;
 use crate::core::tagstop::TagStop;
 use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
-use crate::defn::constants::{ts};
+use crate::defn::constants::ts;
 use crate::defn::dcmdict::DicomDictionary;
 
 /// A builder for constructing `Parser` with common default states.

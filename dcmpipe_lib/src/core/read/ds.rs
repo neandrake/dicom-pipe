@@ -1,4 +1,3 @@
-
 #[cfg(feature = "deflate")]
 pub(crate) mod dataset {
     use libflate::deflate::Decoder;

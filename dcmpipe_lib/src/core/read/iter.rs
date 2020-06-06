@@ -1,10 +1,9 @@
-use std::io::{Read};
+use std::io::Read;
 
-use crate::core::dcmelement::DicomElement;
 use super::error::ParseError;
 use super::parser::Parser;
 use super::parser::Result;
-
+use crate::core::dcmelement::DicomElement;
 
 impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
     type Item = Result<DicomElement>;
@@ -30,4 +29,3 @@ impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
         }
     }
 }
-

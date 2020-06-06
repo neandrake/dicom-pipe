@@ -3,10 +3,10 @@ use std::io::{Cursor, ErrorKind, Read};
 
 use crate::core::charset::{self, CSRef};
 use crate::core::dcmelement::DicomElement;
-use crate::core::parser::dataset::dataset::Dataset;
-use crate::core::parser;
-use crate::core::parser::error::{ParseError};
 use crate::core::dcmsqelem::SequenceElement;
+use crate::core::read;
+use crate::core::read::ds::dataset::Dataset;
+use crate::core::read::error::ParseError;
 use crate::core::tagstop::TagStop;
 use crate::defn::constants::{tags, ts};
 use crate::defn::dcmdict::DicomDictionary;
@@ -20,8 +20,6 @@ pub const DICOM_PREFIX_LENGTH: usize = 4;
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
 
 pub static DICOM_PREFIX: &[u8; DICOM_PREFIX_LENGTH] = b"DICM";
-
-
 
 /// The `Result` type of the parser
 pub type Result<T> = core::result::Result<T, ParseError>;
@@ -47,8 +45,6 @@ pub enum ParseState {
     /// in the File Meta group.
     Element,
 }
-
-
 
 /// Provides an iterator that parses through a dicom dataset returning dicom elements.
 pub struct Parser<'dict, DatasetType: Read> {
@@ -263,7 +259,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             partial_tag
         } else {
             let tag: u32 =
-                parser::util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian())?;
+                read::util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian())?;
             self.bytes_read += 4;
             self.partial_tag.replace(tag);
             tag
@@ -321,7 +317,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.read_value_length(vl_read_4bytes, ts)?
         };
 
-        let parse_as_seq: bool = parser::util::is_non_standard_seq(tag, vr, vl);
+        let parse_as_seq: bool = read::util::is_non_standard_seq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
             &ts::ImplicitVRLittleEndian
         } else {
@@ -359,11 +355,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads an explicit VR attribute from the dataset. This returns a tuple of `(VRRef, TSRef)`
     /// containing the parsed VR and the passed in transfer syntax. If the VR is explicitly written
     /// as `UN` then the dictionary used for parsing is checked for the default/implicit VR. If the
-    /// VR found  from the dictionary is `SQ` then the returned transfer syntax will be IVRLE as it
+    /// VR found from the dictionary is `SQ` then the returned transfer syntax will be IVRLE as it
     /// is assumed the value field is encoded this way, irrespective of defined transfer syntax.
     /// See Part 5 Section 6.2.2 Note 2.
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef)> {
-        let vr_res: Result<VRRef> = parser::util::read_vr_from_dataset(&mut self.dataset);
+        let vr_res: Result<VRRef> = read::util::read_vr_from_dataset(&mut self.dataset);
         match vr_res {
             // if the VR couldn't be matched to a known VR there were still 2 bytes read from stream
             Ok(_) | Err(ParseError::UnknownExplicitVR(_)) => self.bytes_read += 2,
@@ -406,7 +402,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// of bytes representing the value length depends on transfer syntax. If the VR has a 2-byte
     /// padding then those bytes are also read from the dataset.
     fn read_value_length(&mut self, read_4bytes: bool, ts: TSRef) -> Result<ValueLength> {
-        let result: Result<ValueLength> = parser::util::read_value_length_from_dataset(
+        let result: Result<ValueLength> = read::util::read_value_length_from_dataset(
             &mut self.dataset,
             read_4bytes,
             ts.big_endian,
@@ -598,7 +594,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
-        let mut tag: u32 = parser::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
+        let mut tag: u32 = read::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
 
         if tag == 0 {
             // if tag is zero then assume preamble, jump forward and attempt to detect tag after it
@@ -623,7 +619,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         } else if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
-            tag = parser::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
+            tag = read::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
 
             // if switching endian didn't result in a valid tag then try skipping preamble/prefix
             if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID {
@@ -653,7 +649,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
-            tag = parser::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
+            tag = read::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
         }
 
         // doesn't appear to be a valid tag in either big or little endian
@@ -684,7 +680,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         cursor = Cursor::new(&buf);
 
         let mut vr_is_explicit_padded: bool = false;
-        match parser::util::read_vr_from_dataset(&mut cursor) {
+        match read::util::read_vr_from_dataset(&mut cursor) {
             Ok(vr) => {
                 self.partial_vr = Some(vr);
                 if vr.has_explicit_2byte_pad {
@@ -728,7 +724,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         // assume implicit VR so read a value length and and if it's reasonably low then this is
         // likely implicit
-        let vl: ValueLength = parser::util::read_value_length_from_dataset(
+        let vl: ValueLength = read::util::read_value_length_from_dataset(
             &mut cursor,
             vl_read_4bytes,
             ts.is_big_endian(),
