@@ -6,13 +6,13 @@ pub(crate) mod dataset {
     use std::io::{BufWriter, Result, Write};
 
     #[derive(Debug)]
-    pub(crate) struct Dataset<DatasetType: Write> {
-        encoder: Encoder<BufWriter<DatasetType>>,
+    pub(crate) struct Dataset<W: Write> {
+        encoder: Encoder<BufWriter<W>>,
         write_deflated: bool,
     }
 
-    impl<DatasetType: Write> Dataset<DatasetType> {
-        pub fn new(dataset: DatasetType, buffsize: usize) -> Dataset<DatasetType> {
+    impl<W: Write> Dataset<W> {
+        pub fn new(dataset: W, buffsize: usize) -> Dataset<W> {
             Dataset {
                 encoder: Encoder::new(BufWriter::with_capacity(buffsize, dataset)),
                 write_deflated: false,
@@ -23,7 +23,7 @@ pub(crate) mod dataset {
             self.write_deflated = write_deflated;
         }
 
-        pub fn into_inner(self) -> Result<DatasetType> {
+        pub fn into_inner(self) -> Result<W> {
             self.encoder
                 .into_inner()
                 .into_inner()
@@ -31,7 +31,7 @@ pub(crate) mod dataset {
         }
     }
 
-    impl<DatasetType: Write> Write for Dataset<DatasetType> {
+    impl<W: Write> Write for Dataset<W> {
         fn write(&mut self, buf: &[u8]) -> Result<usize> {
             if self.write_deflated {
                 self.encoder.write(buf)
@@ -55,23 +55,23 @@ pub(crate) mod dataset {
     use std::io::{BufWriter, Result, Write};
 
     #[derive(Debug)]
-    pub(crate) struct Dataset<DatasetType: Write> {
-        dataset: BufWriter<DatasetType>,
+    pub(crate) struct Dataset<W: Write> {
+        dataset: BufWriter<W>,
     }
 
-    impl<DatasetType: Write> Dataset<DatasetType> {
-        pub fn new(dataset: DatasetType, buffsize: usize) -> Dataset<DatasetType> {
+    impl<W: Write> Dataset<W> {
+        pub fn new(dataset: W, buffsize: usize) -> Dataset<W> {
             Dataset {
                 dataset: BufWriter::with_capacity(buffsize, dataset),
             }
         }
 
-        pub fn into_inner(self) -> Result<DatasetType> {
+        pub fn into_inner(self) -> Result<W> {
             self.dataset.into_inner().map_err(|err| err.into())
         }
     }
 
-    impl<DatasetType: Write> Write for Dataset<DatasetType> {
+    impl<W: Write> Write for Dataset<W> {
         fn write(&mut self, buf: &[u8]) -> Result<usize> {
             self.dataset.write(buf)
         }

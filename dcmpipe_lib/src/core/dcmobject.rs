@@ -25,17 +25,17 @@ use super::{
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
-pub struct DicomRoot<'dict> {
+pub struct DicomRoot<'d> {
     ts: TSRef,
     cs: CSRef,
-    dictionary: &'dict dyn DicomDictionary,
+    dictionary: &'d dyn DicomDictionary,
 
     /// This is an object to be parent of all the root-level elements, but does not itself
     /// represent an element.
     sentinel: DicomObject,
 }
 
-impl<'dict> DicomRoot<'dict> {
+impl<'d> DicomRoot<'d> {
     pub fn new(
         ts: TSRef,
         cs: CSRef,
@@ -71,7 +71,7 @@ impl<'dict> DicomRoot<'dict> {
     }
 
     /// Get the dictionary used to encode the dataset.
-    pub fn dictionary(&self) -> &'dict dyn DicomDictionary {
+    pub fn dictionary(&self) -> &'d dyn DicomDictionary {
         self.dictionary
     }
 
@@ -117,9 +117,7 @@ impl<'dict> DicomRoot<'dict> {
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
     /// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
     /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
-    pub fn parse<DatasetType: Read>(
-        parser: &mut Parser<'dict, DatasetType>,
-    ) -> Result<Option<DicomRoot<'dict>>, ParseError> {
+    pub fn parse<R: Read>(parser: &mut Parser<'d, R>) -> Result<Option<DicomRoot<'d>>, ParseError> {
         let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
         let mut items: Vec<DicomObject> = Vec::new();
 
@@ -159,8 +157,8 @@ impl<'dict> DicomRoot<'dict> {
     /// `child_nodes` The map of child nodes which elements should be parsed into
     /// `items` The list of nodes which item elements should be parsed into
     /// `is_root_level` Whether the root level is being parsed, or within child nodes
-    fn parse_recurse<DatasetType: Read>(
-        parser: &mut Parser<'_, DatasetType>,
+    fn parse_recurse<R: Read>(
+        parser: &mut Parser<'_, R>,
         child_nodes: &mut BTreeMap<u32, DicomObject>,
         items: &mut Vec<DicomObject>,
         is_root_level: bool,

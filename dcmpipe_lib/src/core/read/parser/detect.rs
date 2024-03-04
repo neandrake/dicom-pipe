@@ -28,7 +28,7 @@ use crate::core::{
 
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
 
-impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
+impl<'d, R: Read> Parser<'d, R> {
     /// Performs the `ParserState::DetectTransferSyntax` iteration.
     /// Detects little-vs-big endian and implicit-vs-explicit VR. This strategy is not fully
     /// complete however it does cover a wide variety of cases. It does not cover scenarios where

@@ -54,9 +54,9 @@ pub enum ParserState {
 
 /// Provides an iterator that parses through a dicom dataset returning dicom elements.
 #[derive(Debug)]
-pub struct Parser<'dict, DatasetType: Read> {
+pub struct Parser<'d, R: Read> {
     /// The dataset to parse dicom from.
-    pub(super) dataset: Dataset<DatasetType>,
+    pub(super) dataset: Dataset<R>,
 
     /// The current state of reading elements from the dataset.
     pub(super) state: ParserState,
@@ -68,7 +68,7 @@ pub struct Parser<'dict, DatasetType: Read> {
     /// through the stream, and `get_tag_by_number` for resolving VR of parsed elements. The VR is
     /// not strictly necessary for parsing elements however there is potential for sequences to not
     /// have their sub-elements parsed properly without this.
-    pub(super) dictionary: &'dict dyn DicomDictionary,
+    pub(super) dictionary: &'d dyn DicomDictionary,
 
     /// Tracks the number of bytes read from the dataset. It's not required that the dataset
     /// implement `Seek` (network streams won't implement `Seek` without a buffer). Bytes read from
@@ -168,7 +168,7 @@ pub struct Parser<'dict, DatasetType: Read> {
     pub(super) iterator_ended: bool,
 }
 
-impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
+impl<'d, R: Read> Parser<'d, R> {
     pub(crate) fn behavior(&self) -> &ParseBehavior {
         &self.behavior
     }
@@ -200,7 +200,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Get the dictionary used during parsing.
-    pub fn dictionary(&self) -> &'dict dyn DicomDictionary {
+    pub fn dictionary(&self) -> &'d dyn DicomDictionary {
         self.dictionary
     }
 

@@ -9,7 +9,7 @@ use crate::core::{
 };
 
 /// The implementation for `Parser` which is the core iteration loop.
-impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
+impl<'d, R: Read> Iterator for Parser<'d, R> {
     type Item = ParseResult<DicomElement>;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {

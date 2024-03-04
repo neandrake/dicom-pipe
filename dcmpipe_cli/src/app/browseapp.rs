@@ -277,10 +277,10 @@ impl<'app> BrowseApp {
         Ok(())
     }
 
-    fn run_loop<'dict>(
+    fn run_loop<'d>(
         &self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
-        dcmroot: &'dict DicomRoot,
+        dcmroot: &'d DicomRoot,
         mut doc_model: DicomDocumentModel<'app>,
     ) -> Result<()> {
         let root_path = TagPath::empty();

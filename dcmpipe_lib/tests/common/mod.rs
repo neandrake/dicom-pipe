@@ -108,10 +108,7 @@ pub fn get_dicom_file_paths() -> impl Iterator<Item = PathBuf> {
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'.
 /// DICOM files do not need to abide by this format to be valid, but it's standard.
-pub fn is_standard_dcm_file<DatasetType>(parser: &Parser<'_, DatasetType>) -> bool
-where
-    DatasetType: Read,
-{
+pub fn is_standard_dcm_file<R: Read>(parser: &Parser<'_, R>) -> bool {
     match parser.file_preamble() {
         Some(file_preamble) => {
             for b in file_preamble.iter().take(FILE_PREAMBLE_LENGTH) {

@@ -17,7 +17,7 @@ use crate::core::{
     read::parser::{ParseResult, Parser},
 };
 
-impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
+impl<'d, R: Read> Parser<'d, R> {
     /// Performs the `ParserState::Element` iteration
     pub(crate) fn iterate_element(&mut self) -> ParseResult<Option<DicomElement>> {
         // use the transfer syntax defined by the dataset, or if not specified or not yet seen then
