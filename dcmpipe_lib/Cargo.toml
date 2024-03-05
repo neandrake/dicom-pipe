@@ -17,7 +17,7 @@ phf = "0.11"
 thiserror = "1.0"
 
 [dev-dependencies]
-walkdir = "2.4"
+walkdir = "2.5"
 
 [build-dependencies]
 dcmpipe_dict_builder = { path = "../dcmpipe_dict_builder", version = "0.1" }

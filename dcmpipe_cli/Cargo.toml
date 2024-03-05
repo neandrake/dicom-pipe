@@ -6,7 +6,7 @@ edition = "2021"
 
 [features]
 index = ["dep:mongodb", "dep:bson"]
-default = ["index"]
+default = []
 
 [dependencies]
 anyhow = "1.0"
@@ -16,5 +16,5 @@ crossterm = "0.27"
 dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["compress", "dimse", "stddicom"] }
 mongodb = { version = "2.8", default-features = false, features = ["sync"], optional = true }
 ratatui = "0.26"
-walkdir = "2.4"
+walkdir = "2.5"
 
