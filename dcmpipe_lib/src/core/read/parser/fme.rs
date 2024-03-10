@@ -20,7 +20,7 @@ impl<'d, R: Read> Parser<'d, R> {
     pub(super) fn iterate_preamble(&mut self) -> ParseResult<()> {
         let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
         self.dataset.read_exact(&mut file_preamble)?;
-        self.bytes_read += file_preamble.len() as u64;
+        self.bytes_read += u64::try_from(file_preamble.len()).unwrap_or_default();
         self.file_preamble = Some(file_preamble);
         self.state = ParserState::Prefix;
         Ok(())
@@ -30,7 +30,7 @@ impl<'d, R: Read> Parser<'d, R> {
     pub(super) fn iterate_prefix(&mut self) -> ParseResult<()> {
         let mut dicom_prefix: [u8; DICOM_PREFIX_LENGTH] = [0; DICOM_PREFIX_LENGTH];
         self.dataset.read_exact(&mut dicom_prefix)?;
-        self.bytes_read += dicom_prefix.len() as u64;
+        self.bytes_read += u64::try_from(dicom_prefix.len()).unwrap_or_default();
         for (n, prefix_item) in DICOM_PREFIX.iter().enumerate() {
             if dicom_prefix[n] != *prefix_item {
                 return Err(ParseError::BadDICOMPrefix(dicom_prefix));

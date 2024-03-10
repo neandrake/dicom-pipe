@@ -120,9 +120,9 @@ pub(crate) fn read_value_length_from_dataset(
         let mut buf: [u8; 2] = [0; 2];
         dataset.read_exact(&mut buf)?;
         if ts.big_endian() {
-            u16::from_be_bytes(buf) as u32
+            u32::from(u16::from_be_bytes(buf))
         } else {
-            u16::from_le_bytes(buf) as u32
+            u32::from(u16::from_le_bytes(buf))
         }
     };
     Ok(vl::from_u32(value_length))

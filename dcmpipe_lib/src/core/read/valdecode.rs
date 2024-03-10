@@ -82,7 +82,7 @@ impl TryFrom<&DicomElement> for RawValue {
 
     /// Based on the VR of this element, parses the binary data into a RawValue.
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        TryFrom::try_from(ElementWithVr(value, value.vr()))
+        Self::try_from(ElementWithVr(value, value.vr()))
     }
 }
 
@@ -100,7 +100,7 @@ impl TryFrom<&DicomElement> for Vec<Attribute> {
         let num_attrs = shorts.len() / 2;
         let mut attrs: Vec<Attribute> = Vec::with_capacity(num_attrs);
         for chunk in shorts.chunks(2) {
-            let attr: u32 = ((chunk[0] as u32) << 16) + (chunk[1] as u32);
+            let attr: u32 = (u32::from(chunk[0]) << 16) + u32::from(chunk[1]);
             attrs.push(Attribute(attr));
         }
         Ok(attrs)

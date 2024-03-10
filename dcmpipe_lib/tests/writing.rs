@@ -95,12 +95,12 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
 
     let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file()
         .ts(parser.ts())
-        .build(Vec::with_capacity(file_size as usize));
+        .build(Vec::with_capacity(usize::try_from(file_size).unwrap_or_default()));
     writer.write_dcmroot(&dcmroot)?;
     let written_bytes: Vec<u8> = writer.into_dataset()?;
 
     // Read all bytes into memory.
-    let mut file_bytes: Vec<u8> = Vec::with_capacity(file_size as usize);
+    let mut file_bytes: Vec<u8> = Vec::with_capacity(usize::try_from(file_size).unwrap_or_default());
     let mut file: File = fixture(path)?;
     file.read_to_end(&mut file_bytes)?;
 
@@ -145,7 +145,7 @@ pub fn test_write_reencoded_values() -> Result<(), WriteError> {
     let written_bytes = writer.into_dataset()?;
 
     // Read all bytes into memory.
-    let mut file_bytes: Vec<u8> = Vec::with_capacity(file_size as usize);
+    let mut file_bytes: Vec<u8> = Vec::with_capacity(usize::try_from(file_size).unwrap_or_default());
     let mut file: File = fixture(file_path)?;
     file.read_to_end(&mut file_bytes)?;
 

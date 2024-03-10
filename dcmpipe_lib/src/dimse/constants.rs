@@ -33,6 +33,12 @@ pub enum CommandField {
     CCancelReq = 0xFFFF,
 }
 
+impl From<CommandField> for u32 {
+    fn from(value: CommandField) -> Self {
+        value as Self
+    }
+}
+
 impl TryFrom<u32> for CommandField {
     type Error = ();
 
@@ -79,6 +85,12 @@ pub enum Priority {
     Low = 0x0002,
     Medium = 0x0000,
     High = 0x0001,
+}
+
+impl From<Priority> for u32 {
+    fn from(value: Priority) -> Self {
+        value as Self
+    }
 }
 
 impl TryFrom<u32> for Priority {
@@ -149,107 +161,107 @@ mod tests {
     fn test_command_field_roundtrip() {
         assert_eq!(
             CommandField::CStoreReq,
-            (CommandField::CStoreReq as u32).try_into().unwrap()
+            (u32::from(CommandField::CStoreReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CStoreRsp,
-            (CommandField::CStoreRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::CStoreRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CGetReq,
-            (CommandField::CGetReq as u32).try_into().unwrap()
+            (u32::from(CommandField::CGetReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CGetRsp,
-            (CommandField::CGetRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::CGetRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CFindReq,
-            (CommandField::CFindReq as u32).try_into().unwrap()
+            (u32::from(CommandField::CFindReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CFindRsp,
-            (CommandField::CFindRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::CFindRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CMoveReq,
-            (CommandField::CMoveReq as u32).try_into().unwrap()
+            (u32::from(CommandField::CMoveReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CMoveRsp,
-            (CommandField::CMoveRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::CMoveRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CEchoReq,
-            (CommandField::CEchoReq as u32).try_into().unwrap()
+            (u32::from(CommandField::CEchoReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::CEchoRsp,
-            (CommandField::CEchoRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::CEchoRsp)).try_into().unwrap()
         );
 
         assert_eq!(
             CommandField::NEventReportReq,
-            (CommandField::NEventReportReq as u32).try_into().unwrap()
+            (u32::from(CommandField::NEventReportReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NEventReportRsp,
-            (CommandField::NEventReportRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::NEventReportRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NGetReq,
-            (CommandField::NGetReq as u32).try_into().unwrap()
+            (u32::from(CommandField::NGetReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NGetRsp,
-            (CommandField::NGetRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::NGetRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NSetReq,
-            (CommandField::NSetReq as u32).try_into().unwrap()
+            (u32::from(CommandField::NSetReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NSetRsp,
-            (CommandField::NSetRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::NSetRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NActionReq,
-            (CommandField::NActionReq as u32).try_into().unwrap()
+            (u32::from(CommandField::NActionReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NActionRsp,
-            (CommandField::NActionRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::NActionRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NCreateReq,
-            (CommandField::NCreateReq as u32).try_into().unwrap()
+            (u32::from(CommandField::NCreateReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NCreateRsp,
-            (CommandField::NCreateRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::NCreateRsp)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NDeleteReq,
-            (CommandField::NDeleteReq as u32).try_into().unwrap()
+            (u32::from(CommandField::NDeleteReq)).try_into().unwrap()
         );
         assert_eq!(
             CommandField::NDeleteRsp,
-            (CommandField::NDeleteRsp as u32).try_into().unwrap()
+            (u32::from(CommandField::NDeleteRsp)).try_into().unwrap()
         );
 
         assert_eq!(
             CommandField::CCancelReq,
-            (CommandField::CCancelReq as u32).try_into().unwrap()
+            (u32::from(CommandField::CCancelReq)).try_into().unwrap()
         );
     }
 
     #[test]
     fn test_priority_roundtrip() {
-        assert_eq!(Priority::Low, (Priority::Low as u32).try_into().unwrap());
+        assert_eq!(Priority::Low, (u32::from(Priority::Low)).try_into().unwrap());
         assert_eq!(
             Priority::Medium,
-            (Priority::Medium as u32).try_into().unwrap()
+            (u32::from(Priority::Medium)).try_into().unwrap()
         );
-        assert_eq!(Priority::High, (Priority::High as u32).try_into().unwrap());
+        assert_eq!(Priority::High, (u32::from(Priority::High)).try_into().unwrap());
     }
 }

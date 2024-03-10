@@ -364,11 +364,11 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
         RawValue::UnsignedShorts(ushorts) => {
             if !ushorts.is_empty() {
                 if ushorts.len() == 1 {
-                    dicom_doc.insert(key, ushorts[0] as u32);
+                    dicom_doc.insert(key, u32::from(ushorts[0]));
                 } else {
                     let uints = ushorts
                         .into_iter()
-                        .map(|ushort: u16| ushort as u32)
+                        .map(|ushort: u16| u32::from(ushort))
                         .collect::<Vec<u32>>();
                     dicom_doc.insert(key, uints);
                 }
@@ -434,9 +434,9 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
         RawValue::Words(words) => {
             if !words.is_empty() {
                 if words.len() == 1 {
-                    dicom_doc.insert(key, words[0] as u32);
+                    dicom_doc.insert(key, u32::from(words[0]));
                 } else {
-                    let words: Vec<u32> = words.into_iter().map(|w| w as u32).collect::<Vec<u32>>();
+                    let words: Vec<u32> = words.into_iter().map(u32::from).collect::<Vec<u32>>();
                     dicom_doc.insert(key, words);
                 }
             }

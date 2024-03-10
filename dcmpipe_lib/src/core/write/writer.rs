@@ -159,7 +159,7 @@ impl<W: Write> Writer<W> {
         let fm_group_length = Writer::<W>::new_fme(
             tags::FILE_META_INFORMATION_GROUP_LENGTH,
             &vr::UL,
-            RawValue::UnsignedIntegers(vec![fm_bytes.len() as u32]),
+            RawValue::UnsignedIntegers(vec![u32::try_from(fm_bytes.len()).unwrap_or_default()]),
         )?;
 
         bytes_written += Writer::write_element(&mut self.dataset, &fm_group_length)?;
@@ -197,18 +197,18 @@ impl<W: Write> Writer<W> {
 
         if element.ts().big_endian() {
             dataset.write_all(&u16::to_be_bytes(
-                (element.tag() >> 16 & 0x0000_FFFF) as u16,
+                u16::try_from(element.tag() >> 16 & 0x0000_FFFF).unwrap_or(u16::MAX),
             ))?;
             bytes_written += 2;
 
-            dataset.write_all(&u16::to_be_bytes((element.tag() & 0x0000_FFFF) as u16))?;
+            dataset.write_all(&u16::to_be_bytes(u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX)))?;
             bytes_written += 2;
         } else {
             dataset.write_all(&u16::to_le_bytes(
-                (element.tag() >> 16 & 0x0000_FFFF) as u16,
+                u16::try_from(element.tag() >> 16 & 0x0000_FFFF).unwrap_or(u16::MAX),
             ))?;
             bytes_written += 2;
-            dataset.write_all(&u16::to_le_bytes((element.tag() & 0x0000_FFFF) as u16))?;
+            dataset.write_all(&u16::to_le_bytes(u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX)))?;
             bytes_written += 2;
         }
 
@@ -268,7 +268,7 @@ impl<W: Write> Writer<W> {
                         bytes_written += 4;
                     }
                 } else {
-                    let length: u16 = (length & 0x0000_FFFF) as u16;
+                    let length: u16 = u16::try_from(length & 0x0000_FFFF).unwrap_or(u16::MAX);
 
                     if element.ts().big_endian() {
                         dataset.write_all(&length.to_be_bytes())?;
