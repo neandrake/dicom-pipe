@@ -710,6 +710,12 @@ impl ReleaseRQ {
     }
 }
 
+impl Default for ReleaseRQ {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReleaseRP {
     /// Reserved, should be zero.
@@ -763,6 +769,12 @@ impl ReleaseRP {
             length,
             reserved_2: buf,
         })
+    }
+}
+
+impl Default for ReleaseRP {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1231,7 +1243,7 @@ impl AssocRQPresentationContext {
         // additional 2 for the length field, and the value of the length field being the size of
         // the last variable-length field.
         bytes_read += buf.len();
-        bytes_read += usize::try_from(2 + abstract_syntax.length()).unwrap_or_default();
+        bytes_read += usize::from(2 + abstract_syntax.length());
 
         // The length of total transfer syntax list is value of this PDU's length field less the
         // number of bytes before the transfer syntaxes field. There are no fields after the
@@ -1245,7 +1257,7 @@ impl AssocRQPresentationContext {
             // field, and also the value of the length field being the size of the last
             // variable-length field.
             transfer_syntax_len_marker -=
-                usize::try_from(4 + transfer_syntax.length()).unwrap_or_default();
+                usize::from(4 + transfer_syntax.length());
             transfer_syntaxes.push(transfer_syntax);
         }
 
@@ -2207,7 +2219,7 @@ impl SOPClassCommonExtendedNegotiationItem {
                 + size_of::<u16>()
                 + usize::from(rel_gen_sop_class_length));
         let reserved = if reserved_len > 0 {
-            let mut reserved: Vec<u8> = vec![0u8; reserved_len.into()];
+            let mut reserved: Vec<u8> = vec![0u8; reserved_len];
             dataset.read_exact(&mut reserved)?;
             reserved
         } else {
@@ -2750,28 +2762,20 @@ mod tests {
 
         assert_eq!(
             PduType::AbstractSyntaxItem,
-            (u8::from(PduType::AbstractSyntaxItem))
-                .try_into()
-                .unwrap()
+            (u8::from(PduType::AbstractSyntaxItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::TransferSyntaxItem,
-            (u8::from(PduType::TransferSyntaxItem))
-                .try_into()
-                .unwrap()
+            (u8::from(PduType::TransferSyntaxItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::UserInformationItem,
-            (u8::from(PduType::UserInformationItem))
-                .try_into()
-                .unwrap()
+            (u8::from(PduType::UserInformationItem)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::MaxLengthItem,
-            (u8::from(PduType::MaxLengthItem))
-                .try_into()
-                .unwrap()
+            (u8::from(PduType::MaxLengthItem)).try_into().unwrap()
         );
 
         assert_eq!(
@@ -2788,9 +2792,7 @@ mod tests {
         );
         assert_eq!(
             PduType::RoleSelectionItem,
-            (u8::from(PduType::RoleSelectionItem))
-                .try_into()
-                .unwrap()
+            (u8::from(PduType::RoleSelectionItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::ImplementationVersionNameItem,
@@ -2812,9 +2814,7 @@ mod tests {
         );
         assert_eq!(
             PduType::UserIdentityItem,
-            (u8::from(PduType::UserIdentityItem))
-                .try_into()
-                .unwrap()
+            (u8::from(PduType::UserIdentityItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::UserIdentityNegotiationItem,

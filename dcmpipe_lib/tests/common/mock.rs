@@ -111,8 +111,13 @@ impl Seek for MockDicomDataset {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Error> {
         let newpos: usize = match pos {
             SeekFrom::Start(n) => usize::try_from(n).unwrap_or(usize::MAX),
-            SeekFrom::Current(n) => self.pos.saturating_add(usize::try_from(n).unwrap_or(usize::MAX)),
-            SeekFrom::End(n) => self.data.len().saturating_sub(usize::try_from(n).unwrap_or(usize::MAX)),
+            SeekFrom::Current(n) => self
+                .pos
+                .saturating_add(usize::try_from(n).unwrap_or(usize::MAX)),
+            SeekFrom::End(n) => self
+                .data
+                .len()
+                .saturating_sub(usize::try_from(n).unwrap_or(usize::MAX)),
         };
 
         if newpos < self.data.len() {
