@@ -267,7 +267,8 @@ where
     FLE: Fn(&[u8]) -> ParseResult<T>,
     FBE: Fn(&[u8]) -> ParseResult<T>,
 {
-    let num_bytes: usize = value.data().len();
+    let data = value.data();
+    let num_bytes: usize = data.len();
     if num_bytes == 0 {
         return Ok(Vec::with_capacity(0));
     }
@@ -284,15 +285,10 @@ where
     }
 
     let num_items: usize = num_bytes / t_size;
-    // The bit-wise largest number-type being parsed takes up 8 bytes.
-    let mut buf: [u8; 8] = [0; 8];
-    // Create a slice of the array of the right size for the type, required by copy_from_slice().
-    let buf = &mut buf[..t_size];
     let mut result: Vec<T> = Vec::with_capacity(num_items);
-
     for item_num in 0..num_items {
         let idx = item_num * t_size;
-        buf.copy_from_slice(&value.data()[idx..(idx + t_size)]);
+        let buf = &data[idx..(idx + t_size)];
         let val: T = if value.ts().big_endian() {
             be(buf)?
         } else {
