@@ -11,46 +11,42 @@ use crate::core::{
     dcmelement::DicomElement,
     defn::{
         constants::tags,
-        dcmdict::DicomDictionary,
-        tag::{TagNode, TagPath},
+        tag::{Tag, TagNode, TagPath},
         ts::TSRef,
         vl::ValueLength,
+        vr,
     },
-};
-
-use super::{
     read::{ParseError, Parser},
-    write::error::WriteError,
 };
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
-pub struct DicomRoot<'d> {
+pub struct DicomRoot {
     ts: TSRef,
     cs: CSRef,
-    dictionary: &'d dyn DicomDictionary,
 
     /// This is an object to be parent of all the root-level elements, but does not itself
     /// represent an element.
     sentinel: DicomObject,
 }
 
-impl<'d> DicomRoot<'d> {
+impl DicomRoot {
     pub fn new(
         ts: TSRef,
         cs: CSRef,
-        dictionary: &dyn DicomDictionary,
         child_nodes: BTreeMap<u32, DicomObject>,
         items: Vec<DicomObject>,
-    ) -> DicomRoot<'_> {
+    ) -> DicomRoot {
         let sentinel_elem = DicomElement::new_sentinel();
         let sentinel = DicomObject::new_with_children(sentinel_elem, child_nodes, items);
-        DicomRoot {
-            ts,
-            cs,
-            dictionary,
-            sentinel,
-        }
+        DicomRoot { ts, cs, sentinel }
+    }
+
+    pub fn new_empty(ts: TSRef, cs: CSRef) -> DicomRoot {
+        let sentinel_elem = DicomElement::new_sentinel();
+        let sentinel =
+            DicomObject::new_with_children(sentinel_elem, BTreeMap::new(), Vec::with_capacity(0));
+        Self { ts, cs, sentinel }
     }
 
     /// Returns a delegate object that holds all the root-level elements. Be cautious not to use
@@ -70,33 +66,54 @@ impl<'d> DicomRoot<'d> {
         self.cs
     }
 
-    /// Get the dictionary used to encode the dataset.
-    pub fn dictionary(&self) -> &'d dyn DicomDictionary {
-        self.dictionary
-    }
-
+    /// The number of child nodes in this `DicomRoot`.
     pub fn get_child_count(&self) -> usize {
         self.sentinel.child_count()
     }
 
+    /// Gets a child node by tag number.
     pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
         self.sentinel.get_child_by_tag(tag)
     }
 
+    /// Gets a mutable child node by tag number.
+    pub fn get_child_by_tag_mut(&mut self, tag: u32) -> Option<&mut DicomObject> {
+        self.sentinel.get_child_by_tag_mut(tag)
+    }
+
+    /// Returns an iterator for the child nodes in this `DicomRoot`.
     pub fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
         self.sentinel.iter_child_nodes()
     }
 
+    /// Returns an iterator for the mutable child nodes in this `DicomRoot`.
+    pub fn iter_child_nodes_mut(&mut self) -> btree_map::IterMut<'_, u32, DicomObject> {
+        self.sentinel.iter_child_nodes_mut()
+    }
+
+    /// The number of item nodes in this `DicomRoot`.
     pub fn item_count(&self) -> usize {
         self.sentinel.item_count()
     }
 
+    /// Get an item node, by 1-based index.
     pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
         self.sentinel.get_item_by_index(index)
     }
 
+    /// Get a mutable item node by 1-based index.
+    pub fn get_item_by_index_mut(&mut self, index: usize) -> Option<&mut DicomObject> {
+        self.sentinel.get_item_by_index_mut(index)
+    }
+
+    /// Returns an iterator for the item nodes in this `DicomRoot`.
     pub fn iter_items(&self) -> std::slice::Iter<DicomObject> {
         self.sentinel.iter_items()
+    }
+
+    /// Returns an iterator for the mutable item nodes in this `DicomRoot`.
+    pub fn iter_items_mut(&mut self) -> std::slice::IterMut<DicomObject> {
+        self.sentinel.iter_items_mut()
     }
 
     /// Get a child node with the given `TagNode`.
@@ -104,20 +121,54 @@ impl<'d> DicomRoot<'d> {
         self.sentinel.get_child_by_tagnode(tag_node)
     }
 
+    /// Get a mutable child node with the given `TagNode`.
+    pub fn get_child_by_tagnode_mut(&mut self, tag_node: &TagNode) -> Option<&mut DicomObject> {
+        self.sentinel.get_child_by_tagnode_mut(tag_node)
+    }
+
     /// Get a child node with the given `TagPath`.
     pub fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
         self.sentinel.get_child_by_tagpath(tagpath)
     }
 
+    /// Get a mutable child node with the given `TagPath`.
+    pub fn get_child_by_tagpath_mut(&mut self, tagpath: &TagPath) -> Option<&mut DicomObject> {
+        self.sentinel.get_child_by_tagpath_mut(tagpath)
+    }
+
+    /// Gets the total number of bytes that will be needed to encode this `DicomRoot` and its
+    /// child/index nodes into a dataset.
+    pub fn byte_size(&self) -> usize {
+        self.sentinel.byte_size()
+    }
+
     /// Flattens this object into an ordered list of elements as they would appear in a dataset.
-    pub fn flatten(&self) -> Result<Vec<&DicomElement>, WriteError> {
+    pub fn flatten(&self) -> Vec<&DicomElement> {
         self.sentinel.flatten()
+    }
+
+    /// Creates a new `DicomElement` from the given `Tag`, using this `DicomRoot`'s transfer syntax
+    /// and the tag's implicit VR if present, or `UN` if not.
+    pub fn create_element(&self, tag: &Tag) -> DicomElement {
+        DicomElement::new_empty(tag.tag(), tag.implicit_vr().unwrap_or(&vr::UN), self.ts)
+    }
+
+    /// Add the given element as a child to this root object. Returns a reference to the newly
+    /// created `DicomObject` for the given element.
+    pub fn add_element(&mut self, elem: DicomElement) -> &mut DicomObject {
+        self.sentinel.add_element(elem)
+    }
+
+    /// Creates a new `DicomElement` using `self::create_element()` and adds it to this `DicomRoot`
+    /// using `self::add_element()`.
+    pub fn create_and_add(&mut self, tag: &Tag) -> &mut DicomObject {
+        self.add_element(self.create_element(tag))
     }
 
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
     /// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
     /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
-    pub fn parse<R: Read>(parser: &mut Parser<'d, R>) -> Result<Option<DicomRoot<'d>>, ParseError> {
+    pub fn parse<R: Read>(parser: &mut Parser<R>) -> Result<Option<DicomRoot>, ParseError> {
         let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
         let mut items: Vec<DicomObject> = Vec::new();
 
@@ -137,13 +188,7 @@ impl<'d> DicomRoot<'d> {
 
         // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
         // and specific character set.
-        let root: DicomRoot<'_> = DicomRoot::new(
-            parser.ts(),
-            parser.cs(),
-            parser.dictionary(),
-            child_nodes,
-            items,
-        );
+        let root: DicomRoot = DicomRoot::new(parser.ts(), parser.cs(), child_nodes, items);
         Ok(Some(root))
     }
 
@@ -243,7 +288,7 @@ impl<'d> DicomRoot<'d> {
     }
 }
 
-impl std::fmt::Debug for DicomRoot<'_> {
+impl std::fmt::Debug for DicomRoot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -287,32 +332,64 @@ impl DicomObject {
         }
     }
 
+    /// A reference to the wrapped `DicomElement` of this `DicomObject`.
     pub fn element(&self) -> &DicomElement {
         &self.element
     }
 
+    /// A mutable reference to the wrapped `DicomElement` of this `DicomObject`.
+    pub fn element_mut(&mut self) -> &mut DicomElement {
+        &mut self.element
+    }
+
+    /// The number of child nodes in this `DicomObject`.
     pub fn child_count(&self) -> usize {
         self.child_nodes.len()
     }
 
+    /// Gets a child node by tag number.
     pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
         self.child_nodes.get(&tag)
     }
 
+    /// Gets a mutable child node by tag number.
+    pub fn get_child_by_tag_mut(&mut self, tag: u32) -> Option<&mut DicomObject> {
+        self.child_nodes.get_mut(&tag)
+    }
+
+    /// Returns an iterator for the child nodes in this `DicomObject`.
     pub fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
         self.child_nodes.iter()
     }
 
+    /// Returns an iterator for the mutable child nodes in this `DicomObject`.
+    pub fn iter_child_nodes_mut(&mut self) -> btree_map::IterMut<'_, u32, DicomObject> {
+        self.child_nodes.iter_mut()
+    }
+
+    /// The number of item nodes in this `DicomObject`.
     pub fn item_count(&self) -> usize {
         self.items.len()
     }
 
+    /// Get an item node, by 1-based index.
     pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
         self.items.get(index - 1)
     }
 
+    /// Get a mutable item node by 1-based index.
+    pub fn get_item_by_index_mut(&mut self, index: usize) -> Option<&mut DicomObject> {
+        self.items.get_mut(index - 1)
+    }
+
+    /// Returns an iterator for the item nodes in this `DicomObject`.
     pub fn iter_items(&self) -> std::slice::Iter<DicomObject> {
         self.items.iter()
+    }
+
+    /// Returns an iterator for the mutable item nodes in this `DicomObject`.
+    pub fn iter_items_mut(&mut self) -> std::slice::IterMut<DicomObject> {
+        self.items.iter_mut()
     }
 
     /// Get a child node with the given `TagNode`.
@@ -321,6 +398,15 @@ impl DicomObject {
             .and_then(|o| match tag_node.item() {
                 None => Some(o),
                 Some(item_num) => o.get_item_by_index(item_num),
+            })
+    }
+
+    /// Get a mutable child node with the given `TagNode`.
+    pub fn get_child_by_tagnode_mut(&mut self, tag_node: &TagNode) -> Option<&mut DicomObject> {
+        self.get_child_by_tag_mut(tag_node.tag())
+            .and_then(|o| match tag_node.item() {
+                None => Some(o),
+                Some(item_num) => o.get_item_by_index_mut(item_num),
             })
     }
 
@@ -336,8 +422,26 @@ impl DicomObject {
         target
     }
 
+    /// Get a mutable child node with the given `TagPath`.
+    pub fn get_child_by_tagpath_mut(&mut self, tagpath: &TagPath) -> Option<&mut DicomObject> {
+        let mut target = tagpath
+            .nodes
+            .first()
+            .map(|n| self.get_child_by_tagnode_mut(n))?;
+        for node in tagpath.nodes.iter().skip(1) {
+            target = target.and_then(|parent| parent.get_child_by_tagnode_mut(node));
+        }
+        target
+    }
+
+    /// Gets the total number of bytes that will be needed to encode this `DicomObject` and its
+    /// child/index nodes into a dataset.
+    pub fn byte_size(&self) -> usize {
+        self.flatten().iter().map(|e| e.byte_size()).sum()
+    }
+
     /// Flattens this object into an ordered list of elements as they would appear in a dataset.
-    pub fn flatten(&self) -> Result<Vec<&DicomElement>, WriteError> {
+    pub fn flatten(&self) -> Vec<&DicomElement> {
         // TODO: Can this instead return an iterator?
 
         let mut elements: Vec<&DicomElement> = Vec::new();
@@ -346,14 +450,22 @@ impl DicomObject {
         // well as the sequence delimiter as a child node.
         for dcmobj in self.iter_items() {
             elements.push(dcmobj.element());
-            elements.append(&mut (dcmobj.flatten()?));
+            elements.append(&mut (dcmobj.flatten()));
         }
         for (_tag, dcmobj) in self.iter_child_nodes() {
             elements.push(dcmobj.element());
-            elements.append(&mut (dcmobj.flatten()?));
+            elements.append(&mut (dcmobj.flatten()));
         }
 
-        Ok(elements)
+        elements
+    }
+
+    /// Add the given element as a child to this current object/element.
+    /// Returns a reference to the newly created `DicomObject` for the given element.
+    pub fn add_element(&mut self, elem: DicomElement) -> &mut DicomObject {
+        let tag = elem.tag();
+        let obj = DicomObject::new(elem);
+        self.child_nodes.entry(tag).or_insert(obj)
     }
 }
 

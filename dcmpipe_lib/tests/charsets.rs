@@ -22,7 +22,7 @@ fn test_parse_nested_charset_values() -> ParseResult<()> {
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build(file);
 
-    let dcmroot: DicomRoot<'_> =
+    let dcmroot: DicomRoot =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
 
     test_nested_charset(
@@ -93,7 +93,7 @@ fn test_parse_nested_charset_values() -> ParseResult<()> {
 }
 
 fn test_nested_charset(
-    dcmroot: &DicomRoot<'_>,
+    dcmroot: &DicomRoot,
     item_num: usize,
     cs: CSRef,
     scs: &str,
@@ -257,7 +257,7 @@ fn test_scs_x2() -> ParseResult<()> {
 }
 
 fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> ParseResult<()> {
-    let dcmroot: DicomRoot<'_> = parse_file(path, with_std)?;
+    let dcmroot: DicomRoot = parse_file(path, with_std)?;
 
     assert_eq!(cs.name(), dcmroot.cs().name());
 

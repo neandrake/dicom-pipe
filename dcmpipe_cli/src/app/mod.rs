@@ -166,15 +166,13 @@ impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
             RawValue::Shorts(shorts) => {
                 format_vec_to_strings(shorts, |val: i16| format!("{}", val))
             }
-            RawValue::UnsignedShorts(ushorts) => {
+            RawValue::UShorts(ushorts) => {
                 format_vec_to_strings(ushorts, |val: u16| format!("{}", val))
             }
-            RawValue::Integers(ints) => format_vec_to_strings(ints, |val: i32| format!("{}", val)),
-            RawValue::UnsignedIntegers(uints) => {
-                format_vec_to_strings(uints, |val: u32| format!("{}", val))
-            }
+            RawValue::Ints(ints) => format_vec_to_strings(ints, |val: i32| format!("{}", val)),
+            RawValue::UInts(uints) => format_vec_to_strings(uints, |val: u32| format!("{}", val)),
             RawValue::Longs(longs) => format_vec_to_strings(longs, |val: i64| format!("{}", val)),
-            RawValue::UnsignedLongs(ulongs) => {
+            RawValue::ULongs(ulongs) => {
                 format_vec_to_strings(ulongs, |val: u64| format!("{}", val))
             }
             RawValue::Floats(floats) => {
@@ -189,10 +187,10 @@ impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
             RawValue::Words(words) => {
                 format_vec_to_strings(words, |val: u16| format!("{:04x}", val))
             }
-            RawValue::DoubleWords(dwords) => {
+            RawValue::DWords(dwords) => {
                 format_vec_to_strings(dwords, |val: u32| format!("{:06x}", val))
             }
-            RawValue::QuadWords(qwords) => {
+            RawValue::QWords(qwords) => {
                 format_vec_to_strings(qwords, |val: u64| format!("{:08x}", val))
             }
         };

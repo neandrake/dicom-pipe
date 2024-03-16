@@ -1256,8 +1256,7 @@ impl AssocRQPresentationContext {
             // Total bytes read is 2 for the type and reserved, plus another 2 for the length
             // field, and also the value of the length field being the size of the last
             // variable-length field.
-            transfer_syntax_len_marker -=
-                usize::from(4 + transfer_syntax.length());
+            transfer_syntax_len_marker -= usize::from(4 + transfer_syntax.length());
             transfer_syntaxes.push(transfer_syntax);
         }
 

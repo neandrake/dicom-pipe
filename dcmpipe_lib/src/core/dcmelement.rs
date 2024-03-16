@@ -60,7 +60,7 @@ impl DicomElement {
         T: Into<u32>,
     {
         let cs: CSRef = vr.get_proper_cs(cs);
-        DicomElement {
+        Self {
             tag: Into::<u32>::into(tag),
             vr,
             vl,
@@ -76,7 +76,7 @@ impl DicomElement {
         T: Into<u32>,
     {
         let cs: CSRef = vr.get_proper_cs(DEFAULT_CHARACTER_SET);
-        DicomElement {
+        Self {
             tag: Into::<u32>::into(tag),
             vr,
             vl: ValueLength::UndefinedLength,
@@ -132,6 +132,42 @@ impl DicomElement {
         &self.sq_path
     }
 
+    /// Returns the number of bytes this element will consist of when encoded into a dataset.
+    /// Refer to Part 5, Chapter 7.1
+    pub fn byte_size(&self) -> usize {
+        let mut byte_len = 0usize;
+
+        // tag
+        byte_len += 4;
+
+        // vr
+        byte_len += if self.ts.explicit_vr() {
+            if self.vr.has_explicit_2byte_pad {
+                4
+            } else {
+                2
+            }
+        } else {
+            0
+        };
+
+        // vl
+        byte_len += if self.ts.explicit_vr() {
+            if self.vr.has_explicit_2byte_pad {
+                4
+            } else {
+                2
+            }
+        } else {
+            4
+        };
+
+        // value
+        byte_len += self.data.len();
+
+        byte_len
+    }
+
     /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence.
     pub fn is_seq_like(&self) -> bool {
         self.vr == &vr::SQ || read::util::is_non_standard_seq(self.tag, self.vr, self.vl)
@@ -172,6 +208,10 @@ impl DicomElement {
         RawValue::try_from(self)
     }
 
+    pub fn encode_val(&mut self, value: RawValue) -> ParseResult<()> {
+        self.encode_val_with_vl(value, None)
+    }
+
     /// Encodes a RawValue into the binary data for this element.
     ///
     /// This will overwrite any existing value in this element in `self.data`.
@@ -185,7 +225,11 @@ impl DicomElement {
     /// `ValueLength::Explicit` will be assigned to `self.vl`. Unconditionally, `self.vl` will be
     /// assigned `ValueLength::Explicit(0)` if this element is `Item`, `ItemDelimitationItem`, or
     /// `SequenceDelimitationItem`.
-    pub fn encode_value(&mut self, value: RawValue, vl: Option<ValueLength>) -> ParseResult<()> {
+    pub fn encode_val_with_vl(
+        &mut self,
+        value: RawValue,
+        vl: Option<ValueLength>,
+    ) -> ParseResult<()> {
         self.data = ElemAndRawValue(self, value).try_into()?;
 
         self.vl = if vl.is_some() && self.is_seq_like() || self.tag == tags::ITEM {

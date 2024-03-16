@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-pub mod constants;
+pub mod commands;
 pub mod pdus;
 
 pub struct AeTitle([u8; 16]);

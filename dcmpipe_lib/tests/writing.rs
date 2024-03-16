@@ -60,19 +60,19 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
     elements.push(writer.create_element(
         &tags::ImplementationVersionName,
         &vr::SH,
-        RawValue::Strings(vec!["GDCM 2.1.0".to_string()]),
+        RawValue::string("GDCM 2.1.0".to_string()),
     )?);
 
     elements.push(writer.create_element(
         &tags::SourceApplicationEntityTitle,
         &vr::AE,
-        RawValue::Strings(vec!["gdcmconv".to_string()]),
+        RawValue::string("gdcmconv".to_string()),
     )?);
 
     elements.push(writer.create_element(
         &tags::SpecificCharacterSet,
         &vr::CS,
-        RawValue::Strings(vec!["ISO_IR 100".to_string()]),
+        RawValue::string("ISO_IR 100".to_string()),
     )?);
 
     writer.write_elements(elements.iter())?;
@@ -140,7 +140,7 @@ pub fn test_write_reencoded_values() -> Result<(), WriteError> {
     let mut elements: Vec<DicomElement> = Vec::new();
     while let Some(Ok(mut elem)) = parser.next() {
         let value = elem.parse_value()?;
-        elem.encode_value(value, Some(elem.vl()))?;
+        elem.encode_val_with_vl(value, Some(elem.vl()))?;
         elements.push(elem);
     }
 
@@ -189,7 +189,7 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
     );
 
     let value = vec![1u16, 1u16];
-    elem.encode_value(RawValue::UnsignedShorts(value.clone()), None)?;
+    elem.encode_val(RawValue::UShorts(value.clone()))?;
 
     let raw_data = vec![1u8, 0u8, 1u8, 0u8];
     assert_eq!(&raw_data, elem.data());
@@ -206,7 +206,7 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
 
     let re_value = elem.parse_value()?;
     match re_value {
-        RawValue::UnsignedShorts(shorts) => {
+        RawValue::UShorts(shorts) => {
             assert_eq!(value, shorts, "mismatch shorts: {:?}", elem);
         }
         _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
@@ -220,7 +220,7 @@ pub fn test_write_attr() -> Result<(), WriteError> {
     let mut elem = DicomElement::new_empty(&tags::FrameIncrementPointer, &vr::AT, &ts::RLELossless);
 
     let value = vec![Attribute(0x0018_1063)];
-    elem.encode_value(RawValue::Attribute(value.clone()), None)?;
+    elem.encode_val(RawValue::Attribute(value.clone()))?;
 
     let raw_data = vec![0x18u8, 0u8, 0x63u8, 0x10u8];
     assert_eq!(&raw_data, elem.data(), "encoding of attribute failed");
@@ -252,7 +252,7 @@ pub fn test_write_double() -> Result<(), WriteError> {
     let mut elem = DicomElement::new_empty(tag, &vr::FD, &ts::JPEGBaselineProcess1);
 
     let value = vec![3499.9999999999995];
-    elem.encode_value(RawValue::Doubles(value.clone()), None)?;
+    elem.encode_val(RawValue::Doubles(value.clone()))?;
 
     let raw_data = vec![255, 255, 255, 255, 255, 87, 171, 64];
     assert_eq!(&raw_data, elem.data(), "encoding of attribute failed");
@@ -317,7 +317,7 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
         return Ok(());
     }
     let value = value?;
-    elem.encode_value(value.clone(), Some(elem.vl()))?;
+    elem.encode_val_with_vl(value.clone(), Some(elem.vl()))?;
     let reencoded_data = elem.data().clone();
 
     if orig_parsed_data == reencoded_data {

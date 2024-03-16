@@ -72,7 +72,7 @@ impl<W: Write> Writer<W> {
     {
         let tag: u32 = tag.into();
         let mut e = DicomElement::new_empty(tag, vr, self.ts);
-        e.encode_value(value, None)?;
+        e.encode_val(value)?;
         Ok(e)
     }
 
@@ -85,7 +85,7 @@ impl<W: Write> Writer<W> {
     /// Flattens the given `DicomRoot` elements into a stream of `DicomElement` and writes the
     /// resulting elements into the dataset.
     pub fn write_dcmroot(&mut self, dcmroot: &DicomRoot) -> WriteResult<usize> {
-        let elements = dcmroot.flatten()?;
+        let elements = dcmroot.flatten();
         self.write_elements(elements.into_iter())
     }
 
@@ -159,7 +159,7 @@ impl<W: Write> Writer<W> {
         let fm_group_length = Writer::<W>::new_fme(
             tags::FILE_META_INFORMATION_GROUP_LENGTH,
             &vr::UL,
-            RawValue::UnsignedIntegers(vec![u32::try_from(fm_bytes.len()).unwrap_or_default()]),
+            RawValue::uint(u32::try_from(fm_bytes.len()).unwrap_or_default()),
         )?;
 
         bytes_written += Writer::write_element(&mut self.dataset, &fm_group_length)?;
@@ -175,7 +175,7 @@ impl<W: Write> Writer<W> {
         let mut element = DicomElement::new_empty(tag, vr, &ts::ExplicitVRLittleEndian);
 
         element
-            .encode_value(value, None)
+            .encode_val(value)
             .map_err(<ParseError as Into<WriteError>>::into)?;
 
         Ok(element)

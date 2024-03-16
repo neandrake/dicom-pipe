@@ -317,7 +317,7 @@ impl<'app> BrowseApp {
                     } else {
                         TagPath::format_tagpath_to_display(
                             &current_tagpath,
-                            Some(dcmroot.dictionary()),
+                            Some(&STANDARD_DICOM_DICTIONARY),
                         )
                     },
                 });
