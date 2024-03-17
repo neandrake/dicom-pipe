@@ -19,6 +19,8 @@ use crate::core::{
     read::{ParseError, Parser},
 };
 
+use super::RawValue;
+
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
 pub struct DicomRoot {
@@ -161,8 +163,16 @@ impl DicomRoot {
 
     /// Creates a new `DicomElement` using `self::create_element()` and adds it to this `DicomRoot`
     /// using `self::add_element()`.
-    pub fn create_and_add(&mut self, tag: &Tag) -> &mut DicomObject {
+    pub fn add_child(&mut self, tag: &Tag) -> &mut DicomObject {
         self.add_element(self.create_element(tag))
+    }
+
+    /// Creates a new `DicomElement` using `self::create_element()` with the given value, and adds
+    /// it to this `DicomRoot` using `self::add_element()`.
+    pub fn add_child_with_val(&mut self, tag: &Tag, val: RawValue) -> &mut DicomObject {
+        let mut elem = self.create_element(tag);
+        let _ = elem.encode_val(val);
+        self.add_element(elem)
     }
 
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
@@ -437,7 +447,8 @@ impl DicomObject {
     /// Gets the total number of bytes that will be needed to encode this `DicomObject` and its
     /// child/index nodes into a dataset.
     pub fn byte_size(&self) -> usize {
-        self.flatten().iter().map(|e| e.byte_size()).sum()
+        let start = if self.element.is_sentinel() { 0 } else { self.element.byte_size() };
+        start + self.flatten().iter().map(|e| e.byte_size()).sum::<usize>()
     }
 
     /// Flattens this object into an ordered list of elements as they would appear in a dataset.
@@ -471,9 +482,7 @@ impl DicomObject {
 
 impl fmt::Debug for DicomObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.element.tag() == 0 {
-            write!(f, "<sentinel>")
-        } else if self.element.is_empty() {
+        if self.items.is_empty() && self.child_nodes.is_empty() {
             write!(f, "{:?}", &self.element)
         } else {
             write!(
