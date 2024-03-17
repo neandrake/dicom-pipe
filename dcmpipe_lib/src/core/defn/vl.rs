@@ -13,20 +13,21 @@ pub enum ValueLength {
     Explicit(u32),
 }
 
+impl From<u32> for ValueLength {
+    fn from(value: u32) -> Self {
+        if value == UNDEFINED_LENGTH {
+            ValueLength::UndefinedLength
+        } else {
+            ValueLength::Explicit(value)
+        }
+    }
+}
+
 impl fmt::Debug for ValueLength {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             ValueLength::Explicit(value_length) => write!(f, "{}", value_length),
             ValueLength::UndefinedLength => write!(f, "UndefinedLength"),
         }
-    }
-}
-
-/// Creates a value length from the given numeric value.
-pub fn from_u32(vl: u32) -> ValueLength {
-    if vl == UNDEFINED_LENGTH {
-        ValueLength::UndefinedLength
-    } else {
-        ValueLength::Explicit(vl)
     }
 }

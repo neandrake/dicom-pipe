@@ -26,7 +26,7 @@ use dcmpipe_lib::{
     core::{
         dcmobject::{DicomObject, DicomRoot},
         defn::{
-            constants,
+            constants::tags::ITEM,
             tag::{Tag, TagNode, TagPath},
         },
         read::Parser,
@@ -621,30 +621,34 @@ fn get_prev_path(mut current: TagPath) -> TagPath {
     }
 
     // If the last item is indexed, instead of removing the node remove the index.
-    if let Some(last) = current.nodes.last_mut() {
+    if let Some(last) = current.nodes_mut().last_mut() {
         if last.item().is_some() {
             last.item_mut().take();
             return current;
         }
     }
 
+    let node_len = current.nodes().len();
     // Remove the last node.
-    current
-        .nodes
-        .drain(..current.nodes.len().saturating_sub(1))
-        .collect::<Vec<TagNode>>()
-        .into()
+    TagPath::from(
+        current
+            .nodes_mut()
+            .drain(..node_len.saturating_sub(1))
+            .collect::<Vec<TagNode>>(),
+    )
 }
 
 /// Removes the last node in the given path if it's an ITEM.
 fn strip_last_item(mut tagpath: TagPath) -> TagPath {
-    if let Some(last) = tagpath.nodes.last() {
-        if last.tag() == constants::tags::ITEM {
-            return tagpath
-                .nodes
-                .drain(..tagpath.nodes.len().saturating_sub(1))
-                .collect::<Vec<TagNode>>()
-                .into();
+    if let Some(last) = tagpath.nodes().last() {
+        if last.tag() == ITEM {
+            let node_len = tagpath.nodes().len();
+            return TagPath::from(
+                tagpath
+                    .nodes_mut()
+                    .drain(..node_len.saturating_sub(1))
+                    .collect::<Vec<TagNode>>(),
+            );
         }
     }
     tagpath

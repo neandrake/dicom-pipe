@@ -6,7 +6,6 @@ pub use parser::ParserState;
 
 mod ds;
 
-pub(crate) mod util;
 pub(crate) mod valdecode;
 
 pub mod behavior;

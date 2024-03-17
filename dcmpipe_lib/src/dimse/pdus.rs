@@ -13,80 +13,110 @@ use super::DimseError;
 static ASSOCIATION_VERSION: u16 = 0b0000_0000_0000_0001;
 static SOP_CLASS_COMMON_EXTENDED_NEGOTIATION_VERSION: u8 = 0b0000_0000;
 
-#[repr(u8)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PduType {
-    AssocRQ = 0x01,
-    AssocAC = 0x02,
-    AssocRJ = 0x03,
+    AssocRQ,
+    AssocAC,
+    AssocRJ,
 
-    PresentationDataItem = 0x04,
+    PresentationDataItem,
 
-    ReleaseRQ = 0x05,
-    ReleaseRP = 0x06,
-    Abort = 0x07,
+    ReleaseRQ,
+    ReleaseRP,
+    Abort,
 
-    ApplicationContextItem = 0x10,
+    ApplicationContextItem,
 
-    AssocRQPresentationContext = 0x20,
-    AssocACPresentationContext = 0x21,
+    AssocRQPresentationContext,
+    AssocACPresentationContext,
 
-    AbstractSyntaxItem = 0x30,
-    TransferSyntaxItem = 0x40,
-    UserInformationItem = 0x50,
+    AbstractSyntaxItem,
+    TransferSyntaxItem,
+    UserInformationItem,
 
-    MaxLengthItem = 0x51,
-    ImplementationClassUIDItem = 0x52,
-    AsyncOperationsWindowItem = 0x53,
-    RoleSelectionItem = 0x54,
-    ImplementationVersionNameItem = 0x55,
-    SOPClassExtendedNegotiationItem = 0x56,
-    SOPClassCommonExtendedNegotiationItem = 0x57,
-    UserIdentityItem = 0x58,
-    UserIdentityNegotiationItem = 0x59,
+    MaxLengthItem,
+    ImplementationClassUIDItem,
+    AsyncOperationsWindowItem,
+    RoleSelectionItem,
+    ImplementationVersionNameItem,
+    SOPClassExtendedNegotiationItem,
+    SOPClassCommonExtendedNegotiationItem,
+    UserIdentityItem,
+    UserIdentityNegotiationItem,
+
+    INVALID(u8),
 }
 
 impl From<PduType> for u8 {
     fn from(value: PduType) -> Self {
-        value as Self
+        match value {
+            PduType::AssocRQ => 0x01,
+            PduType::AssocAC => 0x02,
+            PduType::AssocRJ => 0x03,
+
+            PduType::PresentationDataItem => 0x04,
+
+            PduType::ReleaseRQ => 0x05,
+            PduType::ReleaseRP => 0x06,
+            PduType::Abort => 0x07,
+
+            PduType::ApplicationContextItem => 0x10,
+
+            PduType::AssocRQPresentationContext => 0x20,
+            PduType::AssocACPresentationContext => 0x21,
+
+            PduType::AbstractSyntaxItem => 0x30,
+            PduType::TransferSyntaxItem => 0x40,
+            PduType::UserInformationItem => 0x50,
+
+            PduType::MaxLengthItem => 0x51,
+            PduType::ImplementationClassUIDItem => 0x52,
+            PduType::AsyncOperationsWindowItem => 0x53,
+            PduType::RoleSelectionItem => 0x54,
+            PduType::ImplementationVersionNameItem => 0x55,
+            PduType::SOPClassExtendedNegotiationItem => 0x56,
+            PduType::SOPClassCommonExtendedNegotiationItem => 0x57,
+            PduType::UserIdentityItem => 0x58,
+            PduType::UserIdentityNegotiationItem => 0x59,
+
+            PduType::INVALID(c) => c,
+        }
     }
 }
 
-impl TryFrom<u8> for PduType {
-    type Error = DimseError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+impl From<u8> for PduType {
+    fn from(value: u8) -> Self {
         match value {
-            0x01 => Ok(PduType::AssocRQ),
-            0x02 => Ok(PduType::AssocAC),
-            0x03 => Ok(PduType::AssocRJ),
+            0x01 => PduType::AssocRQ,
+            0x02 => PduType::AssocAC,
+            0x03 => PduType::AssocRJ,
 
-            0x04 => Ok(PduType::PresentationDataItem),
+            0x04 => PduType::PresentationDataItem,
 
-            0x05 => Ok(PduType::ReleaseRQ),
-            0x06 => Ok(PduType::ReleaseRP),
-            0x07 => Ok(PduType::Abort),
+            0x05 => PduType::ReleaseRQ,
+            0x06 => PduType::ReleaseRP,
+            0x07 => PduType::Abort,
 
-            0x10 => Ok(PduType::ApplicationContextItem),
+            0x10 => PduType::ApplicationContextItem,
 
-            0x20 => Ok(PduType::AssocRQPresentationContext),
-            0x21 => Ok(PduType::AssocACPresentationContext),
+            0x20 => PduType::AssocRQPresentationContext,
+            0x21 => PduType::AssocACPresentationContext,
 
-            0x30 => Ok(PduType::AbstractSyntaxItem),
-            0x40 => Ok(PduType::TransferSyntaxItem),
-            0x50 => Ok(PduType::UserInformationItem),
+            0x30 => PduType::AbstractSyntaxItem,
+            0x40 => PduType::TransferSyntaxItem,
+            0x50 => PduType::UserInformationItem,
 
-            0x51 => Ok(PduType::MaxLengthItem),
-            0x52 => Ok(PduType::ImplementationClassUIDItem),
-            0x53 => Ok(PduType::AsyncOperationsWindowItem),
-            0x54 => Ok(PduType::RoleSelectionItem),
-            0x55 => Ok(PduType::ImplementationVersionNameItem),
-            0x56 => Ok(PduType::SOPClassExtendedNegotiationItem),
-            0x57 => Ok(PduType::SOPClassCommonExtendedNegotiationItem),
-            0x58 => Ok(PduType::UserIdentityItem),
-            0x59 => Ok(PduType::UserIdentityNegotiationItem),
+            0x51 => PduType::MaxLengthItem,
+            0x52 => PduType::ImplementationClassUIDItem,
+            0x53 => PduType::AsyncOperationsWindowItem,
+            0x54 => PduType::RoleSelectionItem,
+            0x55 => PduType::ImplementationVersionNameItem,
+            0x56 => PduType::SOPClassExtendedNegotiationItem,
+            0x57 => PduType::SOPClassCommonExtendedNegotiationItem,
+            0x58 => PduType::UserIdentityItem,
+            0x59 => PduType::UserIdentityNegotiationItem,
 
-            byte => Err(DimseError::InvalidPduType(byte)),
+            c => PduType::INVALID(c),
         }
     }
 }
@@ -151,7 +181,7 @@ impl Pdu {
             .read_exact(&mut buf)
             .map_err(|e| DimseError::IOError { source: e })?;
 
-        let pdu_type: PduType = PduType::try_from(buf[0])?;
+        let pdu_type: PduType = PduType::from(buf[0]);
 
         let byte1 = buf[1];
 
@@ -210,6 +240,8 @@ impl Pdu {
             PduType::UserIdentityNegotiationItem => Pdu::UserIdentityNegotiationItem(
                 UserIdentityNegotiationItem::read(&mut dataset, byte1)?,
             ),
+
+            PduType::INVALID(c) => return Err(DimseError::InvalidPduType(c)),
         };
 
         Ok(pdu)

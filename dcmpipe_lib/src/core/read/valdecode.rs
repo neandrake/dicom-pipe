@@ -7,7 +7,10 @@ use crate::core::{
     dcmelement::DicomElement,
     defn::{
         tag::Tag,
-        vr::{self, VRRef, CS_SEPARATOR},
+        vr::{
+            VRRef, AT, CS_SEPARATOR, DS, FD, FL, IS, NULL_PADDING, OD, OF, OL, OV, OW, SL,
+            SPACE_PADDING, SS, SV, UI, UL, UN, US, UV,
+        },
     },
     read::{ParseError, ParseResult},
     values::{Attribute, BytesWithoutPadding, ElementWithVr, RawValue},
@@ -15,37 +18,37 @@ use crate::core::{
 
 use super::error::ParseErrorInfo;
 
-impl<'elem> TryFrom<ElementWithVr<'elem>> for RawValue {
+impl<'e> TryFrom<ElementWithVr<'e>> for RawValue {
     type Error = ParseError;
 
-    fn try_from(value: ElementWithVr<'elem>) -> Result<Self, Self::Error> {
+    fn try_from(value: ElementWithVr<'e>) -> Result<Self, Self::Error> {
         let elem = value.0;
         let vr = value.1;
         if elem.data().is_empty() {
             Ok(RawValue::Bytes(Vec::with_capacity(0)))
-        } else if vr == &vr::AT {
+        } else if vr == &AT {
             Ok(RawValue::Attribute(Vec::<Attribute>::try_from(elem)?))
-        } else if vr == &vr::UI {
+        } else if vr == &UI {
             Ok(RawValue::Uid(String::try_from(elem)?))
-        } else if vr == &vr::SS {
+        } else if vr == &SS {
             Ok(RawValue::Shorts(Vec::<i16>::try_from(elem)?))
-        } else if vr == &vr::US {
+        } else if vr == &US {
             Ok(RawValue::UShorts(Vec::<u16>::try_from(elem)?))
-        } else if vr == &vr::SL {
+        } else if vr == &SL {
             Ok(RawValue::Ints(Vec::<i32>::try_from(elem)?))
-        } else if vr == &vr::UL {
+        } else if vr == &UL {
             Ok(RawValue::UInts(Vec::<u32>::try_from(elem)?))
-        } else if vr == &vr::SV {
+        } else if vr == &SV {
             Ok(RawValue::Longs(Vec::<i64>::try_from(elem)?))
-        } else if vr == &vr::UV {
+        } else if vr == &UV {
             Ok(RawValue::ULongs(Vec::<u64>::try_from(elem)?))
-        } else if vr == &vr::OW {
+        } else if vr == &OW {
             Ok(RawValue::Words(Vec::<u16>::try_from(elem)?))
-        } else if vr == &vr::OL {
+        } else if vr == &OL {
             Ok(RawValue::DWords(Vec::<u32>::try_from(elem)?))
-        } else if vr == &vr::OV {
+        } else if vr == &OV {
             Ok(RawValue::QWords(Vec::<u64>::try_from(elem)?))
-        } else if vr == &vr::IS {
+        } else if vr == &IS {
             let possible_i32s = Vec::<i32>::try_from(elem);
             if let Ok(i32s) = possible_i32s {
                 Ok(RawValue::Ints(i32s))
@@ -53,15 +56,15 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for RawValue {
                 // Sometimes decimal elems are (incorrectly) encoded with VR of IS.
                 Ok(RawValue::Doubles(Vec::<f64>::try_from(elem)?))
             }
-        } else if vr == &vr::OF || vr == &vr::FL {
+        } else if vr == &OF || vr == &FL {
             Ok(RawValue::Floats(Vec::<f32>::try_from(elem)?))
-        } else if vr == &vr::DS || vr == &vr::OD || vr == &vr::FD {
+        } else if vr == &DS || vr == &OD || vr == &FD {
             Ok(RawValue::Doubles(Vec::<f64>::try_from(elem)?))
         } else if vr.is_character_string {
             // Check is_character_string last, as that will be true for a number of VRs above which
             // whose try_from will attempt to parse stringified numeric elems into native values.
             Ok(RawValue::Strings(Vec::<String>::try_from(elem)?))
-        } else if vr == &vr::UN && Tag::is_private_creator(elem.tag()) {
+        } else if vr == &UN && Tag::is_private_creator(elem.tag()) {
             // See Part 5 Section 6.2.2
             // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
             // and in the case of Implicit VR the private tag will also not be known/lookup.
@@ -119,7 +122,7 @@ impl TryFrom<&DicomElement> for String {
     }
 }
 
-impl<'elem> TryFrom<ElementWithVr<'elem>> for String {
+impl<'e> TryFrom<ElementWithVr<'e>> for String {
     type Error = ParseError;
 
     /// Parses the value of this element as a string using the element's encoding and the specified
@@ -150,7 +153,7 @@ impl TryFrom<&DicomElement> for Vec<String> {
     }
 }
 
-impl<'elem> TryFrom<ElementWithVr<'elem>> for Vec<String> {
+impl<'e> TryFrom<ElementWithVr<'e>> for Vec<String> {
     type Error = ParseError;
 
     /// Parses the value of this element as a list of strings using the element's encoding and the
@@ -180,11 +183,11 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for Vec<String> {
     }
 }
 
-impl<'elem> From<ElementWithVr<'elem>> for BytesWithoutPadding<'elem> {
+impl<'e> From<ElementWithVr<'e>> for BytesWithoutPadding<'e> {
     /// Returns the value as a slice with the padding character
     /// removed per the specification of whether the VR indicates leading/trailing
     /// padding is significant.
-    fn from(value: ElementWithVr<'elem>) -> Self {
+    fn from(value: ElementWithVr<'e>) -> Self {
         // grab the position to start reading bytes from prior to computing the new bytes_read
         let mut lindex: usize = 0;
 
@@ -195,19 +198,19 @@ impl<'elem> From<ElementWithVr<'elem>> for BytesWithoutPadding<'elem> {
 
         let mut rindex: usize = data.len() - 1;
         if value.1.can_pad_end {
-            if value.1.padding == vr::SPACE_PADDING {
+            if value.1.padding == SPACE_PADDING {
                 // space padding should strip all trailing spaces
                 while rindex > lindex {
                     // character string vr's also sometimes seem to be zero-padded
-                    if data[rindex] == vr::SPACE_PADDING || data[rindex] == vr::NULL_PADDING {
+                    if data[rindex] == SPACE_PADDING || data[rindex] == NULL_PADDING {
                         rindex -= 1;
                     } else {
                         break;
                     }
                 }
-            } else if value.1.padding == vr::NULL_PADDING {
+            } else if value.1.padding == NULL_PADDING {
                 // null byte padding is only singular and only if used to achieve even length
-                if data.len() % 2 == 0 && data[rindex] == vr::NULL_PADDING {
+                if data.len() % 2 == 0 && data[rindex] == NULL_PADDING {
                     rindex -= 1;
                 }
             }
@@ -215,9 +218,9 @@ impl<'elem> From<ElementWithVr<'elem>> for BytesWithoutPadding<'elem> {
 
         if value.1.can_pad_front {
             // space padding should strip all leading spaces
-            if value.1.padding == vr::SPACE_PADDING {
+            if value.1.padding == SPACE_PADDING {
                 while lindex < rindex {
-                    if data[lindex] == vr::SPACE_PADDING {
+                    if data[lindex] == SPACE_PADDING {
                         lindex += 1;
                     } else {
                         break;
@@ -229,7 +232,7 @@ impl<'elem> From<ElementWithVr<'elem>> for BytesWithoutPadding<'elem> {
 
         // if a character string is trimmed down to just a null byte then return empty data.
         // use `..` to return empty slice instead of `..=`.
-        if lindex == rindex && value.1.is_character_string && data[lindex] == vr::NULL_PADDING {
+        if lindex == rindex && value.1.is_character_string && data[lindex] == NULL_PADDING {
             BytesWithoutPadding(&data[lindex..rindex])
         } else {
             BytesWithoutPadding(&data[lindex..=rindex])

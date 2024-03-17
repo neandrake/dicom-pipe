@@ -2,27 +2,12 @@ use std::io::{ErrorKind, Read};
 
 use crate::core::{
     defn::{
-        constants::tags,
         ts::TSRef,
-        vl::{self, ValueLength},
-        vr::{self, VRRef, VR},
+        vl::ValueLength,
+        vr::{VRRef, VR},
     },
     read::{error::ParseError, ParseResult},
 };
-
-/// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
-/// with a VR of `UN`, `OB`, `OF`, or `OW` and have a value length of `UndefinedLength`. These
-/// types of elements are considered either private-tag sequences or otherwise whose contents are
-/// encoded as IVRLE.
-pub(crate) fn is_non_standard_seq<T>(tag: T, vr: VRRef, vl: ValueLength) -> bool
-where
-    T: Into<u32>,
-{
-    let tag: u32 = tag.into();
-    tag != tags::ITEM
-        && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OF || vr == &vr::OW)
-        && vl == ValueLength::UndefinedLength
-}
 
 /// This is a variation of `Read::read_exact` however if zero bytes are read instead of returning
 /// an error with `ErrorKind::UnexpectedEof` it will return an error with `ParseError::ExpectedEOF`.
@@ -125,5 +110,5 @@ pub(crate) fn read_value_length_from_dataset(
             u32::from(u16::from_le_bytes(buf))
         }
     };
-    Ok(vl::from_u32(value_length))
+    Ok(ValueLength::from(value_length))
 }
