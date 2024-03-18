@@ -41,8 +41,8 @@ pub enum CommandType {
     INVALID(u16),
 }
 
-impl From<CommandType> for u16 {
-    fn from(value: CommandType) -> Self {
+impl From<&CommandType> for u16 {
+    fn from(value: &CommandType) -> Self {
         match value {
             CommandType::CStoreReq => 0x0001,
             CommandType::CStoreRsp => 0x8001,
@@ -70,7 +70,7 @@ impl From<CommandType> for u16 {
 
             CommandType::CCancelReq => 0xFFFF,
 
-            CommandType::INVALID(c) => c,
+            CommandType::INVALID(c) => *c,
         }
     }
 }
@@ -149,19 +149,19 @@ pub enum CommandPriority {
     INVALID(u16),
 }
 
-impl From<CommandPriority> for u16 {
-    fn from(value: CommandPriority) -> Self {
+impl From<&CommandPriority> for u16 {
+    fn from(value: &CommandPriority) -> Self {
         match value {
             CommandPriority::Low => 0x0002,
             CommandPriority::Medium => 0x0000,
             CommandPriority::High => 0x0001,
-            CommandPriority::INVALID(c) => c,
+            CommandPriority::INVALID(c) => *c,
         }
     }
 }
 
-impl From<CommandPriority> for RawValue {
-    fn from(value: CommandPriority) -> Self {
+impl From<&CommandPriority> for RawValue {
+    fn from(value: &CommandPriority) -> Self {
         RawValue::ushort(u16::from(value))
     }
 }
@@ -190,15 +190,15 @@ pub enum CommandStatus {
     INVALID(u16),
 }
 
-impl From<CommandStatus> for RawValue {
-    fn from(value: CommandStatus) -> Self {
+impl From<&CommandStatus> for RawValue {
+    fn from(value: &CommandStatus) -> Self {
         match value {
-            CommandStatus::Success(c) => RawValue::ushort(c),
-            CommandStatus::Warning(c) => RawValue::ushort(c),
-            CommandStatus::Failure(c) => RawValue::ushort(c),
-            CommandStatus::Cancel(c) => RawValue::ushort(c),
-            CommandStatus::Pending(c) => RawValue::ushort(c),
-            CommandStatus::INVALID(c) => RawValue::ushort(c),
+            CommandStatus::Success(c) => RawValue::ushort(*c),
+            CommandStatus::Warning(c) => RawValue::ushort(*c),
+            CommandStatus::Failure(c) => RawValue::ushort(*c),
+            CommandStatus::Cancel(c) => RawValue::ushort(*c),
+            CommandStatus::Pending(c) => RawValue::ushort(*c),
+            CommandStatus::INVALID(c) => RawValue::ushort(*c),
         }
     }
 }

@@ -49,7 +49,7 @@ impl CommandMessage {
             ),
             (
                 &CommandField,
-                RawValue::ushort(u16::from(CommandType::CEchoReq)),
+                RawValue::ushort(u16::from(&CommandType::CEchoReq)),
             ),
             (&MessageID, RawValue::ushort(msg_id)),
             (
@@ -61,27 +61,27 @@ impl CommandMessage {
 
     pub fn c_echo_rsp_from_req(
         req: CommandMessage,
-        status: CommandStatus,
+        status: &CommandStatus,
     ) -> Result<Self, DimseError> {
         let aff_sop_uid = req
             .message
-            .get_child_by_tag(AffectedSOPClassUID.tag())
+            .get_child_by_tag(&AffectedSOPClassUID)
             .ok_or(DimseError::ElementMissingFromRequest(
-                Tag::format_tag_to_display(AffectedSOPClassUID.tag()),
+                Tag::format_tag_to_display(&AffectedSOPClassUID),
             ))
             .map(|e| e.element().parse_value())??;
         let msg_id = req
             .message
-            .get_child_by_tag(MessageID.tag())
+            .get_child_by_tag(&MessageID)
             .ok_or(DimseError::ElementMissingFromRequest(
-                Tag::format_tag_to_display(MessageID.tag()),
+                Tag::format_tag_to_display(&MessageID),
             ))
             .map(|e| e.element().parse_value())??;
         Ok(CommandMessage::create(vec![
             (&AffectedSOPClassUID, aff_sop_uid),
             (
                 &CommandField,
-                RawValue::ushort(u16::from(CommandType::CEchoRsp)),
+                RawValue::ushort(u16::from(&CommandType::CEchoRsp)),
             ),
             (&MessageIDBeingRespondedTo, msg_id),
             (
@@ -100,77 +100,124 @@ impl CommandMessage {
 #[cfg(test)]
 mod tests {
     use crate::{
-        core::RawValue,
+        core::{dcmobject::DicomObject, defn::tag::Tag, RawValue},
         dict::{
             tags::{
                 AffectedSOPClassUID, CommandDataSetType, CommandField, CommandGroupLength,
-                MessageID,
+                MessageID, MessageIDBeingRespondedTo, Status,
             },
-            transfer_syntaxes::ExplicitVRLittleEndian,
+            uids::{CTImageStorage, MRImageStorage},
         },
         dimse::commands::{
             messages::{CommandMessage, COMMAND_DATASET_TYPE_NONE},
-            CommandType,
+            CommandStatus, CommandType,
         },
     };
 
-    #[test]
-    fn test_cecho_req() {
-        let rq = CommandMessage::c_echo_req(718, ExplicitVRLittleEndian.uid().uid());
-        let mut elem_iter = rq.message().iter_child_nodes();
-
-        let cmd_grp_len = elem_iter.next().expect("Should have CommandGroupLength").1;
-        assert_eq!(CommandGroupLength.tag(), cmd_grp_len.element().tag());
-        let cmd_grp_len_val = cmd_grp_len
+    /// Asserts the `act_pair` contains an element matching the given expected tag and value. The
+    /// actual value is taken as a pair for convenience for working with an iterator's `next()`.
+    fn assert_eq_elem(
+        exp_tag: &Tag,
+        exp_val: RawValue,
+        act_pair: Option<(&u32, &DicomObject)>,
+    ) -> usize {
+        let (_act_tag, act_obj) = act_pair.expect(&format!("Should have element: {}", exp_tag.ident()));
+        assert_eq!(exp_tag.tag(), act_obj.element().tag());
+        let act_val = act_obj
             .element()
             .parse_value()
-            .expect("Should get value for CommandGroupLenth");
-        assert_eq!(RawValue::uint(58), cmd_grp_len_val);
+            .expect(&format!("Should get value for: {}", exp_tag.ident()));
+        assert_eq!(exp_val, act_val, "for {}", exp_tag.ident());
+        act_obj.byte_size()
+    }
+
+    #[test]
+    fn test_cecho_rsp() {
+        let exp_msg_id = 718;
+        let exp_affected_sop = CTImageStorage.uid();
+        let exp_status = CommandStatus::Success(0);
+        let exp_bytes = 74usize;
+
+        let req = CommandMessage::c_echo_req(exp_msg_id, exp_affected_sop);
+        let rsp = CommandMessage::c_echo_rsp_from_req(req, &exp_status).expect("build response");
+
+        let mut elem_iter = rsp.message().iter_child_nodes();
+
+        assert_eq_elem(
+            &CommandGroupLength,
+            RawValue::uint(u32::try_from(exp_bytes).expect("exp_bytes as u32")),
+            elem_iter.next(),
+        );
 
         let mut bytes = 0usize;
 
-        let aff_sop_uid = elem_iter.next().expect("Should have AffectedSOPClassUID").1;
-        assert_eq!(AffectedSOPClassUID.tag(), aff_sop_uid.element().tag());
-        let aff_sop_uid_val = aff_sop_uid
-            .element()
-            .parse_value()
-            .expect("Should get value for AffectedSOPClassUID");
-        assert_eq!(
-            RawValue::Uid(ExplicitVRLittleEndian.uid().uid().to_string()),
-            aff_sop_uid_val
+        bytes += assert_eq_elem(
+            &AffectedSOPClassUID,
+            RawValue::Uid(exp_affected_sop.to_string()),
+            elem_iter.next(),
         );
-        bytes += aff_sop_uid.byte_size();
 
-        let cmd_field = elem_iter.next().expect("Should have CommandField").1;
-        assert_eq!(CommandField.tag(), cmd_field.element().tag());
-        let cmd_field_val = cmd_field
-            .element()
-            .parse_value()
-            .expect("Should get value for CommandField");
-        assert_eq!(
-            RawValue::ushort(u16::from(CommandType::CEchoReq)),
-            cmd_field_val
+        bytes += assert_eq_elem(
+            &CommandField,
+            RawValue::ushort(u16::from(&CommandType::CEchoRsp)),
+            elem_iter.next(),
         );
-        bytes += cmd_field.byte_size();
 
-        let msg_id = elem_iter.next().expect("Should have MessageID").1;
-        assert_eq!(MessageID.tag(), msg_id.element().tag());
-        let msg_id_val = msg_id
-            .element()
-            .parse_value()
-            .expect("Should get value for MessageID");
-        assert_eq!(RawValue::ushort(718), msg_id_val);
-        bytes += msg_id.byte_size();
+        bytes += assert_eq_elem(
+            &MessageIDBeingRespondedTo,
+            RawValue::ushort(exp_msg_id),
+            elem_iter.next(),
+        );
 
-        let cmd_ds_type = elem_iter.next().expect("Should have CommandDataSetType").1;
-        assert_eq!(CommandDataSetType.tag(), cmd_ds_type.element().tag());
-        let cmd_ds_type_val = cmd_ds_type
-            .element()
-            .parse_value()
-            .expect("Should get value for CommandDataSetType");
-        assert_eq!(RawValue::ushort(COMMAND_DATASET_TYPE_NONE), cmd_ds_type_val);
-        bytes += cmd_ds_type.byte_size();
+        bytes += assert_eq_elem(
+            &CommandDataSetType,
+            RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+            elem_iter.next(),
+        );
 
-        assert_eq!(58, bytes);
+        bytes += assert_eq_elem(&Status, RawValue::from(&exp_status), elem_iter.next());
+
+        assert_eq!(exp_bytes, bytes);
+    }
+
+    #[test]
+    fn test_cecho_req() {
+        let exp_msg_id = 718;
+        let exp_affected_sop = MRImageStorage.uid();
+        let exp_bytes = 64usize;
+
+        let req = CommandMessage::c_echo_req(exp_msg_id, exp_affected_sop);
+
+        let mut elem_iter = req.message().iter_child_nodes();
+
+        assert_eq_elem(
+            &CommandGroupLength,
+            RawValue::uint(u32::try_from(exp_bytes).expect("exp_bytes as u32")),
+            elem_iter.next(),
+        );
+
+        let mut bytes = 0usize;
+
+        bytes += assert_eq_elem(
+            &AffectedSOPClassUID,
+            RawValue::Uid(exp_affected_sop.to_string()),
+            elem_iter.next(),
+        );
+
+        bytes += assert_eq_elem(
+            &CommandField,
+            RawValue::ushort(u16::from(&CommandType::CEchoReq)),
+            elem_iter.next(),
+        );
+
+        bytes += assert_eq_elem(&MessageID, RawValue::ushort(exp_msg_id), elem_iter.next());
+
+        bytes += assert_eq_elem(
+            &CommandDataSetType,
+            RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+            elem_iter.next(),
+        );
+
+        assert_eq!(exp_bytes, bytes);
     }
 }

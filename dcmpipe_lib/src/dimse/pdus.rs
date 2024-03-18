@@ -47,8 +47,8 @@ pub enum PduType {
     INVALID(u8),
 }
 
-impl From<PduType> for u8 {
-    fn from(value: PduType) -> Self {
+impl From<&PduType> for u8 {
+    fn from(value: &PduType) -> Self {
         match value {
             PduType::AssocRQ => 0x01,
             PduType::AssocAC => 0x02,
@@ -79,7 +79,7 @@ impl From<PduType> for u8 {
             PduType::UserIdentityItem => 0x58,
             PduType::UserIdentityNegotiationItem => 0x59,
 
-            PduType::INVALID(c) => c,
+            PduType::INVALID(c) => *c,
         }
     }
 }
@@ -347,7 +347,7 @@ impl AssocRQ {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -393,7 +393,7 @@ impl AssocRQ {
 
         let mut pres_ctxs: Vec<AssocRQPresentationContext> = Vec::new();
         dataset.read_exact(&mut buf)?;
-        while buf[0] == PduType::AssocRQPresentationContext.into() {
+        while buf[0] == u8::from(&PduType::AssocRQPresentationContext) {
             let pres_ctx = AssocRQPresentationContext::read(&mut dataset, buf[1])?;
             pres_ctxs.push(pres_ctx);
             dataset.read_exact(&mut buf)?;
@@ -503,7 +503,7 @@ impl AssocAC {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -549,7 +549,7 @@ impl AssocAC {
 
         let mut pres_ctxs: Vec<AssocACPresentationContext> = Vec::new();
         dataset.read_exact(&mut buf)?;
-        while buf[0] == PduType::AssocACPresentationContext.into() {
+        while buf[0] == u8::from(&PduType::AssocACPresentationContext) {
             let pres_ctx = AssocACPresentationContext::read(&mut dataset, buf[1])?;
             pres_ctxs.push(pres_ctx);
             dataset.read_exact(&mut buf)?;
@@ -653,7 +653,7 @@ impl AssocRJ {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -718,7 +718,7 @@ impl ReleaseRQ {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -780,7 +780,7 @@ impl ReleaseRP {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -877,7 +877,7 @@ impl Abort {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -946,7 +946,7 @@ impl PresentationDataItem {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1120,7 +1120,7 @@ impl ApplicationContextItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1228,7 +1228,7 @@ impl AssocRQPresentationContext {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let mut buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let mut buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1388,7 +1388,7 @@ impl AssocACPresentationContext {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let mut buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
+        let mut buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1478,7 +1478,7 @@ impl AbstractSyntaxItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1544,7 +1544,7 @@ impl TransferSyntaxItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1610,7 +1610,7 @@ impl UserInformationItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1671,7 +1671,7 @@ impl MaxLengthItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1730,7 +1730,7 @@ impl ImplementationClassUIDItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1802,7 +1802,7 @@ impl AsyncOperationsWindowItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1901,7 +1901,7 @@ impl RoleSelectionItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let mut buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let mut buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1973,7 +1973,7 @@ impl ImplementationVersionNameItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -2056,7 +2056,7 @@ impl SOPClassExtendedNegotiationItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -2190,7 +2190,7 @@ impl SOPClassCommonExtendedNegotiationItem {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.version];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.version];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -2412,7 +2412,7 @@ impl UserIdentityItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -2506,7 +2506,7 @@ impl UserIdentityNegotiationItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
         dataset.write_all(&self.length.to_be_bytes())?;
         dataset.write_all(&self.server_rsp_length.to_be_bytes())?;
@@ -2740,116 +2740,116 @@ mod tests {
     fn test_pdu_type_roundtrip() {
         assert_eq!(
             PduType::AssocRQ,
-            (u8::from(PduType::AssocRQ)).try_into().unwrap()
+            (u8::from(&PduType::AssocRQ)).try_into().unwrap()
         );
         assert_eq!(
             PduType::AssocAC,
-            (u8::from(PduType::AssocAC)).try_into().unwrap()
+            (u8::from(&PduType::AssocAC)).try_into().unwrap()
         );
         assert_eq!(
             PduType::AssocRJ,
-            (u8::from(PduType::AssocRJ)).try_into().unwrap()
+            (u8::from(&PduType::AssocRJ)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::PresentationDataItem,
-            (u8::from(PduType::PresentationDataItem))
+            (u8::from(&PduType::PresentationDataItem))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::ReleaseRQ,
-            (u8::from(PduType::ReleaseRQ)).try_into().unwrap()
+            (u8::from(&PduType::ReleaseRQ)).try_into().unwrap()
         );
         assert_eq!(
             PduType::ReleaseRP,
-            (u8::from(PduType::ReleaseRP)).try_into().unwrap()
+            (u8::from(&PduType::ReleaseRP)).try_into().unwrap()
         );
         assert_eq!(
             PduType::Abort,
-            (u8::from(PduType::Abort)).try_into().unwrap()
+            (u8::from(&PduType::Abort)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::ApplicationContextItem,
-            (u8::from(PduType::ApplicationContextItem))
+            (u8::from(&PduType::ApplicationContextItem))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::AssocRQPresentationContext,
-            (u8::from(PduType::AssocRQPresentationContext))
+            (u8::from(&PduType::AssocRQPresentationContext))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::AssocACPresentationContext,
-            (u8::from(PduType::AssocACPresentationContext))
+            (u8::from(&PduType::AssocACPresentationContext))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::AbstractSyntaxItem,
-            (u8::from(PduType::AbstractSyntaxItem)).try_into().unwrap()
+            (u8::from(&PduType::AbstractSyntaxItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::TransferSyntaxItem,
-            (u8::from(PduType::TransferSyntaxItem)).try_into().unwrap()
+            (u8::from(&PduType::TransferSyntaxItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::UserInformationItem,
-            (u8::from(PduType::UserInformationItem)).try_into().unwrap()
+            (u8::from(&PduType::UserInformationItem)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::MaxLengthItem,
-            (u8::from(PduType::MaxLengthItem)).try_into().unwrap()
+            (u8::from(&PduType::MaxLengthItem)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::ImplementationClassUIDItem,
-            (u8::from(PduType::ImplementationClassUIDItem))
+            (u8::from(&PduType::ImplementationClassUIDItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::AsyncOperationsWindowItem,
-            (u8::from(PduType::AsyncOperationsWindowItem))
+            (u8::from(&PduType::AsyncOperationsWindowItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::RoleSelectionItem,
-            (u8::from(PduType::RoleSelectionItem)).try_into().unwrap()
+            (u8::from(&PduType::RoleSelectionItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::ImplementationVersionNameItem,
-            (u8::from(PduType::ImplementationVersionNameItem))
+            (u8::from(&PduType::ImplementationVersionNameItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::SOPClassExtendedNegotiationItem,
-            (u8::from(PduType::SOPClassExtendedNegotiationItem))
+            (u8::from(&PduType::SOPClassExtendedNegotiationItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::SOPClassCommonExtendedNegotiationItem,
-            (u8::from(PduType::SOPClassCommonExtendedNegotiationItem))
+            (u8::from(&PduType::SOPClassCommonExtendedNegotiationItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::UserIdentityItem,
-            (u8::from(PduType::UserIdentityItem)).try_into().unwrap()
+            (u8::from(&PduType::UserIdentityItem)).try_into().unwrap()
         );
         assert_eq!(
             PduType::UserIdentityNegotiationItem,
-            (u8::from(PduType::UserIdentityNegotiationItem))
+            (u8::from(&PduType::UserIdentityNegotiationItem))
                 .try_into()
                 .unwrap()
         );

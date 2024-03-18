@@ -59,97 +59,97 @@ fn test_c_service_status_roundtrip() {
 fn test_command_field_roundtrip() {
     assert_eq!(
         CommandType::CStoreReq,
-        CommandType::from(u16::from(CommandType::CStoreReq))
+        CommandType::from(u16::from(&CommandType::CStoreReq))
     );
     assert_eq!(
         CommandType::CStoreRsp,
-        CommandType::from(u16::from(CommandType::CStoreRsp))
+        CommandType::from(u16::from(&CommandType::CStoreRsp))
     );
     assert_eq!(
         CommandType::CGetReq,
-        CommandType::from(u16::from(CommandType::CGetReq))
+        CommandType::from(u16::from(&CommandType::CGetReq))
     );
     assert_eq!(
         CommandType::CGetRsp,
-        CommandType::from(u16::from(CommandType::CGetRsp))
+        CommandType::from(u16::from(&CommandType::CGetRsp))
     );
     assert_eq!(
         CommandType::CFindReq,
-        CommandType::from(u16::from(CommandType::CFindReq))
+        CommandType::from(u16::from(&CommandType::CFindReq))
     );
     assert_eq!(
         CommandType::CFindRsp,
-        CommandType::from(u16::from(CommandType::CFindRsp))
+        CommandType::from(u16::from(&CommandType::CFindRsp))
     );
     assert_eq!(
         CommandType::CMoveReq,
-        CommandType::from(u16::from(CommandType::CMoveReq))
+        CommandType::from(u16::from(&CommandType::CMoveReq))
     );
     assert_eq!(
         CommandType::CMoveRsp,
-        CommandType::from(u16::from(CommandType::CMoveRsp))
+        CommandType::from(u16::from(&CommandType::CMoveRsp))
     );
     assert_eq!(
         CommandType::CEchoReq,
-        CommandType::from(u16::from(CommandType::CEchoReq))
+        CommandType::from(u16::from(&CommandType::CEchoReq))
     );
     assert_eq!(
         CommandType::CEchoRsp,
-        CommandType::from(u16::from(CommandType::CEchoRsp))
+        CommandType::from(u16::from(&CommandType::CEchoRsp))
     );
 
     assert_eq!(
         CommandType::NEventReportReq,
-        CommandType::from(u16::from(CommandType::NEventReportReq))
+        CommandType::from(u16::from(&CommandType::NEventReportReq))
     );
     assert_eq!(
         CommandType::NEventReportRsp,
-        CommandType::from(u16::from(CommandType::NEventReportRsp))
+        CommandType::from(u16::from(&CommandType::NEventReportRsp))
     );
     assert_eq!(
         CommandType::NGetReq,
-        CommandType::from(u16::from(CommandType::NGetReq))
+        CommandType::from(u16::from(&CommandType::NGetReq))
     );
     assert_eq!(
         CommandType::NGetRsp,
-        CommandType::from(u16::from(CommandType::NGetRsp))
+        CommandType::from(u16::from(&CommandType::NGetRsp))
     );
     assert_eq!(
         CommandType::NSetReq,
-        CommandType::from(u16::from(CommandType::NSetReq))
+        CommandType::from(u16::from(&CommandType::NSetReq))
     );
     assert_eq!(
         CommandType::NSetRsp,
-        CommandType::from(u16::from(CommandType::NSetRsp))
+        CommandType::from(u16::from(&CommandType::NSetRsp))
     );
     assert_eq!(
         CommandType::NActionReq,
-        CommandType::from(u16::from(CommandType::NActionReq))
+        CommandType::from(u16::from(&CommandType::NActionReq))
     );
     assert_eq!(
         CommandType::NActionRsp,
-        CommandType::from(u16::from(CommandType::NActionRsp))
+        CommandType::from(u16::from(&CommandType::NActionRsp))
     );
     assert_eq!(
         CommandType::NCreateReq,
-        CommandType::from(u16::from(CommandType::NCreateReq))
+        CommandType::from(u16::from(&CommandType::NCreateReq))
     );
     assert_eq!(
         CommandType::NCreateRsp,
-        CommandType::from(u16::from(CommandType::NCreateRsp))
+        CommandType::from(u16::from(&CommandType::NCreateRsp))
     );
     assert_eq!(
         CommandType::NDeleteReq,
-        CommandType::from(u16::from(CommandType::NDeleteReq))
+        CommandType::from(u16::from(&CommandType::NDeleteReq))
     );
     assert_eq!(
         CommandType::NDeleteRsp,
-        CommandType::from(u16::from(CommandType::NDeleteRsp))
+        CommandType::from(u16::from(&CommandType::NDeleteRsp))
     );
 
     assert_eq!(
         CommandType::CCancelReq,
-        CommandType::from(u16::from(CommandType::CCancelReq))
+        CommandType::from(u16::from(&CommandType::CCancelReq))
     );
 }
 
@@ -157,14 +157,14 @@ fn test_command_field_roundtrip() {
 fn test_priority_roundtrip() {
     assert_eq!(
         CommandPriority::Low,
-        CommandPriority::from(u16::from(CommandPriority::Low))
+        CommandPriority::from(u16::from(&CommandPriority::Low))
     );
     assert_eq!(
         CommandPriority::Medium,
-        CommandPriority::from(u16::from(CommandPriority::Medium))
+        CommandPriority::from(u16::from(&CommandPriority::Medium))
     );
     assert_eq!(
         CommandPriority::High,
-        CommandPriority::from(u16::from(CommandPriority::High))
+        CommandPriority::from(u16::from(&CommandPriority::High))
     );
 }
