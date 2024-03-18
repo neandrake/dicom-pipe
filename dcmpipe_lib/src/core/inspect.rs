@@ -157,7 +157,12 @@ impl<'e> FormattedElement<'e> {
                 self.format_vec_to_strings(attrs, |attr| Tag::format_tag_to_display(attr.0))
             }
             RawValue::Uid(uid_str) => {
-                let uid_lookup = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
+                let uid_lookup = MINIMAL_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
+
+                #[cfg(feature = "stddicom")]
+                let uid_lookup =
+                    uid_lookup.or_else(|| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str));
+
                 match uid_lookup {
                     Some(found_uid) => {
                         let uid_name = if let Some((name, _detail)) = found_uid.name.split_once(':')

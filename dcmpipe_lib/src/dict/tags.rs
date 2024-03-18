@@ -1,4 +1,6 @@
 //! This is an auto-generated file. Do not make modifications here.
+//!
+//! This contains definitions of DICOM Elements.
 
 #![allow(non_upper_case_globals)]
 

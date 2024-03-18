@@ -8,6 +8,12 @@ use crate::xmlparser::{
 };
 
 static LOOKUP_PREAMBLE: &str = "//! This is an auto-generated file. Do not make modifications here.
+//!
+//! This contains perfect-hashed maps for looking up DICOM Elements, Transfer Syntaxes, and DICOM
+//! UIDs based on their \"identity\" or their associated value. The \"identity\" is computed based
+//! on the name, with spaces removed and all letters lower-cased, to allow for case-insensitive
+//! look-ups. The associated value is the common value for the item, such as tag number for DICOM
+//! Elements, and the stringified UID for Transfer Syntaxes and DICOM UIDs.
 
 #![allow(clippy::unreadable_literal)]
 
@@ -18,6 +24,8 @@ use crate::dict::{tags, transfer_syntaxes as ts, uids};
 
 static DICOM_ELEMENT_PREAMBLE: &str =
     "//! This is an auto-generated file. Do not make modifications here.
+//!
+//! This contains definitions of DICOM Elements.
 
 #![allow(non_upper_case_globals)]
 
@@ -27,6 +35,8 @@ use crate::core::defn::{tag::Tag, vm::VM, vr};
 
 static TRANSFER_SYNTAX_PREAMBLE: &str =
     "//! This is an auto-generated file. Do not make modifications here.
+//!
+//! This contains definitions of Transfer Syntaxes.
 
 #![allow(non_upper_case_globals)]
 
@@ -36,6 +46,8 @@ use crate::dict::uids;
 ";
 
 static UID_PREAMBLE: &str = "//! This is an auto-generated file. Do not make modifications here.
+//!
+//! This contains definitions of DICOM UIDs.
 
 #![allow(non_upper_case_globals)]
 
@@ -288,7 +300,7 @@ fn process_uid(
         uid.name
     ); // field placeholders
 
-    let var_name_key: String = var_name.clone();
+    let var_name_key: String = var_name.to_lowercase();
     ident_lookup.entry(var_name_key, &format!("&uids::{}", var_name));
 
     let id_val_key: String = uid.value.clone();
@@ -360,7 +372,7 @@ fn process_transfer_syntax(
         deflated_val,
         encapsulated_val
     );
-    let var_name_key: String = var_name.clone();
+    let var_name_key: String = var_name.to_lowercase();
     ident_lookup.entry(var_name_key, &format!("&ts::{}", var_name));
     let id_val_lookup: String = uid.value.clone();
     id_lookup.entry(id_val_lookup, &format!("&ts::{}", var_name));
@@ -428,7 +440,7 @@ fn process_element(
         element.name
     ); // field placeholders
 
-    let var_name_key: String = var_name.clone();
+    let var_name_key: String = var_name.to_lowercase();
     ident_lookup.entry(var_name_key, &format!("&{}{}", dict, var_name));
     tag_lookup.entry(element.tag, &format!("&{}{}", dict, var_name));
 

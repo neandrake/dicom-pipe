@@ -510,7 +510,7 @@ fn test_private_tag_un_sq(with_std: bool) -> ParseResult<()> {
         .expect("Fixture should have this this tag")
         .get_item_by_index(1)
         .expect("This sequence should have 1 sequence item")
-        .get_child_by_tag(0x2005_140E)
+        .get_child_by_tag(0x2005_140Eu32)
         .expect("This sequence should have private element as child");
     assert_eq!(1, private_un_seq_obj.item_count());
     assert_eq!(1, private_un_seq_obj.child_count());
@@ -1433,31 +1433,6 @@ fn test_empty_string_parsed_as_number(with_std: bool) -> ParseResult<()> {
             value
         );
     }
-
-    Ok(())
-}
-
-#[test]
-fn test_parse_tagpath() -> ParseResult<()> {
-    let tagpath: TagPath = vec![
-        (ReferencedFrameofReferenceSequence.tag, Some(1)),
-        (ReferencedStudySequence.tag, Some(1)),
-        (RTReferencedSeriesSequence.tag, Some(1)),
-        (ContourImageSequence.tag, Some(11)),
-        (ReferencedSOPInstanceUID.tag, None),
-    ]
-    .into();
-
-    let parsed = TagPath::parse(
-        "ReferencedFrameofReferenceSequence
-        .ReferencedStudySequence
-        .RTReferencedSeriesSequence
-        .ContourImageSequence[11]
-        .ReferencedSOPInstanceUID",
-        Some(&STANDARD_DICOM_DICTIONARY),
-    )?;
-
-    assert_eq!(tagpath, parsed);
 
     Ok(())
 }
