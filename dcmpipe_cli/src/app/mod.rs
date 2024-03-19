@@ -15,6 +15,7 @@ pub(crate) mod browseapp;
 pub(crate) mod indexapp;
 pub(crate) mod printapp;
 pub(crate) mod scanapp;
+pub(crate) mod scpapp;
 
 pub(crate) trait CommandApplication {
     fn run(&mut self) -> Result<()>;
