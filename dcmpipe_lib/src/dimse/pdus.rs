@@ -157,6 +157,35 @@ pub enum Pdu {
 }
 
 impl Pdu {
+    pub fn pdu_type(&self) -> PduType {
+        match self {
+            Pdu::AssocRQ(_) => AssocRQ::pdu_type(),
+            Pdu::AssocAC(_) => AssocAC::pdu_type(),
+            Pdu::AssocRJ(_) => AssocRJ::pdu_type(),
+            Pdu::PresentationDataItem(_) => PresentationDataItem::pdu_type(),
+            Pdu::ReleaseRQ(_) => ReleaseRQ::pdu_type(),
+            Pdu::ReleaseRP(_) => ReleaseRP::pdu_type(),
+            Pdu::Abort(_) => Abort::pdu_type(),
+            Pdu::ApplicationContextItem(_) => ApplicationContextItem::pdu_type(),
+            Pdu::AssocRQPresentationContext(_) => AssocRQPresentationContext::pdu_type(),
+            Pdu::AssocACPresentationContext(_) => AssocACPresentationContext::pdu_type(),
+            Pdu::AbstractSyntaxItem(_) => AbstractSyntaxItem::pdu_type(),
+            Pdu::TransferSyntaxItem(_) => TransferSyntaxItem::pdu_type(),
+            Pdu::UserInformationItem(_) => UserInformationItem::pdu_type(),
+            Pdu::MaxLengthItem(_) => MaxLengthItem::pdu_type(),
+            Pdu::ImplementationClassUIDItem(_) => ImplementationClassUIDItem::pdu_type(),
+            Pdu::AsyncOperationsWindowItem(_) => AsyncOperationsWindowItem::pdu_type(),
+            Pdu::RoleSelectionItem(_) => RoleSelectionItem::pdu_type(),
+            Pdu::ImplementationVersionNameItem(_) => ImplementationVersionNameItem::pdu_type(),
+            Pdu::SOPClassExtendedNegotiationItem(_) => SOPClassExtendedNegotiationItem::pdu_type(),
+            Pdu::SOPClassCommonExtendedNegotiationItem(_) => {
+                SOPClassCommonExtendedNegotiationItem::pdu_type()
+            }
+            Pdu::UserIdentityItem(_) => UserIdentityItem::pdu_type(),
+            Pdu::UserIdentityNegotiationItem(_) => UserIdentityNegotiationItem::pdu_type(),
+        }
+    }
+
     pub fn byte_size(&self) -> usize {
         match self {
             Pdu::AssocRQ(pdu) => pdu.byte_size(),

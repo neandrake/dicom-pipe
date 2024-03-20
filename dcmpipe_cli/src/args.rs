@@ -92,12 +92,18 @@ pub struct ArchiveArgs {
 #[derive(Args, Debug)]
 pub struct SvcProviderArgs {
     #[arg(short, long)]
+    /// The host/port to bind the service on.
+    pub host: String,
+
+    #[arg(short, long)]
     /// The AE Title to run as.
     pub aetitle: String,
 
     #[arg(short, long)]
-    /// The host/port to bind the service on.
-    pub host: String,
+    /// An allow-list of accepted AE Titles for associations.
+    ///
+    /// If not specified then all AE Titles are accepted.
+    pub accept_aets: Option<String>,
 
     #[arg(short, long)]
     /// The maximum number of concurrent associations.
