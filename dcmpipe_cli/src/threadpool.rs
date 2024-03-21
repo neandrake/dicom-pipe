@@ -1,3 +1,7 @@
+//! This is a simple thread pool implementation, largely based on the rust book.
+//!
+//! https://doc.rust-lang.org/book/ch20-02-multithreaded.html
+//! https://doc.rust-lang.org/book/ch20-03-graceful-shutdown-and-cleanup.html
 use anyhow::{anyhow, Result};
 
 use std::{
