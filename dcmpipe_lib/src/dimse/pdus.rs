@@ -1200,7 +1200,9 @@ impl PresentationDataItem {
             let value = PresentationDataValue::read(&mut dataset)?;
             // The total bytes read for a single data value is 4 for the length field and then the
             // value of the length field which includes the ctx_id, msg_header, and data fields.
-            pres_data_len_marker -= usize::try_from(4 + value.length()).unwrap_or_default();
+            let total_value_size =
+                size_of::<u32>() + usize::try_from(value.length()).unwrap_or_default();
+            pres_data_len_marker -= total_value_size;
             pres_data.push(value);
         }
 
@@ -1293,7 +1295,7 @@ impl PresentationDataValue {
         let ctx_id = buf[0];
         let msg_header = buf[1];
 
-        let data_len = (length - 2).try_into().unwrap_or_default();
+        let data_len = usize::try_from(length).unwrap_or_default() - size_of::<[u8; 2]>();
         let mut data: Vec<u8> = vec![0u8; data_len];
         dataset.read_exact(&mut data)?;
 

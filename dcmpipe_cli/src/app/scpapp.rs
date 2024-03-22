@@ -153,7 +153,7 @@ impl Association {
         loop {
             let pdu = Pdu::read_pdu(&mut bufread)?;
             match pdu {
-                Pdu::PresentationDataItem(pdi) => match self.handle_pres_data_item(pdi) {
+                Pdu::PresentationDataItem(pdi) => match self.handle_pres_data_item(&pdi) {
                     Err(e) => return self.handle_error(e, &source, &mut bufwrite),
                     Ok(responses) => {
                         for rsp in responses {
@@ -274,7 +274,7 @@ impl Association {
 
     fn handle_pres_data_item(
         &self,
-        pdi: PresentationDataItem,
+        pdi: &PresentationDataItem,
     ) -> Result<Vec<PresentationDataItem>, AssocError> {
         let pb = ParserBuilder::default()
             .state(ParserState::Element)

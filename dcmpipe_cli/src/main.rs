@@ -19,7 +19,7 @@ mod threadpool;
 fn main() {
     let mut app: Box<dyn CommandApplication> = make_app();
     if let Err(e) = app.run() {
-        eprintln!("Error: {:?}", e);
+        eprintln!("Error: {e:?}");
         process::exit(1);
     }
 }
