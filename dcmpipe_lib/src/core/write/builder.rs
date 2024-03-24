@@ -25,9 +25,6 @@ pub struct WriterBuilder {
     /// If a file preamble is specified then the `"DICM"` prefix will be written immediately
     /// after the file preamble is written.
     file_preamble: Option<[u8; FILE_PREAMBLE_LENGTH]>,
-
-    /// The dataset will be wrapped in a `BufWriter`, this lets the buffer size be set.
-    bufsize: usize,
 }
 
 impl WriterBuilder {
@@ -65,7 +62,7 @@ impl WriterBuilder {
     /// Constructs a `Writer` from this builder.
     pub fn build<DatasetType: Write>(&self, dataset: DatasetType) -> Writer<DatasetType> {
         Writer {
-            dataset: Dataset::new(dataset, self.bufsize),
+            dataset: Dataset::new(dataset),
             state: self.state.unwrap_or(WriterState::Preamble),
             bytes_written: 0,
             ts: self.ts.unwrap_or(&ts::ExplicitVRLittleEndian),
@@ -82,8 +79,6 @@ impl Default for WriterBuilder {
             ts: None,
             cs: None,
             file_preamble: None,
-            // BufWriter's current default buffer size is 8k.
-            bufsize: 8 * 1024,
         }
     }
 }

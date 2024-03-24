@@ -19,7 +19,7 @@ pub enum ParseStop {
     /// Read all tag elements up to specified number of bytes have been read. If the byte position
     /// is in the middle of an element then bytes from that dataset will continue to be read until
     /// the elment is fully parsed.
-    AfterBytePos(u64),
+    AfterBytesRead(u64),
 }
 
 impl ParseStop {

@@ -68,7 +68,7 @@ impl From<&CommandType> for u16 {
             CommandType::NDeleteReq => 0x0150,
             CommandType::NDeleteRsp => 0x8150,
 
-            CommandType::CCancelReq => 0xFFFF,
+            CommandType::CCancelReq => 0x0FFF,
 
             CommandType::INVALID(c) => *c,
         }
@@ -102,7 +102,7 @@ impl From<u16> for CommandType {
             0x0150 => CommandType::NDeleteReq,
             0x8150 => CommandType::NDeleteRsp,
 
-            0xFFFF => CommandType::CCancelReq,
+            0x0FFF => CommandType::CCancelReq,
 
             c => CommandType::INVALID(c),
         }

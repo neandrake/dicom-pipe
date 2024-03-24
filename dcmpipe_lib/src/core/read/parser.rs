@@ -13,7 +13,7 @@ use crate::core::{
         vr::VRRef,
     },
     read::{behavior::ParseBehavior, ds::dataset::Dataset, error::ParseError, stop::ParseStop},
-    DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
+    DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 
 mod detect;
@@ -34,23 +34,22 @@ pub enum ParserState {
 
     /// The File Preamble. This is not required for all dicom datasets but is commonly present in
     /// file media.
-    Preamble,
+    ReadPreamble,
 
     /// The DICOM prefix. This is only present if Preamble is present.
-    Prefix,
+    ReadPrefix,
 
     /// The first element of most valid dicom datasets will be the Group Length element which is
     /// always encoded as `ExplicitVRLittleEndian`. The value of this element is the number of
     /// remaining bytes in the File Meta group.
-    GroupLength,
+    ReadGroupLength,
 
     /// The first set of elements of a valid dicom dataset which provide details on how the dicom is
     /// encoded. These elements are always encoded using `ExplicitVRLittleEndian`.
-    FileMeta,
+    ReadFileMeta,
 
-    /// The primary content of a dicom dataset. They are parsed using the transfer syntax specified
-    /// in the File Meta group.
-    Element,
+    /// The primary content of a dicom dataset.
+    ReadElement,
 }
 
 /// Provides an iterator that parses through a dicom dataset returning dicom elements.
@@ -226,7 +225,7 @@ impl<'d, R: Read> Parser<'d, R> {
             ParseStop::EndOfDataset => false,
 
             // Check whether the parsing has surpassed the desired stopping byte position.
-            ParseStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
+            ParseStop::AfterBytesRead(bytes_read) => self.bytes_read >= *bytes_read,
 
             ParseStop::BeforeTagValue(_) | ParseStop::AfterTagValue(_) => {
                 let current: TagPath = TagPath::from(
@@ -238,6 +237,18 @@ impl<'d, R: Read> Parser<'d, R> {
                 );
                 self.behavior.stop().evaluate(current)
             }
+        }
+    }
+
+    /// Checks if the stream should stop being parsed, only if the `self.stop` behavior is
+    /// `ParseStop::AfterBytesRead`. This check is intended to be used prior to attempting to read
+    /// the net element from a stream, to avoid pulling additional bytes from the stream that would
+    /// go beyond the `AfterBytesRead` limit.
+    fn is_at_bytes_read_parse_stop(&self) -> bool {
+        if let ParseStop::AfterBytesRead(bytes_read) = self.behavior.stop() {
+            self.bytes_read >= *bytes_read
+        } else {
+            false
         }
     }
 
@@ -355,22 +366,26 @@ impl<'d, R: Read> Parser<'d, R> {
         // state. A loop is used so once those succeed they continue the loop and move to next
         // states which will eventually return a dicom element.
         loop {
+            if self.is_at_bytes_read_parse_stop() {
+                return Ok(None);
+            }
+
             match self.state {
                 ParserState::DetectTransferSyntax => {
                     self.iterate_detect_state()?;
                 }
-                ParserState::Preamble => {
+                ParserState::ReadPreamble => {
                     self.iterate_preamble()?;
                 }
-                ParserState::Prefix => {
+                ParserState::ReadPrefix => {
                     self.iterate_prefix()?;
                 }
-                ParserState::GroupLength => {
+                ParserState::ReadGroupLength => {
                     return match self.iterate_group_length()? {
                         None => {
                             // if none is returned and the state changed then let the iterator go to the
                             // next state -- it's likely group length wasn't read but another tag was
-                            if self.state != ParserState::GroupLength {
+                            if self.state != ParserState::ReadGroupLength {
                                 continue;
                             }
                             Ok(None)
@@ -378,12 +393,12 @@ impl<'d, R: Read> Parser<'d, R> {
                         Some(element) => Ok(Some(element)),
                     };
                 }
-                ParserState::FileMeta => {
+                ParserState::ReadFileMeta => {
                     return match self.iterate_file_meta()? {
                         None => {
                             // if none is returned and the state changed then let the iterator go to the
                             // next state -- it's likely file meta wasn't read but another tag was
-                            if self.state != ParserState::FileMeta {
+                            if self.state != ParserState::ReadFileMeta {
                                 continue;
                             }
                             Ok(None)
@@ -391,7 +406,7 @@ impl<'d, R: Read> Parser<'d, R> {
                         Some(element) => Ok(Some(element)),
                     };
                 }
-                ParserState::Element => {
+                ParserState::ReadElement => {
                     return self.iterate_element();
                 }
             }

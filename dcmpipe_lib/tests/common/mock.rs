@@ -1,4 +1,5 @@
 use dcmpipe_lib;
+use dcmpipe_lib::core::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
@@ -15,7 +16,9 @@ impl MockDicomDataset {
         mockup: MockDicomDataset,
         tagstop: ParseStop,
     ) -> Parser<'static, MockDicomDataset> {
-        ParserBuilder::default().stop(tagstop).build(mockup)
+        ParserBuilder::default()
+            .stop(tagstop)
+            .build(mockup, &MINIMAL_DICOM_DICTIONARY)
     }
 
     pub fn standard_dicom_preamble() -> Parser<'static, MockDicomDataset> {

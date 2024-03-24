@@ -24,8 +24,7 @@ use common::{fixture, parse_file};
 fn test_parse_nested_charset_values() -> ParseResult<()> {
     let file = fixture("dclunie/charsettests/DICOMDIR")?;
     let mut parser: Parser<'_, File> = ParserBuilder::default()
-        .dictionary(&STANDARD_DICOM_DICTIONARY)
-        .build(file);
+        .build(file, &STANDARD_DICOM_DICTIONARY);
 
     let dcmroot: DicomRoot =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");

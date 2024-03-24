@@ -1,17 +1,21 @@
 use crate::{
-    core::{charset::DEFAULT_CHARACTER_SET, dcmobject::DicomRoot, defn::tag::Tag, RawValue},
-    dict::{
-        tags::{
-            AffectedSOPClassUID, CommandDataSetType, CommandField, CommandGroupLength, MessageID,
-            MessageIDBeingRespondedTo, Status,
-        },
-        transfer_syntaxes::ImplicitVRLittleEndian,
+    core::{
+        charset::DEFAULT_CHARACTER_SET,
+        dcmobject::DicomRoot,
+        defn::{tag::Tag, ts::TSRef},
+        RawValue,
+    },
+    dict::tags::{
+        AffectedSOPClassUID, CommandDataSetType, CommandField, CommandGroupLength, MessageID,
+        MessageIDBeingRespondedTo, Priority, Status,
     },
     dimse::{
         commands::{CommandStatus, CommandType},
         DimseError,
     },
 };
+
+use super::CommandPriority;
 
 /// Sentinel value of `CommandDataSetType` (0000,0800) to indicate that there is no Data Set
 /// present in the message. Any other value in `CommandDataSetType` indicates a Data Set is present
@@ -34,8 +38,8 @@ impl CommandMessage {
         &self.message
     }
 
-    fn create(elements: Vec<(&Tag, RawValue)>) -> Self {
-        let mut message = DicomRoot::new_empty(&ImplicitVRLittleEndian, DEFAULT_CHARACTER_SET);
+    fn create(ts: TSRef, elements: Vec<(&Tag, RawValue)>) -> Self {
+        let mut message = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
         for elem_pair in elements {
             message.add_child_with_val(elem_pair.0, elem_pair.1);
         }
@@ -49,25 +53,29 @@ impl CommandMessage {
         Self { message }
     }
 
-    pub fn c_echo_req(msg_id: u16, sop_class_uid: &str) -> Self {
-        CommandMessage::create(vec![
-            (
-                &AffectedSOPClassUID,
-                RawValue::Uid(sop_class_uid.to_string()),
-            ),
-            (
-                &CommandField,
-                RawValue::ushort(u16::from(&CommandType::CEchoReq)),
-            ),
-            (&MessageID, RawValue::ushort(msg_id)),
-            (
-                &CommandDataSetType,
-                RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
-            ),
-        ])
+    pub fn c_echo_req(ts: TSRef, msg_id: u16, sop_class_uid: &str) -> Self {
+        CommandMessage::create(
+            ts,
+            vec![
+                (
+                    &AffectedSOPClassUID,
+                    RawValue::Uid(sop_class_uid.to_string()),
+                ),
+                (
+                    &CommandField,
+                    RawValue::ushort(u16::from(&CommandType::CEchoReq)),
+                ),
+                (&MessageID, RawValue::ushort(msg_id)),
+                (
+                    &CommandDataSetType,
+                    RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+                ),
+            ],
+        )
     }
 
     pub fn c_echo_rsp_from_req(
+        ts: TSRef,
         req: CommandMessage,
         status: &CommandStatus,
     ) -> Result<Self, DimseError> {
@@ -85,19 +93,86 @@ impl CommandMessage {
                 Tag::format_tag_to_display(&MessageID),
             ))
             .map(|e| e.element().parse_value())??;
-        Ok(CommandMessage::create(vec![
-            (&AffectedSOPClassUID, aff_sop_uid),
+        Ok(CommandMessage::create(
+            ts,
+            vec![
+                (&AffectedSOPClassUID, aff_sop_uid),
+                (
+                    &CommandField,
+                    RawValue::ushort(u16::from(&CommandType::CEchoRsp)),
+                ),
+                (&MessageIDBeingRespondedTo, msg_id),
+                (
+                    &CommandDataSetType,
+                    RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+                ),
+                (&Status, RawValue::from(status)),
+            ],
+        ))
+    }
+
+    pub fn c_find_req(
+        ts: TSRef,
+        msg_id: u16,
+        sop_class_uid: &str,
+        mut query_params: Vec<(&Tag, RawValue)>,
+    ) -> Self {
+        let mut tags = vec![
+            (
+                &AffectedSOPClassUID,
+                RawValue::Uid(sop_class_uid.to_string()),
+            ),
             (
                 &CommandField,
-                RawValue::ushort(u16::from(&CommandType::CEchoRsp)),
+                RawValue::ushort(u16::from(&CommandType::CFindReq)),
             ),
-            (&MessageIDBeingRespondedTo, msg_id),
+            (&MessageID, RawValue::ushort(msg_id)),
+            (&Priority, RawValue::from(&CommandPriority::Medium)),
             (
                 &CommandDataSetType,
-                RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+                // Should be any value other than COMMAND_DATASET_TYPE_NONE
+                RawValue::ushort(0x01),
             ),
-            (&Status, RawValue::from(status)),
-        ]))
+        ];
+        tags.append(&mut query_params);
+        CommandMessage::create(ts, tags)
+    }
+
+    pub fn c_find_rsp_from_req(
+        ts: TSRef,
+        req: CommandMessage,
+        status: &CommandStatus,
+    ) -> Result<Self, DimseError> {
+        let aff_sop_uid = req
+            .message
+            .get_child_by_tag(&AffectedSOPClassUID)
+            .ok_or(DimseError::ElementMissingFromRequest(
+                Tag::format_tag_to_display(&AffectedSOPClassUID),
+            ))
+            .map(|e| e.element().parse_value())??;
+        let msg_id = req
+            .message
+            .get_child_by_tag(&MessageID)
+            .ok_or(DimseError::ElementMissingFromRequest(
+                Tag::format_tag_to_display(&MessageID),
+            ))
+            .map(|e| e.element().parse_value())??;
+        Ok(CommandMessage::create(
+            ts,
+            vec![
+                (&AffectedSOPClassUID, aff_sop_uid),
+                (
+                    &CommandField,
+                    RawValue::ushort(u16::from(&CommandType::CFindRsp)),
+                ),
+                (&MessageIDBeingRespondedTo, msg_id),
+                (
+                    &CommandDataSetType,
+                    RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+                ),
+                (&Status, RawValue::from(status)),
+            ],
+        ))
     }
 }
 
@@ -110,6 +185,7 @@ mod tests {
                 AffectedSOPClassUID, CommandDataSetType, CommandField, CommandGroupLength,
                 MessageID, MessageIDBeingRespondedTo, Status,
             },
+            transfer_syntaxes::ImplicitVRLittleEndian,
             uids::{CTImageStorage, MRImageStorage},
         },
         dimse::commands::{
@@ -143,8 +219,9 @@ mod tests {
         let exp_status = CommandStatus::Success(0);
         let exp_bytes = 74usize;
 
-        let req = CommandMessage::c_echo_req(exp_msg_id, exp_affected_sop);
-        let rsp = CommandMessage::c_echo_rsp_from_req(req, &exp_status).expect("build response");
+        let req = CommandMessage::c_echo_req(&ImplicitVRLittleEndian, exp_msg_id, exp_affected_sop);
+        let rsp = CommandMessage::c_echo_rsp_from_req(&ImplicitVRLittleEndian, req, &exp_status)
+            .expect("build response");
 
         let mut elem_iter = rsp.message().iter_child_nodes();
 
@@ -191,7 +268,7 @@ mod tests {
         let exp_affected_sop = MRImageStorage.uid();
         let exp_bytes = 64usize;
 
-        let req = CommandMessage::c_echo_req(exp_msg_id, exp_affected_sop);
+        let req = CommandMessage::c_echo_req(&ImplicitVRLittleEndian, exp_msg_id, exp_affected_sop);
 
         let mut elem_iter = req.message().iter_child_nodes();
 
