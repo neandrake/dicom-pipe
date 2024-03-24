@@ -41,9 +41,7 @@ pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot> {
         &MINIMAL_DICOM_DICTIONARY
     };
 
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
-        .dictionary(dict)
-        .build(fixture(path)?);
+    let mut parser: Parser<'_, File> = ParserBuilder::default().build(fixture(path)?, dict);
     let dcmroot: DicomRoot = DicomRoot::parse(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
@@ -62,9 +60,8 @@ pub fn parse_all_dicom_files(with_std: bool) -> ParseResult<usize> {
     for path in get_dicom_file_paths() {
         let path_str: &str = path.to_str().expect("path");
 
-        let parser: Parser<'_, File> = ParserBuilder::default()
-            .dictionary(dict)
-            .build(File::open(path.clone())?);
+        let parser: Parser<'_, File> =
+            ParserBuilder::default().build(File::open(path.clone())?, dict);
 
         if parse_all_element_values(parser, path_str).is_err() {
             num_failed += 1;

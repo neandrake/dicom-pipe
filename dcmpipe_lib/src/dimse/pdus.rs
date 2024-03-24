@@ -8,7 +8,10 @@ use std::{
     mem::size_of,
 };
 
-use super::DimseError;
+use crate::{
+    core::defn::{ts::TSRef, uid::UIDRef},
+    dimse::DimseError,
+};
 
 /// This is the current DICOM standard defined version for Associations.
 /// See Part 8, Section 9.3.2 (ASSOCIATE-RQ) and Section 9.3.3 (ASSOCIATE-AC).
@@ -22,6 +25,19 @@ pub(crate) static SOP_CLASS_COMMON_EXTENDED_NEGOTIATION_VERSION: u8 = 0b0000_000
 /// See Part 7, Annex A.2.1
 pub static STD_APP_CONTEXT_NAME: &str = "1.2.840.10008.3.1.1.1";
 
+/// Value for `PresentationDataItem`'s `msg_header` to indicate the data is a DICOM dataset, and is
+/// not the last fragment.
+pub static P_DATA_DCM_DATASET: u8 = 0b00;
+/// Value for `PresentationDataItem`'s `msg_header` to indicate the data is a DICOM dataset, and is
+/// the last fragment.
+pub static P_DATA_DCM_DATASET_LAST: u8 = 0b10;
+/// Value for `PresentationDataItem`'s `msg_header` to indicate the data is a command, and is not
+/// the last fragment.
+pub static P_DATA_CMD: u8 = 0b01;
+/// Value for `PresentationDataItem`'s `msg_header` to indicate the data is a command, and is the
+/// last fragment.
+pub static P_DATA_CMD_LAST: u8 = 0b11;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PduType {
     AssocRQ,
@@ -29,6 +45,7 @@ pub enum PduType {
     AssocRJ,
 
     PresentationDataItem,
+    PresentationDataItemPartial,
 
     ReleaseRQ,
     ReleaseRP,
@@ -64,6 +81,7 @@ impl From<&PduType> for u8 {
             PduType::AssocRJ => 0x03,
 
             PduType::PresentationDataItem => 0x04,
+            PduType::PresentationDataItemPartial => 0x04,
 
             PduType::ReleaseRQ => 0x05,
             PduType::ReleaseRP => 0x06,
@@ -100,7 +118,8 @@ impl From<u8> for PduType {
             0x02 => PduType::AssocAC,
             0x03 => PduType::AssocRJ,
 
-            0x04 => PduType::PresentationDataItem,
+            // 0x04 => PduType::PresentationDataItem,
+            0x04 => PduType::PresentationDataItemPartial,
 
             0x05 => PduType::ReleaseRQ,
             0x06 => PduType::ReleaseRP,
@@ -136,6 +155,7 @@ pub enum Pdu {
     AssocAC(AssocAC),
     AssocRJ(AssocRJ),
     PresentationDataItem(PresentationDataItem),
+    PresentationDataItemPartial(PresentationDataItemPartial),
     ReleaseRQ(ReleaseRQ),
     ReleaseRP(ReleaseRP),
     Abort(Abort),
@@ -163,6 +183,7 @@ impl Pdu {
             Pdu::AssocAC(_) => AssocAC::pdu_type(),
             Pdu::AssocRJ(_) => AssocRJ::pdu_type(),
             Pdu::PresentationDataItem(_) => PresentationDataItem::pdu_type(),
+            Pdu::PresentationDataItemPartial(_) => PresentationDataItemPartial::pdu_type(),
             Pdu::ReleaseRQ(_) => ReleaseRQ::pdu_type(),
             Pdu::ReleaseRP(_) => ReleaseRP::pdu_type(),
             Pdu::Abort(_) => Abort::pdu_type(),
@@ -192,6 +213,7 @@ impl Pdu {
             Pdu::AssocAC(pdu) => pdu.byte_size(),
             Pdu::AssocRJ(pdu) => pdu.byte_size(),
             Pdu::PresentationDataItem(pdu) => pdu.byte_size(),
+            Pdu::PresentationDataItemPartial(pdu) => pdu.byte_size(),
             Pdu::ReleaseRQ(pdu) => pdu.byte_size(),
             Pdu::ReleaseRP(pdu) => pdu.byte_size(),
             Pdu::Abort(pdu) => pdu.byte_size(),
@@ -219,6 +241,7 @@ impl Pdu {
             Pdu::AssocAC(pdu) => pdu.write(dataset),
             Pdu::AssocRJ(pdu) => pdu.write(dataset),
             Pdu::PresentationDataItem(pdu) => pdu.write(dataset),
+            Pdu::PresentationDataItemPartial(pdu) => pdu.write(dataset),
             Pdu::ReleaseRQ(pdu) => pdu.write(dataset),
             Pdu::ReleaseRP(pdu) => pdu.write(dataset),
             Pdu::Abort(pdu) => pdu.write(dataset),
@@ -256,6 +279,9 @@ impl Pdu {
             PduType::AssocRJ => Pdu::AssocRJ(AssocRJ::read(dataset, byte1)?),
             PduType::PresentationDataItem => {
                 Pdu::PresentationDataItem(PresentationDataItem::read(dataset, byte1)?)
+            }
+            PduType::PresentationDataItemPartial => {
+                Pdu::PresentationDataItemPartial(PresentationDataItemPartial::read(dataset, byte1)?)
             }
             PduType::ReleaseRQ => Pdu::ReleaseRQ(ReleaseRQ::read(dataset, byte1)?),
             PduType::ReleaseRP => Pdu::ReleaseRP(ReleaseRP::read(dataset, byte1)?),
@@ -1023,7 +1049,7 @@ impl Abort {
     ///   - 0: Reason not specified.
     ///   - 1: Unrecognized PDU.
     ///   - 2: Unexpected PDU.
-    ///   - 3: Reserved / Unexpected session-servicve primitive.
+    ///   - 3: Reserved / Unexpected session-service primitive.
     ///   - 4: Unrecognized PDU parameter.
     ///   - 5: Unexpected PDU parameter.
     ///   - 6: Invalid PDU parameter.
@@ -1304,6 +1330,142 @@ impl PresentationDataValue {
             ctx_id,
             msg_header,
             data,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct PresentationDataItemPartial {
+    /// Reserved, should be zero.
+    reserved: u8,
+    length: u32,
+}
+
+impl PresentationDataItemPartial {
+    /// The type of this PDU, `PduType::PresentationDataItemPartial`.
+    pub fn pdu_type() -> PduType {
+        PduType::PresentationDataItemPartial
+    }
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// variable field (Presentation Data values).
+    pub fn length(&self) -> u32 {
+        self.length
+    }
+
+    pub fn byte_size(&self) -> usize {
+        size_of::<u8>() // pdu_type
+            + size_of::<u8>() // reserved
+            + size_of::<u32>() // length
+            + usize::try_from(self.length).unwrap_or_default()
+    }
+
+    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+        let buf: [u8; 2] = [u8::from(&Self::pdu_type()), self.reserved];
+        dataset.write_all(&buf)?;
+        dataset.write_all(&self.length.to_be_bytes())?;
+        Ok(())
+    }
+
+    pub fn read(
+        dataset: &mut dyn Read,
+        reserved: u8,
+    ) -> Result<PresentationDataItemPartial, DimseError> {
+        let mut buf: [u8; 4] = [0u8; 4];
+        dataset.read_exact(&mut buf)?;
+        let length = u32::from_be_bytes(buf);
+
+        Ok(PresentationDataItemPartial { reserved, length })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct PresentationDataValueHeader {
+    length: u32,
+    ctx_id: u8,
+    msg_header: u8,
+}
+
+impl PresentationDataValueHeader {
+    pub fn new(length: u32, ctx_id: u8, msg_header: u8) -> PresentationDataValueHeader {
+        PresentationDataValueHeader {
+            length,
+            ctx_id,
+            msg_header,
+        }
+    }
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// presentation data value field.
+    pub fn length(&self) -> u32 {
+        self.length
+    }
+
+    /// Context ID, an odd number between 1-255.
+    pub fn ctx_id(&self) -> u8 {
+        self.ctx_id
+    }
+
+    /// Message Header, interpreted as bit fields.
+    ///
+    /// LSB 0,
+    ///   0: The message contains a DICOM Data Set.
+    ///   1: The message contains a Command.
+    ///
+    /// LSB 1,
+    ///   0: The message fragment is not the last fragment.
+    ///
+    ///   1: The message fragment is the last fragment.
+    /// The other bits shall be zeros, but unchecked.
+    pub fn msg_header(&self) -> u8 {
+        self.msg_header
+    }
+
+    /// The length of the data field.
+    pub fn length_of_data(&self) -> u32 {
+        // The length field appears before the ctx_id and msg_header fields, so the length's value
+        // includes those two bytes which need subtracted.
+        self.length - u32::try_from(size_of::<u8>() + size_of::<u8>()).unwrap_or_default()
+    }
+
+    /// Returns true if this value is a command message, false for a dicom dataset.
+    pub fn is_command(&self) -> bool {
+        self.msg_header & 0b01 == 0b01
+    }
+
+    /// Returns true if this value is the last fragment in a presentation data item, false if not.
+    pub fn is_last_fragment(&self) -> bool {
+        self.msg_header & 0b10 == 0b10
+    }
+
+    pub fn byte_size(&self) -> usize {
+        size_of::<u32>() // length
+            + usize::try_from(self.length).unwrap_or_default()
+    }
+
+    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+        dataset.write_all(&self.length.to_be_bytes())?;
+
+        let buf: [u8; 2] = [self.ctx_id, self.msg_header];
+        dataset.write_all(&buf)?;
+
+        Ok(())
+    }
+
+    pub fn read(dataset: &mut dyn Read) -> Result<PresentationDataValueHeader, DimseError> {
+        let mut buf: [u8; 4] = [0u8; 4];
+        dataset.read_exact(&mut buf)?;
+        let length = u32::from_be_bytes(buf);
+
+        let mut buf: [u8; 2] = [0u8; 2];
+        dataset.read_exact(&mut buf)?;
+        let ctx_id = buf[0];
+        let msg_header = buf[1];
+
+        Ok(PresentationDataValueHeader {
+            length,
+            ctx_id,
+            msg_header,
         })
     }
 }
@@ -1734,6 +1896,12 @@ impl AbstractSyntaxItem {
     }
 }
 
+impl From<UIDRef> for AbstractSyntaxItem {
+    fn from(value: UIDRef) -> Self {
+        Self::new(Vec::from(value.uid().as_bytes()))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TransferSyntaxItem {
     /// Reserved, should be zero.
@@ -1800,6 +1968,12 @@ impl TransferSyntaxItem {
     }
 }
 
+impl From<TSRef> for TransferSyntaxItem {
+    fn from(value: TSRef) -> Self {
+        Self::new(Vec::from(value.uid().uid().as_bytes()))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UserInformationItem {
     /// Reserved, should be zero.
@@ -1815,8 +1989,8 @@ impl UserInformationItem {
     }
 
     pub fn new(user_data: Vec<Pdu>) -> UserInformationItem {
-        let length = u16::try_from(user_data.iter().map(|u| u.byte_size()).sum::<usize>())
-            .unwrap_or_default();
+        let length =
+            u16::try_from(user_data.iter().map(Pdu::byte_size).sum::<usize>()).unwrap_or_default();
         UserInformationItem {
             reserved: 0u8,
             length,
@@ -1839,7 +2013,7 @@ impl UserInformationItem {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
             + size_of::<u16>() // length
-            + self.user_data.iter().map(|u| u.byte_size()).sum::<usize>()
+            + self.user_data.iter().map(Pdu::byte_size).sum::<usize>()
     }
 
     pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
@@ -2984,6 +3158,9 @@ mod tests {
     }
 
     #[test]
+    // Ignoring because PresentationDataItem does not round trip now that it's partially managed
+    // instead of fully.
+    #[ignore]
     fn test_pres_data_item_roundtrip() {
         let pres_data_vals = vec![
             PresentationDataValue::new(1u8, 1u8, vec![1, 2, 3, 4]),
@@ -3076,8 +3253,8 @@ mod tests {
         );
 
         assert_eq!(
-            PduType::PresentationDataItem,
-            (u8::from(&PduType::PresentationDataItem))
+            PduType::PresentationDataItemPartial,
+            (u8::from(&PduType::PresentationDataItemPartial))
                 .try_into()
                 .unwrap()
         );

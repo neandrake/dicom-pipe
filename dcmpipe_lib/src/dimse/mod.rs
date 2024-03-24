@@ -3,6 +3,7 @@ use thiserror::Error;
 use crate::core::read::ParseError;
 
 pub mod commands;
+pub mod pduiter;
 pub mod pdus;
 
 pub struct AeTitle([u8; 16]);
@@ -48,6 +49,9 @@ pub enum DimseError {
 
     #[error("element missing from request: {0}")]
     ElementMissingFromRequest(String),
+
+    #[error("invalid pdu parse state")]
+    InvalidPduParseState(String),
 
     #[error("error parsing value from request")]
     ParseError {

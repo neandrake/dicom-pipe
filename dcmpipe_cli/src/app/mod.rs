@@ -29,8 +29,7 @@ fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, File
     let file: File = File::open(path)?;
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .allow_partial_object(allow_partial_object)
-        .dictionary(&STANDARD_DICOM_DICTIONARY)
-        .build(file);
+        .build(file, &STANDARD_DICOM_DICTIONARY);
 
     let mut peeker: Peekable<&mut Parser<'_, File>> = parser.by_ref().peekable();
 

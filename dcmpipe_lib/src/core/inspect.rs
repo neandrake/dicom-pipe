@@ -20,6 +20,8 @@ use crate::core::{
 #[cfg(feature = "stddicom")]
 use crate::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
+use super::defn::vr;
+
 /// Convenience for coordinating a tag's type display.
 pub enum FormattedTagType {
     Known(u32, String),
@@ -147,7 +149,16 @@ impl<'e> FormattedElement<'e> {
         }
 
         let mut sep = if self.multiline { " " } else { "\\" };
-        let elem_value = match self.elem.parse_value() {
+        let mut vr = self.elem.vr();
+        #[cfg(feature = "stddicom")]
+        if vr == &vr::UN {
+            if let Some(lookup_tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(self.elem.tag()) {
+                if let Some(implicit_vr) = lookup_tag.implicit_vr() {
+                    vr = implicit_vr;
+                }
+            }
+        }
+        let elem_value = match self.elem.parse_value_as(vr) {
             Err(e) => return FormattedTagValue::Error(e.to_string()),
             Ok(val) => val,
         };
@@ -274,7 +285,17 @@ impl<'e> fmt::Display for FormattedElement<'e> {
 
         let tag_num: String = Tag::format_tag_to_display(self.elem.tag());
         let tag_name: FormattedTagType = self.get_tag_type();
-        let vr: &str = self.elem.vr().ident;
+
+        let mut vr = self.elem.vr();
+        if vr == &vr::UN {
+            #[cfg(feature = "stddicom")]
+            if let Some(lookup_tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(self.elem.tag()) {
+                if let Some(lookup_vr) = lookup_tag.implicit_vr() {
+                    vr = lookup_vr;
+                }
+            }
+        }
+        let vr: &str = vr.ident;
 
         let vl: String = match self.elem.vl() {
             ValueLength::Explicit(len) => {
