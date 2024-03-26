@@ -132,10 +132,11 @@ pub fn test_write_reencoded_values() -> Result<(), WriteError> {
     let mut parser = ParserBuilder::default().build(dataset, &STANDARD_DICOM_DICTIONARY);
 
     let mut elements: Vec<DicomElement> = Vec::new();
-    while let Some(Ok(mut elem)) = parser.next() {
+    while let Some(Ok(elem)) = parser.next() {
         let value = elem.parse_value()?;
-        elem.encode_val_with_vl(value, Some(elem.vl()))?;
-        elements.push(elem);
+        let mut re_encoded = DicomElement::new_empty(elem.tag(), elem.vr(), elem.ts());
+        re_encoded.encode_val_with_vl(value, Some(elem.vl()))?;
+        elements.push(re_encoded);
     }
 
     let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file().build(Vec::new());
@@ -302,7 +303,7 @@ fn reencode_file_elements(path: PathBuf) -> Result<(), WriteError> {
     Ok(())
 }
 
-fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<(), WriteError> {
+fn assert_reencode_element(path_str: &str, elem: &DicomElement) -> Result<(), WriteError> {
     let orig_parsed_data = elem.data().clone();
     let value = elem.parse_value();
     if let Err(e) = value {
@@ -310,7 +311,8 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
         return Ok(());
     }
     let value = value?;
-    elem.encode_val_with_vl(value.clone(), Some(elem.vl()))?;
+    let mut re_encoded = DicomElement::new_empty(elem.tag(), elem.vr(), elem.ts());
+    re_encoded.encode_val_with_vl(value.clone(), Some(elem.vl()))?;
     let reencoded_data = elem.data().clone();
 
     if orig_parsed_data == reencoded_data {

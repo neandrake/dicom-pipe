@@ -12,7 +12,7 @@ use crate::core::{
 
 /// Encodes a RawValue into the binary data for the given element, based on the element's currently
 /// set Value Representation, Character Set, and Transfer Syntax.
-pub struct ElemAndRawValue<'e>(pub &'e DicomElement, pub RawValue);
+pub struct ElemAndRawValue<'e>(pub &'e DicomElement, pub RawValue<'e>);
 impl<'e> TryFrom<ElemAndRawValue<'e>> for Vec<u8> {
     type Error = ParseError;
 
@@ -36,6 +36,8 @@ impl<'e> TryFrom<ElemAndRawValue<'e>> for Vec<u8> {
             RawValue::Words(words) => ElemAndWords(elem, words).into(),
             RawValue::DWords(dwords) => ElemAndDoubleWords(elem, dwords).into(),
             RawValue::QWords(qwords) => ElemAndQuadWords(elem, qwords).into(),
+
+            RawValue::BytesView(bytes) => bytes.clone(),
         };
 
         // All fields are required to be of even length, with padding added as necessary. Note

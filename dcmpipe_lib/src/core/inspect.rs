@@ -106,14 +106,14 @@ impl<'e> FormattedElement<'e> {
 
     /// Formats `vec` converting each element to a String based on the given `func`.
     /// Returns true if the input `vec` had more items than rendered, based on `MAX_ITEMS_DISPLAYED`.
-    fn format_vec_to_strings<T, F: Fn(T) -> String>(
+    fn format_vec_to_strings<T, F: Fn(&T) -> String>(
         &self,
-        vec: Vec<T>,
+        vec: &[T],
         func: F,
     ) -> (bool, Vec<String>) {
         let vec_len: usize = vec.len();
         let formatted: Vec<String> = vec
-            .into_iter()
+            .iter()
             .take(self.max_items)
             .map(func)
             .collect::<Vec<String>>();
@@ -165,7 +165,7 @@ impl<'e> FormattedElement<'e> {
 
         let (add_ellipses, mut str_vals) = match elem_value {
             RawValue::Attribute(attrs) => {
-                self.format_vec_to_strings(attrs, |attr| Tag::format_tag_to_display(attr.0))
+                self.format_vec_to_strings(&attrs, |attr| Tag::format_tag_to_display(attr.0))
             }
             RawValue::Uid(uid_str) => {
                 let uid_lookup = MINIMAL_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
@@ -191,47 +191,51 @@ impl<'e> FormattedElement<'e> {
                 if self.multiline {
                     sep = "\n";
                 }
-                self.format_vec_to_strings(strings, |val: String| {
+                self.format_vec_to_strings(&strings, |val: &String| {
                     if !self.multiline {
                         val.replace("\r\n", " / ").replace('\n', " / ")
                     } else {
-                        val
+                        val.to_owned()
                     }
                 })
             }
             RawValue::Shorts(shorts) => {
-                self.format_vec_to_strings(shorts, |val: i16| format!("{}", val))
+                self.format_vec_to_strings(&shorts, |val: &i16| format!("{val}"))
             }
             RawValue::UShorts(ushorts) => {
-                self.format_vec_to_strings(ushorts, |val: u16| format!("{}", val))
+                self.format_vec_to_strings(&ushorts, |val: &u16| format!("{val}"))
             }
-            RawValue::Ints(ints) => self.format_vec_to_strings(ints, |val: i32| format!("{}", val)),
+            RawValue::Ints(ints) => self.format_vec_to_strings(&ints, |val: &i32| format!("{val}")),
             RawValue::UInts(uints) => {
-                self.format_vec_to_strings(uints, |val: u32| format!("{}", val))
+                self.format_vec_to_strings(&uints, |val: &u32| format!("{val}"))
             }
             RawValue::Longs(longs) => {
-                self.format_vec_to_strings(longs, |val: i64| format!("{}", val))
+                self.format_vec_to_strings(&longs, |val: &i64| format!("{val}"))
             }
             RawValue::ULongs(ulongs) => {
-                self.format_vec_to_strings(ulongs, |val: u64| format!("{}", val))
+                self.format_vec_to_strings(&ulongs, |val: &u64| format!("{val}"))
             }
             RawValue::Floats(floats) => {
-                self.format_vec_to_strings(floats, |val: f32| format!("{:.2}", val))
+                self.format_vec_to_strings(&floats, |val: &f32| format!("{val:.2}"))
             }
             RawValue::Doubles(doubles) => {
-                self.format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
+                self.format_vec_to_strings(&doubles, |val: &f64| format!("{val:.2}"))
             }
             RawValue::Bytes(bytes) => {
-                self.format_vec_to_strings(bytes, |val: u8| format!("{:02x}", val))
+                self.format_vec_to_strings(&bytes, |val: &u8| format!("{val:02x}"))
             }
             RawValue::Words(words) => {
-                self.format_vec_to_strings(words, |val: u16| format!("{:04x}", val))
+                self.format_vec_to_strings(&words, |val: &u16| format!("{val:04x}"))
             }
             RawValue::DWords(dwords) => {
-                self.format_vec_to_strings(dwords, |val: u32| format!("{:06x}", val))
+                self.format_vec_to_strings(&dwords, |val: &u32| format!("{val:06x}"))
             }
             RawValue::QWords(qwords) => {
-                self.format_vec_to_strings(qwords, |val: u64| format!("{:08x}", val))
+                self.format_vec_to_strings(&qwords, |val: &u64| format!("{val:08x}"))
+            }
+
+            RawValue::BytesView(bytes) => {
+                self.format_vec_to_strings(bytes, |val: &u8| format!("{val:02x}"))
             }
         };
 

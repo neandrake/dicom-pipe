@@ -18,7 +18,7 @@ use crate::core::{
 
 use super::error::ParseErrorInfo;
 
-impl<'e> TryFrom<ElementWithVr<'e>> for RawValue {
+impl<'e> TryFrom<ElementWithVr<'e>> for RawValue<'e> {
     type Error = ParseError;
 
     fn try_from(value: ElementWithVr<'e>) -> Result<Self, Self::Error> {
@@ -72,19 +72,19 @@ impl<'e> TryFrom<ElementWithVr<'e>> for RawValue {
             if let Ok(uid) = possible_uid {
                 Ok(RawValue::Uid(uid))
             } else {
-                Ok(RawValue::Bytes(elem.data().clone()))
+                Ok(RawValue::BytesView(elem.data()))
             }
         } else {
-            Ok(RawValue::Bytes(elem.data().clone()))
+            Ok(RawValue::BytesView(elem.data()))
         }
     }
 }
 
-impl TryFrom<&DicomElement> for RawValue {
+impl<'e> TryFrom<&'e DicomElement> for RawValue<'e> {
     type Error = ParseError;
 
     /// Based on the VR of this element, parses the binary data into a RawValue.
-    fn try_from(value: &DicomElement) -> ParseResult<Self> {
+    fn try_from(value: &'e DicomElement) -> ParseResult<Self> {
         Self::try_from(ElementWithVr(value, value.vr()))
     }
 }
