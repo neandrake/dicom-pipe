@@ -4,7 +4,7 @@
 
 use std::{
     fs::File,
-    io::Read,
+    io::{BufReader, Read},
     path::{Path, PathBuf},
 };
 
@@ -28,8 +28,10 @@ pub mod mockdata;
 const FIXTURES_PATH: &'static str = "./tests/fixtures";
 
 /// Gets the fixture file of the given file path, relative to the fixtures directory.
-pub fn fixture(path: &str) -> Result<File, std::io::Error> {
-    File::open(Path::new(FIXTURES_PATH).join(path))
+pub fn fixture(path: &str) -> Result<BufReader<File>, std::io::Error> {
+    Ok(BufReader::new(File::open(
+        Path::new(FIXTURES_PATH).join(path),
+    )?))
 }
 
 /// Parses the given file into a `DicomObject`. The fixture file path should be relative to the
@@ -41,8 +43,8 @@ pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot> {
         &MINIMAL_DICOM_DICTIONARY
     };
 
-    let mut parser: Parser<'_, File> = ParserBuilder::default().build(fixture(path)?, dict);
-    let dcmroot: DicomRoot = DicomRoot::parse(&mut parser)?.unwrap();
+    let mut parser = ParserBuilder::default().build(fixture(path)?, dict);
+    let dcmroot = DicomRoot::parse(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
 }
@@ -60,8 +62,8 @@ pub fn parse_all_dicom_files(with_std: bool) -> ParseResult<usize> {
     for path in get_dicom_file_paths() {
         let path_str: &str = path.to_str().expect("path");
 
-        let parser: Parser<'_, File> =
-            ParserBuilder::default().build(File::open(path.clone())?, dict);
+        let dataset = BufReader::new(File::open(path.clone())?);
+        let parser = ParserBuilder::default().build(dataset, dict);
 
         if parse_all_element_values(parser, path_str).is_err() {
             num_failed += 1;
@@ -154,7 +156,10 @@ fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> ParseResult<()> {
     Ok(())
 }
 
-pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> ParseResult<()> {
+pub fn parse_all_element_values(
+    parser: Parser<'_, BufReader<File>>,
+    path_str: &str,
+) -> ParseResult<()> {
     for elem_result in parser {
         match elem_result {
             Ok(elem) => {

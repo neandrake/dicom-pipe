@@ -1,13 +1,10 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    fs::File,
-};
+use std::convert::{TryFrom, TryInto};
 
 use dcmpipe_lib::{
     core::{
         charset::CSRef,
         dcmobject::DicomRoot,
-        read::{ParseResult, Parser, ParserBuilder},
+        read::{ParseResult, ParserBuilder},
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
@@ -22,9 +19,8 @@ use common::{fixture, parse_file};
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]
 fn test_parse_nested_charset_values() -> ParseResult<()> {
-    let file = fixture("dclunie/charsettests/DICOMDIR")?;
-    let mut parser: Parser<'_, File> =
-        ParserBuilder::default().build(file, &STANDARD_DICOM_DICTIONARY);
+    let fixture = fixture("dclunie/charsettests/DICOMDIR")?;
+    let mut parser = ParserBuilder::default().build(fixture, &STANDARD_DICOM_DICTIONARY);
 
     let dcmroot: DicomRoot =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");

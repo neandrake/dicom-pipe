@@ -2,7 +2,6 @@
 
 use std::{
     collections::HashMap,
-    fs::File,
     io::{stdout, Stdout},
     ops::Sub,
     path::Path,
@@ -30,7 +29,6 @@ use dcmpipe_lib::{
             tag::{Tag, TagNode, TagPath},
         },
         inspect::{FormattedElement, FormattedTagType, FormattedTagValue},
-        read::Parser,
     },
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
 };
@@ -144,7 +142,7 @@ enum UserAction {
 impl CommandApplication for BrowseApp {
     fn run(&mut self) -> Result<()> {
         let path: &Path = self.args.file.as_path();
-        let mut parser: Parser<'_, File> = super::parse_file(path, true)?;
+        let mut parser = super::parse_file(path, true)?;
         let parse_result = DicomRoot::parse(&mut parser);
 
         let dcmroot = match parse_result {
