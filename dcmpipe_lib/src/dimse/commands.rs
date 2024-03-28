@@ -1,6 +1,19 @@
 //! Constants for DIMSE, DICOM Message Exchangy
 
-use crate::core::RawValue;
+use crate::{
+    core::{defn::uid::UIDRef, RawValue},
+    dict::uids::{
+        CompositeInstanceRetrieveWithoutBulkDataGET, CompositeInstanceRootRetrieveGET,
+        CompositeInstanceRootRetrieveMOVE, ModalityWorklistInformationModelFIND,
+        PatientRootQueryRetrieveInformationModelFIND, PatientRootQueryRetrieveInformationModelGET,
+        PatientRootQueryRetrieveInformationModelMOVE,
+        PatientStudyOnlyQueryRetrieveInformationModelFIND,
+        PatientStudyOnlyQueryRetrieveInformationModelGET,
+        PatientStudyOnlyQueryRetrieveInformationModelMOVE, StorageServiceClass,
+        StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
+        StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
+    },
+};
 
 pub mod messages;
 
@@ -10,7 +23,7 @@ mod tests;
 /// Values of the `CommandField` (0000,0100) field of messages.
 ///
 /// See Part 7, Appendix E.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum CommandType {
     CStoreReq,
     CStoreRsp,
@@ -39,6 +52,37 @@ pub enum CommandType {
     CCancelReq,
 
     INVALID(u16),
+}
+
+impl std::fmt::Debug for CommandType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CommandType::CStoreReq => write!(f, "C-STORE-RQ"),
+            CommandType::CStoreRsp => write!(f, "C-STORE-RP"),
+            CommandType::CGetReq => write!(f, "C-GET-RP"),
+            CommandType::CGetRsp => write!(f, "C-GET-RO"),
+            CommandType::CFindReq => write!(f, "C-FIND-RQ"),
+            CommandType::CFindRsp => write!(f, "C-FIND-RP"),
+            CommandType::CMoveReq => write!(f, "C-MOVE-RQ"),
+            CommandType::CMoveRsp => write!(f, "C-MOVE-RP"),
+            CommandType::CEchoReq => write!(f, "C-ECHO-RQ"),
+            CommandType::CEchoRsp => write!(f, "C-ECHO-RP"),
+            CommandType::NEventReportReq => write!(f, "N-EVENT-RQ"),
+            CommandType::NEventReportRsp => write!(f, "N-EVENT-RP"),
+            CommandType::NGetReq => write!(f, "N-GET-RQ"),
+            CommandType::NGetRsp => write!(f, "N-GET-RP"),
+            CommandType::NSetReq => write!(f, "N-SET-RQ"),
+            CommandType::NSetRsp => write!(f, "N-SET-RP"),
+            CommandType::NActionReq => write!(f, "N-ACTION-RQ"),
+            CommandType::NActionRsp => write!(f, "N-ACTION-RP"),
+            CommandType::NCreateReq => write!(f, "N-CREATE-RQ"),
+            CommandType::NCreateRsp => write!(f, "N-CREATE-RP"),
+            CommandType::NDeleteReq => write!(f, "N-DELETE-RQ"),
+            CommandType::NDeleteRsp => write!(f, "N-DELETE-RQ"),
+            CommandType::CCancelReq => write!(f, "N-CANCEL-RP"),
+            CommandType::INVALID(c) => write!(f, "INVALID: {c:04x}"),
+        }
+    }
 }
 
 impl From<&CommandType> for u16 {
@@ -105,6 +149,37 @@ impl From<u16> for CommandType {
             0x0FFF => CommandType::CCancelReq,
 
             c => CommandType::INVALID(c),
+        }
+    }
+}
+
+impl From<UIDRef> for Option<CommandType> {
+    fn from(value: UIDRef) -> Self {
+        if value == &VerificationSOPClass {
+            Some(CommandType::CEchoReq)
+        } else if value == &ModalityWorklistInformationModelFIND
+            || value == &PatientStudyOnlyQueryRetrieveInformationModelFIND
+            || value == &PatientRootQueryRetrieveInformationModelFIND
+            || value == &StudyRootQueryRetrieveInformationModelFIND
+        {
+            Some(CommandType::CFindReq)
+        } else if value == &PatientStudyOnlyQueryRetrieveInformationModelGET
+            || value == &PatientRootQueryRetrieveInformationModelGET
+            || value == &StudyRootQueryRetrieveInformationModelGET
+            || value == &CompositeInstanceRootRetrieveGET
+            || value == &CompositeInstanceRetrieveWithoutBulkDataGET
+        {
+            Some(CommandType::CGetReq)
+        } else if value == &PatientStudyOnlyQueryRetrieveInformationModelMOVE
+            || value == &PatientRootQueryRetrieveInformationModelMOVE
+            || value == &StudyRootQueryRetrieveInformationModelMOVE
+            || value == &CompositeInstanceRootRetrieveMOVE
+        {
+            Some(CommandType::CMoveReq)
+        } else if value == &StorageServiceClass {
+            Some(CommandType::CStoreReq)
+        } else {
+            None
         }
     }
 }
