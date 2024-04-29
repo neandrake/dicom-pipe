@@ -18,6 +18,10 @@ use super::write::error::WriteError;
 
 /// Trait for a dicom node which contains child elements.
 pub trait DicomNode {
+    /// Get the element for this node, if present. This will be `None` for `DicomRoot` but will
+    /// always be `Some()` for all `DicomObject`.
+    fn get_element(&self) -> Option<&DicomElement>;
+
     /// Get the number of child node if this is a root or sequence-like node.
     fn get_child_count(&self) -> usize;
 
@@ -63,11 +67,11 @@ pub trait DicomNode {
         // List items + contents first, as SQ objects will include both items for its contents as
         // well as the sequence delimiter as a child node.
         for dcmobj in self.iter_items() {
-            elements.push(dcmobj.get_element());
+            elements.push(dcmobj.as_element());
             elements.append(&mut (dcmobj.flatten()?));
         }
         for (_tag, dcmobj) in self.iter_child_nodes() {
-            elements.push(dcmobj.get_element());
+            elements.push(dcmobj.as_element());
             elements.append(&mut (dcmobj.flatten()?));
         }
 
@@ -249,6 +253,10 @@ impl<'dict> DicomRoot<'dict> {
 }
 
 impl<'dict> DicomNode for DicomRoot<'dict> {
+    fn get_element(&self) -> Option<&DicomElement> {
+        None
+    }
+
     fn get_child_count(&self) -> usize {
         self.child_nodes.len()
     }
@@ -319,13 +327,18 @@ impl DicomObject {
         }
     }
 
-    /// Gets the underlying `DicomElement` for this `DicomObject`
-    pub fn get_element(&self) -> &DicomElement {
+    /// Convenience function to get this object's underlying element, to avoid the `Option`
+    /// wrapping of `get_element()`.
+    pub fn as_element(&self) -> &DicomElement {
         &self.element
     }
 }
 
 impl DicomNode for DicomObject {
+    fn get_element(&self) -> Option<&DicomElement> {
+        Some(&self.element)
+    }
+
     fn get_child_count(&self) -> usize {
         self.child_nodes.len()
     }

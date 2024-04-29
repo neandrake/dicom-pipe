@@ -105,7 +105,7 @@ fn test_nested_charset(
     let item_scs_values: Vec<String> = item
         .get_child_by_tag(tags::SpecificCharacterSet.tag)
         .expect("Item should have SCS")
-        .get_element()
+        .as_element()
         .try_into()?;
 
     let item_scs: String = item_scs_values
@@ -119,7 +119,7 @@ fn test_nested_charset(
     let item_pn: &DicomElement = item
         .get_child_by_tag(tags::PatientsName.tag)
         .expect("Item should have PN")
-        .get_element();
+        .as_element();
 
     assert_eq!(item_pn.get_cs().name(), cs.name());
 
@@ -261,7 +261,7 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
     let scs_elem: &DicomElement = dcmroot
         .get_child_by_tag(tags::SpecificCharacterSet.tag)
         .expect("Should have SCS")
-        .get_element();
+        .as_element();
 
     // value can be multiple and sometimes contains empties -- match logic from the parser
     let scs_val: String = Vec::<String>::try_from(scs_elem)?
@@ -274,7 +274,7 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
     let pn_elem: &DicomElement = dcmroot
         .get_child_by_tag(tags::PatientsName.tag)
         .expect("Should have PN")
-        .get_element();
+        .as_element();
 
     let pn_val: String = String::try_from(pn_elem)?;
     assert_eq!(pn_val, pn);

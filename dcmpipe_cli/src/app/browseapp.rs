@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{stdout, Stdout};
 use std::ops::Sub;
@@ -17,7 +18,7 @@ use crossterm::terminal::{
 };
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
-use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::tag::{Tag, TagPath};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
@@ -35,14 +36,32 @@ pub struct BrowseApp {
     args: BrowseArgs,
 }
 
-struct BrowseAppState<'app> {
-    is_running: bool,
+struct DicomDocumentModel<'app> {
     path: &'app Path,
-    dcmroot: DicomRoot<'app>,
-    table_state: TableState,
+    map: HashMap<TagPath, DicomElementModel<'app>>,
 }
 
-impl CommandApplication for BrowseApp {
+#[derive(Clone)]
+struct DicomElementModel<'m> {
+    rows: Vec<Row<'m>>,
+    max_name_width: u16,
+}
+
+#[derive(Clone)]
+struct BrowseAppState {
+    is_running: bool,
+    current: TagPath,
+}
+
+#[derive(Clone)]
+struct DicomElementViewState {
+    num_rows: usize,
+    max_name_width: u16,
+    table_state: TableState,
+    user_quit: bool,
+}
+
+impl<'app> CommandApplication for BrowseApp {
     fn run(&mut self) -> Result<()> {
         let path: &Path = self.args.file.as_path();
         let mut parser: Parser<'_, File> = super::parse_file(path, true)?;
@@ -54,17 +73,11 @@ impl CommandApplication for BrowseApp {
             Err(err) => return Err(anyhow!(err)),
         };
 
-        let mut table_state = TableState::default();
-        table_state.select(Some(0));
-        let state = BrowseAppState {
-            is_running: true,
-            path,
-            dcmroot,
-            table_state,
-        };
+        let mut doc_model = DicomDocumentModel::parse(path, dcmroot);
+
         let mut terminal = self.init()?;
 
-        let app_result = self.run_loop(&mut terminal, state);
+        let app_result = self.run_loop(&mut terminal, &mut doc_model);
 
         self.close(terminal)?;
 
@@ -74,7 +87,98 @@ impl CommandApplication for BrowseApp {
     }
 }
 
-impl BrowseApp {
+impl<'app> DicomDocumentModel<'app> {
+    fn parse<'dict>(path: &'app Path, dcmroot: DicomRoot<'dict>) -> DicomDocumentModel<'app> {
+        let map = DicomElementModel::parse(&dcmroot);
+        DicomDocumentModel { path, map }
+    }
+}
+
+impl<'m> DicomElementModel<'m> {
+    fn parse<'t>(dcmnode: &'m dyn DicomNode) -> HashMap<TagPath, DicomElementModel<'t>> {
+        let mut map: HashMap<TagPath, DicomElementModel<'t>> = HashMap::new();
+
+        let mut rows: Vec<Row<'t>> = Vec::with_capacity(dcmnode.get_child_count());
+        let mut max_name_width: u16 = 0;
+        for (child_tag, child) in dcmnode.iter_child_nodes() {
+            if child.get_item_count() > 0 || child.get_child_count() > 0 {
+                let child_map = DicomElementModel::parse(child);
+                map.extend(child_map.into_iter());
+            }
+
+            let tag_render: TagName = child.as_element().into();
+            let elem_name = tag_render.to_string();
+            max_name_width = max_name_width.max(elem_name.len() as u16);
+            let elem_value: TagValue = ElementWithLineFmt(child.as_element(), false).into();
+
+            let mut cells: Vec<Cell> = Vec::with_capacity(5);
+            cells.push(
+                Cell::from(if child.get_child_count() > 0 { "+" } else { "" })
+                    .style(Style::default().fg(Color::DarkGray)),
+            );
+
+            cells.push(
+                Cell::from(Tag::format_tag_to_display(*child_tag))
+                    .style(Style::default().fg(Color::DarkGray)),
+            );
+
+            match tag_render {
+                TagName::Known(_, _) => {
+                    cells.push(Cell::from(elem_name));
+                }
+                _ => {
+                    cells.push(
+                        Cell::from(elem_name).style(
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::ITALIC),
+                        ),
+                    );
+                }
+            }
+
+            cells.push(
+                Cell::from(child.as_element().get_vr().ident)
+                    .style(Style::default().fg(Color::DarkGray)),
+            );
+
+            let cell = match elem_value {
+                TagValue::Sequence => Cell::from(""),
+                TagValue::Error(err_str) => {
+                    Cell::from(err_str).style(Style::default().bg(Color::Red))
+                }
+                TagValue::Uid(uid, name) => Cell::from(Line::from(vec![
+                    Span::styled(uid, Style::default()),
+                    Span::styled(
+                        format!(" {}", name),
+                        Style::default().fg(Color::LightYellow),
+                    ),
+                ])),
+                TagValue::Stringified(str_val) => Cell::from(str_val),
+            };
+            cells.push(cell);
+
+            rows.push(Row::new(cells));
+        }
+
+        let mut table_state = TableState::default();
+        table_state.select(Some(0));
+
+        let elem_tbl = DicomElementModel {  rows, max_name_width };
+
+        let tagpath = dcmnode.get_element().map_or_else(
+            || TagPath {
+                nodes: Vec::with_capacity(0),
+            },
+            |e| e.get_tagpath(),
+        );
+        map.insert(tagpath, elem_tbl);
+
+        map
+    }
+}
+
+impl<'app> BrowseApp {
     pub fn new(args: BrowseArgs) -> BrowseApp {
         BrowseApp { args }
     }
@@ -98,11 +202,34 @@ impl BrowseApp {
     fn run_loop(
         &self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
-        mut state: BrowseAppState,
+        doc_model: &'app mut DicomDocumentModel<'app>,
     ) -> Result<()> {
+        let mut state = BrowseAppState {
+            is_running: true,
+            current: TagPath {
+                nodes: Vec::with_capacity(0),
+            },
+        };
+
+        let Some(table_model) = doc_model.map.get(&state.current) else {
+            return Ok(());
+        };
+        let mut view_state = DicomElementViewState {
+            num_rows: table_model.rows.len(),
+            max_name_width: table_model.max_name_width,
+            table_state: TableState::new(),
+            user_quit: false,
+        };
+
         loop {
-            terminal.draw(|frame| self.render(&mut state, frame))?;
-            self.update_state(&mut state)?;
+            let render_model = table_model.clone();
+            let render_view_state = view_state.clone();
+
+            terminal.draw(move |frame| self.render("", render_model, render_view_state, frame))?;
+
+            view_state = self.update_state_from_user_input(view_state)?;
+            state.is_running = !view_state.user_quit;
+
             if !state.is_running {
                 break;
             }
@@ -110,41 +237,51 @@ impl BrowseApp {
         Ok(())
     }
 
-    fn update_state(&self, state: &mut BrowseAppState) -> Result<()> {
+    fn update_state_from_user_input(
+        &self,
+        mut view_state: DicomElementViewState,
+    ) -> Result<DicomElementViewState> {
         if event::poll(Duration::from_millis(50))? {
             match event::read()? {
                 Key(key) => match key.kind {
-                    KeyEventKind::Press => self.event_keypress(state, key),
-                    KeyEventKind::Release => self.event_keyrelease(state, key),
+                    KeyEventKind::Press => self.event_keypress(&mut view_state, key),
+                    KeyEventKind::Release => self.event_keyrelease(&mut view_state, key),
                     _ => {}
                 },
                 Mouse(mouse) => match mouse.kind {
                     MouseEventKind::Down(button) | MouseEventKind::Drag(button) => {
-                        self.event_mouse_down(state, mouse, button)
+                        self.event_mouse_down(&mut view_state, mouse, button)
                     }
-                    MouseEventKind::ScrollDown => self.event_mouse_scroll_down(state, mouse),
-                    MouseEventKind::ScrollUp => self.event_mouse_scroll_up(state, mouse),
+                    MouseEventKind::ScrollDown => {
+                        self.event_mouse_scroll_down(&mut view_state, mouse)
+                    }
+                    MouseEventKind::ScrollUp => self.event_mouse_scroll_up(&mut view_state, mouse),
                     _ => {}
                 },
                 _ => {}
             }
         }
-        Ok(())
+        Ok(view_state)
     }
 
-    fn event_keypress(&self, state: &mut BrowseAppState, event: KeyEvent) {
+    fn event_keypress(&self, view_state: &'app mut DicomElementViewState, event: KeyEvent) {
         match event.code {
-            Char('q') => state.is_running = false,
-            KeyCode::Esc => state.is_running = false,
-            Char('j') | KeyCode::Down => self.table_select_next(state, 1),
-            Char('k') | KeyCode::Up => self.table_select_next(state, -1),
+            Char('q') => view_state.user_quit = true,
+            KeyCode::Esc => view_state.user_quit = true,
+            Char('j') | KeyCode::Down => self.table_select_next(view_state, 1),
+            Char('k') | KeyCode::Up => self.table_select_next(view_state, -1),
             _ => {}
         }
     }
 
-    fn event_keyrelease(&self, _state: &mut BrowseAppState, _event: KeyEvent) {}
+    fn event_keyrelease(&self, _view_state: &mut DicomElementViewState, _event: KeyEvent) {}
 
-    fn event_mouse_down(&self, state: &mut BrowseAppState, event: MouseEvent, button: MouseButton) {
+    fn event_mouse_down(
+        &self,
+        view_state: &'app mut DicomElementViewState,
+        event: MouseEvent,
+        button: MouseButton,
+    ) {
         if button != MouseButton::Left {
             return;
         }
@@ -153,118 +290,71 @@ impl BrowseApp {
         // Subtract 2, 1 for the table border, 1 for the table header row.
         let row_index = event.row.saturating_sub(2) as usize;
 
-        let index = Some(state.table_state.offset().saturating_add(row_index));
+        let index = Some(view_state.table_state.offset().saturating_add(row_index));
         // Only toggle the selection on click, not drag.
-        if state.table_state.selected() == index && event.kind == MouseEventKind::Down(MouseButton::Left) {
-            state.table_state.select(None)
+        if view_state.table_state.selected() == index
+            && event.kind == MouseEventKind::Down(MouseButton::Left)
+        {
+            view_state.table_state.select(None)
         } else {
-            state.table_state.select(index);
+            view_state.table_state.select(index);
         }
     }
 
-    fn event_mouse_scroll_up(&self, state: &mut BrowseAppState, _event: MouseEvent) {
-        self.table_scroll_next(state, -1);
+    fn event_mouse_scroll_up(
+        &self,
+        view_state: &'app mut DicomElementViewState,
+        _event: MouseEvent,
+    ) {
+        self.table_scroll_next(view_state, -1);
     }
 
-    fn event_mouse_scroll_down(&self, state: &mut BrowseAppState, _event: MouseEvent) {
-        self.table_scroll_next(state, 1);
+    fn event_mouse_scroll_down(
+        &self,
+        view_state: &'app mut DicomElementViewState,
+        _event: MouseEvent,
+    ) {
+        self.table_scroll_next(view_state, 1);
     }
 
-    fn table_scroll_next(&self, state: &mut BrowseAppState, modifier: isize) {
-        let i = state
+    fn table_scroll_next(&self, view_state: &'app mut DicomElementViewState, modifier: isize) {
+        let i = view_state
             .table_state
             .offset()
             .saturating_add_signed(modifier)
-            .min(state.dcmroot.get_child_count() + 1)
+            .min(view_state.num_rows)
             .max(0);
-        *state.table_state.offset_mut() = i;
+        *view_state.table_state.offset_mut() = i;
     }
 
-    fn table_select_next(&self, state: &mut BrowseAppState, modifier: isize) {
-        let i = match state.table_state.selected() {
+    fn table_select_next(&self, view_state: &'app mut DicomElementViewState, modifier: isize) {
+        let i = match view_state.table_state.selected() {
             None => 0,
-            Some(i) => state
-                .dcmroot
-                .get_child_count()
+            Some(i) => view_state
+                .num_rows
                 .sub(1)
                 .min(i.saturating_add_signed(modifier))
                 .max(0),
         };
-        state.table_state.select(Some(i));
+        view_state.table_state.select(Some(i));
     }
 
-    fn render(&self, state: &mut BrowseAppState, frame: &mut Frame) {
-        let mut max_name_width: u16 = 0;
-        let mut rows: Vec<Row> = Vec::with_capacity(state.dcmroot.get_child_count());
-        for (tag, dcmobj) in state.dcmroot.iter_child_nodes() {
-            let tag_render: TagName = dcmobj.get_element().into();
-            let elem_name = tag_render.to_string();
-            max_name_width = max_name_width.max(elem_name.len() as u16);
-            let elem_value: TagValue = ElementWithLineFmt(dcmobj.get_element(), false).into();
-
-            let mut cells: Vec<Cell> = Vec::with_capacity(5);
-            cells.push(
-                Cell::from(if dcmobj.get_child_count() > 0 {
-                    "+"
-                } else {
-                    ""
-                })
-                .style(Style::default().fg(Color::DarkGray)),
-            );
-
-            cells.push(
-                Cell::from(Tag::format_tag_to_display(*tag))
-                    .style(Style::default().fg(Color::DarkGray)),
-            );
-
-            match tag_render {
-                TagName::Known(_, _) => {
-                    cells.push(Cell::from(elem_name));
-                }
-                _ => {
-                    cells.push(
-                        Cell::from(elem_name).style(
-                            Style::default()
-                                .fg(Color::DarkGray)
-                                .add_modifier(Modifier::ITALIC),
-                        ),
-                    );
-                }
-            }
-
-            cells.push(
-                Cell::from(dcmobj.get_element().get_vr().ident)
-                    .style(Style::default().fg(Color::DarkGray)),
-            );
-
-            let cell = match elem_value {
-                TagValue::Sequence => Cell::from(""),
-                TagValue::Error(err_str) => {
-                    Cell::from(err_str).style(Style::default().bg(Color::Red))
-                }
-                TagValue::Uid(uid, name) => Cell::from(Line::from(vec![
-                    Span::styled(uid, Style::default()),
-                    Span::styled(
-                        format!(" {}", name),
-                        Style::default().fg(Color::LightYellow),
-                    ),
-                ])),
-                TagValue::Stringified(str_val) => Cell::from(str_val),
-            };
-            cells.push(cell);
-
-            rows.push(Row::new(cells));
-        }
-
+    fn render(
+        &self,
+        title: &str,
+        model: DicomElementModel,
+        view_state: DicomElementViewState,
+        frame: &mut Frame,
+    ) {
         let column_widths = [
             Constraint::Length(1),
             Constraint::Length(11),
-            Constraint::Length(max_name_width),
+            Constraint::Length(view_state.max_name_width),
             Constraint::Length(2),
             Constraint::Max(1024),
         ];
 
-        let table = Table::new(rows)
+        let table = Table::new(model.rows.clone(), column_widths)
             .header(
                 Row::new(vec!["+", "Tag", "Name", "VR", "Value"])
                     .style(Style::default().fg(Color::LightYellow)),
@@ -280,14 +370,13 @@ impl BrowseApp {
                     )
                     .title(
                         Title::from(Line::from(Span::styled(
-                            format!("[{}]", state.path.display()),
+                            format!("[{}]", title),
                             Style::default().fg(Color::LightBlue),
                         )))
                         .alignment(Alignment::Right),
                     )
                     .borders(Borders::all()),
             )
-            .widths(&column_widths)
             .highlight_style(Style::default().bg(Color::LightBlue));
 
         let sections = Layout::default()
@@ -295,6 +384,6 @@ impl BrowseApp {
             .constraints([Constraint::Min(1), Constraint::Length(1)])
             .split(frame.size());
 
-        frame.render_stateful_widget(table, sections[0], &mut state.table_state);
+        frame.render_stateful_widget(table, sections[0], &mut view_state.table_state.clone());
     }
 }

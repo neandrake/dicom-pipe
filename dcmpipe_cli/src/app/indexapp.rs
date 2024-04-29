@@ -114,7 +114,7 @@ impl IndexApp {
                         entry.path().display()
                     )
                 })?;
-            let uid_key: String = uid_obj.get_element().try_into()?;
+            let uid_key: String = uid_obj.as_element().try_into()?;
             let entry_key: String = uid_key.clone();
             let dicom_doc: &mut DicomDoc = uid_to_doc
                 .entry(entry_key)
@@ -135,7 +135,7 @@ impl IndexApp {
             metadata_doc.insert("serieskey", uid_key);
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
-                let child_elem: &DicomElement = child_obj.get_element();
+                let child_elem: &DicomElement = child_obj.as_element();
                 if child_elem.is_seq_like() {
                     // TODO: handle sequences
                 } else {

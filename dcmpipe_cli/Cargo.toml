@@ -12,6 +12,6 @@ crossterm = "0.27"
 dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
 dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["compress"] }
 mongodb = { version = "2.8", default-features = false, features = ["sync"] }
-ratatui = "0.24"
+ratatui = "0.25"
 walkdir = "2.4"
 
