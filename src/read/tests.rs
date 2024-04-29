@@ -5,7 +5,7 @@ use read::DicomStream;
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 use std::path::Path;
 
-use walkdir::{DirEntry, WalkDir, WalkDirIterator};
+use walkdir::{DirEntry, WalkDir};
 
 static FIXTURE_DATASET1_FOLDER: &'static str = "fixtures/dataset1";
 
@@ -149,8 +149,7 @@ fn test_parse_known_dicom_files() {
         .min_depth(1)
         .max_depth(1);
     let dirwalker_iter: walkdir::Iter = dirwalker.into_iter();
-    let dir_entries = dirwalker_iter.filter_entry(|e| !::read::is_hidden(e.path()));
-    for entry_res in dir_entries {
+    for entry_res in dirwalker_iter {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
         let is_dcm: bool = DicomStream::new_from_path(path)
