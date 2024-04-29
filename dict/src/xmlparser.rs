@@ -15,7 +15,7 @@ pub enum XmlDicomDefinition {
     TransferSyntax(XmlDicomUid),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Serialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
 pub struct XmlDicomElement {
     pub tag: String,
     pub name: String,
@@ -25,7 +25,7 @@ pub struct XmlDicomElement {
     pub obs: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Serialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
 pub struct XmlDicomUid {
     pub value: String,
     pub name: String,

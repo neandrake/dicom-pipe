@@ -1,6 +1,7 @@
 #![cfg(test)]
 
-use read::dcmstream::DicomStream;
+use read::dcmiterator::DicomStreamParser;
+use read::tagstop::TagStop;
 
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
@@ -10,7 +11,7 @@ pub struct MockDicomStream {
 }
 
 impl MockDicomStream {
-    pub fn standard_dicom_preamble() -> DicomStream<MockDicomStream> {
+    pub fn standard_dicom_preamble() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
@@ -22,10 +23,10 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        DicomStream::new(mockup)
+        DicomStreamParser::new(mockup, TagStop::EndOfStream)
     }
 
-    pub fn invalid_dicom_prefix() -> DicomStream<MockDicomStream> {
+    pub fn invalid_dicom_prefix() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
@@ -37,10 +38,10 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        DicomStream::new(mockup)
+        DicomStreamParser::new(mockup, TagStop::EndOfStream)
     }
 
-    pub fn nonzero_preamble() -> DicomStream<MockDicomStream> {
+    pub fn nonzero_preamble() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0xFFu8;132];
@@ -52,10 +53,10 @@ impl MockDicomStream {
             },
             pos: 0,
         };
-        DicomStream::new(mockup)
+        DicomStreamParser::new(mockup, TagStop::EndOfStream)
     }
 
-    pub fn standard_dicom_preamble_diff_startpos_and_short_stream() -> DicomStream<MockDicomStream> {
+    pub fn standard_dicom_preamble_diff_startpos_and_short_stream() -> DicomStreamParser<MockDicomStream> {
         let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
@@ -67,7 +68,7 @@ impl MockDicomStream {
             },
             pos: 131,
         };
-        DicomStream::new(mockup)
+        DicomStreamParser::new(mockup, TagStop::EndOfStream)
     }
 }
 

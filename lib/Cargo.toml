@@ -8,6 +8,8 @@ build = "build/build.rs"
 byteorder = "1"
 encoding = "0.2"
 phf = "0.7"
+
+[dev-dependencies]
 walkdir = "2.2"
 
 [build-dependencies]
