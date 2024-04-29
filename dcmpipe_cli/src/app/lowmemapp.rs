@@ -1,9 +1,8 @@
 use crate::app::{CommandApplication, render_element};
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::core::dcmparser::Parser;
 use std::fs::File;
-use std::io::{self, Error, ErrorKind, Write};
+use std::io::{self, Error, Write};
 use std::path::{Path, PathBuf};
 
 pub struct LowMemApp {
@@ -19,18 +18,7 @@ impl LowMemApp {
 impl CommandApplication for LowMemApp {
     fn run(&mut self) -> Result<(), Error> {
         let path: &Path = self.openpath.as_path();
-
-        if !path.is_file() {
-            return Err(Error::new(
-                ErrorKind::NotFound,
-                format!("invalid file: {}", path.display()),
-            ));
-        }
-
-        let file: File = File::open(path)?;
-        let mut parser: Parser<'_, File> = ParserBuilder::new(file)
-            .dictionary(&STANDARD_DICOM_DICTIONARY)
-            .build();
+        let mut parser: Parser<'_, File> = self.parse_file(path)?;
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
