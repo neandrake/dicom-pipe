@@ -158,10 +158,10 @@ fn test_name_vs_properties() {
     ];
 
     for ts in known_ts {
-        let contains_little: bool = ts.uid.get_ident().contains("Little");
-        let contains_big: bool = ts.uid.get_ident().contains("Big");
-        let contains_explicit: bool = ts.uid.get_ident().contains("Explicit");
-        let contains_implicit: bool = ts.uid.get_ident().contains("Implicit");
+        let contains_little: bool = ts.uid.get_ident().contains("LittleEndian");
+        let contains_big: bool = ts.uid.get_ident().contains("BigEndian");
+        let contains_explicit: bool = ts.uid.get_ident().contains("ExplicitVR");
+        let contains_implicit: bool = ts.uid.get_ident().contains("ImplicitVR");
         let contains_deflate: bool = ts.uid.get_ident().contains("Deflate");
         let contains_encapsulated: bool = ts.uid.get_ident().contains("Encapsulated");
 
