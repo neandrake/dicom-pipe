@@ -10,7 +10,7 @@ use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 
 pub(crate) mod archiveapp;
-pub(crate) mod editapp;
+pub(crate) mod browseapp;
 pub(crate) mod indexapp;
 pub(crate) mod printapp;
 pub(crate) mod scanapp;
@@ -64,11 +64,12 @@ pub fn render_tag_name(element: &DicomElement) -> &str {
 }
 
 /// Formats the value of this element as a string based on the VR.
-pub fn render_value(elem: &DicomElement) -> Result<String> {
+pub fn render_value(elem: &DicomElement, multiline: bool) -> Result<String> {
     if elem.is_seq_like() {
         return Ok(String::new());
     }
 
+    let mut sep = if multiline { " " } else { "\\" };
     let (add_ellipses, mut str_vals) = match elem.parse_value()? {
         RawValue::Attribute(attr) => (false, vec![Tag::format_tag_to_display(attr.0)]),
         RawValue::Uid(uid_str) => {
@@ -91,13 +92,18 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
                 (false, vec![uid_display])
             }
         }
-        RawValue::Strings(strings) => format_vec_to_strings(strings, |val: String| {
-            if val.is_empty() {
-                String::new()
-            } else {
-                val.replace("\r\n", " / ").replace('\n', " / ")
+        RawValue::Strings(strings) => {
+            if multiline {
+                sep = "\n";
             }
-        }),
+            format_vec_to_strings(strings, |val: String| {
+                if !multiline {
+                    val.replace("\r\n", " / ").replace('\n', " / ")
+                } else {
+                    val
+                }
+            })
+        }
         RawValue::Floats(floats) => format_vec_to_strings(floats, |val: f32| format!("{:.2}", val)),
         RawValue::Doubles(doubles) => {
             format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
@@ -122,12 +128,7 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
         return Ok(str_vals.remove(0));
     }
 
-    let sep: &str = "\\";
-    Ok(str_vals
-        .into_iter()
-        .collect::<Vec<String>>()
-        .join(sep)
-        .to_string())
+    Ok(str_vals.join(sep).to_string())
 }
 
 /// Formats `vec` converting each element to a String based on the given `func`.

@@ -14,8 +14,8 @@ pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
     Print(PrintArgs),
 
-    /// Opens a DICOM dataset in a TUI for browsing and editing.
-    Edit(EditArgs),
+    /// Browse a DICOM dataset in a text-based user interface.
+    Browse(BrowseArgs),
 
     /// Recursively scans a folder of DICOM datasets and prints results of parsing.
     ///
@@ -43,7 +43,7 @@ pub struct PrintArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct EditArgs {
+pub struct BrowseArgs {
     /// The file to process as a DICOM dataset.
     pub file: PathBuf,
 }

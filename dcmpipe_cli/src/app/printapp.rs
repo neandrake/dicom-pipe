@@ -164,7 +164,7 @@ fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
     } else if element.is_empty() {
         "<empty>".to_owned()
     } else {
-        super::render_value(element)?
+        super::render_value(element, false)?
     };
 
     if !tag_value.is_empty() {
