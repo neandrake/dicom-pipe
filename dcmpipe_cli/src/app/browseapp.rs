@@ -178,16 +178,16 @@ impl<'model> DicomNodeModel<'model> {
         child: &DicomObject,
     ) -> (Row<'model>, HashMap<TagPath, DicomNodeModel<'model>>, u16) {
         let mut map: HashMap<TagPath, DicomNodeModel<'model>> = HashMap::new();
-        let child_tag = child.as_element().get_tag();
+        let child_tag = child.get_element().get_tag();
         if child.get_item_count() > 0 || child.get_child_count() > 0 {
             let child_map = DicomNodeModel::parse(child);
             map.extend(child_map);
         }
 
-        let tag_render: TagCategory = child.as_element().into();
+        let tag_render: TagCategory = child.get_element().into();
         let elem_name = tag_render.to_string();
         let name_len = elem_name.len() as u16;
-        let elem_value: TagValue = ElementWithLineFmt(child.as_element(), false).into();
+        let elem_value: TagValue = ElementWithLineFmt(child.get_element(), false).into();
 
         let mut cells: Vec<Cell> = Vec::with_capacity(5);
         cells.push(
@@ -222,7 +222,7 @@ impl<'model> DicomNodeModel<'model> {
         }
 
         cells.push(
-            Cell::from(child.as_element().get_vr().ident)
+            Cell::from(child.get_element().get_vr().ident)
                 .style(Style::default().fg(Color::DarkGray)),
         );
 
@@ -384,7 +384,7 @@ impl<'app> BrowseApp {
                 let sel_idx = *sel_idx;
                 let next_path = if current_tagpath.is_empty() {
                     get_nth_child(dcmroot.as_obj(), sel_idx)
-                        .map(|o| o.as_element().get_tagpath())
+                        .map(|o| o.get_element().get_tagpath())
                         .unwrap_or_else(|| current_tagpath.clone())
                 } else {
                     if dcmroot.get_child_by_tagpath(&current_tagpath).is_none() {
@@ -600,7 +600,7 @@ fn get_nth_child(dcmobj: &DicomObject, index: usize) -> Option<&DicomObject> {
 /// - For elements at the root of the document this returns `TagPath::empty()`.
 /// - For items within a sequence the trailing `constants::tags::ITEM` node is removed.
 fn get_tagpath(dcmobj: &DicomObject) -> TagPath {
-    let tagpath = dcmobj.as_element().get_tagpath();
+    let tagpath = dcmobj.get_element().get_tagpath();
     strip_last_item(tagpath)
 }
 

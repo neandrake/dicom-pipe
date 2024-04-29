@@ -139,7 +139,7 @@ pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> ParseResult<()> {
 
 fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> ParseResult<()> {
     // Parse current element value before moving on to items/children.
-    dcmobj.as_element().parse_value()?;
+    dcmobj.get_element().parse_value()?;
     for item_dcmobj in dcmobj.iter_items() {
         parse_all_dcmobj_values(item_dcmobj)?;
     }
