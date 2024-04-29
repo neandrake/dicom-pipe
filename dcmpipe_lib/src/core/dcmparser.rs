@@ -290,35 +290,17 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// 1. Before reading an element will catch `TagStop::AfterTag` and `TagStop::AfterBytePos`
     /// 2. After reading the tag value will catch `TagStop::BeforeTag` and `TagStop::AfterBytePos`
     fn is_at_tag_stop(&self) -> Result<bool> {
-        let is_at_tag_stop: bool = match self.tagstop {
+        let is_at_tag_stop: bool = match &self.tagstop {
             TagStop::EndOfDataset => false,
-            TagStop::BeforeTag(before_tag) => {
-                // TODO: Address this -- self.tag_last_read is not necessarily at the same level
-                //       as self.current_path when this is called. This API should fully support
-                //       TagPath.
-                // Don't consider item & delimiters as they have high values and are not valid
-                // tags for comparison related to tag-stop behavior - these tags can appear anywhere
-                // in the dataset disregarding any relation to other tags.
-                self.tag_last_read != tags::ITEM
-                    && self.tag_last_read != tags::ITEM_DELIMITATION_ITEM
-                    && self.tag_last_read != tags::SEQUENCE_DELIMITATION_ITEM
-                    &&self.current_path.is_empty()
-                    && self.tag_last_read >= before_tag
+            TagStop::BeforeTag(tagpath) => {
+                TagStop::check_tagpath(tagpath, &self.current_path, self.tag_last_read,
+                                       |(to_check, current)| current >= to_check)
             }
-            TagStop::AfterTag(after_tag) => {
-                // TODO: Address this -- self.tag_last_read is not necessarily at the same level
-                //       as self.current_path when this is called. This API should fully support
-                //       TagPath.
-                // Don't consider item & delimiters as they have high values and are not valid
-                // tags for comparison related to tag-stop behavior - these tags can appear anywhere
-                // in the dataset disregarding any relation to other tags.
-                self.tag_last_read != tags::ITEM
-                    && self.tag_last_read != tags::ITEM_DELIMITATION_ITEM
-                    && self.tag_last_read != tags::SEQUENCE_DELIMITATION_ITEM
-                    && self.current_path.is_empty()
-                    && self.tag_last_read > after_tag
+            TagStop::AfterTag(tagpath) => {
+                TagStop::check_tagpath(tagpath, &self.current_path, self.tag_last_read,
+                                       |(to_check, current)| current > to_check)
             }
-            TagStop::AfterBytePos(byte_pos) => self.bytes_read > byte_pos,
+            TagStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
         };
 
         Ok(is_at_tag_stop)
@@ -603,9 +585,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // state. A loop is used so once those succeed they continue the loop and move to next
         // states which will eventually return a dicom element.
         loop {
-            if self.is_at_tag_stop()? {
-                return Ok(None);
-            }
             match self.state {
                 ParseState::DetectState => {
                     self.iterate_detect_state()?;
