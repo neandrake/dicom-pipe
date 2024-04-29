@@ -43,7 +43,7 @@ impl PrintApp {
         while let Some(elem) = parser.next() {
             let elem: DicomElement = elem?;
 
-            if prev_was_file_meta && elem.tag > 0x0002_FFFF {
+            if prev_was_file_meta && elem.get_tag() > 0x0002_FFFF {
                 stdout.write_all(
                     format!(
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
@@ -153,40 +153,40 @@ impl CommandApplication for PrintApp {
 /// Names for unknown tags will render as `<UnknownTag>`
 fn render_element(element: &DicomElement) -> Result<Option<String>> {
     // Group Length tags are deprecated, see note on Part 5 Section 7.2
-    if HIDE_GROUP_TAGS && element.tag.trailing_zeros() >= 16 {
+    if HIDE_GROUP_TAGS && element.get_tag().trailing_zeros() >= 16 {
         return Ok(None);
     }
 
     // These are delimiter items that are not very useful to see
     if HIDE_DELIMITATION_TAGS
-        && (element.tag == tags::ItemDelimitationItem.tag
-            || element.tag == tags::SequenceDelimitationItem.tag)
+        && (element.get_tag() == tags::ItemDelimitationItem.tag
+            || element.get_tag() == tags::SequenceDelimitationItem.tag)
     {
         return Ok(None);
     }
 
-    let tag_num: String = Tag::format_tag_to_display(element.tag);
-    let tag_name: &str = if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.tag)
-    {
-        tag.ident
-    } else {
-        "<Unknown Tag>"
-    };
-    let vr: &str = element.vr.ident;
+    let tag_num: String = Tag::format_tag_to_display(element.get_tag());
+    let tag_name: &str =
+        if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
+            tag.ident
+        } else {
+            "<Unknown Tag>"
+        };
+    let vr: &str = element.get_vr().ident;
 
     let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
 
     let mut indent_width: usize = seq_path.len();
     if indent_width > 0
-        && element.tag != tags::SequenceDelimitationItem.tag
-        && element.tag != tags::ItemDelimitationItem.tag
-        && element.tag != tags::Item.tag
+        && element.get_tag() != tags::SequenceDelimitationItem.tag
+        && element.get_tag() != tags::ItemDelimitationItem.tag
+        && element.get_tag() != tags::Item.tag
     {
         indent_width += 1;
     }
     indent_width *= 2;
 
-    if element.tag == tags::Item.tag {
+    if element.get_tag() == tags::Item.tag {
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
             format!(
                 "{} {} [{:?}]",
@@ -195,7 +195,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
                     .map(|item_no: usize| format!("#{}", item_no))
                     .unwrap_or_else(|| "#[NO ITEM NUMBER]".to_string()),
                 vr,
-                element.vl,
+                element.get_vl(),
             )
         } else {
             String::new()
@@ -232,7 +232,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
         tag_num = tag_num,
         vr = vr,
         tag_name = tag_name,
-        vl = element.vl,
+        vl = element.get_vl(),
         tag_value = tag_value,
     )))
 }

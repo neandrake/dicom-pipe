@@ -860,7 +860,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         let element: DicomElement = self.read_dicom_element(tag, self.detected_ts)?;
-        if element.tag == tags::TRANSFER_SYNTAX_UID {
+        if element.get_tag() == tags::TRANSFER_SYNTAX_UID {
             match self.parse_transfer_syntax(&element) {
                 Ok(Some(ts)) => {
                     self.dataset_ts = Some(ts);
@@ -934,11 +934,12 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         // if the file-meta state was skipped due to the initial detection we may still need to
         // switch transfer syntax -- only do this if the element is at the root of the dataset
-        if element.tag == tags::TRANSFER_SYNTAX_UID && element.get_sequence_path().is_empty() {
+        if element.get_tag() == tags::TRANSFER_SYNTAX_UID && element.get_sequence_path().is_empty()
+        {
             self.dataset_ts = self
                 .parse_transfer_syntax(&element)?
                 .or(Some(&ts::ImplicitVRLittleEndian));
-        } else if element.tag == tags::SPECIFIC_CHARACTER_SET {
+        } else if element.get_tag() == tags::SPECIFIC_CHARACTER_SET {
             let cs: CSRef = self.parse_specific_character_set(&element)?;
             if element.get_sequence_path().is_empty() {
                 self.cs = cs;
@@ -977,7 +978,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 element.get_ts()
             };
 
-            let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.vl {
+            let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.get_vl() {
                 Some(self.bytes_read + u64::from(len))
             } else {
                 None

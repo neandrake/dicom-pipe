@@ -102,20 +102,15 @@ fn test_unknown_explicit_vr_is_error() {
     // explicit element are valid (though we don't validate that tag numbers are ordered, an all
     // zero tag is not technically valid but itself should't cause a parse error). for an implicit
     // vr transfer syntax the VR will be selected as UN and should parse
-    let first_elem: Result<DicomElement> = parser
-        .skip_while(|x| x.is_ok() && x.as_ref().unwrap().tag <= tags::SpecificCharacterSet.tag)
+    let first_elem: DicomElement = parser
+        .skip_while(|x| {
+            x.is_ok() && x.as_ref().unwrap().get_tag() <= tags::SpecificCharacterSet.tag
+        })
         .next()
-        .expect("Should have returned Some(Err)");
+        .expect("Should have returned Some(Ok(elem))")
+        .expect("Should have returned Ok(elem)");
 
-    match first_elem {
-        Ok(_) => {
-            panic!("first element after SpecificCharacterSet should not parse");
-        }
-        Err(ParseError::UnknownExplicitVR(code)) => {
-            assert_eq!(code, 0);
-        }
-        Err(e) => panic!("unexpected error: {:?}", e),
-    }
+    assert_eq!(first_elem.get_vr(), &vr::INVALID);
 }
 
 #[test]
@@ -143,7 +138,10 @@ fn test_parser_state(with_std: bool) -> Result<()> {
 
     let first_elem: DicomElement = parser.next().expect("First element should be Some")?;
 
-    assert_eq!(first_elem.tag, tags::FileMetaInformationGroupLength.tag);
+    assert_eq!(
+        first_elem.get_tag(),
+        tags::FileMetaInformationGroupLength.tag
+    );
 
     assert_eq!(parser.get_parser_state(), ParseState::FileMeta);
 
@@ -303,7 +301,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
             .expect("Have first child")
             .1;
         assert_eq!(
-            child_obj.get_element().tag,
+            child_obj.get_element().get_tag(),
             tags::SequenceDelimitationItem.tag
         );
 
@@ -363,7 +361,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
             .expect("Get only child of contour image seq")
             .1;
         assert_eq!(
-            cont_img_sq_child.get_element().tag,
+            cont_img_sq_child.get_element().get_tag(),
             tags::SequenceDelimitationItem.tag
         );
         assert_eq!(cont_img_sq_child.get_child_count(), 0);
@@ -403,8 +401,8 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         .expect("Have contour data")
         .get_element();
 
-    assert_eq!(contour_data.vr, &vr::UN);
-    assert_eq!(contour_data.vl, ValueLength::Explicit(107074));
+    assert_eq!(contour_data.get_vr(), &vr::UN);
+    assert_eq!(contour_data.get_vl(), ValueLength::Explicit(107074));
     assert_eq!(contour_data.get_data().len(), 107074);
 
     Ok(())
@@ -436,7 +434,7 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<()> {
     assert_eq!(rss_obj.get_child_count(), 1);
 
     let rss_elem: &DicomElement = rss_obj.get_element();
-    assert_eq!(rss_elem.vl, ValueLength::UndefinedLength);
+    assert_eq!(rss_elem.get_vl(), ValueLength::UndefinedLength);
 
     let sdi_elem: &DicomElement = rss_obj
         .iter_child_nodes()
@@ -444,7 +442,7 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<()> {
         .expect("Should be able to get single child item")
         .1
         .get_element();
-    assert_eq!(sdi_elem.tag, tags::SequenceDelimitationItem.tag);
+    assert_eq!(sdi_elem.get_tag(), tags::SequenceDelimitationItem.tag);
 
     Ok(())
 }
@@ -476,8 +474,8 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
     assert_eq!(private_un_seq_obj.get_child_count(), 1);
 
     let private_un_seq_elem: &DicomElement = private_un_seq_obj.get_element();
-    assert_eq!(private_un_seq_elem.vr, &vr::UN);
-    assert_eq!(private_un_seq_elem.vl, ValueLength::UndefinedLength);
+    assert_eq!(private_un_seq_elem.get_vr(), &vr::UN);
+    assert_eq!(private_un_seq_elem.get_vl(), ValueLength::UndefinedLength);
     assert_eq!(private_un_seq_elem.is_seq_like(), true);
     assert_eq!(private_un_seq_elem.get_data().len(), 0);
 
@@ -564,7 +562,7 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
     assert_eq!(item_obj.get_child_count(), 2);
 
     let item_elem: &DicomElement = item_obj.get_element();
-    assert_eq!(item_elem.tag, tags::Item.tag);
+    assert_eq!(item_elem.get_tag(), tags::Item.tag);
     assert_eq!(item_elem.get_ts(), &ts::ImplicitVRLittleEndian);
 
     for (_tag, inner_obj) in item_obj.iter_child_nodes() {
@@ -600,7 +598,7 @@ fn test_missing_preamble(with_std: bool) -> Result<()> {
     let first_elem: DicomElement = parser.next().expect("First element should be parsable")?;
 
     // first tag is a group length tag
-    assert_eq!(first_elem.tag, 0x0008_0000);
+    assert_eq!(first_elem.get_tag(), 0x0008_0000);
     // should immediately jump past preamble/prefix, group length, and file meta
     assert_eq!(parser.get_parser_state(), ParseState::Element);
     assert_eq!(parser.get_ts(), &ts::ImplicitVRLittleEndian);
@@ -1105,8 +1103,8 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
         .get_child_by_tag(0x0009_1130)
         .expect("Element should exist")
         .get_element();
-    assert_eq!(element1.vr, &vr::UL);
-    assert_eq!(element1.vl, ValueLength::Explicit(2));
+    assert_eq!(element1.get_vr(), &vr::UL);
+    assert_eq!(element1.get_vl(), ValueLength::Explicit(2));
     // should be able to parse the value as u16 since it has 2 bytes
     let element1_val: u16 = element1.try_into()?;
     assert_eq!(element1_val, 0x0800);
@@ -1115,8 +1113,8 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
         .get_child_by_tag(0x0009_1131)
         .expect("Element should exist")
         .get_element();
-    assert_eq!(element2.vr, &vr::UL);
-    assert_eq!(element2.vl, ValueLength::Explicit(2));
+    assert_eq!(element2.get_vr(), &vr::UL);
+    assert_eq!(element2.get_vl(), ValueLength::Explicit(2));
     // should be able to parse the value as u16 since it has 2 bytes
     let element2_val: u16 = element1.try_into()?;
     assert_eq!(element2_val, 0x0800);
@@ -1125,8 +1123,8 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
         .get_child_by_tag(0x0009_1140)
         .expect("Element should exist")
         .get_element();
-    assert_eq!(element3.vr, &vr::UL);
-    assert_eq!(element3.vl, ValueLength::Explicit(2));
+    assert_eq!(element3.get_vr(), &vr::UL);
+    assert_eq!(element3.get_vl(), ValueLength::Explicit(2));
     // should be able to parse the value as u16 since it has 2 bytes
     let element3_val: u16 = element1.try_into()?;
     assert_eq!(element3_val, 0x0800);
@@ -1136,8 +1134,8 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
         .get_child_by_tag(0x0009_1141)
         .expect("Element should exist")
         .get_element();
-    assert_eq!(element4.vr, &vr::UL);
-    assert_eq!(element4.vl, ValueLength::Explicit(4));
+    assert_eq!(element4.get_vr(), &vr::UL);
+    assert_eq!(element4.get_vl(), ValueLength::Explicit(4));
 
     let element4_val: u32 = u32::try_from(element4)?;
     assert_eq!(element4_val, 0x2_0000);

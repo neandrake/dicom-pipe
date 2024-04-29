@@ -314,7 +314,7 @@ impl IndexApp {
 
 /// Builds a bson value from the given `DicomElement` and inserts it into the bson document
 fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()> {
-    let key: String = Tag::format_tag_to_path_display(elem.tag);
+    let key: String = Tag::format_tag_to_path_display(elem.get_tag());
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {
         RawValue::Attribute(attr) => {

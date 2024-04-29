@@ -172,7 +172,7 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
                             .get_sequence_path()
                             .iter()
                             .map(|sq| sq.get_seq_tag())
-                            .chain(vec![elem.tag])
+                            .chain(vec![elem.get_tag()])
                             .map(Tag::format_tag_to_display)
                             .collect::<Vec<String>>()
                             .join(".");

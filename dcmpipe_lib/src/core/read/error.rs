@@ -1,5 +1,6 @@
 //! Errors that can occur during parsing of a DICOM dataset.
 
+use crate::core::charset::CSRef;
 use crate::core::DICOM_PREFIX_LENGTH;
 use crate::defn::tag::Tag;
 use crate::defn::vr::VRRef;
@@ -38,11 +39,12 @@ pub enum ParseError {
     },
 
     /// An error occurs while parsing the value of a DICOM element.
-    #[error("error parsing element value: {} [{vr:?}], {message} {bytes:?}", Tag::format_tag_to_display(* tag))]
+    #[error("error parsing element value: {} [{vr:?}] [{cs:?}], {message} {bytes:?}", Tag::format_tag_to_display(* tag))]
     ValueParseError {
         message: String,
         tag: u32,
         vr: VRRef,
+        cs: CSRef,
         bytes: Vec<u8>,
     },
 

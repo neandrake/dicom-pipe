@@ -131,8 +131,8 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
     fn write_tag(&mut self, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
-        let element_number: u16 = (element.tag | 0x00FF) as u16;
-        let group_number: u16 = ((element.tag >> 4) | 0x00FF) as u16;
+        let element_number: u16 = (element.get_tag() | 0x00FF) as u16;
+        let group_number: u16 = ((element.get_tag() >> 4) | 0x00FF) as u16;
 
         if element.get_ts().is_big_endian() {
             bytes_written += self.dataset.write(&group_number.to_be_bytes())?;
@@ -149,7 +149,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let mut bytes_written: usize = 0;
 
         if element.get_ts().is_explicit_vr() {
-            bytes_written += self.dataset.write(element.vr.ident.as_bytes())?;
+            bytes_written += self.dataset.write(element.get_vr().ident.as_bytes())?;
         }
 
         Ok(bytes_written)
@@ -159,9 +159,9 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let mut bytes_written: usize = 0;
 
         let write_4bytes: bool =
-            !element.get_ts().is_explicit_vr() || element.vr.has_explicit_2byte_pad;
+            !element.get_ts().is_explicit_vr() || element.get_vr().has_explicit_2byte_pad;
 
-        match element.vl {
+        match element.get_vl() {
             ValueLength::UndefinedLength => {
                 if !write_4bytes {
                     return Err(WriteError::InvalidUndefinedValueLengthError);

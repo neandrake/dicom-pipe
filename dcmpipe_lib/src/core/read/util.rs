@@ -186,7 +186,7 @@ fn parse_into_object_recurse<DatasetType: Read>(
     }
 
     while let Some(Ok(element)) = next_element {
-        let tag: u32 = element.tag;
+        let tag: u32 = element.get_tag();
         let cur_seq_path_len: usize = element.get_sequence_path().len() + 1;
 
         if prev_seq_path_len == 0 {
@@ -204,7 +204,7 @@ fn parse_into_object_recurse<DatasetType: Read>(
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.
         let dcmobj: DicomObject = if element.is_seq_like()
-            || (tag == tags::ITEM && element.vl != ValueLength::Explicit(0))
+            || (tag == tags::ITEM && element.get_vl() != ValueLength::Explicit(0))
         {
             let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
             let mut items: Vec<DicomObject> = Vec::new();

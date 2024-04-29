@@ -54,6 +54,7 @@ fn error(message: &str, value: &DicomElement) -> ParseError {
         message: message.to_owned(),
         tag: value.tag,
         vr: value.vr,
+        cs: value.cs,
         bytes: value
             .data
             .iter()
@@ -66,9 +67,9 @@ fn error(message: &str, value: &DicomElement) -> ParseError {
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
 pub struct DicomElement {
-    pub tag: u32,
-    pub vr: VRRef,
-    pub vl: ValueLength,
+    tag: u32,
+    vr: VRRef,
+    vl: ValueLength,
 
     data: Vec<u8>,
     sq_path: Vec<SequenceElement>,
@@ -97,6 +98,18 @@ impl DicomElement {
             ts,
             cs,
         }
+    }
+
+    pub fn get_tag(&self) -> u32 {
+        self.tag
+    }
+
+    pub fn get_vl(&self) -> ValueLength {
+        self.vl
+    }
+
+    pub fn get_vr(&self) -> VRRef {
+        self.vr
     }
 
     pub fn get_ts(&self) -> TSRef {

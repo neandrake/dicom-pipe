@@ -43,7 +43,7 @@ impl DicomElementValue {
     fn new(element: DicomElement) -> DicomElementValue {
         let seq: String = if element.is_seq_like() { "+" } else { "" }.to_owned();
         let name: String =
-            if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.tag) {
+            if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
                 tag.ident
             } else {
                 "<Private Tag>"
@@ -57,11 +57,11 @@ impl DicomElementValue {
         };
 
         DicomElementValue {
-            tag: element.tag,
+            tag: element.get_tag(),
             seq,
-            tag_display: Tag::format_tag_to_display(element.tag),
+            tag_display: Tag::format_tag_to_display(element.get_tag()),
             name,
-            vr: element.vr.ident.to_owned(),
+            vr: element.get_vr().ident.to_owned(),
             value,
         }
     }
@@ -124,13 +124,14 @@ impl CommandApplication for EditApp {
         for elem in parser {
             let elem: DicomElement = elem?;
             if elem.get_sequence_path().is_empty() {
-                let name: String =
-                    if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.tag) {
-                        tag.ident
-                    } else {
-                        "<Unknown Tag>"
-                    }
-                    .to_owned();
+                let name: String = if let Some(tag) =
+                    STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.get_tag())
+                {
+                    tag.ident
+                } else {
+                    "<Unknown Tag>"
+                }
+                .to_owned();
 
                 total_name_size = name.len().max(total_name_size);
 
