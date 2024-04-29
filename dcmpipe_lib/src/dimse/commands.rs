@@ -160,7 +160,7 @@ impl From<&CommandPriority> for u16 {
     }
 }
 
-impl From<&CommandPriority> for RawValue {
+impl<'e> From<&CommandPriority> for RawValue<'e> {
     fn from(value: &CommandPriority) -> Self {
         RawValue::ushort(u16::from(value))
     }
@@ -190,7 +190,7 @@ pub enum CommandStatus {
     INVALID(u16),
 }
 
-impl From<&CommandStatus> for RawValue {
+impl<'e> From<&CommandStatus> for RawValue<'e> {
     fn from(value: &CommandStatus) -> Self {
         match value {
             CommandStatus::Success(c) => RawValue::ushort(*c),

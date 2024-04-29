@@ -14,7 +14,7 @@ pub struct Attribute(pub u32);
 
 /// Wrapper around an element's value parsed into a native/raw type.
 #[derive(Debug, Clone, PartialEq)]
-pub enum RawValue {
+pub enum RawValue<'e> {
     Attribute(Vec<Attribute>),
     Uid(String),
     Strings(Vec<String>),
@@ -30,21 +30,23 @@ pub enum RawValue {
     Words(Vec<u16>),
     DWords(Vec<u32>),
     QWords(Vec<u64>),
+
+    BytesView(&'e Vec<u8>),
 }
 
-impl RawValue {
+impl<'e> RawValue<'e> {
     /// Convenience for an empty value.
-    pub fn empty() -> RawValue {
+    pub fn empty() -> RawValue<'e> {
         RawValue::Bytes(Vec::with_capacity(0))
     }
 
     /// Convenience for `RawValue::Attribute(vec![attr])`
-    pub fn attr(attr: Attribute) -> RawValue {
+    pub fn attr(attr: Attribute) -> RawValue<'e> {
         RawValue::Attribute(vec![attr])
     }
 
     /// Convenience for `RawValue::Strings(vec![string])`
-    pub fn string<S>(string: S) -> RawValue
+    pub fn string<S>(string: S) -> RawValue<'e>
     where
         String: From<S>,
     {
@@ -52,62 +54,62 @@ impl RawValue {
     }
 
     /// Convenience for `RawValue::Shorts(vec![short])`
-    pub fn short(short: i16) -> RawValue {
+    pub fn short(short: i16) -> RawValue<'e> {
         RawValue::Shorts(vec![short])
     }
 
     /// Convenience for `RawValue::UShorts(vec![ushort])`
-    pub fn ushort(ushort: u16) -> RawValue {
+    pub fn ushort(ushort: u16) -> RawValue<'e> {
         RawValue::UShorts(vec![ushort])
     }
 
     /// Convenience for `RawValue::Ints(vec![int])`
-    pub fn int(int: i32) -> RawValue {
+    pub fn int(int: i32) -> RawValue<'e> {
         RawValue::Ints(vec![int])
     }
 
     /// Convenience for `RawValue::UInt(vec![uint])`
-    pub fn uint(uint: u32) -> RawValue {
+    pub fn uint(uint: u32) -> RawValue<'e> {
         RawValue::UInts(vec![uint])
     }
 
     /// Convenience for `RawValue::Longs(vec![long])`
-    pub fn long(long: i64) -> RawValue {
+    pub fn long(long: i64) -> RawValue<'e> {
         RawValue::Longs(vec![long])
     }
 
     /// Convenience for `RawValue::ULongs(vec![ulong])`
-    pub fn ulong(ulong: u64) -> RawValue {
+    pub fn ulong(ulong: u64) -> RawValue<'e> {
         RawValue::ULongs(vec![ulong])
     }
 
     /// Convenience for `RawValue::Floats(vec![float])`
-    pub fn float(float: f32) -> RawValue {
+    pub fn float(float: f32) -> RawValue<'e> {
         RawValue::Floats(vec![float])
     }
 
     /// Convenience for `RawValue::Doubles(vec![double])`
-    pub fn double(double: f64) -> RawValue {
+    pub fn double(double: f64) -> RawValue<'e> {
         RawValue::Doubles(vec![double])
     }
 
     /// Convenience for `RawValue::Bytes(vec![byte])`
-    pub fn byte(byte: u8) -> RawValue {
+    pub fn byte(byte: u8) -> RawValue<'e> {
         RawValue::Bytes(vec![byte])
     }
 
     /// Convenience for `RawValue::Words(vec![word])`
-    pub fn word(word: u16) -> RawValue {
+    pub fn word(word: u16) -> RawValue<'e> {
         RawValue::Words(vec![word])
     }
 
     /// Convenience for `RawValue::DWords(vec![dword])`
-    pub fn dword(dword: u32) -> RawValue {
+    pub fn dword(dword: u32) -> RawValue<'e> {
         RawValue::DWords(vec![dword])
     }
 
     /// Convenience for `RawValue::QWords(vec![qword])`
-    pub fn qword(qword: u64) -> RawValue {
+    pub fn qword(qword: u64) -> RawValue<'e> {
         RawValue::QWords(vec![qword])
     }
 }
