@@ -214,7 +214,7 @@ impl TagNode {
             let tag = u16::from_str_radix(tag, 16).map_err(|e| ParseError::InvalidTagPath {
                 string_path: e.to_string(),
             })?;
-            let full_tag: u32 = ((group as u32) << 16) + ((tag as u32) & 0x0000_FFFF);
+            let full_tag: u32 = (u32::from(group) << 16) + (u32::from(tag) & 0x0000_FFFF);
             Ok(TagNode::new(full_tag, index))
         } else {
             Err(ParseError::InvalidTagPath {

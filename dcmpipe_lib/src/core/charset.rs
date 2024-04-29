@@ -60,7 +60,7 @@ pub(crate) fn lookup_charset(label: &str) -> Option<CSRef> {
     let label: String = label
         .chars()
         .map(|c| match c {
-            'A'..='Z' => (c as u8 + 32) as char,
+            'A'..='Z' => char::from(u8::try_from(c).unwrap_or_default() + 32),
             ' ' => '-',
             '_' => '-',
             '\n' => '-',

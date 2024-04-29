@@ -17,7 +17,7 @@ use crate::core::{
     values::RawValue,
 };
 
-use super::write::valencode::ElemAndRawValue;
+use super::{defn::vl::UNDEFINED_LENGTH, write::valencode::ElemAndRawValue};
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
@@ -195,7 +195,7 @@ impl DicomElement {
         {
             ValueLength::Explicit(0)
         } else {
-            ValueLength::Explicit(self.data.len() as u32)
+            ValueLength::Explicit(u32::try_from(self.data.len()).unwrap_or(UNDEFINED_LENGTH))
         };
 
         Ok(())

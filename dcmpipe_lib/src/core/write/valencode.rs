@@ -5,7 +5,7 @@ use std::{iter::once, mem::size_of};
 
 use crate::core::{
     dcmelement::DicomElement,
-    defn::vr::{CS_SEPARATOR, CS_SEPARATOR_BYTE},
+    defn::vr::CS_SEPARATOR_BYTE,
     read::{ParseError, ParseResult},
     values::{Attribute, RawValue},
 };
@@ -67,8 +67,8 @@ impl<'a> From<ElemAndAttributes<'a>> for Vec<u8> {
         let mut bytes: Vec<u8> = vec![0u8; U32_SIZE * num_attrs];
         for (i, attr) in attrs.iter().enumerate() {
             let Attribute(attr) = attr;
-            let group_number: u16 = ((attr >> 16) & 0xFFFF) as u16;
-            let elem_number: u16 = (attr & 0xFFFF) as u16;
+            let group_number: u16 = u16::try_from((attr >> 16) & 0xFFFF).unwrap_or(u16::MAX);
+            let elem_number: u16 = u16::try_from(attr & 0xFFFF).unwrap_or(u16::MAX);
             let idx = i * U32_SIZE;
             if elem.ts().big_endian() {
                 bytes[idx..(idx + 2)].copy_from_slice(&group_number.to_be_bytes());
@@ -112,7 +112,7 @@ impl<'a> TryFrom<ElemAndStrings<'a>> for Vec<u8> {
                     // Add the separator after each encoded value. Below the last separator
                     // will be popped off.
                     .map(|mut v| {
-                        v.push(CS_SEPARATOR as u8);
+                        v.push(CS_SEPARATOR_BYTE);
                         v
                     })
                     .map_err(|e| ParseError::CharsetError { source: e })

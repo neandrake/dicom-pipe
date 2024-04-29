@@ -199,7 +199,7 @@ impl<'model> DicomNodeModel<'model> {
 
         let tag_render: TagCategory = child.element().into();
         let elem_name = tag_render.to_string();
-        let name_len = elem_name.len() as u16;
+        let name_len = u16::try_from(elem_name.len()).unwrap_or(u16::MAX);
         let elem_value: TagValue = ElementWithLineFmt(child.element(), false).into();
 
         let mut cells: Vec<Cell> = Vec::with_capacity(5);
@@ -496,7 +496,7 @@ impl<'app> BrowseApp {
 
         // Convert the event row (all widgets on screen) into the table row.
         // Subtract 2, 1 for the table border, 1 for the table header row.
-        let row_index = event.row.saturating_sub(2) as usize;
+        let row_index = usize::from(event.row.saturating_sub(2));
 
         let index = Some(view_state.table_state.offset().saturating_add(row_index));
         // Only toggle the selection on click, not drag.

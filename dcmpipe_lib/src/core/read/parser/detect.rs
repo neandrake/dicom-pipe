@@ -87,7 +87,7 @@ impl<'d, R: Read> Parser<'d, R> {
             if already_read_preamble {
                 self.detected_ts = &ts::ImplicitVRLittleEndian;
                 self.partial_tag = Some(tag);
-                self.bytes_read += bytes_read as u64;
+                self.bytes_read += TryInto::<u64>::try_into(bytes_read).unwrap_or_default();
                 self.state = ParserState::Element;
                 return Ok(());
             }
@@ -95,7 +95,7 @@ impl<'d, R: Read> Parser<'d, R> {
             // read the remainder of the preamble, the prefix
             self.dataset
                 .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
-            self.bytes_read += file_preamble.len() as u64;
+            self.bytes_read += TryInto::<u64>::try_into(file_preamble.len()).unwrap_or_default();
             self.file_preamble = Some(file_preamble);
             self.iterate_prefix()?;
             self.state = ParserState::DetectTransferSyntax;
@@ -113,7 +113,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 if already_read_preamble {
                     self.detected_ts = &ts::ImplicitVRLittleEndian;
                     self.partial_tag = Some(tag);
-                    self.bytes_read += bytes_read as u64;
+                    self.bytes_read += TryInto::<u64>::try_into(bytes_read).unwrap_or_default();
                     self.state = ParserState::Element;
                     return Ok(());
                 }
@@ -121,7 +121,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 // read the remainder of the preamble, the prefix
                 self.dataset
                     .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
-                self.bytes_read += file_preamble.len() as u64;
+                self.bytes_read += TryInto::<u64>::try_into(file_preamble.len()).unwrap_or_default();
                 self.file_preamble = Some(file_preamble);
                 self.iterate_prefix()?;
                 self.state = ParserState::DetectTransferSyntax;
@@ -145,7 +145,7 @@ impl<'d, R: Read> Parser<'d, R> {
             // testing tag in either endian didn't seem to work, set as DICOM default
             self.detected_ts = &ts::ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
-            self.bytes_read += bytes_read as u64;
+            self.bytes_read += TryInto::<u64>::try_into(bytes_read).unwrap_or_default();
             self.state = ParserState::Element;
             return Ok(());
         }
@@ -219,7 +219,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 self.detected_ts = ts;
                 self.partial_tag = Some(tag);
                 self.partial_vl = Some(vl);
-                self.bytes_read += bytes_read as u64;
+                self.bytes_read += TryInto::<u64>::try_into(bytes_read).unwrap_or_default();
                 // FileMeta is coded to read as ExplicitVRLittleEndian and since we've determined
                 // this is implicit we skip to Element which will follow self.ts
                 if tag < tags::FILE_META_GROUP_END {
@@ -239,7 +239,7 @@ impl<'d, R: Read> Parser<'d, R> {
             self.detected_ts = &ts::ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
             self.partial_vl = Some(vl);
-            self.bytes_read += bytes_read as u64;
+            self.bytes_read += TryInto::<u64>::try_into(bytes_read).unwrap_or_default();
             self.state = ParserState::Element;
             return Ok(());
         }
@@ -247,7 +247,7 @@ impl<'d, R: Read> Parser<'d, R> {
         // garbage data so likely in preamble, finish reading preamble and prefix, restart detect
         self.dataset
             .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
-        self.bytes_read += file_preamble.len() as u64;
+        self.bytes_read += TryInto::<u64>::try_into(file_preamble.len()).unwrap_or_default();
         self.file_preamble = Some(file_preamble);
         self.partial_tag = None;
         self.partial_vr = None;

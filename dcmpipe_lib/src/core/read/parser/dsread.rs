@@ -214,13 +214,14 @@ impl<'d, R: Read> Parser<'d, R> {
                 // If length is odd we only read that exact bytes from the dataset but the bytes
                 // we should return from this should be padded with a zero in order to always
                 // return an even-length value.
+                let value_length: usize = usize::try_from(value_length).unwrap_or_default();
                 let buffer_size: usize = if value_length % 2 != 0 {
-                    value_length as usize + 1
+                    value_length + 1
                 } else {
-                    value_length as usize
+                    value_length
                 };
                 let mut buffer: Vec<u8> = vec![0; buffer_size];
-                let buffer_slice: &mut [u8] = &mut buffer.as_mut_slice()[0..value_length as usize];
+                let buffer_slice: &mut [u8] = &mut buffer.as_mut_slice()[0..value_length];
                 let result: ParseResult<()> = self.dataset.read_exact(buffer_slice).map_err(|e| {
                     // Some datasets may end with this DataSetTrailingPadding tag (or just all
                     // zeroes) and also have value length which does not match the actual value
@@ -240,11 +241,11 @@ impl<'d, R: Read> Parser<'d, R> {
 
                 match result {
                     Ok(_) => {
-                        self.bytes_read += u64::from(value_length);
+                        self.bytes_read += u64::try_from(value_length).unwrap_or_default();
                         Ok(buffer)
                     }
                     Err(ParseError::ExpectedEOF) => {
-                        self.bytes_read += u64::from(value_length);
+                        self.bytes_read += u64::try_from(value_length).unwrap_or_default();
                         Err(ParseError::ExpectedEOF)
                     }
                     Err(e) => Err(e),

@@ -22,10 +22,10 @@ impl MockDicomDataset {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
-                data[128] = 'D' as u8;
-                data[129] = 'I' as u8;
-                data[130] = 'C' as u8;
-                data[131] = 'M' as u8;
+                data[128] = u8::try_from('D').unwrap_or_default();
+                data[129] = u8::try_from('I').unwrap_or_default();
+                data[130] = u8::try_from('C').unwrap_or_default();
+                data[131] = u8::try_from('M').unwrap_or_default();
                 data
             },
             pos: 0,
@@ -37,10 +37,10 @@ impl MockDicomDataset {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
-                data[128] = 'D' as u8;
-                data[129] = 'O' as u8;
-                data[130] = 'C' as u8;
-                data[131] = 'M' as u8;
+                data[128] = u8::try_from('D').unwrap_or_default();
+                data[129] = u8::try_from('O').unwrap_or_default();
+                data[130] = u8::try_from('C').unwrap_or_default();
+                data[131] = u8::try_from('M').unwrap_or_default();
                 data
             },
             pos: 0,
@@ -52,10 +52,10 @@ impl MockDicomDataset {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0xFFu8; 132];
-                data[128] = 'D' as u8;
-                data[129] = 'I' as u8;
-                data[130] = 'C' as u8;
-                data[131] = 'M' as u8;
+                data[128] = u8::try_from('D').unwrap_or_default();
+                data[129] = u8::try_from('I').unwrap_or_default();
+                data[130] = u8::try_from('C').unwrap_or_default();
+                data[131] = u8::try_from('M').unwrap_or_default();
                 data
             },
             pos: 0,
@@ -68,10 +68,10 @@ impl MockDicomDataset {
         let mockup: MockDicomDataset = MockDicomDataset {
             data: {
                 let mut data: Vec<u8> = vec![0u8; 132];
-                data[128] = 'D' as u8;
-                data[129] = 'I' as u8;
-                data[130] = 'C' as u8;
-                data[131] = 'M' as u8;
+                data[128] = u8::try_from('D').unwrap_or_default();
+                data[129] = u8::try_from('I').unwrap_or_default();
+                data[130] = u8::try_from('C').unwrap_or_default();
+                data[131] = u8::try_from('M').unwrap_or_default();
                 data
             },
             pos: 131,
@@ -110,19 +110,19 @@ impl Read for MockDicomDataset {
 impl Seek for MockDicomDataset {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Error> {
         let newpos: usize = match pos {
-            SeekFrom::Start(n) => 0usize.saturating_add(n as usize),
-            SeekFrom::Current(n) => self.pos.saturating_add(n as usize),
-            SeekFrom::End(n) => self.data.len().saturating_sub(n as usize),
+            SeekFrom::Start(n) => usize::try_from(n).unwrap_or(usize::MAX),
+            SeekFrom::Current(n) => self.pos.saturating_add(usize::try_from(n).unwrap_or(usize::MAX)),
+            SeekFrom::End(n) => self.data.len().saturating_sub(usize::try_from(n).unwrap_or(usize::MAX)),
         };
 
         if newpos < self.data.len() {
             self.pos = newpos;
-            return Result::Ok(newpos as u64);
+            return Result::Ok(u64::try_from(newpos).unwrap_or_default());
         }
 
-        return Result::Err(Error::new(
+        Result::Err(Error::new(
             ErrorKind::UnexpectedEof,
             format!("seek to invalid position: {:?}", newpos),
-        ));
+        ))
     }
 }

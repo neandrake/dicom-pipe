@@ -151,7 +151,7 @@ impl Pdu {
             .read_exact(&mut buf)
             .map_err(|e| DimseError::IOError { source: e })?;
 
-        let pdu_type: PduType = TryFrom::try_from(buf[0])?;
+        let pdu_type: PduType = PduType::try_from(buf[0])?;
 
         let byte1 = buf[1];
 
@@ -922,13 +922,12 @@ impl PresentationDataItem {
         let length = u32::from_be_bytes(buf);
 
         let mut pres_data: Vec<PresentationDataValue> = Vec::new();
-        let mut pres_data_len_marker = TryInto::<usize>::try_into(length).unwrap_or_default();
+        let mut pres_data_len_marker = usize::try_from(length).unwrap_or_default();
         while pres_data_len_marker > 0 {
             let value = PresentationDataValue::read(&mut dataset)?;
             // The total bytes read for a single data value is 4 for the length field and then the
             // value of the length field which includes the ctx_id, msg_header, and data fields.
-            pres_data_len_marker -=
-                TryInto::<usize>::try_into(4 + value.length()).unwrap_or_default();
+            pres_data_len_marker -= usize::try_from(4 + value.length()).unwrap_or_default();
             pres_data.push(value);
         }
 
@@ -1232,12 +1231,12 @@ impl AssocRQPresentationContext {
         // additional 2 for the length field, and the value of the length field being the size of
         // the last variable-length field.
         bytes_read += buf.len();
-        bytes_read += TryInto::<usize>::try_into(2 + abstract_syntax.length()).unwrap_or_default();
+        bytes_read += usize::try_from(2 + abstract_syntax.length()).unwrap_or_default();
 
         // The length of total transfer syntax list is value of this PDU's length field less the
         // number of bytes before the transfer syntaxes field. There are no fields after the
         // transfer syntaxes.
-        let mut transfer_syntax_len_marker = Into::<usize>::into(length) - bytes_read;
+        let mut transfer_syntax_len_marker = usize::from(length) - bytes_read;
         let mut transfer_syntaxes: Vec<TransferSyntaxItem> = Vec::new();
         while transfer_syntax_len_marker > 0 {
             dataset.read_exact(&mut buf)?;
@@ -1246,7 +1245,7 @@ impl AssocRQPresentationContext {
             // field, and also the value of the length field being the size of the last
             // variable-length field.
             transfer_syntax_len_marker -=
-                TryInto::<usize>::try_into(4 + transfer_syntax.length()).unwrap_or_default();
+                usize::try_from(4 + transfer_syntax.length()).unwrap_or_default();
             transfer_syntaxes.push(transfer_syntax);
         }
 
@@ -2200,13 +2199,13 @@ impl SOPClassCommonExtendedNegotiationItem {
             rel_gen_sop_classes.push(rel_gen_sop_class);
         }
 
-        let reserved_len: usize = Into::<usize>::into(length)
+        let reserved_len: usize = usize::from(length)
             - (size_of::<u16>()
-                + Into::<usize>::into(sop_class_uid_length)
+                + usize::from(sop_class_uid_length)
                 + size_of::<u16>()
-                + Into::<usize>::into(service_class_length)
+                + usize::from(service_class_length)
                 + size_of::<u16>()
-                + Into::<usize>::into(rel_gen_sop_class_length));
+                + usize::from(rel_gen_sop_class_length));
         let reserved = if reserved_len > 0 {
             let mut reserved: Vec<u8> = vec![0u8; reserved_len.into()];
             dataset.read_exact(&mut reserved)?;
@@ -2698,128 +2697,128 @@ mod tests {
     fn test_pdu_type_roundtrip() {
         assert_eq!(
             PduType::AssocRQ,
-            (Into::<u8>::into(PduType::AssocRQ)).try_into().unwrap()
+            (u8::from(PduType::AssocRQ)).try_into().unwrap()
         );
         assert_eq!(
             PduType::AssocAC,
-            (Into::<u8>::into(PduType::AssocAC)).try_into().unwrap()
+            (u8::from(PduType::AssocAC)).try_into().unwrap()
         );
         assert_eq!(
             PduType::AssocRJ,
-            (Into::<u8>::into(PduType::AssocRJ)).try_into().unwrap()
+            (u8::from(PduType::AssocRJ)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::PresentationDataItem,
-            (Into::<u8>::into(PduType::PresentationDataItem))
+            (u8::from(PduType::PresentationDataItem))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::ReleaseRQ,
-            (Into::<u8>::into(PduType::ReleaseRQ)).try_into().unwrap()
+            (u8::from(PduType::ReleaseRQ)).try_into().unwrap()
         );
         assert_eq!(
             PduType::ReleaseRP,
-            (Into::<u8>::into(PduType::ReleaseRP)).try_into().unwrap()
+            (u8::from(PduType::ReleaseRP)).try_into().unwrap()
         );
         assert_eq!(
             PduType::Abort,
-            (Into::<u8>::into(PduType::Abort)).try_into().unwrap()
+            (u8::from(PduType::Abort)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::ApplicationContextItem,
-            (Into::<u8>::into(PduType::ApplicationContextItem))
+            (u8::from(PduType::ApplicationContextItem))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::AssocRQPresentationContext,
-            (Into::<u8>::into(PduType::AssocRQPresentationContext))
+            (u8::from(PduType::AssocRQPresentationContext))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::AssocACPresentationContext,
-            (Into::<u8>::into(PduType::AssocACPresentationContext))
+            (u8::from(PduType::AssocACPresentationContext))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::AbstractSyntaxItem,
-            (Into::<u8>::into(PduType::AbstractSyntaxItem))
+            (u8::from(PduType::AbstractSyntaxItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::TransferSyntaxItem,
-            (Into::<u8>::into(PduType::TransferSyntaxItem))
+            (u8::from(PduType::TransferSyntaxItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::UserInformationItem,
-            (Into::<u8>::into(PduType::UserInformationItem))
+            (u8::from(PduType::UserInformationItem))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::MaxLengthItem,
-            (Into::<u8>::into(PduType::MaxLengthItem))
+            (u8::from(PduType::MaxLengthItem))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::ImplementationClassUIDItem,
-            (Into::<u8>::into(PduType::ImplementationClassUIDItem))
+            (u8::from(PduType::ImplementationClassUIDItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::AsyncOperationsWindowItem,
-            (Into::<u8>::into(PduType::AsyncOperationsWindowItem))
+            (u8::from(PduType::AsyncOperationsWindowItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::RoleSelectionItem,
-            (Into::<u8>::into(PduType::RoleSelectionItem))
+            (u8::from(PduType::RoleSelectionItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::ImplementationVersionNameItem,
-            (Into::<u8>::into(PduType::ImplementationVersionNameItem))
+            (u8::from(PduType::ImplementationVersionNameItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::SOPClassExtendedNegotiationItem,
-            (Into::<u8>::into(PduType::SOPClassExtendedNegotiationItem))
+            (u8::from(PduType::SOPClassExtendedNegotiationItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::SOPClassCommonExtendedNegotiationItem,
-            (Into::<u8>::into(PduType::SOPClassCommonExtendedNegotiationItem))
+            (u8::from(PduType::SOPClassCommonExtendedNegotiationItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::UserIdentityItem,
-            (Into::<u8>::into(PduType::UserIdentityItem))
+            (u8::from(PduType::UserIdentityItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::UserIdentityNegotiationItem,
-            (Into::<u8>::into(PduType::UserIdentityNegotiationItem))
+            (u8::from(PduType::UserIdentityNegotiationItem))
                 .try_into()
                 .unwrap()
         );
