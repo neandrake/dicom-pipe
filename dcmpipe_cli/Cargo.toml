@@ -13,7 +13,7 @@ anyhow = "1.0"
 bson = { version = "2.9", optional = true }
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.27"
-dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["stddicom", "compress"] }
+dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["compress", "dimse", "stddicom"] }
 mongodb = { version = "2.8", default-features = false, features = ["sync"], optional = true }
 ratatui = "0.26"
 walkdir = "2.4"

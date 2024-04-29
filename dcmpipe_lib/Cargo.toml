@@ -8,6 +8,7 @@ edition = "2021"
 [features]
 compress = ["dep:libflate"]
 stddicom = []
+dimse = []
 
 [dependencies]
 encoding_rs = "0.8"
