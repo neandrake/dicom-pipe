@@ -80,6 +80,12 @@ impl<DatasetType: Write> Writer<DatasetType> {
         self
     }
 
+    pub fn create_element(&self, tag: u32, vr: VRRef, value: RawValue) -> Result<DicomElement> {
+        let mut e = DicomElement::new_empty(tag, vr, self.ts);
+        e.encode_value(value)?;
+        Ok(e)
+    }
+
     pub fn into_dataset(self) -> Result<DatasetType> {
         self.dataset
             .into_inner()
@@ -188,11 +194,15 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let mut bytes_written: usize = 0;
 
         if element.get_ts().is_big_endian() {
-            bytes_written += dataset.write(&u16::to_be_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
-            bytes_written += dataset.write(&u16::to_be_bytes((element.get_tag() & 0x00FF) as u16))?;
+            bytes_written +=
+                dataset.write(&u16::to_be_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
+            bytes_written +=
+                dataset.write(&u16::to_be_bytes((element.get_tag() & 0x00FF) as u16))?;
         } else {
-            bytes_written += dataset.write(&u16::to_le_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
-            bytes_written += dataset.write(&u16::to_le_bytes((element.get_tag() & 0x00FF) as u16))?;
+            bytes_written +=
+                dataset.write(&u16::to_le_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
+            bytes_written +=
+                dataset.write(&u16::to_le_bytes((element.get_tag() & 0x00FF) as u16))?;
         }
 
         Ok(bytes_written)
