@@ -1,7 +1,7 @@
 use crate::app::render_element;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::DicomObject;
-use dcmpipe_lib::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmreader::parse_stream;
 use dcmpipe_lib::defn::ts::TSRef;
 use std::collections::btree_map::IterMut;
@@ -29,7 +29,7 @@ impl FullObjApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: DicomStreamParser<File> = DicomParserBuilder::new(file).build();
+        let mut dicom_iter: Parser<File> = ParserBuilder::new(file).build();
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();

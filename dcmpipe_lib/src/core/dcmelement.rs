@@ -13,7 +13,7 @@ use std::io::{Cursor, Error, ErrorKind};
 /// adds a new DicomSequenceElement to its current path which subsequent elements will clone for
 /// themselves. This allows elements to know how they exist within a dicom object.
 #[derive(Clone, PartialEq, Eq)]
-pub struct DicomSequenceElement {
+pub struct SequenceElement {
     /// The SQ element tag.
     seq_tag: u32,
     /// The byte position where the parent sequence ends. This value is set as
@@ -28,9 +28,9 @@ pub struct DicomSequenceElement {
     item_number: Option<u32>,
 }
 
-impl DicomSequenceElement {
-    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>) -> DicomSequenceElement {
-        DicomSequenceElement {
+impl SequenceElement {
+    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>) -> SequenceElement {
+        SequenceElement {
             seq_tag,
             seq_end_pos,
             item_number: None,
@@ -66,7 +66,7 @@ pub struct DicomElement {
     pub vl: ValueLength,
 
     data: Cursor<Vec<u8>>,
-    sequence_path: Vec<DicomSequenceElement>,
+    sequence_path: Vec<SequenceElement>,
 
     ts: TSRef,
     cs: CSRef,
@@ -80,7 +80,7 @@ impl DicomElement {
         ts: TSRef,
         cs: CSRef,
         data: Vec<u8>,
-        sequence_path: Vec<DicomSequenceElement>,
+        sequence_path: Vec<SequenceElement>,
     ) -> DicomElement {
         let cs: CSRef = vr.get_proper_cs(cs);
         DicomElement {
@@ -99,7 +99,7 @@ impl DicomElement {
         &self.data
     }
 
-    pub fn get_sequence_path(&self) -> &Vec<DicomSequenceElement> {
+    pub fn get_sequence_path(&self) -> &Vec<SequenceElement> {
         &self.sequence_path
     }
 
@@ -107,7 +107,7 @@ impl DicomElement {
         let mut path: Vec<TagPathElement> = self
             .sequence_path
             .iter()
-            .map(|dse: &DicomSequenceElement| TagPathElement::new(dse.get_seq_tag(), None))
+            .map(|dse: &SequenceElement| TagPathElement::new(dse.get_seq_tag(), None))
             .collect::<Vec<TagPathElement>>();
         path.push(TagPathElement::new(self.tag, None));
         TagPath::new_from_vec(path)

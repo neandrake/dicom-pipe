@@ -1,6 +1,6 @@
 use crate::app::render_element;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use std::fs::File;
 use std::io::{self, Error, ErrorKind, Write};
 use std::path::Path;
@@ -25,7 +25,7 @@ impl LowMemApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: DicomStreamParser<File> = DicomParserBuilder::new(file).build();
+        let mut dicom_iter: Parser<File> = ParserBuilder::new(file).build();
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();

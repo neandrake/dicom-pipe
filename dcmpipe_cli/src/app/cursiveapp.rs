@@ -5,7 +5,7 @@ use cursive::Cursive;
 use cursive_table_view::{TableView, TableViewItem};
 use dcmpipe_dict::dict::lookup::TAG_BY_VALUE;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmparser::{DicomParserBuilder, DicomStreamParser};
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
@@ -91,7 +91,7 @@ impl CursiveApp {
         }
 
         let file: File = File::open(path)?;
-        let dicom_iter: DicomStreamParser<File> = DicomParserBuilder::new(file).build();
+        let dicom_iter: Parser<File> = ParserBuilder::new(file).build();
 
         let mut total_name_size: usize = 0;
         let mut items: Vec<DicomElement> = Vec::new();
