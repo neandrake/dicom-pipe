@@ -73,14 +73,14 @@ impl SequenceElement {
 
     pub fn decrement_item_num(&mut self) {
         match self.item_number {
-            None => {},
+            None => {}
             Some(val) => {
                 if val > 1 {
                     self.item_number.replace(val - 1);
                 } else {
                     self.item_number.take();
                 }
-            },
+            }
         }
     }
 }
