@@ -147,6 +147,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
         ).ok()
     }
 
+    /// Determine if all required cell fields for a Dicom Element have been read.
     fn is_next_element_fully_read(&self) -> bool {
         // observation may not have content
         self.element_tag.is_some()
@@ -156,11 +157,13 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
             && self.element_vm.is_some()
     }
 
+    /// Determine if all required cell fields for a UID have been read.
     fn is_next_uid_fully_read(&self) -> bool {
         // type and part may not have content
         self.uid_value.is_some() && self.uid_name.is_some()
     }
 
+    /// Clear out all cell data that has been parsed.
     fn clear_next(&mut self) {
         self.element_tag = None;
         self.element_name = None;
@@ -235,7 +238,8 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                 }
                             }
                         },
-                        // We've previously entered a "table" we wish to parse further contents of.
+                        // If a "tbody" is started then update state so the next thing we expect
+                        // are "tr" and cell data.
                         XmlDicomReadingState::InTable => {
                             // Flip state to being in a table body once we've passed the "thead"
                             // element.
@@ -243,11 +247,9 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                 self.state = XmlDicomReadingState::InTableBody;
                             }
                         },
-                        // We've previously entered a "tbody" for a relevant table, based on the
-                        // table we've entered update the state for the expected cell to first
-                        // encounter.
+                        // If a "tr" has started then switch the state to the next expected cell.
                         XmlDicomReadingState::InTableBody => {
-                            if local_name == QName(b"para").into() {
+                            if local_name == QName(b"tr").into() {
                                 match self.table {
                                     XmlDicomDefinitionTable::DicomElements
                                     | XmlDicomDefinitionTable::FileMetaElements
@@ -273,11 +275,10 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                 }
                             }
                         },
-                        // We've previously entered into a table structured for DICOM elements.
+                        // We've previously entered into a table structured for DICOM elements and
+                        // should expect to find "td" elements.
                         XmlDicomReadingState::InDicomElementCell(element_cell) => {
-                            // The contents of the "td" element are a "para" element, whose text
-                            // content is the value of the cell we're interested in parsing.
-                            if local_name == QName(b"para").into() {
+                            if local_name == QName(b"td").into() {
                                 // Set the next expected cell to encounter based on the current.
                                 self.state = match element_cell {
                                     XmlDicomElementCell::Tag => {
@@ -314,7 +315,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                         },
                         // We've previously entered into a table structured for DICOM UIDs.
                         XmlDicomReadingState::InDicomUidCell(uid_cell) => {
-                            if local_name == QName(b"para").into() {
+                            if local_name == QName(b"td").into() {
                                 self.state = match uid_cell {
                                     XmlDicomUidCell::Value => {
                                         XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Name)
