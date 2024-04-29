@@ -10,7 +10,7 @@ use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use std::fs::File;
 use std::io::{Error, Read};
 use std::path::{Path, PathBuf};
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 #[cfg(test)]
 mod charsets;
@@ -33,63 +33,61 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot, Error> {
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
 /// whether the standard dicom dictionary should be reigstered with the parser.
-pub fn parse_all_dicom_files(with_std: bool) -> Result<(), Error> {
-    for mut pair in get_all_dicom_file_parsers(with_std)? {
-        while let Some(element) = pair.1.next() {
-            if let Err(e) = element {
-                eprintln!(
-                    "Error parsing DICOM:\n\t{}\n\t{}",
-                    pair.0.to_str().expect("Should get path"),
-                    e
-                );
+pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
+    let mut num_failed: usize = 0;
+    for path in get_dicom_file_paths() {
+        let path_str: &str = path.to_str().expect("path");
+        let file: File = File::open(path.clone())?;
+        let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
+        if with_std {
+            parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
+        }
+        let parser: Parser<File> = parser.build();
+
+        for elem in parser {
+            match elem {
+                Ok(_elem) => {}
+                Err(e) => {
+                    num_failed += 1;
+                    eprintln!("Error parsing DICOM:\n\t{}\n\t{}", path_str, e);
+                }
             }
         }
     }
-    Ok(())
+
+    Ok(num_failed)
 }
 
-/// Creates parsers for every dicom file in the `fixutres` folder. The `use_std_dict` argument
-/// specifies whether the standard dicom dictionary should be registered with the parser.
+/// Gets the paths to all dicom files within the `fixtures` directory.
 /// See the `readme.md` in this project for information on obtaining test fixtures.
-pub fn get_all_dicom_file_parsers(
-    with_std: bool,
-) -> Result<Vec<(PathBuf, Parser<'static, File>)>, Error> {
+pub fn get_dicom_file_paths() -> impl Iterator<Item = PathBuf> {
     let fixtures_path: &Path = Path::new("./fixtures");
     assert!(
         fixtures_path.is_dir(),
         "The fixtures are missing and need downloaded"
     );
 
-    let dirwalker: WalkDir = WalkDir::new(fixtures_path);
-    let mut parsers: Vec<(PathBuf, Parser<File>)> = Vec::new();
-    for entry_res in dirwalker.into_iter() {
-        let entry: DirEntry = entry_res?;
-        let path: &Path = entry.path();
-
-        let filename = path
-            .file_name()
-            .expect("Should be able to get filename")
-            .to_str()
-            .expect("Should be able to stringify filename");
-
-        // Only attempt to parse .DCM files or files without any extension
-        if (!filename.ends_with(".dcm") && filename.contains('.')) || filename.eq("README") {
-            continue;
-        }
-
-        let file: File = File::open(path)?;
-        if file.metadata()?.is_file() {
-            let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
-            if with_std {
-                parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
+    WalkDir::new(fixtures_path)
+        .into_iter()
+        .map(|entry_res| entry_res.expect("walkdir entry").path().to_path_buf())
+        .filter(|path: &PathBuf| {
+            if !path.is_file() {
+                return false;
             }
 
-            let parser: Parser<File> = parser.build();
-            parsers.push((path.to_path_buf(), parser));
-        }
-    }
+            let filename = path
+                .file_name()
+                .expect("Should be able to get filename")
+                .to_str()
+                .expect("Should be able to stringify filename");
 
-    Ok(parsers)
+            // Only attempt to parse .DCM files or files without any extension
+            if filename.contains('.') && !filename.ends_with(".dcm") {
+                false
+            } else {
+                filename.eq("README")
+            }
+        })
 }
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'.

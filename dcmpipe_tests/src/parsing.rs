@@ -636,12 +636,140 @@ fn test_uncompressed_even_length_tag(with_std: bool) -> Result<(), Error> {
 
 #[test]
 #[ignore]
+fn test_dicomdir_with_embedded_icons_with_std() -> Result<(), Error> {
+    test_dicomdir_with_embedded_icons(true)
+}
+
+#[test]
+#[ignore]
+fn test_dicomdir_with_embedded_icons_without_std() -> Result<(), Error> {
+    test_dicomdir_with_embedded_icons(false)
+}
+
+/// High number of items in a sequence and causes a stack overflow when parsed into an object
+fn test_dicomdir_with_embedded_icons(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot = parse_file(
+        "./fixtures/gdcm/gdcmData/dicomdir_With_embedded_icons",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_radbw_lossless_with_std() -> Result<(), Error> {
+    test_radbw_lossless(true)
+}
+
+#[test]
+fn test_radbw_lossless_without_std() -> Result<(), Error> {
+    test_radbw_lossless(false)
+}
+
+fn test_radbw_lossless(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot = parse_file("./fixtures/gdcm/gdcmData/RadBWLossLess.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+fn test_derma_color_lossless_with_std() -> Result<(), Error> {
+    test_derma_color_lossless(true)
+}
+
+#[test]
+fn test_derma_color_lossless_without_std() -> Result<(), Error> {
+    test_derma_color_lossless(false)
+}
+
+fn test_derma_color_lossless(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot =
+        parse_file("./fixtures/gdcm/gdcmData/DermaColorLossLess.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+fn test_libido_16_acr_nema_volume_with_std() -> Result<(), Error> {
+    test_libido_16_acr_nema_volume(true)
+}
+
+#[test]
+fn test_libido_16_acr_nema_volume_without_std() -> Result<(), Error> {
+    test_libido_16_acr_nema_volume(false)
+}
+
+fn test_libido_16_acr_nema_volume(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot = parse_file(
+        "./fixtures/gdcm/gdcmData/LIBIDO-16-ACR_NEMA-Volume.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_jpeg_lossless_zerolength_sq_with_std() -> Result<(), Error> {
+    test_jpeg_lossless_zerolength_sq(true)
+}
+
+#[test]
+fn test_jpeg_lossless_zerolength_sq_without_std() -> Result<(), Error> {
+    test_jpeg_lossless_zerolength_sq(false)
+}
+
+fn test_jpeg_lossless_zerolength_sq(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot = parse_file(
+        "./fixtures/gdcm/gdcmData/MARCONI_MxTWin-12-MONO2-JpegLossless-ZeroLengthSQ.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_illegal_group2_implicit_ts_with_std() -> Result<(), Error> {
+    test_illegal_group2_implicit_ts(true)
+}
+
+#[test]
+fn test_illegal_group2_implicit_ts_without_std() -> Result<(), Error> {
+    test_illegal_group2_implicit_ts(false)
+}
+
+fn test_illegal_group2_implicit_ts(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot = parse_file(
+        "./fixtures/gdcm/gdcmData/IllegalGroup2ImplicitTS.dcm",
+        with_std,
+    )?;
+
+    Ok(())
+}
+
+#[test]
+#[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
-    parse_all_dicom_files(true)
+    let num_failed: usize = parse_all_dicom_files(true)?;
+    if num_failed > 0 {
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("DICOM files failed to parse: {}", num_failed),
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 #[test]
 #[ignore]
 fn test_parse_all_dicom_files_without_std() -> Result<(), Error> {
-    parse_all_dicom_files(false)
+    let num_failed: usize = parse_all_dicom_files(false)?;
+    if num_failed > 0 {
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("DICOM files failed to parse: {}", num_failed),
+        ))
+    } else {
+        Ok(())
+    }
 }
