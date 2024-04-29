@@ -88,3 +88,18 @@ if let RawValue::Uid(uid) = ref_sopuid {
     println!("Referenced SOP Instance UID: {}", uid);
 }
 ```
+
+### Tests ###
+
+Test fixtures are files used by some tests. Due to the large size of these test datasets they are not included in the repository. To set up these test fixtures:
+1. [Download the fixutres (700mb .7z)](https://drive.google.com/file/d/1VI89r3leiLPm9-8sClyy0o15KtGZeqaD/view?usp=sharing).
+2. Extract the downloaded archive into this directory.
+3. The resulting extraction should create a `dcmpipe_lib/fixtures` folder with subfolders containing the test datasets.
+c
+---
+
+_These fixtures are a suite of dicom files gathered from several sources:_
+ - [gdcm](http://gdcm.sourceforge.net/), notably
+   - [gdcmData](https://sourceforge.net/projects/gdcm/files/gdcmData/)
+   - [gdcmConformanceTests](https://sourceforge.net/projects/gdcm/files/gdcmConformanceTests/)
+ - [David Clunie](https://www.dclunie.com/), at the bottom of the page under `Images`

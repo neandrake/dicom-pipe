@@ -717,14 +717,6 @@ dependencies = [
  "libflate",
  "phf",
  "thiserror",
-]
-
-[[package]]
-name = "dcmpipe_tests"
-version = "0.1.0"
-dependencies = [
- "dcmpipe_lib",
- "encoding_rs",
  "walkdir",
 ]
 

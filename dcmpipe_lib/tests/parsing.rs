@@ -1,3 +1,5 @@
+use dcmpipe_lib;
+
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
 use std::io::{Cursor, ErrorKind};
@@ -17,9 +19,11 @@ use dcmpipe_lib::dict::tags::{self};
 use dcmpipe_lib::dict::transfer_syntaxes as ts;
 use dcmpipe_lib::dict::uids;
 
-use crate::mock::MockDicomDataset;
-use crate::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};
-use crate::{is_standard_dcm_file, parse_all_dcmroot_values, parse_all_dicom_files, parse_file};
+mod common;
+
+use common::mock::MockDicomDataset;
+use common::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};
+use common::{is_standard_dcm_file, parse_all_dcmroot_values, parse_all_dicom_files, parse_file};
 
 #[test]
 fn test_good_preamble() {

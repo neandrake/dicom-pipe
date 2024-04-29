@@ -16,7 +16,9 @@ use dcmpipe_lib::{
     defn::{tag::TagPath, vl::ValueLength, vr},
 };
 
-use crate::mockdata;
+mod common;
+
+use common::{get_dicom_file_paths, mockdata};
 
 /// This builds up an in-memory dicom dataset that when written out will result in the same bytes
 /// as `mockdata::STANDARD_HEADER`.
@@ -276,7 +278,7 @@ pub fn test_write_double() -> Result<(), WriteError> {
 #[ignore]
 pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
     let mut any_failed = false;
-    for path in crate::get_dicom_file_paths() {
+    for path in get_dicom_file_paths() {
         if let Err(e) = reencode_file_elements(path.clone()) {
             any_failed = true;
             eprintln!("Error in file: {:?}\n\t{:?}", path, e);

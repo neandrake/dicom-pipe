@@ -15,10 +15,9 @@ A set of crates for reading and writing DICOM.
 - `dcmpipe_cli`: Several command-line tools utilizing `dcmpipe_lib`.
 - `dcmpipe_dict_builder`: Functionality for parsing the dicom standard and output tags and uids along with map lookups using `phf`. This is intended to be used by `build.rs` scripts.
 - `dcmpipe_lib`: The core library of definitions for the DICOM format and ability to read/write dicom.
-- `dcmpipe_tests`: Tests which depend on both `dcmpipe_lib` and `dcmpipe_dict`.
 
 ## Milestone v1.0 ##
-- [x] Conform to [Rust's API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html)
+- [-] Conform to [Rust's API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html)
   - [ ] Documentation
 - [x] Add support for writing DICOM streams
 - [ ] Add support for DICOM network connectivity

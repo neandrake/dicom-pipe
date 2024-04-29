@@ -1,13 +1,15 @@
-use crate::defn::tag::Tag;
-use crate::defn::ts::TransferSyntax;
-use crate::defn::uid::UIDRef;
+use dcmpipe_lib;
 
-use crate::dict::lookup::{
+use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::ts::TransferSyntax;
+use dcmpipe_lib::defn::uid::UIDRef;
+
+use dcmpipe_lib::dict::lookup::{
     TAG_BY_IDENT, TAG_BY_VALUE, TS_BY_IDENT, TS_BY_UID, UID_BY_IDENT, UID_BY_UID,
 };
-use crate::dict::tags;
-use crate::dict::transfer_syntaxes as ts;
-use crate::dict::uids;
+use dcmpipe_lib::dict::tags;
+use dcmpipe_lib::dict::transfer_syntaxes as ts;
+use dcmpipe_lib::dict::uids;
 
 #[test]
 pub fn test_tags_lookup() {

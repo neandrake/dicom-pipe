@@ -1,3 +1,5 @@
+use dcmpipe_lib;
+
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
 
@@ -8,7 +10,9 @@ use dcmpipe_lib::core::read::{ParseResult, Parser, ParserBuilder};
 use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::dict::tags;
 
-use crate::parse_file;
+mod common;
+
+use common::parse_file;
 
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]

@@ -1,3 +1,5 @@
+use dcmpipe_lib;
+
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
 use dcmpipe_lib::core::read::stop::ParseStop;

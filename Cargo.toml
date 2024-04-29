@@ -3,7 +3,6 @@ members = [
     "dcmpipe_cli",
     "dcmpipe_dict_builder",
     "dcmpipe_lib",
-    "dcmpipe_tests",
 ]
 resolver = "2"
 

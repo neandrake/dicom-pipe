@@ -1,26 +1,24 @@
+// The integreation tests in /tests folder are treated as individual crates, which results in the
+// rust compiler not detecting that this common crate is used, throwing up a bunch of warnings.
+#![allow(unused)]
+
+use dcmpipe_lib;
+
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
-use walkdir::WalkDir;
-
 use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::{ParseResult, Parser, ParserBuilder};
 use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
-#[cfg(test)]
-mod charsets;
-#[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod mockdata;
-#[cfg(test)]
-mod parsing;
-#[cfg(test)]
-mod writing;
+use walkdir::WalkDir;
+
+pub mod mock;
+pub mod mockdata;
 
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot<'_>> {
