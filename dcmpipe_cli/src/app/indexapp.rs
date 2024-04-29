@@ -179,7 +179,7 @@ impl IndexApp {
                 match dicom_doc.id {
                     None => inserts.push(dicom_doc.doc),
                     Some(id) => {
-                        dicom_doc.doc.insert(MONGO_ID_KEY, id.clone());
+                        dicom_doc.doc.insert(MONGO_ID_KEY, id);
                         updates.push((id, dicom_doc.doc));
                     }
                 }
@@ -213,26 +213,24 @@ impl IndexApp {
                 .doc
                 .get_mut("metadata")
                 .and_then(|md_doc| md_doc.as_document_mut());
-            let metadata_doc: &mut Document;
-            match md_doc_opt {
-                Some(md) => metadata_doc = md,
+            let metadata_doc: &mut Document = match md_doc_opt {
+                Some(md) => md,
                 None => {
                     missing_records.push(dicom_doc.doc);
                     continue;
                 }
-            }
+            };
 
             let fd_doc_opt = metadata_doc
                 .get_mut("files")
                 .and_then(|fd_doc| fd_doc.as_array_mut());
-            let files_array: &mut Array;
-            match fd_doc_opt {
-                Some(fd) => files_array = fd,
+            let files_array: &mut Array = match fd_doc_opt {
+                Some(fd) => fd,
                 None => {
                     missing_records.push(dicom_doc.doc);
                     continue;
                 }
-            }
+            };
 
             let num_files: usize = files_array.len();
             files_array.retain(|bson| match bson.as_str() {
@@ -284,27 +282,24 @@ impl IndexApp {
             .with_context(|| format!("Invalid database: {}", &self.db))?;
 
         let doc_iter = all_dicom_docs.filter_map(|doc_res| {
-            let doc: Document;
-            match doc_res {
+            let doc: Document = match doc_res {
                 Err(_e) => return None,
-                Ok(d) => doc = d,
-            }
+                Ok(d) => d,
+            };
 
             let doc_id_res = doc.get_object_id(MONGO_ID_KEY);
-            let doc_id: ObjectId;
-            match doc_id_res {
+            let doc_id: ObjectId = match doc_id_res {
                 Err(_e) => return None,
-                Ok(d) => doc_id = d.clone(),
-            }
+                Ok(d) => d,
+            };
 
             let doc_key_res = doc
                 .get_str(SERIES_UID_KEY)
                 .or_else(|_| doc.get_str(SOP_UID_KEY));
-            let doc_key: String;
-            match doc_key_res {
+            let doc_key: String = match doc_key_res {
                 Err(_e) => return None,
-                Ok(d) => doc_key = d.to_owned(),
-            }
+                Ok(d) => d.to_owned(),
+            };
 
             Some(DicomDoc {
                 key: doc_key,

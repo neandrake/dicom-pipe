@@ -117,16 +117,16 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
         data.unescape()
             .unwrap_or_else(|_| panic!("Error parsing DICOM Entry Name: {:?}", data))
             .trim()
-            .replace("\u{200b}", "")
+            .replace('\u{200b}', "")
     }
 
     fn parse_text_bytes_as_u32(&self, data: &BytesText<'_>) -> u32 {
         u32::from_str_radix(
             &self
                 .parse_text_bytes(data)
-                .replace("(", "")
-                .replace(")", "")
-                .replace(",", ""),
+                .replace('(', "")
+                .replace(')', "")
+                .replace(',', ""),
             16,
         )
         .unwrap_or(0)
@@ -327,6 +327,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                     self.clear_next();
                                     self.state = XmlDicomReadingState::InTable;
 
+                                    #[allow(clippy::single_match)]
                                     match self.table {
                                         XmlDicomDefinitionTable::Uids => {
                                             // TODO: Is a clone necessary here?

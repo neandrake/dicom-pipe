@@ -24,7 +24,7 @@ pub(crate) fn lookup_charset(label: &str) -> Option<CSRef> {
             _ => c,
         })
         .collect::<String>()
-        .replace("-", "");
+        .replace('-', "");
 
     match &label[..] {
         "unicode11utf8" | "utf8" | "isoir192" => Some(all::UTF_8 as CSRef),

@@ -160,13 +160,13 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
 
     let mut uids = xml_uids
         .iter()
-        .filter_map(|uid| process_uid(&uid, &mut uid_ident_lookup_phf, &mut uid_id_lookup_phf))
+        .filter_map(|uid| process_uid(uid, &mut uid_ident_lookup_phf, &mut uid_id_lookup_phf))
         .collect::<String>();
 
     let mut transfer_syntax_uids = xml_ts
         .iter()
         .filter_map(|ts| {
-            process_transfer_syntax(&ts, &mut ts_ident_lookup_phf, &mut ts_id_lookup_phf)
+            process_transfer_syntax(ts, &mut ts_ident_lookup_phf, &mut ts_id_lookup_phf)
         })
         .collect::<String>();
 
@@ -445,19 +445,19 @@ fn sanitize_var_name(var_name: &str) -> String {
     let mut sanitized: String = var_name
         .replace("(Retired)", "")
         .replace("(Trial)", "_Trial")
-        .replace(" ", "")
-        .replace("'", "")
-        .replace("-", "")
-        .replace(",", "")
-        .replace("(", "")
-        .replace(")", "")
-        .replace(".", "")
-        .replace("/", "")
-        .replace("[", "")
-        .replace("]", "")
-        .replace("\"", "_")
-        .replace("&", "_and_")
-        .replace("µ", "micro")
+        .replace(' ', "")
+        .replace('\'', "")
+        .replace('-', "")
+        .replace(',', "")
+        .replace('(', "")
+        .replace(')', "")
+        .replace('.', "")
+        .replace('/', "")
+        .replace('[', "")
+        .replace(']', "")
+        .replace('\"', "_")
+        .replace('&', "_and_")
+        .replace('µ', "micro")
         .split(':')
         .next()
         .unwrap()

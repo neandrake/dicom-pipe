@@ -41,7 +41,7 @@ pub mod ts {
     ///
     /// - **UID:** 1.2.840.10008.1.2.1
     pub static ExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
-        uid: &&super::uids::ExplicitVRLittleEndian,
+        uid: &super::uids::ExplicitVRLittleEndian,
         explicit_vr: true,
         big_endian: false,
         deflated: false,
@@ -52,7 +52,7 @@ pub mod ts {
     ///
     /// - **UID:** 1.2.840.10008.1.2.1.99
     pub static DeflatedExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
-        uid: &&super::uids::DeflatedExplicitVRLittleEndian,
+        uid: &super::uids::DeflatedExplicitVRLittleEndian,
         explicit_vr: true,
         big_endian: false,
         deflated: true,
@@ -63,7 +63,7 @@ pub mod ts {
     ///
     /// - **UID:** 1.2.840.10008.1.2.2
     pub static ExplicitVRBigEndian: TransferSyntax = TransferSyntax {
-        uid: &&super::uids::ExplicitVRBigEndian,
+        uid: &super::uids::ExplicitVRBigEndian,
         explicit_vr: true,
         big_endian: true,
         deflated: false,
@@ -74,7 +74,7 @@ pub mod ts {
     ///
     /// - **UID:**
     pub static ImplicitVRBigEndian: TransferSyntax = TransferSyntax {
-        uid: &&super::uids::ImplicitVRBigEndian,
+        uid: &super::uids::ImplicitVRBigEndian,
         explicit_vr: false,
         big_endian: true,
         deflated: false,

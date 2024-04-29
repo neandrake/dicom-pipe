@@ -66,11 +66,11 @@ impl PrintApp {
     fn render_root(
         &mut self,
         mut parser: Parser<'_, File>,
-        mut stdout: &mut StdoutLock<'_>,
+        stdout: &mut StdoutLock<'_>,
     ) -> Result<()> {
         let dcmroot: DicomRoot<'_> =
             parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
-        self.render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)
+        self.render_objects(&dcmroot, true, parser.get_ts(), stdout)
     }
 
     fn render_objects(
@@ -94,7 +94,7 @@ impl PrintApp {
                 prev_was_file_meta = false;
             }
 
-            let printed: Option<String> = render_element(&elem)?;
+            let printed: Option<String> = render_element(elem)?;
             if let Some(printed) = printed {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
             }
@@ -269,7 +269,7 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
                 if val.is_empty() {
                     String::new()
                 } else {
-                    let formatted: String = val.replace("\r\n", " / ").replace("\n", " / ");
+                    let formatted: String = val.replace("\r\n", " / ").replace('\n', " / ");
                     format!("\"{}\"", formatted)
                 }
             });

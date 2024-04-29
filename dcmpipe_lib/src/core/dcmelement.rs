@@ -262,7 +262,7 @@ impl TryFrom<&DicomElement> for Attribute {
     }
 }
 
-impl<'me> TryFrom<&DicomElement> for String {
+impl TryFrom<&DicomElement> for String {
     type Error = ParseError;
 
     /// Parses the value of this element as a string using the element's encoding and VR
