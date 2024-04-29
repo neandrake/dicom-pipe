@@ -2,18 +2,21 @@
 // rust compiler not detecting that this common crate is used, throwing up a bunch of warnings.
 #![allow(unused)]
 
-use dcmpipe_lib;
+use std::{
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-
-use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
-use dcmpipe_lib::defn::dcmdict::DicomDictionary;
-use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::{ParseResult, Parser, ParserBuilder};
-use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_lib::{
+    core::{
+        dcmobject::{DicomObject, DicomRoot},
+        defn::{constants::lookup::MINIMAL_DICOM_DICTIONARY, dcmdict::DicomDictionary},
+        read::{ParseResult, Parser, ParserBuilder},
+        DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
+    },
+    dict::stdlookup::STANDARD_DICOM_DICTIONARY,
+};
 
 use walkdir::WalkDir;
 

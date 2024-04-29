@@ -1,29 +1,39 @@
-use dcmpipe_lib;
+use std::{
+    convert::{TryFrom, TryInto},
+    fs::File,
+    io::{Cursor, ErrorKind},
+};
 
-use std::convert::{TryFrom, TryInto};
-use std::fs::File;
-use std::io::{Cursor, ErrorKind};
-
-use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::stop::ParseStop;
-use dcmpipe_lib::core::read::{ParseError, ParseResult, Parser, ParserBuilder, ParserState};
-use dcmpipe_lib::core::values::{ElementWithVr, RawValue};
-use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
-use dcmpipe_lib::defn::dcmdict::DicomDictionary;
-use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
-use dcmpipe_lib::defn::vl::ValueLength;
-use dcmpipe_lib::defn::vr;
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::dict::tags::{self};
-use dcmpipe_lib::dict::transfer_syntaxes as ts;
-use dcmpipe_lib::dict::uids;
+use dcmpipe_lib::{
+    self,
+    core::{
+        dcmelement::DicomElement,
+        dcmobject::{DicomObject, DicomRoot},
+        defn::{
+            constants::lookup::MINIMAL_DICOM_DICTIONARY,
+            dcmdict::DicomDictionary,
+            tag::{Tag, TagNode, TagPath},
+            vl::ValueLength,
+            vr,
+        },
+        read::{stop::ParseStop, ParseError, ParseResult, Parser, ParserBuilder, ParserState},
+        values::{ElementWithVr, RawValue},
+    },
+    dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY,
+        tags::{self},
+        transfer_syntaxes as ts, uids,
+    },
+};
 
 mod common;
 
-use common::mock::MockDicomDataset;
-use common::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};
-use common::{fixture, is_standard_dcm_file, parse_all_dcmroot_values, parse_all_dicom_files, parse_file};
+use common::{
+    fixture, is_standard_dcm_file,
+    mock::MockDicomDataset,
+    mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER},
+    parse_all_dcmroot_values, parse_all_dicom_files, parse_file,
+};
 
 #[test]
 fn test_good_preamble() {
@@ -150,7 +160,9 @@ fn test_parser_state(with_std: bool) -> ParseResult<()> {
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let mut parser: Parser<'_, File> = parser.build(fixture("gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?);
+    let mut parser: Parser<'_, File> = parser.build(fixture(
+        "gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
+    )?);
 
     assert_eq!(ParserState::DetectTransferSyntax, parser.parser_state());
 
@@ -204,7 +216,9 @@ fn test_dicom_object(with_std: bool) -> ParseResult<()> {
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
         .stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()))
-        .build(fixture("gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?);
+        .build(fixture(
+            "gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
+        )?);
 
     let dcmroot: DicomRoot<'_> =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
@@ -242,7 +256,9 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
         .stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()))
-        .build(fixture("gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?);
+        .build(fixture(
+            "gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm",
+        )?);
 
     let dcmroot: DicomRoot<'_> =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
@@ -480,8 +496,10 @@ fn test_private_tag_un_sq_without_std() -> ParseResult<()> {
 /// Private tags with UN VR and UndefinedLength should be parsed as sequences. This file uses tags
 /// which are not known to the dictionaries we're parsing with.
 fn test_private_tag_un_sq(with_std: bool) -> ParseResult<()> {
-    let dcmroot: DicomRoot<'_> =
-        parse_file("gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm", with_std)?;
+    let dcmroot: DicomRoot<'_> = parse_file(
+        "gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm",
+        with_std,
+    )?;
 
     let private_un_seq_obj: &DicomObject = dcmroot
         .get_child_by_tag(tags::SharedFunctionalGroupsSequence.tag)
@@ -735,8 +753,10 @@ fn test_deflated_evrle_without_std() -> ParseResult<()> {
 }
 
 fn test_deflated_evrle(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> =
-        parse_file("gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file(
+        "gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
@@ -938,10 +958,8 @@ fn test_secured_dicomdir_without_std() -> ParseResult<()> {
 
 /// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
 fn test_secured_dicomdir(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/securedicomfileset/DICOMDIR",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> =
+        parse_file("gdcm/gdcmData/securedicomfileset/DICOMDIR", with_std)?;
 
     Ok(())
 }
@@ -960,10 +978,8 @@ fn test_secured_image_without_std() -> ParseResult<()> {
 
 /// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
 fn test_secured_image(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/securedicomfileset/IMAGES/IMAGE1",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> =
+        parse_file("gdcm/gdcmData/securedicomfileset/IMAGES/IMAGE1", with_std)?;
 
     Ok(())
 }
@@ -979,10 +995,8 @@ fn test_private_ge_dlx_ts_without_std() -> ParseResult<()> {
 }
 
 fn test_private_ge_dlx_ts(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/GE_DLX-8-MONO2-PrivateSyntax.dcm",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> =
+        parse_file("gdcm/gdcmData/GE_DLX-8-MONO2-PrivateSyntax.dcm", with_std)?;
 
     Ok(())
 }
@@ -998,10 +1012,8 @@ fn test_undefined_item_wrong_vl_without_std() -> ParseResult<()> {
 }
 
 fn test_undefined_item_wrong_vl(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/BugGDCM2_UndefItemWrongVL.dcm",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> =
+        parse_file("gdcm/gdcmData/BugGDCM2_UndefItemWrongVL.dcm", with_std)?;
 
     Ok(())
 }
@@ -1037,10 +1049,8 @@ fn test_dicomdir_with_embedded_icons_without_std() -> ParseResult<()> {
 
 /// High number of items in a sequence
 fn test_dicomdir_with_embedded_icons(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/dicomdir_With_embedded_icons",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> =
+        parse_file("gdcm/gdcmData/dicomdir_With_embedded_icons", with_std)?;
 
     Ok(())
 }
@@ -1056,8 +1066,7 @@ fn test_radbw_lossless_without_std() -> ParseResult<()> {
 }
 
 fn test_radbw_lossless(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> =
-        parse_file("gdcm/gdcmData/RadBWLossLess.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file("gdcm/gdcmData/RadBWLossLess.dcm", with_std)?;
 
     Ok(())
 }
@@ -1073,8 +1082,7 @@ fn test_derma_color_lossless_without_std() -> ParseResult<()> {
 }
 
 fn test_derma_color_lossless(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> =
-        parse_file("gdcm/gdcmData/DermaColorLossLess.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file("gdcm/gdcmData/DermaColorLossLess.dcm", with_std)?;
 
     Ok(())
 }
@@ -1090,10 +1098,8 @@ fn test_libido_16_acr_nema_volume_without_std() -> ParseResult<()> {
 }
 
 fn test_libido_16_acr_nema_volume(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/LIBIDO-16-ACR_NEMA-Volume.dcm",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> =
+        parse_file("gdcm/gdcmData/LIBIDO-16-ACR_NEMA-Volume.dcm", with_std)?;
 
     Ok(())
 }
@@ -1128,10 +1134,8 @@ fn test_illegal_group2_implicit_ts_without_std() -> ParseResult<()> {
 }
 
 fn test_illegal_group2_implicit_ts(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/IllegalGroup2ImplicitTS.dcm",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> =
+        parse_file("gdcm/gdcmData/IllegalGroup2ImplicitTS.dcm", with_std)?;
 
     Ok(())
 }
@@ -1230,7 +1234,10 @@ fn test_sq_with_undefined_length_converted_to_defined_length_without_std() -> Pa
 }
 
 fn test_sq_with_undefined_length_converted_to_defined_length(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file("gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthConvertedToDefinedLength.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file(
+        "gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthConvertedToDefinedLength.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
@@ -1249,7 +1256,10 @@ fn test_sq_with_undefined_length_unconvertable_to_defined_length_without_std() -
 fn test_sq_with_undefined_length_unconvertable_to_defined_length(
     with_std: bool,
 ) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file("gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
+    let _dcmroot: DicomRoot<'_> = parse_file(
+        "gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm",
+        with_std,
+    )?;
 
     Ok(())
 }
@@ -1290,7 +1300,9 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(
         .stop(ParseStop::AfterTagValue(
             tags::SourceImageSequence.tag.into(),
         ))
-        .build(fixture("gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm")?);
+        .build(fixture(
+            "gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm",
+        )?);
 
     let dcmroot: DicomRoot<'_> = DicomRoot::parse(&mut parser)?.expect("Parse into object");
     let sis_obj: &DicomObject = dcmroot
@@ -1398,10 +1410,7 @@ fn test_kodak_compressed_icon_without_std() -> ParseResult<()> {
 /// This pixel data is undefined length and its items are defined so do not have item delimiters,
 /// but does have a sequence delimiter which should pop off the inner item.
 fn test_kodak_compressed_icon(with_std: bool) -> ParseResult<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/KODAK_CompressedIcon.dcm",
-        with_std,
-    )?;
+    let _dcmroot: DicomRoot<'_> = parse_file("gdcm/gdcmData/KODAK_CompressedIcon.dcm", with_std)?;
 
     Ok(())
 }
@@ -1417,10 +1426,7 @@ fn test_empty_string_parsed_as_number_without_std() -> ParseResult<()> {
 }
 
 fn test_empty_string_parsed_as_number(with_std: bool) -> ParseResult<()> {
-    let dcmroot: DicomRoot<'_> = parse_file(
-        "gdcm/gdcmData/SignedShortLosslessBug.dcm",
-        with_std,
-    )?;
+    let dcmroot: DicomRoot<'_> = parse_file("gdcm/gdcmData/SignedShortLosslessBug.dcm", with_std)?;
 
     let patients_weight = dcmroot
         .get_child_by_tag(tags::PatientsWeight.tag)

@@ -1,19 +1,16 @@
 use std::{fs::File, io::Read, path::PathBuf};
 
-use dcmpipe_lib::core::write::builder::WriterBuilder;
-use dcmpipe_lib::dict::{
-    stdlookup::STANDARD_DICOM_DICTIONARY, tags, transfer_syntaxes as ts, uids,
-};
 use dcmpipe_lib::{
     core::{
         charset,
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
+        defn::{tag::TagPath, vl::ValueLength, vr},
         read::{Parser, ParserBuilder},
         values::{Attribute, RawValue},
-        write::{error::WriteError, writer::Writer},
+        write::{builder::WriterBuilder, error::WriteError, writer::Writer},
     },
-    defn::{tag::TagPath, vl::ValueLength, vr},
+    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, tags, transfer_syntaxes as ts, uids},
 };
 
 mod common;
