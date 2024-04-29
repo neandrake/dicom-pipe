@@ -1,11 +1,9 @@
 //! This is an auto-generated file. Do not make modifications here.
 
-#![allow(dead_code)]
-#![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
-use core::dict::uids;
-use core::ts::TransferSyntax;
+use crate::core::dict::uids;
+use crate::core::ts::TransferSyntax;
 
 /// Implicit VR Little Endian: Default Transfer Syntax for DICOM
 /// 

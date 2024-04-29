@@ -1,8 +1,8 @@
 use byteorder::ByteOrder;
-use core::dcmdataset::DicomDataSet;
-use core::dcmelement::DicomElement;
-use core::tag::Tag;
-use read::CSRef;
+use crate::core::dcmdataset::DicomDataSet;
+use crate::core::dcmelement::DicomElement;
+use crate::core::tag::Tag;
+use crate::read::CSRef;
 use std::collections::hash_map::{Entry, HashMap};
 use std::io::{Error, ErrorKind};
 

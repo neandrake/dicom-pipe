@@ -1,7 +1,7 @@
 //! DICOM Data Elements
 
-use core::vm::VMRef;
-use core::vr::VRRef;
+use crate::core::vm::VMRef;
+use crate::core::vr::VRRef;
 use std::hash::{Hash, Hasher};
 use std::fmt::{Formatter, LowerHex, Result as FmtResult, UpperHex};
 

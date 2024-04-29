@@ -1,12 +1,12 @@
-use core::dict::dicom_elements as tags;
-use core::dict::dir_structure_elements as dse;
-use core::dict::file_meta_elements as fme;
-use core::dict::lookup::{TAG_BY_IDENT, TAG_BY_VALUE, TS_BY_ID, TS_BY_IDENT, UID_BY_ID, UID_BY_IDENT};
-use core::dict::transfer_syntaxes as ts;
-use core::dict::uids;
-use core::tag::Tag;
-use core::ts::TransferSyntax;
-use core::uid::UIDRef;
+use crate::core::dict::dicom_elements as tags;
+use crate::core::dict::dir_structure_elements as dse;
+use crate::core::dict::file_meta_elements as fme;
+use crate::core::dict::lookup::{TAG_BY_IDENT, TAG_BY_VALUE, TS_BY_ID, TS_BY_IDENT, UID_BY_ID, UID_BY_IDENT};
+use crate::core::dict::transfer_syntaxes as ts;
+use crate::core::dict::uids;
+use crate::core::tag::Tag;
+use crate::core::ts::TransferSyntax;
+use crate::core::uid::UIDRef;
 
 #[test]
 pub fn test_tags_lookup() {
