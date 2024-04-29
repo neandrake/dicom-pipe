@@ -32,4 +32,28 @@ pub enum Command {
         /// The folder to recursively scan for DICOM datasets.
         folder: PathBuf,
     },
+    /// Index a directory of unstructured DICOM files.
+    ///
+    /// Recursively scans a folder for DICOM datasets, indexing them into a database.
+    Index {
+        #[structopt(short, long)]
+        /// The mongo URI to insert dicom records into.
+        mongo: String,
+
+        /// The folder to scan for DICOM datasets.
+        folder: PathBuf,
+    },
+    /// Archives DICOM datasets from a source folder into a destination folder.
+    ///
+    /// The source folder is assumed to be unstructured whereas the DICOM datasets will be copied
+    /// into the destination folder in a consistent structure:
+    ///   - One series per folder
+    ///   - Each DICOM file will be named in the format `[SOP_UID].dcm`
+    Archive {
+        /// The source folder of DICOM datasets to process.
+        source: PathBuf,
+
+        /// The destination folder to archive datasets into.
+        destination: PathBuf,
+    },
 }
