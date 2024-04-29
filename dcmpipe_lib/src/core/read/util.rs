@@ -1,12 +1,14 @@
 use std::io::{ErrorKind, Read};
 
-use super::parser::ParseResult;
-use crate::core::read::error::ParseError;
-use crate::defn::constants::tags;
-use crate::defn::ts::TSRef;
-use crate::defn::vl;
-use crate::defn::vl::ValueLength;
-use crate::defn::vr::{self, VRRef, VR};
+use crate::{
+    core::read::{error::ParseError, ParseResult},
+    defn::{
+        constants::tags,
+        ts::TSRef,
+        vl::{self, ValueLength},
+        vr::{self, VRRef, VR},
+    },
+};
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
 /// with a VR of `UN`, `OB`, `OF`, or `OW` and have a value length of `UndefinedLength`. These

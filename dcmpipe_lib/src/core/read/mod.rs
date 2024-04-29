@@ -5,7 +5,6 @@ pub use parser::Parser;
 pub use parser::ParseResult;
 
 mod ds;
-mod iter;
 
 pub(crate) mod valdecode;
 pub(crate) mod util;

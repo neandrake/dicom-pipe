@@ -1,9 +1,44 @@
 //! Errors that can occur during parsing of a DICOM dataset.
 
-use crate::core::charset::{CSError, CSRef};
-use crate::core::DICOM_PREFIX_LENGTH;
-use crate::defn::vr::VRRef;
+use crate::{
+    core::{
+        charset::{CSError, CSRef},
+        dcmelement::DicomElement,
+        DICOM_PREFIX_LENGTH,
+    },
+    defn::{dcmdict::DicomDictionary, tag::TagPath, vr::VRRef},
+};
+
 use thiserror::Error;
+
+const MAX_BYTES_IN_ERROR: usize = 16;
+
+pub(crate) struct ParseErrorInfo<'a>(
+    pub &'a DicomElement,
+    pub &'a str,
+    pub Option<&'a dyn DicomDictionary>,
+);
+impl<'a> From<ParseErrorInfo<'a>> for ParseError {
+    fn from(value: ParseErrorInfo<'a>) -> Self {
+        let elem = value.0;
+        let message = value.1;
+
+        // TODO: How to get a dicom dictionary here for better error messages?
+        let tagstring = TagPath::format_tagpath_to_display(&elem.get_tagpath(), None);
+        ParseError::ValueParseError {
+            message: message.to_owned(),
+            tagstring,
+            vr: elem.get_vr(),
+            cs: elem.get_cs(),
+            bytes: elem
+                .get_data()
+                .iter()
+                .take(MAX_BYTES_IN_ERROR)
+                .cloned()
+                .collect::<Vec<u8>>(),
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 /// Errors that can occur during parsing of a DICOM dataset.
@@ -36,7 +71,10 @@ pub enum ParseError {
         source: std::io::Error,
     },
 
-    /// Wrapper around `std::io::Error` but includes additional details at the point of error.
+    /// Wraps another `Error` and includes additional details from the state of the parser.
+    ///
+    /// This should never be used within the parser internals. It should only be used by the
+    /// primary iteration done by the `parser::iter` module.
     #[error("error reading from dataset: {source:?}\n\t{detail}")]
     DetailedError {
         #[source]

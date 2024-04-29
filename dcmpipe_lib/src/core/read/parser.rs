@@ -1,27 +1,39 @@
-use std::convert::TryFrom;
-use std::io::Read;
-use std::iter::once;
+use std::{
+    convert::TryFrom,
+    io::Read,
+    iter::once,
+};
 
-use crate::core::charset::{self, CSRef};
-use crate::core::dcmelement::DicomElement;
-use crate::core::dcmsqelem::SequenceElement;
-use crate::core::read::ds::dataset::Dataset;
-use crate::core::read::error::ParseError;
-use crate::core::read::stop::ParseStop;
-use crate::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
-use crate::defn::constants::tags;
-use crate::defn::dcmdict::DicomDictionary;
-use crate::defn::tag::{TagNode, TagPath};
-use crate::defn::ts::TSRef;
-use crate::defn::vl::ValueLength;
-use crate::defn::vr::VRRef;
-
-use super::behavior::ParseBehavior;
+use crate::{
+    core::{
+        charset::{self, CSRef},
+        dcmelement::DicomElement,
+        dcmsqelem::SequenceElement,
+        read::{
+            behavior::ParseBehavior,
+            ds::dataset::Dataset,
+            error::ParseError,
+            stop::ParseStop,
+        },
+        DICOM_PREFIX,
+        DICOM_PREFIX_LENGTH,
+        FILE_PREAMBLE_LENGTH,
+    },
+    defn::{
+        constants::tags,
+        dcmdict::DicomDictionary,
+        tag::{TagNode, TagPath},
+        ts::TSRef,
+        vl::ValueLength,
+        vr::VRRef,
+    },
+};
 
 mod detect;
 mod dsread;
 mod elem;
 mod fme;
+mod iter;
 
 /// The `Result` type of the parser
 pub type ParseResult<T> = core::result::Result<T, ParseError>;

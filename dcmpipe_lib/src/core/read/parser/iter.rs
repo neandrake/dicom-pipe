@@ -1,9 +1,12 @@
 use std::io::Read;
 
-use super::error::ParseError;
-use super::parser::Parser;
-use super::parser::ParseResult;
-use crate::core::dcmelement::DicomElement;
+use crate::core::{
+    dcmelement::DicomElement,
+    read::{
+        error::ParseError,
+        parser::{ParseResult, Parser},
+    },
+};
 
 /// The implementation for `Parser` which is the core iteration loop.
 impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
@@ -20,6 +23,12 @@ impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
             Err(ParseError::ExpectedEOF) => {
                 self.iterator_ended = true;
                 None
+            }
+            // This function should be the only place that creates DetailedErrors, but as
+            // precaution check and propagate without wrapping.
+            Err(ParseError::DetailedError { source, detail }) => {
+                self.iterator_ended = true;
+                Some(Err(ParseError::DetailedError { source, detail }))
             }
             Err(e) => {
                 self.iterator_ended = true;
