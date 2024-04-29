@@ -10,6 +10,7 @@ use std::io::{Cursor, Error, ErrorKind, Read};
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
+const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
 
 pub static DICOM_PREFIX: &[u8; DICOM_PREFIX_LENGTH] = b"DICM";
 
@@ -209,10 +210,7 @@ pub struct Parser<StreamType: Read> {
 }
 
 /// Reads a tag attribute from a given stream
-fn read_tag_from_stream(
-    stream: &mut impl Read,
-    ts: TSRef,
-) -> Result<u32, Error> {
+fn read_tag_from_stream(stream: &mut impl Read, ts: TSRef) -> Result<u32, Error> {
     let mut buf: [u8; 2] = [0; 2];
 
     stream.read_exact(&mut buf)?;
@@ -247,7 +245,7 @@ fn read_vr_from_stream(stream: &mut impl Read) -> Result<Option<VRRef>, Error> {
                 stream.read_exact(&mut buf)?;
             }
             found_vr
-        },
+        }
         None => return Ok(None),
     };
 
@@ -255,7 +253,11 @@ fn read_vr_from_stream(stream: &mut impl Read) -> Result<Option<VRRef>, Error> {
 }
 
 /// Reads a Value Length from a given stream
-fn read_value_length_from_stream(stream: &mut impl Read, read_4bytes: bool, big_endian: bool) -> Result<ValueLength, Error> {
+fn read_value_length_from_stream(
+    stream: &mut impl Read,
+    read_4bytes: bool,
+    big_endian: bool,
+) -> Result<ValueLength, Error> {
     let value_length: u32 = if read_4bytes {
         let mut buf: [u8; 4] = [0; 4];
         stream.read_exact(&mut buf)?;
@@ -328,7 +330,7 @@ impl<StreamType: Read> Parser<StreamType> {
     /// Reads a tag attribute from the stream
     fn read_tag(&mut self, ts: TSRef) -> Result<u32, Error> {
         let result: Result<u32, Error> = read_tag_from_stream(&mut self.stream, ts);
-        if let Ok(_) = result {
+        if result.is_ok() {
             self.bytes_read += 4;
         }
         result
@@ -443,8 +445,9 @@ impl<StreamType: Read> Parser<StreamType> {
     /// Reads a Value Length attribute from the stream using the given transfer syntax.
     fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
         let read_4bytes: bool = !ts.explicit_vr || vr.has_explicit_2byte_pad;
-        let result: Result<ValueLength, Error> = read_value_length_from_stream(&mut self.stream, read_4bytes, ts.big_endian);
-        if let Ok(_) = result {
+        let result: Result<ValueLength, Error> =
+            read_value_length_from_stream(&mut self.stream, read_4bytes, ts.big_endian);
+        if result.is_ok() {
             if !ts.explicit_vr || vr.has_explicit_2byte_pad {
                 self.bytes_read += 4;
             } else {
@@ -543,7 +546,7 @@ impl<StreamType: Read> Parser<StreamType> {
                             continue;
                         }
                         return Ok(None);
-                    },
+                    }
                     Some(element) => return Ok(Some(element)),
                 },
                 ParseState::FileMeta => match self.iterate_file_meta()? {
@@ -554,7 +557,7 @@ impl<StreamType: Read> Parser<StreamType> {
                             continue;
                         }
                         return Ok(None);
-                    },
+                    }
                     Some(element) => return Ok(Some(element)),
                 },
                 ParseState::Element => match self.iterate_element() {
@@ -576,19 +579,19 @@ impl<StreamType: Read> Parser<StreamType> {
     /// Performs the `ParserState::DetectState` iteration.
     /// The strategy this uses is to parse just a few bytes from the stream to see if it looks like
     /// the start of a dicom element.
-    /// - 1. Parse a tag and check whether it looks like a valid tag value (`<= SOP_INSTANCE_UID`).
+    /// 1. Parse a tag and check whether it looks like a valid tag value (`<= SOP_INSTANCE_UID`).
     ///         The tag is parsed as both little-endian and as big-endian.
-    /// - 2. Parse a value length, assuming implicit vr. If the value length parsed is reasonable
-    ///         (`<100`) then implicit vr is assumed. The elements at the beginning of a dataset
-    ///         should have fairly small values (for things like UIDs, etc.). The pixel-med library
-    ///         also uses this same value comparison.
-    /// - 3. If value length is too large then it is re-parsed as a VR. If a valid VR was not found
+    /// 2. Parse a value length, assuming implicit vr. If the value length parsed is reasonable
+    ///         (`<MAX_VALUE_LENGTH_IN_DETECT`) then implicit vr is assumed. The elements at the
+    ///         beginning of a dataset should have fairly small values (for things like UIDs, etc.).
+    ///         The pixel-med library also uses this same value comparison.
+    /// 3. If value length is too large then it is re-parsed as a VR. If a valid VR was not found
     ///         then we assume it's proprietary data in the preamble.
-    /// - 4. If the VR is valid then attempt reading another value length (only 2-bytes since we
-    ///         know it's implicit vr and any valid vr this early in dataset should not have a
-    ///         2-byte padding). If the value length is reasonable (`<100`) then explicit vr is
-    ///         assumed.
-    /// - 5. Otherwise it's assumed the start of the file is proprietary file preamble.
+    /// 4. If the VR is valid then attempt reading another value length (only 2-bytes since we know
+    ///         it's implicit vr and any valid vr this early in dataset should not have a 2-byte
+    ///         padding). If the value length is reasonable (`<MAX_VALUE_LENGTH_IN_DETECT`) then
+    ///         explicit vr is assumed.
+    /// 5. Otherwise it's assumed the start of the file is proprietary file preamble.
     fn iterate_detect_state(&mut self) -> Result<(), Error> {
         // start off assuming IVRLE
         let mut ts: TSRef = &ts::ImplicitVRLittleEndian;
@@ -613,7 +616,8 @@ impl<StreamType: Read> Parser<StreamType> {
         // quick check for common case of being zeroed-out data
         if tag == 0 {
             // read the remainder of the preamble, move onto reading prefix
-            self.stream.read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
+            self.stream
+                .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
             self.bytes_read += file_preamble.len() as u64;
             self.file_preamble = Some(file_preamble);
             self.state = ParseState::Prefix;
@@ -643,7 +647,8 @@ impl<StreamType: Read> Parser<StreamType> {
         // doesn't appear to be a valid tag in either big or little endian, assume it's preamble
         if tag > tags::SOP_INSTANCE_UID {
             // read the remainder of the preamble, move onto reading prefix
-            self.stream.read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
+            self.stream
+                .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
             self.bytes_read += file_preamble.len() as u64;
             self.file_preamble = Some(file_preamble);
             self.state = ParseState::Prefix;
@@ -661,8 +666,8 @@ impl<StreamType: Read> Parser<StreamType> {
 
         // read value length and if it has a reasonably low number assume implicit VR
         let vl: ValueLength = read_value_length_from_stream(&mut cursor, true, ts.big_endian)?;
-        match vl {
-            ValueLength::Explicit(len) => if len < 100 {
+        if let ValueLength::Explicit(len) = vl {
+            if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.ts = ts;
                 self.partial_tag = Some(tag);
                 self.partial_vr = Some(self.lookup_vr(tag)?);
@@ -670,8 +675,7 @@ impl<StreamType: Read> Parser<StreamType> {
                 self.bytes_read += bytes_read as u64;
                 self.state = ParseState::Element;
                 return Ok(());
-            },
-            _ => {}
+            }
         }
 
         // otherwise backtrack and try to parse a vr and then vl
@@ -680,7 +684,8 @@ impl<StreamType: Read> Parser<StreamType> {
             Some(vr) => vr,
             None => {
                 // garbage data so likely in preamble, finish reading preamble and jump to prefix
-                self.stream.read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
+                self.stream
+                    .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
                 self.bytes_read += file_preamble.len() as u64;
                 self.file_preamble = Some(file_preamble);
                 self.state = ParseState::Prefix;
@@ -690,8 +695,8 @@ impl<StreamType: Read> Parser<StreamType> {
 
         // read value length and if it has a reasonably low number assume explicit VR
         let vl: ValueLength = read_value_length_from_stream(&mut cursor, false, ts.big_endian)?;
-        match vl {
-            ValueLength::Explicit(len) => if len < 100 {
+        if let ValueLength::Explicit(len) = vl {
+            if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.ts = if ts.big_endian {
                     &ts::ExplicitVRBigEndian
                 } else {
@@ -703,16 +708,16 @@ impl<StreamType: Read> Parser<StreamType> {
                 self.bytes_read += bytes_read as u64;
                 self.state = ParseState::Element;
                 return Ok(());
-            },
-            _ => {}
+            }
         }
 
         // garbage data so likely in preamble, finish reading preamble and jump to prefix
-        self.stream.read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
+        self.stream
+            .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
         self.bytes_read += file_preamble.len() as u64;
         self.file_preamble = Some(file_preamble);
         self.state = ParseState::Prefix;
-        return Ok(());
+        Ok(())
     }
 
     /// Performs the `ParserState::Preamble` iteration
@@ -794,11 +799,13 @@ impl<StreamType: Read> Parser<StreamType> {
             return Ok(None);
         }
 
-        if self.fmi_grouplength == 0 {
-            if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::FILE_META_GROUP_END {
-                self.state = ParseState::Element;
-                return Ok(None);
-            }
+        // if group length wasn't read then check the group value of the tag just read before
+        // parsing the element
+        if self.fmi_grouplength == 0
+            && (tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::FILE_META_GROUP_END)
+        {
+            self.state = ParseState::Element;
+            return Ok(None);
         }
 
         let element: DicomElement = self.read_dicom_element(tag, &ts::ExplicitVRLittleEndian)?;
@@ -806,11 +813,11 @@ impl<StreamType: Read> Parser<StreamType> {
             self.parse_transfer_syntax(&element)?;
         }
 
-        if self.fmi_grouplength > 0 {
-            // if group length was read use the byte position to determine if we're out of file-meta
-            if self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength) {
-                self.state = ParseState::Element;
-            }
+        // if group length was read use the byte position to determine if we're out of file-meta
+        if self.fmi_grouplength > 0
+            && (self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength))
+        {
+            self.state = ParseState::Element;
         }
 
         // reset partial_tag to None
