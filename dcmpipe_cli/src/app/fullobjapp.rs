@@ -1,4 +1,5 @@
 use crate::app::render_element;
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
@@ -8,7 +9,6 @@ use std::collections::btree_map::Iter;
 use std::fs::File;
 use std::io::{self, Error, ErrorKind, StdoutLock, Write};
 use std::path::Path;
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 pub struct FullObjApp {
     openpath: String,
