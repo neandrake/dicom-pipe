@@ -26,6 +26,14 @@ pub struct CommandMessage {
 }
 
 impl CommandMessage {
+    pub fn new(message: DicomRoot) -> Self {
+        Self { message }
+    }
+
+    pub fn message(&self) -> &DicomRoot {
+        &self.message
+    }
+
     fn create(elements: Vec<(&Tag, RawValue)>) -> Self {
         let mut message = DicomRoot::new_empty(&ImplicitVRLittleEndian, DEFAULT_CHARACTER_SET);
         for elem_pair in elements {
@@ -91,10 +99,6 @@ impl CommandMessage {
             (&Status, RawValue::from(status)),
         ]))
     }
-
-    pub fn message(&self) -> &DicomRoot {
-        &self.message
-    }
 }
 
 #[cfg(test)]
@@ -121,7 +125,8 @@ mod tests {
         exp_val: RawValue,
         act_pair: Option<(&u32, &DicomObject)>,
     ) -> usize {
-        let (_act_tag, act_obj) = act_pair.expect(&format!("Should have element: {}", exp_tag.ident()));
+        let (_act_tag, act_obj) =
+            act_pair.expect(&format!("Should have element: {}", exp_tag.ident()));
         assert_eq!(exp_tag.tag(), act_obj.element().tag());
         let act_val = act_obj
             .element()

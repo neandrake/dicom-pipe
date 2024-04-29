@@ -35,6 +35,9 @@ pub enum Command {
     ///   - One series per folder
     ///   - Each DICOM file will be named in the format `[SOP_UID].dcm`
     Archive(ArchiveArgs),
+
+    /// Starts an SCP service.
+    Scp(SvcProviderArgs),
 }
 
 #[derive(Args, Debug)]
@@ -84,4 +87,29 @@ pub struct ArchiveArgs {
 
     /// The destination folder to archive datasets into.
     pub destination: PathBuf,
+}
+
+#[derive(Args, Debug)]
+pub struct SvcProviderArgs {
+    #[arg(short, long)]
+    /// The AE Title to run as.
+    pub aetitle: String,
+
+    #[arg(short, long)]
+    /// The host/port to bind the service on.
+    pub host: String,
+
+    #[arg(short, long)]
+    /// The maximum number of concurrent associations.
+    pub max_assoc: usize,
+
+    #[clap(subcommand)]
+    /// DIMSE sub-command.
+    pub cmd: SvcProviderCommand,
+}
+
+#[derive(Parser, Debug)]
+pub enum SvcProviderCommand {
+    /// Serve a C-ECHO service.
+    Echo,
 }

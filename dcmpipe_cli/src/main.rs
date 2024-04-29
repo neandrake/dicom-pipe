@@ -2,17 +2,19 @@ use std::process;
 
 use clap::Parser;
 
-use crate::app::archiveapp::ArchiveApp;
-use crate::app::browseapp::BrowseApp;
 #[cfg(feature = "index")]
 use crate::app::indexapp::IndexApp;
-use crate::app::printapp::PrintApp;
-use crate::app::scanapp::ScanApp;
-use crate::app::CommandApplication;
-use crate::args::{Arguments, Command};
+use crate::{
+    app::{
+        archiveapp::ArchiveApp, browseapp::BrowseApp, printapp::PrintApp, scanapp::ScanApp,
+        scpapp::SvcProviderApp, CommandApplication,
+    },
+    args::{Arguments, Command},
+};
 
 mod app;
 mod args;
+mod threadpool;
 
 fn main() {
     let mut app: Box<dyn CommandApplication> = make_app();
@@ -32,5 +34,6 @@ fn make_app() -> Box<dyn CommandApplication> {
         #[cfg(feature = "index")]
         Command::Index(args) => Box::new(IndexApp::new(args)),
         Command::Archive(args) => Box::new(ArchiveApp::new(args)),
+        Command::Scp(args) => Box::new(SvcProviderApp::new(args)),
     }
 }
