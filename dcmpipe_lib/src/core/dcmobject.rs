@@ -111,7 +111,6 @@ impl<'dict> DicomRoot<'dict> {
     pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
         self.dictionary
     }
-
 }
 
 impl<'dict> DicomNode for DicomRoot<'dict> {

@@ -1,10 +1,13 @@
 use std::{fs::File, io::Read};
 
-use dcmpipe_dict::dict::{tags, transfer_syntaxes as ts, uids, stdlookup::STANDARD_DICOM_DICTIONARY};
+use dcmpipe_dict::dict::{
+    stdlookup::STANDARD_DICOM_DICTIONARY, tags, transfer_syntaxes as ts, uids,
+};
 use dcmpipe_lib::{
     core::{
         dcmelement::{DicomElement, RawValue},
-        write::{error::WriteError, writer::Writer}, read::{ParserBuilder, util::parse_into_object},
+        read::{util::parse_into_object, ParserBuilder},
+        write::{error::WriteError, writer::Writer},
     },
     defn::vr,
 };

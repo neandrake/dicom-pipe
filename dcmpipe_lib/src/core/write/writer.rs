@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, RawValue};
-use crate::core::dcmobject::{DicomRoot, DicomNode};
+use crate::core::dcmobject::{DicomNode, DicomRoot};
 use crate::core::read::ParseError;
 use crate::core::write::ds::dataset::Dataset;
 use crate::core::write::error::WriteError;
@@ -201,13 +201,15 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let mut bytes_written: usize = 0;
 
         if element.get_ts().is_big_endian() {
-            bytes_written +=
-                dataset.write(&u16::to_be_bytes((element.get_tag() >> 16 & 0x0000_FFFF) as u16))?;
+            bytes_written += dataset.write(&u16::to_be_bytes(
+                (element.get_tag() >> 16 & 0x0000_FFFF) as u16,
+            ))?;
             bytes_written +=
                 dataset.write(&u16::to_be_bytes((element.get_tag() & 0x0000_FFFF) as u16))?;
         } else {
-            bytes_written +=
-                dataset.write(&u16::to_le_bytes((element.get_tag() >> 16 & 0x0000_FFFF) as u16))?;
+            bytes_written += dataset.write(&u16::to_le_bytes(
+                (element.get_tag() >> 16 & 0x0000_FFFF) as u16,
+            ))?;
             bytes_written +=
                 dataset.write(&u16::to_le_bytes((element.get_tag() & 0x0000_FFFF) as u16))?;
         }

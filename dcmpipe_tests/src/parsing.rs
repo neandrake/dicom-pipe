@@ -19,7 +19,7 @@ use dcmpipe_lib::defn::vr;
 
 use crate::mock::MockDicomDataset;
 use crate::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};
-use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_all_dcmroot_values};
+use crate::{is_standard_dcm_file, parse_all_dcmroot_values, parse_all_dicom_files, parse_file};
 
 #[test]
 fn test_good_preamble() {

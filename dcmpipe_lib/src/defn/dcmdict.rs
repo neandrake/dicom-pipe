@@ -27,17 +27,18 @@ pub struct MultiDicomDictionary<'dict> {
     dicts: Vec<&'dict dyn DicomDictionary>,
 }
 
-impl <'dict> MultiDicomDictionary<'dict> {
+impl<'dict> MultiDicomDictionary<'dict> {
     pub fn new(dicts: Vec<&'dict dyn DicomDictionary>) -> Self {
-        Self {
-            dicts
-        }
+        Self { dicts }
     }
 }
 
-impl <'dict> DicomDictionary for MultiDicomDictionary<'dict> {
+impl<'dict> DicomDictionary for MultiDicomDictionary<'dict> {
     fn get_ts_by_name(&self, name: &str) -> Option<TSRef> {
-        self.dicts.iter().flat_map(|d| d.get_ts_by_name(name)).nth(0)
+        self.dicts
+            .iter()
+            .flat_map(|d| d.get_ts_by_name(name))
+            .nth(0)
     }
 
     fn get_ts_by_uid(&self, uid: &str) -> Option<TSRef> {
@@ -45,15 +46,24 @@ impl <'dict> DicomDictionary for MultiDicomDictionary<'dict> {
     }
 
     fn get_tag_by_name(&self, name: &str) -> Option<TagRef> {
-        self.dicts.iter().flat_map(|d| d.get_tag_by_name(name)).nth(0)
+        self.dicts
+            .iter()
+            .flat_map(|d| d.get_tag_by_name(name))
+            .nth(0)
     }
 
     fn get_tag_by_number(&self, number: u32) -> Option<TagRef> {
-        self.dicts.iter().flat_map(|d| d.get_tag_by_number(number)).nth(0)
+        self.dicts
+            .iter()
+            .flat_map(|d| d.get_tag_by_number(number))
+            .nth(0)
     }
 
     fn get_uid_by_name(&self, name: &str) -> Option<UIDRef> {
-        self.dicts.iter().flat_map(|d| d.get_uid_by_name(name)).nth(0)
+        self.dicts
+            .iter()
+            .flat_map(|d| d.get_uid_by_name(name))
+            .nth(0)
     }
 
     fn get_uid_by_uid(&self, uid: &str) -> Option<UIDRef> {
