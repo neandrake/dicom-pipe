@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "cli",
-    "lib",
-    "dict"
+    "dcmpipe_cli",
+    "dcmpipe_lib",
+    "dcmpipe_dict"
 ]
