@@ -16,7 +16,7 @@ use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use ratatui::backend::CrosstermBackend;
@@ -30,11 +30,26 @@ use ratatui::{Frame, Terminal};
 use crate::app::CommandApplication;
 use crate::args::BrowseArgs;
 
-use super::{ElementWithLineFmt, TagName, TagValue};
+use super::{get_nth_child, ElementWithLineFmt, TagName, TagValue};
 
 pub struct BrowseApp {
     args: BrowseArgs,
 }
+
+#[derive(Debug)]
+enum BrowseError {
+    InvalidTagPath(TagPath),
+}
+
+impl std::fmt::Display for BrowseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BrowseError::InvalidTagPath(tagpath) => write!(f, "No model for path {tagpath:?}"),
+        }
+    }
+}
+
+impl std::error::Error for BrowseError {}
 
 /// The result of parsing all elements in a DICOM data set.
 struct DicomDocumentModel<'app> {
@@ -126,65 +141,17 @@ impl<'model> DicomElementModel<'model> {
 
         let mut rows: Vec<Row<'model>> = Vec::with_capacity(dcmnode.get_child_count());
         let mut max_name_width: u16 = 0;
-        for (child_tag, child) in dcmnode.iter_child_nodes() {
-            if child.get_item_count() > 0 || child.get_child_count() > 0 {
-                let child_map = DicomElementModel::parse(child);
-                map.extend(child_map.into_iter());
-            }
-
-            let tag_render: TagName = child.as_element().into();
-            let elem_name = tag_render.to_string();
-            max_name_width = max_name_width.max(elem_name.len() as u16);
-            let elem_value: TagValue = ElementWithLineFmt(child.as_element(), false).into();
-
-            let mut cells: Vec<Cell> = Vec::with_capacity(5);
-            cells.push(
-                Cell::from(if child.get_child_count() > 0 { "+" } else { "" })
-                    .style(Style::default().fg(Color::DarkGray)),
-            );
-
-            cells.push(
-                Cell::from(Tag::format_tag_to_display(*child_tag))
-                    .style(Style::default().fg(Color::DarkGray)),
-            );
-
-            match tag_render {
-                TagName::Known(_, _) => {
-                    cells.push(Cell::from(elem_name));
-                }
-                _ => {
-                    cells.push(
-                        Cell::from(elem_name).style(
-                            Style::default()
-                                .fg(Color::DarkGray)
-                                .add_modifier(Modifier::ITALIC),
-                        ),
-                    );
-                }
-            }
-
-            cells.push(
-                Cell::from(child.as_element().get_vr().ident)
-                    .style(Style::default().fg(Color::DarkGray)),
-            );
-
-            let cell = match elem_value {
-                TagValue::Sequence => Cell::from(""),
-                TagValue::Error(err_str) => {
-                    Cell::from(err_str).style(Style::default().bg(Color::Red))
-                }
-                TagValue::Uid(uid, name) => Cell::from(Line::from(vec![
-                    Span::styled(uid, Style::default()),
-                    Span::styled(
-                        format!(" {}", name),
-                        Style::default().fg(Color::LightYellow),
-                    ),
-                ])),
-                TagValue::Stringified(str_val) => Cell::from(str_val),
-            };
-            cells.push(cell);
-
-            rows.push(Row::new(cells));
+        for item in dcmnode.iter_items() {
+            let (row, child_map, name_len) = DicomElementModel::parse_dcmobj(item);
+            rows.push(row);
+            map.extend(child_map);
+            max_name_width = max_name_width.max(name_len);
+        }
+        for (_child_tag, child) in dcmnode.iter_child_nodes() {
+            let (row, child_map, name_len) = DicomElementModel::parse_dcmobj(child);
+            rows.push(row);
+            map.extend(child_map);
+            max_name_width = max_name_width.max(name_len);
         }
 
         let mut table_state = TableState::default();
@@ -204,6 +171,73 @@ impl<'model> DicomElementModel<'model> {
         map.insert(tagpath, elem_tbl);
 
         map
+    }
+
+    fn parse_dcmobj(
+        child: &DicomObject,
+    ) -> (
+        Row<'model>,
+        HashMap<TagPath, DicomElementModel<'model>>,
+        u16,
+    ) {
+        let mut map: HashMap<TagPath, DicomElementModel<'model>> = HashMap::new();
+        let child_tag = child.as_element().get_tag();
+        if child.get_item_count() > 0 || child.get_child_count() > 0 {
+            let child_map = DicomElementModel::parse(child);
+            map.extend(child_map.into_iter());
+        }
+
+        let tag_render: TagName = child.as_element().into();
+        let elem_name = tag_render.to_string();
+        let name_len = elem_name.len() as u16;
+        let elem_value: TagValue = ElementWithLineFmt(child.as_element(), false).into();
+
+        let mut cells: Vec<Cell> = Vec::with_capacity(5);
+        cells.push(
+            Cell::from(if child.get_child_count() > 0 { "+" } else { "" })
+                .style(Style::default().fg(Color::DarkGray)),
+        );
+
+        cells.push(
+            Cell::from(Tag::format_tag_to_display(child_tag))
+                .style(Style::default().fg(Color::DarkGray)),
+        );
+
+        match tag_render {
+            TagName::Known(_, _) => {
+                cells.push(Cell::from(elem_name));
+            }
+            _ => {
+                cells.push(
+                    Cell::from(elem_name).style(
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                );
+            }
+        }
+
+        cells.push(
+            Cell::from(child.as_element().get_vr().ident)
+                .style(Style::default().fg(Color::DarkGray)),
+        );
+
+        let cell = match elem_value {
+            TagValue::Sequence => Cell::from(""),
+            TagValue::Error(err_str) => Cell::from(err_str).style(Style::default().bg(Color::Red)),
+            TagValue::Uid(uid, name) => Cell::from(Line::from(vec![
+                Span::styled(uid, Style::default()),
+                Span::styled(
+                    format!(" {}", name),
+                    Style::default().fg(Color::LightYellow),
+                ),
+            ])),
+            TagValue::Stringified(str_val) => Cell::from(str_val),
+        };
+        cells.push(cell);
+
+        (Row::new(cells), map, name_len)
     }
 }
 
@@ -237,7 +271,7 @@ impl<'app> BrowseApp {
         let mut view_state = ViewState {
             num_rows: 0,
             max_name_width: 0,
-            table_state: TableState::new(),
+            table_state: TableState::new().with_selected(Some(0)),
             user_quit: false,
             user_selected: UserNav::None,
             current_root_element: TagPath {
@@ -245,11 +279,9 @@ impl<'app> BrowseApp {
             },
         };
 
-        let dataset_title = doc_model.path.to_str().unwrap_or_default();
-
         loop {
             let Some(table_model) = doc_model.map.get(&view_state.current_root_element) else {
-                return Ok(());
+                return Err(BrowseError::InvalidTagPath(view_state.current_root_element).into());
             };
 
             // Apply state from current model.
@@ -258,6 +290,12 @@ impl<'app> BrowseApp {
             // Reset user-input state.
             view_state.user_quit = false;
             view_state.user_selected = UserNav::None;
+
+            let dataset_title = if view_state.current_root_element.nodes.is_empty() {
+                doc_model.path.to_str().unwrap_or_default().to_string()
+            } else {
+                TagPath::format_tagpath_to_display(&view_state.current_root_element, Some(dcmroot.get_dictionary()))
+            };
 
             // Ratatui's Table requires an iterator over owned Rows, so the model must be cloned
             // every render, apparently. The render_stateful_widget() function requires moving a
@@ -268,7 +306,7 @@ impl<'app> BrowseApp {
             let render_view_state = view_state.clone();
 
             terminal.draw(move |frame| {
-                self.render(dataset_title, render_model, render_view_state, frame)
+                self.render(&dataset_title, render_model, render_view_state, frame)
             })?;
 
             view_state = self.update_state_from_user_input(view_state)?;
@@ -281,16 +319,25 @@ impl<'app> BrowseApp {
                 UserNav::None => {}
                 UserNav::IntoLevel(selected) => {
                     let next_path = if view_state.current_root_element.nodes.is_empty() {
-                        dcmroot
-                            .get_child_by_index(selected)
+                        get_nth_child(dcmroot, selected)
                             .map(|o| o.as_element().get_tagpath())
                             .unwrap_or_else(|| view_state.current_root_element.clone())
                     } else {
                         dcmroot
                             .get_child_by_tagpath(&view_state.current_root_element)
                             .and_then(|c| {
-                                if c.get_child_count() > 0 {
-                                    c.get_child_by_index(selected)
+                                // Check items first and children second. Sequences will have a
+                                // single child which is the delimiter at the end.
+                                if c.get_item_count() > 0 {
+                                    if selected < c.get_item_count() {
+                                        c.get_item_by_index(selected + 1)
+                                    } else if c.get_child_count() > 0 {
+                                        // Subtract the # items because children appear after items
+                                        // when both are present.
+                                        get_nth_child(c, selected - c.get_item_count())
+                                    } else {
+                                        None
+                                    }
                                 } else if c.get_item_count() > 0 {
                                     c.get_item_by_index(selected + 1)
                                 } else {
@@ -307,13 +354,24 @@ impl<'app> BrowseApp {
                 }
                 UserNav::UpLevel => {
                     if !view_state.current_root_element.nodes.is_empty() {
-                        view_state.current_root_element = TagPath::from(
-                            view_state
-                                .current_root_element
-                                .nodes
-                                .drain(..view_state.current_root_element.nodes.len() - 1)
-                                .collect::<Vec<TagNode>>(),
-                        );
+                        let mut nodes = view_state
+                            .current_root_element
+                            .nodes
+                            .drain(
+                                ..view_state
+                                    .current_root_element
+                                    .nodes
+                                    .len()
+                                    .saturating_sub(1),
+                            )
+                            .collect::<Vec<TagNode>>();
+
+                        // Remove item # from the last element of the path as the model map uses a
+                        // key of the TagPath with no index specified.
+                        if let Some(last) = nodes.last_mut() {
+                            last.get_item_mut().take();
+                        }
+                        view_state.current_root_element = nodes.into();
                     }
                 }
             }
