@@ -11,7 +11,7 @@ deflate = ["libflate"]
 encoding = "0.2"
 thiserror = "1.0"
 
-libflate = { version="1.2", optional=true }
+libflate = { version="2.0", optional=true }
 
 [lib]
 name="dcmpipe_lib"
