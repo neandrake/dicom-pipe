@@ -67,7 +67,7 @@ impl<'uid_lifetime> Hash for TransferSyntax<'uid_lifetime> {
 }
 
 
-pub const ImplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+pub static ImplicitVRLittleEndian: TransferSyntax<'static> = TransferSyntax {
     uid: &::util::uids::ImplicitVRLittleEndian,
     explicit_vr: false,
     big_endian: false,
@@ -75,7 +75,7 @@ pub const ImplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSy
     encapsulated: false,
 };
 
-pub const ImplicitVRBigEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+pub static ImplicitVRBigEndian: TransferSyntax<'static> = TransferSyntax {
     uid: &::util::uids::ImplicitVRBigEndian,
     explicit_vr: false,
     big_endian: true,
@@ -83,7 +83,7 @@ pub const ImplicitVRBigEndian: &'static TransferSyntax<'static> = &TransferSynta
     encapsulated: false,
 };
 
-pub const ExplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+pub static ExplicitVRLittleEndian: TransferSyntax<'static> = TransferSyntax {
     uid: &::util::uids::ExplicitVRLittleEndian,
     explicit_vr: true,
     big_endian: false,
@@ -91,7 +91,7 @@ pub const ExplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSy
     encapsulated: false,
 };
 
-pub const ExplicitVRBigEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+pub static ExplicitVRBigEndian: TransferSyntax<'static> = TransferSyntax {
     uid: &::util::uids::ExplicitVRBigEndian,
     explicit_vr: true,
     big_endian: true,
@@ -99,7 +99,7 @@ pub const ExplicitVRBigEndian: &'static TransferSyntax<'static> = &TransferSynta
     encapsulated: false,
 };
 
-pub const DeflatedExplicitVRLittleEndian: &'static TransferSyntax<'static> = &TransferSyntax {
+pub static DeflatedExplicitVRLittleEndian: TransferSyntax<'static> = TransferSyntax {
     uid: &::util::uids::DeflatedExplicitVRLittleEndian,
     explicit_vr: true,
     big_endian: false,
@@ -107,7 +107,7 @@ pub const DeflatedExplicitVRLittleEndian: &'static TransferSyntax<'static> = &Tr
     encapsulated: false,
 };
 
-pub const NoPixelData: &'static TransferSyntax<'static> = &TransferSyntax {
+pub static NoPixelData: TransferSyntax<'static> = TransferSyntax {
     uid: &::util::uids::NoPixelData,
     explicit_vr: true,
     big_endian: false,
@@ -115,7 +115,7 @@ pub const NoPixelData: &'static TransferSyntax<'static> = &TransferSyntax {
     encapsulated: false,
 };
 
-pub const NoPixelDataDeflate: &'static TransferSyntax<'static> = &TransferSyntax {
+pub static NoPixelDataDeflate: TransferSyntax<'static> = TransferSyntax {
     uid: &::util::uids::NoPixelDataDeflate,
     explicit_vr: true,
     big_endian: false,
@@ -138,8 +138,8 @@ fn test_diff_instances_eq() {
         false,
         false,
     );
-    assert_eq!(ImplicitVRLittleEndian, &implicit_vr_le);
-    assert_eq!(*ImplicitVRLittleEndian, implicit_vr_le);
+    assert_eq!(ImplicitVRLittleEndian, implicit_vr_le);
+    assert_eq!(&ImplicitVRLittleEndian, &implicit_vr_le);
 }
 
 /// Sanity-check of the pre-defined TransferSyntax's to ensure
@@ -148,13 +148,13 @@ fn test_diff_instances_eq() {
 #[test]
 fn test_name_vs_properties() {
     let known_ts: Vec<&TransferSyntax> = vec![
-        ImplicitVRLittleEndian,
-        ImplicitVRBigEndian,
-        ExplicitVRLittleEndian,
-        ExplicitVRBigEndian,
-        DeflatedExplicitVRLittleEndian,
-        NoPixelData,
-        NoPixelDataDeflate,
+        &ImplicitVRLittleEndian,
+        &ImplicitVRBigEndian,
+        &ExplicitVRLittleEndian,
+        &ExplicitVRBigEndian,
+        &DeflatedExplicitVRLittleEndian,
+        &NoPixelData,
+        &NoPixelDataDeflate,
     ];
 
     for ts in known_ts {
