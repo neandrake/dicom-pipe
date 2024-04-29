@@ -51,6 +51,14 @@ pub enum ParseError {
         source: std::io::Error,
         detail: String,
     },
+
+    #[error("error parsing element value: {} [{vr:?}], {message} {bytes:?}", Tag::format_tag_to_display(*tag))]
+    ValueParseError {
+        message: String,
+        tag: u32,
+        vr: VRRef,
+        bytes: Vec<u8>,
+    },
 }
 
 /// The `Result` type of the parser

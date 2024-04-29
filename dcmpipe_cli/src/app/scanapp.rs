@@ -1,8 +1,8 @@
 use crate::app::CommandApplication;
+use anyhow::Result;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use std::fs::File;
-use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
@@ -53,7 +53,7 @@ impl ScanApp {
 }
 
 impl CommandApplication for ScanApp {
-    fn run(&mut self) -> Result<(), Error> {
+    fn run(&mut self) -> Result<()> {
         let parser_builder: ParserBuilder<'_> =
             ParserBuilder::default().dictionary(&STANDARD_DICOM_DICTIONARY);
 
@@ -62,14 +62,13 @@ impl CommandApplication for ScanApp {
             let parser: Parser<'_, File> = parser_builder.build(file);
 
             let relative_path: &str = path
-                .strip_prefix(&self.folder)
-                .map_err(|e| Error::new(ErrorKind::InvalidData, format!("{}", e)))?
+                .strip_prefix(&self.folder)?
                 .to_str()
                 .expect("relative path");
 
             match self.parse_all_element_values(parser) {
-                ParseResult::Success => {} /*println!("Valid DICOM: {}", path_str)*/
-                ParseResult::NotDicom => println!("Not DICOM: {}", relative_path),
+                ParseResult::Success => {}  /*println!("Valid DICOM: {}", path_str),*/
+                ParseResult::NotDicom => {} /*println!("Not DICOM: {}", relative_path),*/
                 ParseResult::InvalidData(e) => {
                     println!("Failure Parsing: {}\n\t{}", relative_path, e)
                 }

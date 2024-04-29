@@ -1,7 +1,7 @@
+use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
-use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
 use bson::oid::ObjectId;
@@ -47,7 +47,7 @@ pub struct IndexApp {
 }
 
 impl CommandApplication for IndexApp {
-    fn run(&mut self) -> Result<(), Error> {
+    fn run(&mut self) -> Result<()> {
         self.scan_dir()?;
         self.update_mongo()?;
         Ok(())
@@ -64,7 +64,7 @@ impl IndexApp {
     }
 
     /// Scans a directory and builds `DicomDoc` to be inserted into `self.uid_to_doc`
-    fn scan_dir(&mut self) -> Result<(), Error> {
+    fn scan_dir(&mut self) -> Result<()> {
         let walkdir = WalkDir::new(&self.folder)
             .into_iter()
             .filter_map(|e| e.ok());
@@ -80,12 +80,7 @@ impl IndexApp {
             let file: File = File::open(entry.path())?;
             let mut parser: Parser<'_, File> = parser_builder.build(file);
 
-            let dcm_root: Option<DicomRoot<'_>> = parse_into_object(&mut parser).map_err(|e| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Error reading dicom element: {:?}", e),
-                )
-            })?;
+            let dcm_root: Option<DicomRoot<'_>> = parse_into_object(&mut parser)?;
             if dcm_root.is_none() {
                 continue;
             }
@@ -95,12 +90,9 @@ impl IndexApp {
                 .get_child(tags::SeriesInstanceUID.tag)
                 .or_else(|| dcm_root.get_child(tags::SOPInstanceUID.tag))
                 .ok_or_else(|| {
-                    Error::new(
-                        ErrorKind::InvalidData,
-                        format!(
-                            "DICOM file has no SeriesInstanceUID or SOPInstanceUID: {:?}",
-                            entry.path()
-                        ),
+                    anyhow!(
+                        "DICOM file has no SeriesInstanceUID or SOPInstanceUID: {:?}",
+                        entry.path().display()
                     )
                 })?;
             let uid_key: String = uid_obj.as_element().try_into()?;
@@ -112,14 +104,12 @@ impl IndexApp {
                 .entry("metadata".to_owned())
                 .or_insert_with(|| Document::new().into())
                 .as_document_mut()
-                .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Field failure: metadata"))?;
+                .ok_or_else(|| anyhow!("Field failure: metadata"))?;
             let files_field: &mut Array = metadata_doc
                 .entry("files".to_owned())
                 .or_insert_with(|| Vec::<String>::new().into())
                 .as_array_mut()
-                .ok_or_else(|| {
-                    Error::new(ErrorKind::InvalidData, "Field failure: metadata.files")
-                })?;
+                .ok_or_else(|| anyhow!("Field failure: metadata.files"))?;
             files_field.push(format!("{}", entry.path().display()).into());
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
@@ -138,24 +128,17 @@ impl IndexApp {
     /// Queries mongo for existing documents and updates `self.uid_to_doc` with a related id field
     /// if appropriate, or marks the document as missing on-disk and then deletes it.
     /// Performs all updates to mongo based on the scan results.
-    fn update_mongo(&mut self) -> Result<(), Error> {
-        let client: Client = Client::with_uri_str(&self.mongo).map_err(|e| {
-            Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
-            )
-        })?;
+    fn update_mongo(&mut self) -> Result<()> {
+        let client: Client = Client::with_uri_str(&self.mongo)
+            .with_context(|| format!("Invalid mongo: {}", &self.mongo))?;
         let metabase_db: Database = client.database("metabase_rs");
         let dicom_coll: Collection = metabase_db.collection("dicom");
 
         let series_uid_key: String = Tag::format_tag_to_path_display(tags::SeriesInstanceUID.tag);
         let sop_uid_key: String = Tag::format_tag_to_path_display(tags::SOPInstanceUID.tag);
-        let all_dicom_docs: Cursor = dicom_coll.find(None, None).map_err(|e| {
-            Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid mongo: {}, {:?}", &self.mongo, e),
-            )
-        })?;
+        let all_dicom_docs: Cursor = dicom_coll
+            .find(None, None)
+            .with_context(|| format!("Invalid mongo: {}", &self.mongo))?;
 
         let mut missing_records: Vec<Document> = Vec::new();
         for doc in all_dicom_docs {
@@ -194,25 +177,13 @@ impl IndexApp {
             if let Some(mut dicom_doc) = self.uid_to_doc.remove(&key) {
                 match dicom_doc.id {
                     None => {
-                        dicom_coll.insert_one(dicom_doc.doc, None).map_err(|e| {
-                            Error::new(
-                                ErrorKind::InvalidData,
-                                format!("Error inserting into mongo: , {:?}", e),
-                            )
-                        })?;
+                        dicom_coll.insert_one(dicom_doc.doc, None)?;
                     }
                     Some(doc_id) => {
                         dicom_doc.doc.insert("_id", doc_id.clone());
                         let mut query: Document = Document::new();
                         query.insert("_id", doc_id);
-                        dicom_coll
-                            .update_one(query, dicom_doc.doc, None)
-                            .map_err(|e| {
-                                Error::new(
-                                    ErrorKind::InvalidData,
-                                    format!("Error updating mongo: , {:?}", e),
-                                )
-                            })?;
+                        dicom_coll.update_one(query, dicom_doc.doc, None)?;
                     }
                 }
             }
@@ -228,12 +199,7 @@ impl IndexApp {
                 "$or": ids,
             };
 
-            dicom_coll.delete_many(query, None).map_err(|e| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Error updating mongo: , {:?}", e),
-                )
-            })?;
+            dicom_coll.delete_many(query, None)?;
         }
 
         Ok(())
@@ -241,7 +207,7 @@ impl IndexApp {
 }
 
 /// Builds a bson value from the given `DicomElement` and inserts it into the bson document
-fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<(), Error> {
+fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()> {
     let key: String = Tag::format_tag_to_path_display(elem.tag);
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {

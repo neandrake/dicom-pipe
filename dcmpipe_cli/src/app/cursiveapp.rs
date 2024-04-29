@@ -1,4 +1,5 @@
 use crate::app::{parse_file, render_value, CommandApplication};
+use anyhow::Result;
 use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};
 use cursive::Cursive;
@@ -10,7 +11,6 @@ use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
-use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
 pub struct CursiveApp {
@@ -111,19 +111,14 @@ impl CursiveApp {
 }
 
 impl CommandApplication for CursiveApp {
-    fn run(&mut self) -> Result<(), Error> {
+    fn run(&mut self) -> Result<()> {
         let path: &Path = self.openpath.as_path();
         let parser: Parser<'_, File> = parse_file(path)?;
 
         let mut items: Vec<DicomElementValue> = Vec::new();
         let mut total_name_size: usize = 0;
         for elem in parser {
-            let elem: DicomElement = elem.map_err(|e| {
-                Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Error reading dicom element: {:?}", e),
-                )
-            })?;
+            let elem: DicomElement = elem?;
             if elem.get_sequence_path().is_empty() {
                 let name: String =
                     if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.tag) {
