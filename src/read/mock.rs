@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+use core::lookup::Lookup;
 use read::DicomStream;
 
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
@@ -10,8 +11,8 @@ pub struct MockDicomStream {
 }
 
 impl MockDicomStream {
-    pub fn standard_dicom_preamble() -> DicomStream<MockDicomStream> {
-        DicomStream::new(MockDicomStream {
+    pub fn standard_dicom_preamble<'lookup>(lookup: &'lookup Lookup) -> DicomStream<'lookup, MockDicomStream> {
+        let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
                 data[128] = 'D' as u8;
@@ -21,11 +22,12 @@ impl MockDicomStream {
                 data
             },
             pos: 0,
-        })
+        };
+        DicomStream::new(mockup, lookup)
     }
 
-    pub fn invalid_dicom_prefix() -> DicomStream<MockDicomStream> {
-        DicomStream::new(MockDicomStream {
+    pub fn invalid_dicom_prefix<'lookup>(lookup: &'lookup Lookup) -> DicomStream<'lookup, MockDicomStream> {
+        let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
                 data[128] = 'D' as u8;
@@ -35,11 +37,12 @@ impl MockDicomStream {
                 data
             },
             pos: 0,
-        })
+        };
+        DicomStream::new(mockup, lookup)
     }
 
-    pub fn nonzero_preamble() -> DicomStream<MockDicomStream> {
-        DicomStream::new(MockDicomStream {
+    pub fn nonzero_preamble<'lookup>(lookup: &'lookup Lookup) -> DicomStream<'lookup, MockDicomStream> {
+        let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0xFFu8;132];
                 data[128] = 'D' as u8;
@@ -49,11 +52,12 @@ impl MockDicomStream {
                 data
             },
             pos: 0,
-        })
+        };
+        DicomStream::new(mockup, lookup)
     }
 
-    pub fn standard_dicom_preamble_diff_startpos_and_short_stream() -> DicomStream<MockDicomStream> {
-        DicomStream::new(MockDicomStream {
+    pub fn standard_dicom_preamble_diff_startpos_and_short_stream<'lookup>(lookup: &'lookup Lookup) -> DicomStream<'lookup, MockDicomStream> {
+        let mockup: MockDicomStream = MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
                 data[128] = 'D' as u8;
@@ -63,7 +67,8 @@ impl MockDicomStream {
                 data
             },
             pos: 131,
-        })
+        };
+        DicomStream::new(mockup, lookup)
     }
 }
 

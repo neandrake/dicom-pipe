@@ -15,6 +15,7 @@ use std::path::Path;
 
 use core::dict::file_meta_elements as fme;
 use core::dict::transfer_syntaxes as ts;
+use core::lookup::Lookup;
 use core::ts::TransferSyntax;
 use core::vr;
 
@@ -25,7 +26,7 @@ pub const DICOM_PREFIX_LENGTH: usize = 4;
 pub static DICOM_PREFIX: [u8;DICOM_PREFIX_LENGTH] = ['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
 
 
-pub struct DicomStream<StreamType> {
+pub struct DicomStream<'lookup, StreamType> {
     stream: StreamType,
 
     file_preamble: [u8;FILE_PREAMBLE_LENGTH],
@@ -36,6 +37,8 @@ pub struct DicomStream<StreamType> {
 
     // To allow peeking the next tag without fully reading the next element 
     tag_peek: Option<u32>,
+
+    lookup: &'lookup Lookup,
 }
 
 pub struct DicomElement {
@@ -51,20 +54,20 @@ impl fmt::Debug for DicomElement {
     }
 }
 
-impl DicomStream<File> {
-    pub fn new_from_path(path: &Path) -> Result<DicomStream<File>, Error> {
+impl<'lookup> DicomStream<'lookup, File> {
+    pub fn new_from_path(path: &Path, lookup: &'lookup Lookup) -> Result<DicomStream<'lookup, File>, Error> {
         if !path.is_file() {
             return Err(Error::new(ErrorKind::InvalidData,
                                           format!("Invalid path: {:?}", path)));
         }
 
         let file: File = File::open(path)?;
-        Ok::<DicomStream<File>, Error>(DicomStream::new(file))
+        Ok::<DicomStream<File>, Error>(DicomStream::new(file, lookup))
     }
 }
 
-impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
-    pub fn new(stream: StreamType) -> DicomStream<StreamType> {
+impl<'lookup, StreamType: ReadBytesExt + Seek> DicomStream<'lookup, StreamType> {
+    pub fn new(stream: StreamType, lookup: &'lookup Lookup) -> DicomStream<'lookup, StreamType> {
         DicomStream {
             stream: stream,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
@@ -72,6 +75,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             file_meta: HashMap::with_capacity(12),
             ts: &ts::ExplicitVRLittleEndian,
             tag_peek: None,
+            lookup: lookup,
         }
     }
 

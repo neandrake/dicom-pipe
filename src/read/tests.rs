@@ -5,6 +5,8 @@ extern crate walkdir;
 
 use byteorder::ReadBytesExt;
 
+use core::lookup::Lookup;
+
 use read::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::DicomStream;
 use read::mock::MockDicomStream;
@@ -19,8 +21,9 @@ static FIXTURE_DATASET1_FOLDER: &'static str = "fixtures/dataset1";
 
 #[test]
 fn test_good_preamble() {
+    let lookup: Lookup = Lookup::new();
     let mut test_good_stream: DicomStream<MockDicomStream> =
-        MockDicomStream::standard_dicom_preamble();
+        MockDicomStream::standard_dicom_preamble(&lookup);
     test_good_stream.read_file_preamble()
         .expect("Unable to read file preamble");
     test_good_stream.read_dicom_prefix()
@@ -31,8 +34,9 @@ fn test_good_preamble() {
 
 #[test]
 fn test_nonzero_preamble() {
+    let lookup: Lookup = Lookup::new();
     let mut test_size_stream: DicomStream<MockDicomStream> =
-        MockDicomStream::nonzero_preamble();
+        MockDicomStream::nonzero_preamble(&lookup);
     test_size_stream.read_file_preamble()
         .expect("Unable to read file preamble");
     test_size_stream.read_dicom_prefix()
@@ -44,8 +48,9 @@ fn test_nonzero_preamble() {
 #[test]
 #[should_panic(expected = "Invalid DICOM Prefix")]
 fn test_bad_dicom_prefix() {
+    let lookup: Lookup = Lookup::new();
     let mut test_bad_stream: DicomStream<MockDicomStream> =
-        MockDicomStream::invalid_dicom_prefix();
+        MockDicomStream::invalid_dicom_prefix(&lookup);
     test_bad_stream.read_file_preamble()
         .expect("Unable to read file preamble");
     test_bad_stream.read_dicom_prefix()
@@ -57,8 +62,9 @@ fn test_bad_dicom_prefix() {
 #[test]
 #[should_panic(expected = "failed to fill whole buffer")]
 fn test_failure_to_read_preamble() {
+    let lookup: Lookup = Lookup::new();
     let mut test_stream: DicomStream<MockDicomStream> =
-        MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
+        MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream(&lookup);
     test_stream.read_file_preamble()
         .expect("This should fail to read preamble due to not enough data");
     let start_pos: usize = test_stream.stream.pos;
@@ -74,7 +80,8 @@ fn test_parse_known_dicom_files() {
     for entry_res in dirwalker_iter {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
-        let mut dstream: DicomStream<File> = DicomStream::new_from_path(path)
+        let lookup: Lookup = Lookup::new();
+        let mut dstream: DicomStream<File> = DicomStream::new_from_path(path, &lookup)
             .expect("Unable to read file");
         dstream.read_file_meta()
             .expect(&format!("Unable to read FileMetaInformation: {:?}", path));
