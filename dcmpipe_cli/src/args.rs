@@ -13,15 +13,6 @@ pub struct Arguments {
 pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
     Print {
-        #[clap(short, long)]
-        /// Process the dataset as a stream instead of loading fully into memory.
-        ///
-        /// If printing a DICOM dataset which fails to fully parse and this argument is not
-        /// specified then no elements will be printed to stdout, only an error. Specifying this
-        /// argument will result in all elements which succeed in parsing to be printed to stdout
-        /// until the error is encountered.
-        stream: bool,
-
         /// The file to process as a DICOM dataset.
         file: PathBuf,
     },

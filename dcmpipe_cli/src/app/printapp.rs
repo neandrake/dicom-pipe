@@ -7,14 +7,11 @@ use anyhow::Result;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use dcmpipe_lib::core::dcmsqelem::SequenceElement;
-use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::constants::tags::FILE_META_GROUP_END;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
-use dcmpipe_lib::defn::ts::TSRef;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 
@@ -25,13 +22,12 @@ static HIDE_DELIMITATION_TAGS: bool = false;
 static MAX_ITEMS_DISPLAYED: usize = 16;
 
 pub struct PrintApp {
-    stream: bool,
     file: PathBuf,
 }
 
 impl PrintApp {
-    pub fn new(stream: bool, file: PathBuf) -> PrintApp {
-        PrintApp { stream, file }
+    pub fn new(file: PathBuf) -> PrintApp {
+        PrintApp { file }
     }
 }
 
@@ -65,59 +61,6 @@ impl PrintApp {
         }
         Ok(())
     }
-
-    fn render_root(
-        &mut self,
-        mut parser: Parser<'_, File>,
-        stdout: &mut StdoutLock<'_>,
-    ) -> Result<()> {
-        let dcmroot: DicomRoot<'_> =
-            parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
-        PrintApp::render_objects(&dcmroot, true, parser.get_ts(), stdout)
-    }
-
-    fn render_objects(
-        dcmnode: &impl DicomNode,
-        mut prev_was_file_meta: bool,
-        ts: TSRef,
-        stdout: &mut StdoutLock<'_>,
-    ) -> Result<()> {
-        for (tag, obj) in dcmnode.iter_child_nodes() {
-            let elem: &DicomElement = obj.get_element();
-
-            if prev_was_file_meta && *tag > FILE_META_GROUP_END {
-                stdout.write_all(
-                    format!(
-                        "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
-                        ts.uid.ident
-                    )
-                    .as_ref(),
-                )?;
-                prev_was_file_meta = false;
-            }
-
-            let printed: Option<String> = render_element(elem)?;
-            if let Some(printed) = printed {
-                stdout.write_all(format!("{}\n", printed).as_ref())?;
-            }
-
-            // display items first followed by children. the only situation where an element
-            // may have both items and children is a sequence with items whose only child is
-            // its ending sequence delimiter.
-            for child_obj in obj.iter_items() {
-                let child_elem: &DicomElement = child_obj.get_element();
-                if let Some(printed) = render_element(child_elem)? {
-                    stdout.write_all(format!("{}\n", printed).as_ref())?;
-                }
-                PrintApp::render_objects(child_obj, prev_was_file_meta, ts, stdout)?;
-            }
-            if obj.get_child_count() > 0 {
-                PrintApp::render_objects(obj, prev_was_file_meta, ts, stdout)?;
-            }
-        }
-
-        Ok(())
-    }
 }
 
 impl CommandApplication for PrintApp {
@@ -134,11 +77,7 @@ impl CommandApplication for PrintApp {
             parser.get_ts().uid.ident).as_ref()
         )?;
 
-        if self.stream {
-            self.render_stream(parser, &mut stdout)?;
-        } else {
-            self.render_root(parser, &mut stdout)?;
-        }
+        self.render_stream(parser, &mut stdout)?;
 
         Ok(())
     }

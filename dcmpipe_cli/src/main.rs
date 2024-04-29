@@ -25,7 +25,7 @@ fn make_app() -> Box<dyn CommandApplication> {
     let args: Arguments = Arguments::parse();
 
     match args.command {
-        Command::Print { stream, file } => Box::new(PrintApp::new(stream, file)),
+        Command::Print { file } => Box::new(PrintApp::new(file)),
         Command::Edit { file } => Box::new(EditApp::new(file)),
         Command::Parse { folder } => Box::new(ScanApp::new(folder)),
         Command::Index { db, cmd } => Box::new(IndexApp::new(db, cmd)),
