@@ -16,12 +16,16 @@ use dcmpipe_lib::{
         StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
     },
     dimse::{
-        assoc::scu::{UserAssoc, UserAssocBuilder},
+        assoc::{
+            scu::{UserAssoc, UserAssocBuilder},
+            DimseMsg,
+        },
         error::AssocError,
     },
 };
 
 use crate::{
+    app::handle_assoc_result,
     args::{SvcUserArgs, SvcUserCommand},
     CommandApplication,
 };
@@ -69,9 +73,22 @@ impl CommandApplication for SvcUserApp {
         let stream = TcpStream::connect(&self.args.host)?;
         let reader = BufReader::new(&stream);
         let mut writer = BufWriter::new(&stream);
-        if let Err(e) = self.start(reader, &mut writer, &mut assoc) {
-            let _ = e.write(&mut writer);
-            eprintln!("Error: {e:?}");
+        let result = self.start(reader, &mut writer, &mut assoc);
+        match result {
+            Ok(None) => {}
+            Ok(Some(res)) => {
+                let output = handle_assoc_result(Ok(res), &mut writer);
+                for line in output {
+                    match line {
+                        Ok(line) => println!("{line}"),
+                        Err(line) => eprintln!("{line}"),
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = e.write(&mut writer);
+                eprintln!("Error: {e:?}");
+            }
         }
         Ok(())
     }
@@ -83,15 +100,14 @@ impl SvcUserApp {
         mut reader: BufReader<&TcpStream>,
         mut writer: &mut BufWriter<&TcpStream>,
         assoc: &mut UserAssoc,
-    ) -> Result<(), AssocError> {
-        assoc.request_association(&mut reader, &mut writer)?;
-
-        match self.args.cmd {
-            SvcUserCommand::Echo => {
-                assoc.c_echo_rq(&mut reader, &mut writer)?;
-            }
+    ) -> Result<Option<DimseMsg>, AssocError> {
+        let rsp = assoc.request_association(&mut reader, &mut writer)?;
+        if let Some(rsp) = rsp {
+            return Ok(Some(rsp));
         }
 
-        Ok(())
+        match self.args.cmd {
+            SvcUserCommand::Echo => assoc.c_echo_rq(&mut reader, &mut writer),
+        }
     }
 }

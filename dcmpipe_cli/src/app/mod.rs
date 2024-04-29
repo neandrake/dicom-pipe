@@ -14,12 +14,22 @@
    limitations under the License.
 */
 
-use std::{fs::File, io::BufReader, path::Path};
-
 use anyhow::{anyhow, Result};
+
+use std::{
+    fs::File,
+    io::{BufReader, Write},
+    path::Path,
+};
+
 use dcmpipe_lib::{
     core::read::{Parser, ParserBuilder},
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
+    dimse::{
+        assoc::DimseMsg,
+        error::{AssocError, AssocRsp},
+        pdus::PduType,
+    },
 };
 
 pub(crate) mod archiveapp;
@@ -55,4 +65,38 @@ fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, BufR
     }
 
     Ok(parser)
+}
+
+/// Returns a log statement appropriate for the result of an association.
+fn handle_assoc_result<W: Write>(
+    result: Result<DimseMsg, AssocError>,
+    writer: W,
+) -> Vec<Result<String, String>> {
+    match result {
+        Ok(DimseMsg::ReleaseRQ) => vec![Ok(format!("[info <-]: {:?}", PduType::ReleaseRQ))],
+        Ok(DimseMsg::Reject(rj)) => vec![Ok(format!("[warn <-]: {}", rj.get_reason_desc()))],
+        Ok(DimseMsg::Abort(ab)) => vec![Ok(format!("[warn <-]: {}", ab.get_reason_desc()))],
+        Ok(other) => vec![Err(format!(
+            "[ err xx]: Unexpected ending state: {other:?}"
+        ))],
+        Err(e) => {
+            let mut output: Vec<Result<String, String>> = Vec::with_capacity(3);
+            output.push(Err(format!("[ err ><]: {e}")));
+            match e.rsp() {
+                Some(AssocRsp::RJ(rj)) => {
+                    output.push(Ok(format!("[info ->]: {:?}", rj.pdu_type())));
+                }
+                Some(AssocRsp::AB(ab)) => {
+                    output.push(Ok(format!("[info ->]: {:?}", ab.pdu_type())));
+                }
+                None => {}
+            }
+            if let Err(inner) = e.write(writer) {
+                output.push(Err(format!(
+                    "[ err xx]: Failure writing error response: {inner}"
+                )));
+            }
+            output
+        }
+    }
 }

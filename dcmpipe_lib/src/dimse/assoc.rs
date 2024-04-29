@@ -23,7 +23,7 @@ use crate::{
     dimse::{
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
-        pdus::mainpdus::{Abort, PresentationDataValue},
+        pdus::mainpdus::{Abort, AssocRJ, PresentationDataValue},
     },
 };
 
@@ -35,6 +35,7 @@ pub enum DimseMsg {
     Cmd(CommandMessage),
     Dataset(PresentationDataValue),
     ReleaseRQ,
+    Reject(AssocRJ),
     Abort(Abort),
 }
 

@@ -226,13 +226,18 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .and_then(|v| v.string().cloned())
             .unwrap_or_else(|| "STUDY".to_owned());
 
-        if query_level == "PATIENT" {
+        if query_level == "PATIENT"
+            || query_level == "STUDY"
+            || query_level == "SERIES"
+            || query_level == "IMAGE"
+        {
             for tag in PATIENT_LEVEL_TAGS {
                 if !include_keys.contains(&tag.tag()) {
                     include_keys.push(tag.tag());
                 }
             }
-        } else if query_level == "STUDY" {
+        }
+        if query_level == "STUDY" || query_level == "SERIES" || query_level == "IMAGE" {
             for tag in STUDY_LEVEL_TAGS {
                 if !include_keys.contains(&tag.tag()) {
                     include_keys.push(tag.tag());

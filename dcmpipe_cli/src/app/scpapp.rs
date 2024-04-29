@@ -14,7 +14,10 @@
    limitations under the License.
 */
 
-use crate::{app::CommandApplication, args::SvcProviderArgs, threadpool::ThreadPool};
+use crate::{
+    app::handle_assoc_result, app::CommandApplication, args::SvcProviderArgs,
+    threadpool::ThreadPool,
+};
 use anyhow::Result;
 use dcmpipe_lib::{
     core::{
@@ -43,7 +46,7 @@ use dcmpipe_lib::{
             DimseMsg,
         },
         commands::CommandType,
-        error::{AssocError, AssocRsp, DimseError},
+        error::{AssocError, DimseError},
         pdus::PduType,
         Syntax,
     },
@@ -141,20 +144,12 @@ struct AssociationDevice<R: Read, W: Write> {
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     fn start(&mut self) {
-        match self.main_loop() {
-            Ok(DimseMsg::ReleaseRQ) => println!("[info <-]: {:?}", PduType::ReleaseRQ),
-            Ok(DimseMsg::Abort(ab)) => println!("[warn <-]: {}", ab.get_reason_desc()),
-            Ok(other) => eprintln!("[ err xx]: Unexpected ending state: {other:?}"),
-            Err(e) => {
-                eprintln!("[ err ><]: {e}");
-                match e.rsp() {
-                    Some(AssocRsp::RJ(rj)) => println!("[info ->]: {:?}", rj.pdu_type()),
-                    Some(AssocRsp::AB(ab)) => println!("[info ->]: {:?}", ab.pdu_type()),
-                    None => {}
-                }
-                if let Err(inner) = e.write(&mut self.writer) {
-                    eprintln!("[ err xx]: Failure writing error response: {inner}");
-                }
+        let result = self.main_loop();
+        let output = handle_assoc_result(result, &mut self.writer);
+        for line in output {
+            match line {
+                Ok(line) => println!("{line}"),
+                Err(line) => eprintln!("{line}"),
             }
         }
     }
@@ -173,14 +168,13 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                         "Received DICOM dataset without prior Command.".to_string(),
                     )));
                 }
-                DimseMsg::ReleaseRQ => return Ok(DimseMsg::ReleaseRQ),
-                DimseMsg::Abort(ab) => return Ok(DimseMsg::Abort(ab)),
+                other => return Ok(other),
             };
             println!("[info <-]: {:?}", cmd.cmd_type());
 
             let Some(pres_ctx) = self.assoc.get_pres_ctx(cmd.ctx_id()) else {
                 return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "Presentation Context not found: {}",
+                    "Negotiated Presentation Context ID not found: {}",
                     cmd.ctx_id()
                 ))));
             };

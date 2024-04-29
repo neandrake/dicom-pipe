@@ -23,6 +23,7 @@ use crate::{
     core::defn::{ts::TSRef, uid::UIDRef},
     dict::uids::{DICOMApplicationContextName, VerificationSOPClass},
     dimse::{
+        assoc::{serialize, DimseMsg},
         commands::{messages::CommandMessage, CommandStatus},
         error::{AssocError, DimseError},
         pdus::{
@@ -38,8 +39,6 @@ use crate::{
         AeTitle,
     },
 };
-
-use super::{serialize, DimseMsg};
 
 pub struct UserAssoc {
     /* Fields configured by this SCU. */
@@ -119,6 +118,7 @@ impl UserAssoc {
         writer: &mut W,
     ) -> Result<DimseMsg, AssocError> {
         match pdu {
+            Pdu::AssocRJ(rj) => Ok(DimseMsg::Reject(rj)),
             Pdu::ReleaseRQ(_) => {
                 self.write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
                 Ok(DimseMsg::ReleaseRQ)
@@ -142,7 +142,7 @@ impl UserAssoc {
         &mut self,
         reader: R,
         mut writer: W,
-    ) -> Result<(), AssocError> {
+    ) -> Result<Option<DimseMsg>, AssocError> {
         let called_ae = AeTitle::try_from(self.service_ae.trim())
             .map_err(|e| AssocError::error(DimseError::OtherError(e.into())))?;
         let calling_ae = AeTitle::try_from(self.my_ae.trim())
@@ -184,7 +184,7 @@ impl UserAssoc {
 
         let response = Pdu::read(reader).map_err(AssocError::ab_failure)?;
         let Pdu::AssocAC(ac) = response else {
-            return self.handle_disconnect(response, &mut writer).map(|_| ());
+            return self.handle_disconnect(response, &mut writer).map(Some);
         };
 
         self.their_user_data.clear();
@@ -206,7 +206,7 @@ impl UserAssoc {
             )));
         }
 
-        Ok(())
+        Ok(None)
     }
 
     /// Issue a C-ECHO request.
@@ -219,7 +219,7 @@ impl UserAssoc {
         &mut self,
         reader: R,
         mut writer: W,
-    ) -> Result<(), AssocError> {
+    ) -> Result<Option<DimseMsg>, AssocError> {
         let Some(pres_ctx) = self.get_rq_pres_ctx_by_ab(&VerificationSOPClass) else {
             return Err(AssocError::error(DimseError::UnsupportedAbstractSyntax(
                 &VerificationSOPClass,
@@ -244,9 +244,7 @@ impl UserAssoc {
         let rp = rp.map_err(AssocError::ab_failure)?;
         let rp_msg = match rp {
             PduIterItem::Pdu(pdu) => {
-                return Err(AssocError::ab_unexpected_pdu(
-                    DimseError::UnexpectedPduType(pdu.pdu_type()),
-                ))
+                return self.handle_disconnect(pdu, &mut writer).map(Some);
             }
             PduIterItem::CmdMessage(rp_cmd) => rp_cmd,
             PduIterItem::Dataset(_ds) => {
@@ -264,7 +262,7 @@ impl UserAssoc {
         }
 
         self.write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -335,8 +333,8 @@ impl UserAssocBuilder {
         for ab in &self.supported_abs {
             my_user_data.push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
                 ab.uid().into(),
-                0,
                 1,
+                0,
             )));
         }
 

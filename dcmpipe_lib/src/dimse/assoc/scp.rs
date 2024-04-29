@@ -121,22 +121,12 @@ impl ServiceAssoc {
 
         let rq = match rq {
             Ok(rq) => rq,
-            Err(e) => {
-                if let Err(inner) = e.write(&mut writer) {
-                    eprintln!("[ err xx]: Failure writing error response: {inner}");
-                }
-                return Err(AssocError::error(e.into_err()));
-            }
+            Err(e) => return Err(e),
         };
 
         let assoc_ac = match self.validate_assoc_rq(&rq) {
             Ok(rq) => rq,
-            Err(e) => {
-                if let Err(inner) = e.write(&mut writer) {
-                    eprintln!("[ err xx]: Failure writing error response: {inner}");
-                }
-                return Err(AssocError::error(e.into_err()));
-            }
+            Err(e) => return Err(e),
         };
 
         for pres_ctx in assoc_ac.pres_ctxs() {
@@ -144,12 +134,6 @@ impl ServiceAssoc {
                 self.negotiated_pres_ctx
                     .insert(pres_ctx.ctx_id(), pres_ctx.to_owned());
             }
-        }
-
-        if self.negotiated_pres_ctx.is_empty() {
-            return Err(AssocError::rj_failure(DimseError::GeneralError(
-                "No presentation contexts negotiated".to_owned(),
-            )));
         }
 
         self.write_pdu(&Pdu::AssocAC(assoc_ac), &mut writer)?;
@@ -338,7 +322,8 @@ impl ServiceAssoc {
         Ok(cmd_rsp_pdi)
     }
 
-    /// Create a C-FIND result, as a pair of `PresentationDataItem` to be sent back to the SCU.
+    /// Create a C-FIND result, as a pair of `PresentationDataItem` to be sent back to the SCU, the
+    /// first for the Command and the second for the DICOM dataset for the query.
     ///
     /// # Errors
     /// I/O errors may occur serializing the response objects into `PresentationDataItem`.
