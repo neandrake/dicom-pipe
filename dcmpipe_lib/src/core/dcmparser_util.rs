@@ -1,11 +1,12 @@
 use crate::core::dcmelement::DicomElement;
-use crate::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
+use crate::core::dcmobject::{DicomObject, DicomRoot};
 use crate::core::dcmparser::Parser;
 use crate::defn::constants::tags;
 use crate::defn::vl;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, VR};
 use std::io::{Error, Read};
+use std::collections::BTreeMap;
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
 /// with a VR of `UN`, `OB`, or `OW` and have a value length of `UndefinedLength`. These types of
@@ -98,27 +99,37 @@ pub fn read_value_length_from_dataset(
 pub fn parse_into_object<DatasetType: Read>(
     parser: &mut Parser<DatasetType>,
 ) -> Result<DicomRoot, Error> {
-    let mut root: DicomRoot = DicomRoot::default();
-    if let Some(Err(e)) = parse_into_object_recurse(parser, &mut root) {
+    let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
+    if let Some(Err(e)) = parse_into_object_recurse(parser, &mut child_nodes) {
         return Err(e);
     }
+    // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
+    // and specfic character set.
+    let root: DicomRoot = DicomRoot::new(
+        parser.get_ts(),
+        parser.get_cs(),
+        parser.get_ts_by_uid(),
+        parser.get_tag_by_uid(),
+        child_nodes,
+    );
     Ok(root)
 }
 
-/// Iterates through the parser populating values into the given `DicomNode`. Elements which are
+/// Iterates through the parser populating values into the given `nodes` map. Elements which are
 /// sequence-like (contain sub-elements) will be recursed into so child elements are added to their
 /// node. The sequence path length is used to determine when parsing an element whether it escapes
 /// the current level a of recursion, and how far back up it should go (the end of a sequence can
-/// actually be the end of multiple sequences).
+/// be the end of multiple sequences).
 /// `parser` The parser elements are being read from
-/// `parent` The current node elements will be added to
+/// `nodes` The map of nodes which elements should be parsed into
 fn parse_into_object_recurse<DatasetType: Read>(
     parser: &mut Parser<DatasetType>,
-    parent: &mut impl DicomNode,
+    nodes: &mut BTreeMap<u32, DicomObject>,
 ) -> Option<Result<DicomElement, Error>> {
     let mut prev_seq_path_len: usize = 0;
     let mut next_element: Option<Result<DicomElement, Error>> = parser.next();
     while let Some(Ok(element)) = next_element {
+        let tag: u32 = element.tag;
         let cur_seq_path_len: usize = element.get_sequence_path().len() + 1;
         if prev_seq_path_len == 0 {
             prev_seq_path_len = cur_seq_path_len;
@@ -134,14 +145,14 @@ fn parse_into_object_recurse<DatasetType: Read>(
         // checking sequence or item tag should match dcmparser.read_dicom_element() which
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.
-        let dcmobj: DicomObject = if element.is_seq_like() || element.tag == tags::ITEM {
-            let mut object: DicomObject = DicomObject::new(element);
-            possible_next_elem = parse_into_object_recurse(parser, &mut object);
-            object
+        let dcmobj: DicomObject = if element.is_seq_like() || tag == tags::ITEM {
+            let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
+            possible_next_elem = parse_into_object_recurse(parser, &mut child_nodes);
+            DicomObject::new_with_children(element, child_nodes)
         } else {
             DicomObject::new(element)
         };
-        parent.insert_child(dcmobj);
+        nodes.insert(tag, dcmobj);
 
         prev_seq_path_len = cur_seq_path_len;
 
