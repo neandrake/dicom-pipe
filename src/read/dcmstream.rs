@@ -5,6 +5,7 @@ use core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
 use core::dict::transfer_syntaxes as ts;
 use core::tag::Tag;
 use core::ts::TransferSyntax;
+use core::vl::{from_value_length, ValueLength};
 use core::vr;
 
 use read::dcmelement::DicomElement;
@@ -89,42 +90,67 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             return self.tag_peek.ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to read next tag")));
         }
         let first: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
+        self.bytes_read += 2;
         let second: u32 = self.stream.read_u16::<Endian>()? as u32;
+        self.bytes_read += 2;
         let result: u32 = first + second;
         self.tag_peek = Some(result);
-        self.bytes_read += 4;
         Ok(result)
     }
 
-    pub fn read_vr(&mut self) -> Result<&'static vr::VR, Error> {
-        let first_char: u8 = self.stream.read_u8()?;
-        let second_char: u8 = self.stream.read_u8()?;
-        let code: u16 = ((first_char as u16) << 8) + second_char as u16;
-        self.bytes_read += 2;
-        match vr::VR::code_to_vr(code) {
-            Some(vr) => Ok(vr),
-            None => Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
+    pub fn read_vr(&mut self, tag: u32) -> Result<&'static vr::VR, Error> {
+        if self.ts.explicit_vr {
+            let first_char: u8 = self.stream.read_u8()?;
+            self.bytes_read += 1;
+            let second_char: u8 = self.stream.read_u8()?;
+            self.bytes_read += 1;
+
+            let code: u16 = ((first_char as u16) << 8) + second_char as u16;
+            match vr::VR::code_to_vr(code) {
+                Some(vr) => Ok(vr),
+                None => Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
+            }
+        } else {
+            TAG_BY_VALUE.get(&tag)
+                .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
+                .ok_or(Error::new(ErrorKind::InvalidData, format!("ImplicitVR TS but VR is unknown for tag: {}", tag)))
         }
     }
 
-    pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: &vr::VR) -> Result<u32, Error> {
-        let vl: u32 = match vr.explicit_vr_header_bytes {
-            8 => self.stream.read_u16::<Endian>().map(|n| n as u32),
-            12 => {
+    pub fn read_value_length<Endian: ByteOrder>(&mut self, vr: &vr::VR) -> Result<ValueLength, Error> {
+        let value_length: u32;
+        if self.ts.explicit_vr {
+            if vr.has_explicit_2byte_pad {
                 self.stream.read_u16::<Endian>()?;
-                self.stream.read_u32::<Endian>()
-            },
-            n => Err(Error::new(ErrorKind::InvalidData, format!("Invalid VR Header Length: {:?}", n))),
-        }?;
-        self.bytes_read += vr.explicit_vr_header_bytes as usize;
-        Ok(vl)
+                self.bytes_read += 2;
+                value_length = self.stream.read_u32::<Endian>()?;
+                self.bytes_read += 4;
+            } else {
+                value_length = self.stream.read_u16::<Endian>()? as u32;
+                self.bytes_read += 2;
+            }
+        } else {
+            value_length = self.stream.read_u32::<Endian>()?;
+            self.bytes_read += 4;
+        }
+        Ok(from_value_length(value_length))
     }
 
-    pub fn read_value_field(&mut self, value_length: u32) -> Result<Vec<u8>, Error> {
-        let mut bytes: Vec<u8> = vec![0;value_length as usize];
-        self.stream.read_exact(bytes.as_mut_slice())?;
-        self.bytes_read += value_length as usize;
-        Ok(bytes)
+    pub fn read_value_field(&mut self, vl: &ValueLength) -> Result<Vec<u8>, Error> {
+        match *vl {
+            ValueLength::Explicit(value_length) => {
+                let mut bytes: Vec<u8> = vec![0;value_length as usize];
+                self.stream.read_exact(bytes.as_mut_slice())?;
+                self.bytes_read += value_length as usize;
+                Ok(bytes)
+            },
+            ValueLength::UndefinedLength => {
+                // TODO: Read until Sequence Delimitation Item
+                // Part 5 Ch. 7.1.3
+                // The Value Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value Field.
+                Err(Error::new(ErrorKind::Other, format!("Reading values of undefined length not yet supported")))
+            },
+        }
     }
 
     pub fn read_dicom_element(&mut self) -> Result<DicomElement, Error> {
@@ -136,25 +162,19 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     }
 
     fn _read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<DicomElement, Error> {
-        let tag: u32;
-        match self.tag_peek {
-            Some(read_tag) => tag = read_tag,
-            None => tag = self.read_tag::<Endian>()?,
+        let tag: u32 = match self.tag_peek {
+            Some(read_tag) => read_tag,
+            None => self.read_tag::<Endian>()?,
         };
-
         // Clear `self.tag_peek` so subsequent calls will read the next tag value
         self.tag_peek = None;
         
-        let vr: &vr::VR = if self.ts.explicit_vr {
-            self.read_vr()?
-        } else {
-            TAG_BY_VALUE.get(&tag)
-                .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
-                .unwrap_or(&vr::UN)
-        };
-
-        let vl: u32 = self.read_value_length::<Endian>(vr)?;
-        let bytes: Vec<u8> = self.read_value_field(vl)?;
+        //println!("Read Tag: {}", tag);
+        let vr: &vr::VR = self.read_vr(tag)?;
+        //println!("Read VR: {:?}", vr);
+        let vl: ValueLength = self.read_value_length::<Endian>(vr)?;
+        //println!("Read VL: {:?}", vl);
+        let bytes: Vec<u8> = self.read_value_field(&vl)?;
 
         Ok(DicomElement {
             tag: tag,
