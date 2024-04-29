@@ -23,15 +23,17 @@ use crate::core::{
     dcmsqelem::SequenceElement,
     defn::{
         constants::{
-            tags::{ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM},
+            tags::{
+                DOUBLE_PIXEL_DATA, FLOAT_PIXEL_DATA, ITEM, ITEM_DELIMITATION_ITEM, PIXEL_DATA,
+                SEQUENCE_DELIMITATION_ITEM,
+            },
             ts::ExplicitVRLittleEndian,
         },
         is_non_standard_sq, is_sq_delim,
         tag::{Tag, TagNode, TagPath},
         ts::TSRef,
         vl::ValueLength,
-        vr::VRRef,
-        vr::{INVALID_VR, SQ},
+        vr::{VRRef, INVALID_VR, SQ},
     },
     read::parser::ParseResult,
     values::{ElementWithVr, RawValue},
@@ -210,6 +212,12 @@ impl DicomElement {
     #[must_use]
     pub fn is_sq_delim(&self) -> bool {
         is_sq_delim(self.tag)
+    }
+
+    /// Returns if this element is for `PixelData`, `FloatPixelData`, or `DoubleFloatPixelData`.
+    #[must_use]
+    pub fn is_pixel_data(&self) -> bool {
+        self.tag == PIXEL_DATA || self.tag == FLOAT_PIXEL_DATA || self.tag == DOUBLE_PIXEL_DATA
     }
 
     /// Returns whether the the size of the value field for this element is zero.

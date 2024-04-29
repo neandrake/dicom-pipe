@@ -24,7 +24,10 @@ use crate::{
         charset::{lookup_charset, DEFAULT_CHARACTER_SET},
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
-        defn::{dcmdict::DicomDictionary, tag::Tag, ts::TSRef, uid::UIDRef, vr::UI},
+        defn::{
+            constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
+            uid::UIDRef, vr::UI,
+        },
         read::Parser,
         RawValue,
     },
@@ -316,7 +319,10 @@ impl UserAssoc {
         origin_ae: &str,
         orig_msg_id: u16,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        let mut parser = parser.filter_map(Result::ok);
+        let mut parser = parser
+            .filter_map(Result::ok)
+            // Do not transfer any beginning FileMeta elements.
+            .skip_while(|e| e.tag() <= FILE_META_GROUP_END);
 
         let mut spec_char_set: Option<String> = None;
         let mut sop_class_uid: Option<String> = None;

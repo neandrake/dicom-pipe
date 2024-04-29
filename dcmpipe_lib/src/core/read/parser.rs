@@ -21,7 +21,7 @@ use crate::core::{
     dcmelement::DicomElement,
     dcmsqelem::SequenceElement,
     defn::{
-        constants::tags::{DOUBLE_PIXEL_DATA, FLOAT_PIXEL_DATA, ITEM, PIXEL_DATA},
+        constants::tags::ITEM,
         dcmdict::DicomDictionary,
         tag::{TagNode, TagPath},
         ts::TSRef,
@@ -273,10 +273,7 @@ impl<'d, R: Read> Parser<'d, R> {
     /// Checks if the current path is within a pixeldata tag.
     fn is_in_pixeldata(&self) -> bool {
         for seq_elem in self.current_path.iter().rev() {
-            if seq_elem.sq_tag() == FLOAT_PIXEL_DATA
-                || seq_elem.sq_tag() == DOUBLE_PIXEL_DATA
-                || seq_elem.sq_tag() == PIXEL_DATA
-            {
+            if seq_elem.is_pixel_data() {
                 return true;
             }
             // If the parent element is an ITEM then keep walking up the chain to check against the

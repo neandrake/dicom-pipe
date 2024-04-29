@@ -18,7 +18,12 @@ use std::fmt::{Debug, Display, Formatter};
 
 use crate::core::{
     charset::CSRef,
-    defn::{tag::TagNode, vl::ValueLength, vr::VRRef},
+    defn::{
+        constants::tags::{DOUBLE_PIXEL_DATA, FLOAT_PIXEL_DATA, PIXEL_DATA},
+        tag::TagNode,
+        vl::ValueLength,
+        vr::VRRef,
+    },
 };
 
 /// Represents the sequence/item position of an element.
@@ -114,6 +119,14 @@ impl SequenceElement {
 
     pub fn set_cs(&mut self, cs: CSRef) {
         self.cs = cs;
+    }
+
+    /// Returns if this element is for `PixelData`, `FloatPixelData`, or `DoubleFloatPixelData`.
+    #[must_use]
+    pub fn is_pixel_data(&self) -> bool {
+        self.sq_tag() == PIXEL_DATA
+            || self.sq_tag() == FLOAT_PIXEL_DATA
+            || self.sq_tag() == DOUBLE_PIXEL_DATA
     }
 
     pub fn increment_item(&mut self) {

@@ -28,7 +28,7 @@ use crate::core::{
         is_parent_priv_sq, is_sq_delim,
         ts::TSRef,
         vl::{ValueLength, UNDEFINED_LENGTH},
-        vr::{self, VRRef},
+        vr::{self, VRRef, OB},
     },
     read::ParseError,
     values::RawValue,
@@ -307,20 +307,40 @@ impl<W: Write> Writer<W> {
         };
 
         // TODO: Make this behavior a preference on the writer.
-        // Re-encode the element if its current transfer syntax differs from what it should be
-        // written with.
-        #[allow(clippy::if_not_else)] // The intent here is more clear using not-eq.
-        let changed = if element.ts() != ts {
-            // TODO: Performance improvements:
-            // Check for a change to transfer syntax that doesn't modify the endianness and avoid
-            // re-encoding the data (except maybe PixelData?).
-            // Check for data encoded as Vec<u8> and avoid re-encoding (effective for PixelData).
+        // TODO: Performance improvements:
+        //       - Some VRs are encoded with limited characters that will always be single-byte
+        //         when using the default character set, and should not require re-encoding when
+        //         the byte-endian changes.
+
+        // Non-PixelData elements are only affected by change to byte-endian, e.g. a change
+        // from ExplicitVRLittleEndian to JPEGBaselineProcess1 would only result in a change to
+        // how PixelData tags are encoded but not any other elements.
+        let non_pd_same_endian =
+            !element.is_pixel_data() && element.ts().big_endian() == ts.big_endian();
+        // Values without bytes and values encoded as plain bytes are not affected by change to
+        // byte-endian.
+        let non_endian_affected = element.is_empty() || element.vr() == &OB;
+
+        let changed = if element.ts() == ts {
+            None
+        } else if non_pd_same_endian || non_endian_affected {
+            let data = element.data().clone();
+            let updated_elem = DicomElement::new(
+                element.tag(),
+                element.vr(),
+                element.vl(),
+                ts,
+                element.cs(),
+                data,
+                element.sq_path().clone(),
+            );
+            Some(updated_elem)
+        } else {
+            // Re-encode the value to the new transfer syntax.
             let mut re_enc = DicomElement::new_empty(element.tag(), element.vr(), ts);
             let value = element.parse_value()?;
             re_enc.encode_val(value)?;
             Some(re_enc)
-        } else {
-            None
         };
         let element = changed.as_ref().unwrap_or(element);
 
@@ -339,21 +359,21 @@ impl<W: Write> Writer<W> {
             dataset.write_all(&u16::to_be_bytes(
                 u16::try_from(element.tag() >> 16 & 0x0000_FFFF).unwrap_or(u16::MAX),
             ))?;
-            bytes_written += 2;
+            bytes_written += std::mem::size_of::<u16>();
 
             dataset.write_all(&u16::to_be_bytes(
                 u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX),
             ))?;
-            bytes_written += 2;
+            bytes_written += std::mem::size_of::<u16>();
         } else {
             dataset.write_all(&u16::to_le_bytes(
                 u16::try_from(element.tag() >> 16 & 0x0000_FFFF).unwrap_or(u16::MAX),
             ))?;
-            bytes_written += 2;
+            bytes_written += std::mem::size_of::<u16>();
             dataset.write_all(&u16::to_le_bytes(
                 u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX),
             ))?;
-            bytes_written += 2;
+            bytes_written += std::mem::size_of::<u16>();
         }
 
         Ok(bytes_written)
@@ -368,15 +388,17 @@ impl<W: Write> Writer<W> {
 
         let mut bytes_written = 0usize;
 
-        dataset.write_all(element.vr().ident.as_bytes())?;
-        bytes_written += element.vr().ident.len();
+        let vr = element.vr().ident;
+        dataset.write_all(vr.as_bytes())?;
+        bytes_written += vr.len();
 
         // When using Explicit VR and the VR specifies a 2byte padding then write out 16bits of
         // zeroes after the VR.
         // See Part 5, Ch 7.1.2
         if element.vr().has_explicit_2byte_pad {
-            dataset.write_all(&[0u8, 0u8])?;
-            bytes_written += 2;
+            let padding = [0u8; 2];
+            dataset.write_all(&padding)?;
+            bytes_written += padding.len();
         }
 
         Ok(bytes_written)
@@ -395,32 +417,28 @@ impl<W: Write> Writer<W> {
 
                 if element.ts().big_endian() {
                     dataset.write_all(&UNDEFINED_LENGTH.to_be_bytes())?;
-                    bytes_written += 4;
                 } else {
                     dataset.write_all(&UNDEFINED_LENGTH.to_le_bytes())?;
-                    bytes_written += 4;
                 }
+                bytes_written += std::mem::size_of::<u32>();
             }
 
             ValueLength::Explicit(length) => {
                 if write_as_u32 {
                     if element.ts().big_endian() {
                         dataset.write_all(&length.to_be_bytes())?;
-                        bytes_written += 4;
                     } else {
                         dataset.write_all(&length.to_le_bytes())?;
-                        bytes_written += 4;
                     }
+                    bytes_written += std::mem::size_of::<u32>();
                 } else {
                     let length: u16 = u16::try_from(length & 0x0000_FFFF).unwrap_or(u16::MAX);
-
                     if element.ts().big_endian() {
                         dataset.write_all(&length.to_be_bytes())?;
-                        bytes_written += 2;
                     } else {
                         dataset.write_all(&length.to_le_bytes())?;
-                        bytes_written += 2;
                     }
+                    bytes_written += std::mem::size_of::<u16>();
                 }
             }
         }
@@ -429,13 +447,16 @@ impl<W: Write> Writer<W> {
     }
 
     fn write_data(dataset: &mut Dataset<W>, element: &DicomElement) -> WriteResult<usize> {
-        let mut bytes_written: usize = 0;
+        if element.data().is_empty() {
+            return Ok(0);
+        }
 
         #[cfg(feature = "compress")]
         {
             dataset.set_write_deflated(element.ts().deflated());
         }
 
+        let mut bytes_written: usize = 0;
         dataset.write_all(element.data().as_slice())?;
         bytes_written += element.data().len();
         Ok(bytes_written)

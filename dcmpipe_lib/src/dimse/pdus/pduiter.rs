@@ -89,7 +89,7 @@ impl<R: Read> Iterator for PduIter<R> {
         };
 
         let pdu_size = usize::try_from(pres_data_item.length()).unwrap_or_default();
-        if pdu_size > self.max_pdu_size {
+        if self.max_pdu_size > 0 && pdu_size > self.max_pdu_size {
             return Some(Err(DimseError::MaxPduSizeExceeded(pdu_size)));
         }
 
