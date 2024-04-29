@@ -13,7 +13,7 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Seek};
 use std::path::Path;
 
-use core::dict::dicom_elements as tags;
+use core::dict::file_meta_elements as fme;
 use core::{ts, vr};
 
 
@@ -183,11 +183,11 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         self.read_dicom_prefix()?;
 
         let mut element: DicomElement = self.read_dicom_element()?;
-        if element.tag != tags::FileMetaInformationGroupLength.get_tag() {
+        if element.tag != fme::FileMetaInformationGroupLength.tag {
             return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", element)));
         }
 
-        while element.tag <= tags::PrivateInformation.get_tag() {
+        while element.tag <= fme::PrivateInformation.tag {
             self.file_meta.insert(element.tag, element);
             element = self.read_dicom_element()?;
         }

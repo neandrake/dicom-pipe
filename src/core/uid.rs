@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![allow(non_camel_case_types)]
 
 //! Unique Identifiers
@@ -6,9 +7,9 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Eq)]
 pub struct UID {
-    ident: &'static str,
-    uid: &'static str,
-    name: &'static str,
+    pub ident: &'static str,
+    pub uid: &'static str,
+    pub name: &'static str,
 }
 
 impl UID {
