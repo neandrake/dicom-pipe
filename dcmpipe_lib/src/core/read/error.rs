@@ -11,19 +11,22 @@ use thiserror::Error;
 
 const MAX_BYTES_IN_ERROR: usize = 16;
 
+/// A simple structure for collecting information about parsing values from a `DicomElement`, which
+/// can be easily converted to a `ParseError`.
 #[derive(Debug)]
 pub(crate) struct ParseErrorInfo<'a>(
     pub &'a DicomElement,
     pub &'a str,
     pub Option<&'a dyn DicomDictionary>,
 );
+
 impl<'a> From<ParseErrorInfo<'a>> for ParseError {
     fn from(value: ParseErrorInfo<'a>) -> Self {
         let elem = value.0;
         let message = value.1;
+        let dict = value.2;
 
-        // TODO: How to get a dicom dictionary here for better error messages?
-        let tagstring = TagPath::format_tagpath_to_display(&elem.create_tagpath(), None);
+        let tagstring = TagPath::format_tagpath_to_display(&elem.create_tagpath(), dict);
         ParseError::DecodeValueError {
             message: message.to_owned(),
             tagstring,
