@@ -132,7 +132,7 @@ impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
         };
 
         let (add_ellipses, mut str_vals) = match elem_value {
-            RawValue::Attribute(attr) => (false, vec![Tag::format_tag_to_display(attr.0)]),
+            RawValue::Attribute(attrs) => format_vec_to_strings(attrs, |attr| Tag::format_tag_to_display(attr.0)),
             RawValue::Uid(uid_str) => {
                 let uid_lookup = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
                 match uid_lookup {

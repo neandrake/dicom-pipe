@@ -41,7 +41,7 @@ pub struct Attribute(pub u32);
 /// Wrapper around an element's value parsed into a native/raw type
 #[derive(Debug, Clone)]
 pub enum RawValue {
-    Attribute(Attribute),
+    Attribute(Vec<Attribute>),
     Uid(String),
     Strings(Vec<String>),
     Shorts(Vec<i16>),
@@ -211,16 +211,21 @@ impl DicomElement {
     /// `SequenceDelimitationItem`.
     pub fn encode_value(&mut self, value: RawValue, vl: Option<ValueLength>) -> Result<()> {
         let mut bytes: Vec<u8> = match value {
-            RawValue::Attribute(Attribute(attr)) => {
-                let mut bytes: Vec<u8> = vec![0u8; 4];
-                let group_number: u16 = ((attr >> 16) & 0xFFFF) as u16;
-                let elem_number: u16 = (attr & 0xFFFF) as u16;
-                if self.ts.is_big_endian() {
-                    bytes[0..2].copy_from_slice(&group_number.to_be_bytes());
-                    bytes[2..4].copy_from_slice(&elem_number.to_be_bytes());
-                } else {
-                    bytes[0..2].copy_from_slice(&group_number.to_le_bytes());
-                    bytes[2..4].copy_from_slice(&elem_number.to_le_bytes());
+            RawValue::Attribute(attrs) => {
+                let num_attrs = attrs.len();
+                let mut bytes: Vec<u8> = vec![0u8; U32_SIZE * num_attrs];
+                for (i, attr) in attrs.iter().enumerate() {
+                    let Attribute(attr) = attr;
+                    let group_number: u16 = ((attr >> 16) & 0xFFFF) as u16;
+                    let elem_number: u16 = (attr & 0xFFFF) as u16;
+                    let idx = i * U32_SIZE;
+                    if self.ts.is_big_endian() {
+                        bytes[idx..(idx + 2)].copy_from_slice(&group_number.to_be_bytes());
+                        bytes[(idx + 2)..(idx + 4)].copy_from_slice(&elem_number.to_be_bytes());
+                    } else {
+                        bytes[idx..(idx + 2)].copy_from_slice(&group_number.to_le_bytes());
+                        bytes[(idx + 2)..(idx + 4)].copy_from_slice(&elem_number.to_le_bytes());
+                    }
                 }
                 bytes
             }
@@ -564,7 +569,7 @@ impl TryFrom<&DicomElement> for RawValue {
         if value.get_data().is_empty() {
             Ok(RawValue::Bytes(Vec::with_capacity(0)))
         } else if value.vr == &vr::AT {
-            Ok(RawValue::Attribute(Attribute::try_from(value)?))
+            Ok(RawValue::Attribute(Vec::<Attribute>::try_from(value)?))
         } else if value.vr == &vr::UI {
             Ok(RawValue::Uid(String::try_from(value)?))
         } else if value.vr == &vr::SS {
@@ -618,32 +623,39 @@ impl TryFrom<&DicomElement> for RawValue {
     }
 }
 
-impl TryFrom<&DicomElement> for Attribute {
+impl TryFrom<&DicomElement> for Vec<Attribute> {
     type Error = ParseError;
 
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
     fn try_from(value: &DicomElement) -> Result<Self> {
-        if value.data.len() < 4 {
-            return Err(error("value is less than 4 bytes", value));
+        if value.data.len() % U32_SIZE != 0 {
+            return Err(error("value is not a multiple of 4 bytes", value));
         }
 
+        let num_attrs = value.data.len() / U32_SIZE;
         let mut buf: [u8; 2] = [0; 2];
-        buf.copy_from_slice(&value.data[0..2]);
-        let first: u32 = if value.ts.is_big_endian() {
-            u32::from(u16::from_be_bytes(buf)) << 16
-        } else {
-            u32::from(u16::from_le_bytes(buf)) << 16
-        };
 
-        buf.copy_from_slice(&value.data[2..4]);
-        let second: u32 = if value.ts.is_big_endian() {
-            u32::from(u16::from_be_bytes(buf))
-        } else {
-            u32::from(u16::from_le_bytes(buf))
-        };
-        let result: u32 = first + second;
-        Ok(Attribute(result))
+        let mut attrs: Vec<Attribute> = Vec::with_capacity(num_attrs);
+        for i in 0..num_attrs {
+            let idx = i * U32_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + 2)]);
+            let first: u32 = if value.ts.is_big_endian() {
+                u32::from(u16::from_be_bytes(buf)) << 16
+            } else {
+                u32::from(u16::from_le_bytes(buf)) << 16
+            };
+
+            buf.copy_from_slice(&value.data[(idx + 2)..(idx + 4)]);
+            let second: u32 = if value.ts.is_big_endian() {
+                u32::from(u16::from_be_bytes(buf))
+            } else {
+                u32::from(u16::from_le_bytes(buf))
+            };
+            let result: u32 = first + second;
+            attrs.push(Attribute(result));
+        }
+        Ok(attrs)
     }
 }
 

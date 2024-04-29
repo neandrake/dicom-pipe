@@ -213,7 +213,7 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
 pub fn test_write_attr() -> Result<(), WriteError> {
     let mut elem = DicomElement::new_empty(&tags::FrameIncrementPointer, &vr::AT, &ts::RLELossless);
 
-    let value = Attribute(0x0018_1063);
+    let value = vec![Attribute(0x0018_1063)];
     elem.encode_value(RawValue::Attribute(value.clone()), None)?;
 
     let raw_data = vec![0x18u8, 0u8, 0x63u8, 0x10u8];
@@ -231,8 +231,8 @@ pub fn test_write_attr() -> Result<(), WriteError> {
 
     let re_value = elem.parse_value()?;
     match re_value {
-        RawValue::Attribute(attr) => {
-            assert_eq!(value, attr, "mismatch attribute: {:?}", attr);
+        RawValue::Attribute(attrs) => {
+            assert_eq!(value, attrs, "mismatch attribute: {:?}", attrs);
         }
         _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
     }
@@ -241,7 +241,7 @@ pub fn test_write_attr() -> Result<(), WriteError> {
 }
 
 #[test]
-//#[ignore]
+#[ignore]
 pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
     for path in crate::get_dicom_file_paths() {
         if let Err(e) = reencode_file_elements(path.clone()) {
@@ -273,83 +273,86 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
     elem.encode_value(value.clone(), Some(elem.get_vl()))?;
     let reencoded_data = elem.get_data().clone();
 
+    if orig_parsed_data == reencoded_data {
+        return Ok(());
+    }
+
     // Some formatting/values are expected to not match exactly. Adjust the original
     // element data so that it would match what the writer would output.
-    if orig_parsed_data != reencoded_data {
-        // Some datasets encode at least one digit precision, others don't. There's no
-        // great way to update the original data in a minimal way to adjust for the
-        // writer always ensuring a minimum of a single digit of precision for all
-        // values in this element.
-        if elem.get_vr() == &vr::DS {
+
+    // Some datasets encode at least one digit precision, others don't. There's no
+    // great way to update the original data in a minimal way to adjust for the
+    // writer always ensuring a minimum of a single digit of precision for all
+    // values in this element.
+    if elem.get_vr() == &vr::DS {
+        return Ok(());
+    }
+
+    // If strings consist of only the padding character then ignore size differences.
+    if elem.get_vr().is_character_string {
+        // Some character-based elements seem to include trailing null-byte padding.
+        let trimmer = |v: &Vec<u8>| {
+            v.iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
+                .collect::<Vec<u8>>()
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING)
+                .collect::<Vec<u8>>()
+        };
+
+        let orig_end_trimmed = trimmer(&orig_parsed_data);
+        let reencoded_end_trimmed = trimmer(&reencoded_data);
+
+        if orig_end_trimmed == reencoded_end_trimmed {
             return Ok(());
         }
+    }
 
-        // If strings consist of only the padding character then ignore size differences.
-        if elem.get_vr().is_character_string {
-            let is_space = |b: &u8| *b == vr::SPACE_PADDING;
-            if orig_parsed_data.iter().all(is_space) && reencoded_data.iter().all(is_space) {
-                return Ok(());
-            }
-
-            // Some character-based elements seem to include trailing null-byte padding.
-            let trimmer = |v: &Vec<u8>| {
-                v.iter()
-                    .rev()
-                    .map(|b| b.to_owned())
-                    .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
-                    .collect::<Vec<u8>>()
-                    .iter()
-                    .rev()
-                    .map(|b| b.to_owned())
-                    .collect::<Vec<u8>>()
-            };
-
-            let orig_end_trimmed = trimmer(&orig_parsed_data);
-            let reencoded_end_trimmed = trimmer(&reencoded_data);
-
-            if orig_end_trimmed == reencoded_end_trimmed {
-                return Ok(());
-            }
-        }
-
-        if elem.get_vr() == &vr::IS || elem.get_vr() == &vr::LO {
-            // Values may have originally had leading and trailing spaces which are lost
-            // when parsed into RawValue. Additionally the same for leading zeros.
-            let trimmer = |v: &Vec<u8>| {
-                v.iter()
-                    .map(|b| b.to_owned())
-                    .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
-                    .collect::<Vec<u8>>()
-                    .iter()
-                    .rev()
-                    .map(|b| b.to_owned())
-                    .skip_while(|&b| b == vr::SPACE_PADDING)
-                    .collect::<Vec<u8>>()
-            };
-
-            let orig_pieces = orig_parsed_data
-                .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+    if elem.get_vr() == &vr::IS || elem.get_vr() == &vr::LO {
+        // Values may have originally had leading and trailing spaces which are lost
+        // when parsed into RawValue. Additionally the same for leading zeros.
+        let trimmer = |v: &Vec<u8>| {
+            v.iter()
                 .map(|b| b.to_owned())
-                .collect::<Vec<Vec<u8>>>();
-            let reencoded_pieces = reencoded_data
-                .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+                .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
+                .collect::<Vec<u8>>()
+                .iter()
+                .rev()
                 .map(|b| b.to_owned())
-                .collect::<Vec<Vec<u8>>>();
+                .skip_while(|&b| b == vr::SPACE_PADDING)
+                .collect::<Vec<u8>>()
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .collect::<Vec<u8>>()
+        };
 
-            if orig_pieces.len() == reencoded_pieces.len() {
-                let mut all_eq = true;
-                for i in 0..orig_pieces.len() {
-                    let orig_end_trimmed = trimmer(&orig_pieces[i]);
-                    let reencoded_end_trimmed = trimmer(&reencoded_pieces[i]);
+        let orig_pieces = orig_parsed_data
+            .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+            .map(|b| b.to_owned())
+            .collect::<Vec<Vec<u8>>>();
+        let reencoded_pieces = reencoded_data
+            .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+            .map(|b| b.to_owned())
+            .collect::<Vec<Vec<u8>>>();
 
-                    if orig_end_trimmed != reencoded_end_trimmed {
-                        all_eq = false;
-                        break;
-                    }
+        if orig_pieces.len() == reencoded_pieces.len() {
+            let mut all_eq = true;
+            for i in 0..orig_pieces.len() {
+                let orig_end_trimmed = trimmer(&orig_pieces[i]);
+                let reencoded_end_trimmed = trimmer(&reencoded_pieces[i]);
+
+                if orig_end_trimmed != reencoded_end_trimmed {
+                    all_eq = false;
+                    break;
                 }
-                if all_eq {
-                    return Ok(());
-                }
+            }
+            if all_eq {
+                return Ok(());
             }
         }
     }
