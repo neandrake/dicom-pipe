@@ -60,8 +60,8 @@ impl<'d, R: Read> Parser<'d, R> {
         let tag: u32 = if let Some(partial_tag) = self.partial_tag {
             partial_tag
         } else {
-            let tag: u32 = read_tag_from_dataset(&mut self.dataset, ts.big_endian())?;
-            self.bytes_read += 4;
+            let (tag, bytes_read) = read_tag_from_dataset(&mut self.dataset, ts.big_endian())?;
+            self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
             self.partial_tag.replace(tag);
             tag
         };
@@ -184,17 +184,11 @@ impl<'d, R: Read> Parser<'d, R> {
     /// correspond to a valid/known VR then `ParseError::UnknownExplicitVR` is returned.
     fn read_vr(&mut self) -> ParseResult<VRRef> {
         match read_vr_from_dataset(&mut self.dataset) {
-            Ok(vr) => {
-                self.bytes_read += 2;
-                if vr.has_explicit_2byte_pad {
-                    self.bytes_read += 2;
-                }
+            Ok((vr, bytes_read)) => {
+                self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
                 Ok(vr)
             }
-            Err(e) => {
-                self.bytes_read += 2;
-                Err(e)
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -209,18 +203,13 @@ impl<'d, R: Read> Parser<'d, R> {
     /// of bytes representing the value length depends on transfer syntax. If the VR has a 2-byte
     /// padding then those bytes are also read from the dataset.
     fn read_value_length(&mut self, ts: TSRef, vr: VRRef) -> ParseResult<ValueLength> {
-        let result: ParseResult<ValueLength> =
-            read_value_length_from_dataset(&mut self.dataset, ts, vr);
-        if result.is_ok() {
-            // For Implicit VR or Explicit w/ 2-byte pad then Value Length is read as a u32,
-            // otherwise it's read as a u16.
-            if !ts.explicit_vr() || vr.has_explicit_2byte_pad {
-                self.bytes_read += 4;
-            } else {
-                self.bytes_read += 2;
+        match read_value_length_from_dataset(&mut self.dataset, ts, vr) {
+            Ok((vl, bytes_read)) => {
+                self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
+                Ok(vl)
             }
+            Err(e) => Err(e),
         }
-        result
     }
 
     /// Reads the value field of the dicom element into a byte array. If the `ValueLength` is

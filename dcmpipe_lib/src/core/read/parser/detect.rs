@@ -103,7 +103,7 @@ impl<'d, R: Read> Parser<'d, R> {
         bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
-        let mut tag: u32 = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
+        let (mut tag, _) = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
 
         // A zero tag is valid for dimse, however the dimse parser should not need to start by
         // identifying the transfer syntax, as it should always be ImplicitVRLittleEndian.
@@ -130,7 +130,7 @@ impl<'d, R: Read> Parser<'d, R> {
         } else if !(FILE_META_INFORMATION_GROUP_LENGTH..=SOP_INSTANCE_UID).contains(&tag) {
             cursor.set_position(0);
             ts = &ExplicitVRBigEndian;
-            tag = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
+            (tag, _) = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
 
             // If switching endian didn't result in a valid tag then try skipping preamble/prefix.
             if !(FILE_META_INFORMATION_GROUP_LENGTH..=SOP_INSTANCE_UID).contains(&tag) {
@@ -158,7 +158,7 @@ impl<'d, R: Read> Parser<'d, R> {
         if !ts.big_endian() && tag < FILE_META_INFORMATION_GROUP_LENGTH || tag > SOP_INSTANCE_UID {
             cursor.set_position(0);
             ts = &ExplicitVRBigEndian;
-            tag = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
+            (tag, _) = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
         }
 
         // Doesn't appear to be a valid tag in either big or little endian syntax, move to the next
@@ -193,7 +193,7 @@ impl<'d, R: Read> Parser<'d, R> {
         cursor = Cursor::new(&buf);
 
         let vr: VRRef = match read_vr_from_dataset(&mut cursor) {
-            Ok(vr) => {
+            Ok((vr, _)) => {
                 self.partial_vr = Some(vr);
                 if vr.has_explicit_2byte_pad {
                     // If explict & padded then the padding was read-in already and we have to read
@@ -238,7 +238,7 @@ impl<'d, R: Read> Parser<'d, R> {
 
         // Assume implicit VR so read a value length and and if it's reasonably low then this is
         // likely implicit.
-        let vl: ValueLength = read_value_length_from_dataset(&mut cursor, ts, vr)?;
+        let (vl, _) = read_value_length_from_dataset(&mut cursor, ts, vr)?;
         if let ValueLength::Explicit(len) = vl {
             // If a value length is read which makes sense for file-meta elements then assume this
             // is implicit endian and let regular parsing continue.

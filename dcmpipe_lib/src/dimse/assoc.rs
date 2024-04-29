@@ -111,6 +111,16 @@ impl Association {
         0
     }
 
+    #[must_use]
+    pub fn get_pdu_max_rcv_size(&self) -> u32 {
+        for user_pdu in &self.my_user_data {
+            if let UserPdu::MaxLengthItem(mli) = user_pdu {
+                return mli.max_length();
+            }
+        }
+        0
+    }
+
     /// Begin processing an `Association` acting as a Service Class Provider, reading requests from
     /// the  reader and writing responses to the writer.
     ///

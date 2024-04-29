@@ -119,7 +119,7 @@ impl From<u8> for PduType {
             0x02 => PduType::AssocAC,
             0x03 => PduType::AssocRJ,
 
-            // 0x04 => PduType::PresentationDataItem,
+            //0x04 => PduType::PresentationDataItem,
             0x04 => PduType::PresentationDataItemPartial,
 
             0x05 => PduType::ReleaseRQ,
