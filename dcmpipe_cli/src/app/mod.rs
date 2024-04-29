@@ -9,11 +9,9 @@ mod cursiveapp;
 mod fullobjapp;
 mod lowmemapp;
 
-mod tuiapp;
 pub use cursiveapp::CursiveApp;
 pub use fullobjapp::FullObjApp;
 pub use lowmemapp::LowMemApp;
-pub use tuiapp::TuiApp;
 
 static MAX_BYTES_DISPLAY: usize = 16;
 static MAX_ITEMS_DISPLAYED: usize = 16;
