@@ -76,20 +76,20 @@ impl<DatasetType: Write> Writer<DatasetType> {
     pub fn write_element(&mut self, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
 
-        bytes_written += self.write_tag(element.tag)?;
-        bytes_written += self.write_vr(element.vr)?;
-        bytes_written += self.write_vl(element.vl, element.vr)?;
-        bytes_written += self.dataset.write(element.get_data().as_slice())?;
+        bytes_written += self.write_tag(element)?;
+        bytes_written += self.write_vr(element)?;
+        bytes_written += self.write_vl(element)?;
+        bytes_written += self.write_data(element)?;
 
         Ok(bytes_written)
     }
 
-    fn write_tag(&mut self, tag: u32) -> Result<usize> {
+    fn write_tag(&mut self, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
-        let element_number: u16 = (tag | 0x00FF) as u16;
-        let group_number: u16 = ((tag >> 4) | 0x00FF) as u16;
+        let element_number: u16 = (element.tag | 0x00FF) as u16;
+        let group_number: u16 = ((element.tag >> 4) | 0x00FF) as u16;
 
-        if self.ts.is_big_endian() {
+        if element.get_ts().is_big_endian() {
             bytes_written += self.dataset.write(&group_number.to_be_bytes())?;
             bytes_written += self.dataset.write(&element_number.to_be_bytes())?;
         } else {
@@ -100,37 +100,38 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_vr(&mut self, vr: VRRef) -> Result<usize> {
+    fn write_vr(&mut self, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
 
-        if self.ts.is_explicit_vr() {
-            bytes_written += self.dataset.write(&vr.ident.as_bytes())?;
+        if element.get_ts().is_explicit_vr() {
+            bytes_written += self.dataset.write(element.vr.ident.as_bytes())?;
         }
 
         Ok(bytes_written)
     }
 
-    fn write_vl(&mut self, vl: ValueLength, vr: VRRef) -> Result<usize> {
+    fn write_vl(&mut self, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
 
-        let write_4bytes: bool = !self.ts.explicit_vr || vr.has_explicit_2byte_pad;
+        let write_4bytes: bool =
+            !element.get_ts().is_explicit_vr() || element.vr.has_explicit_2byte_pad;
 
-        match vl {
+        match element.vl {
             ValueLength::UndefinedLength => {
                 if !write_4bytes {
                     return Err(WriteError::InvalidUndefinedValueLengthError);
                 }
 
-                if self.ts.is_big_endian() {
+                if element.get_ts().is_big_endian() {
                     bytes_written += self.dataset.write(&UNDEFINED_LENGTH.to_be_bytes())?;
                 } else {
                     bytes_written += self.dataset.write(&UNDEFINED_LENGTH.to_le_bytes())?;
                 }
-            },
+            }
 
             ValueLength::Explicit(length) => {
                 if write_4bytes {
-                    if self.ts.is_big_endian() {
+                    if element.get_ts().is_big_endian() {
                         bytes_written += self.dataset.write(&length.to_be_bytes())?;
                     } else {
                         bytes_written += self.dataset.write(&length.to_le_bytes())?;
@@ -138,7 +139,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
                 } else {
                     let length: u16 = (length | 0x00FF) as u16;
 
-                    if self.ts.is_big_endian() {
+                    if element.get_ts().is_big_endian() {
                         bytes_written += self.dataset.write(&length.to_be_bytes())?;
                     } else {
                         bytes_written += self.dataset.write(&length.to_le_bytes())?;
@@ -146,6 +147,14 @@ impl<DatasetType: Write> Writer<DatasetType> {
                 }
             }
         }
+
+        Ok(bytes_written)
+    }
+
+    fn write_data(&mut self, element: &DicomElement) -> Result<usize> {
+        let mut bytes_written: usize = 0;
+
+        bytes_written += self.dataset.write(element.get_data().as_slice())?;
 
         Ok(bytes_written)
     }
