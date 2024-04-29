@@ -79,75 +79,70 @@ fn fmt_string_value<Endian: ByteOrder>(elem: &mut DicomElement, cs: CSRef) -> Re
     if elem.is_empty() {
         return Ok("<EMPTY VALUE>".to_owned());
     }
+
+    let mut sep: &str = ", ";
+    let mut str_vals: Vec<String> = vec![];
     if elem.vr == &vr::AT {
-        Ok(Tag::format_tag_to_display(elem.parse_attribute::<Endian>()?))
+        str_vals.push(Tag::format_tag_to_display(elem.parse_attribute::<Endian>()?));
     } else if elem.vr == &vr::FL {
-        Ok(format!("{}", elem.parse_f32::<Endian>()?))
+        str_vals.push(format!("{}", elem.parse_f32::<Endian>()?));
     } else if elem.vr == &vr::OF {
-        let values: Vec<f32> = elem.parse_f32s::<Endian>()?;
-        let mut string_values: String = String::new();
-        for value in values {
-            string_values.push_str(&format!("{} / ", value));
-        }
-        Ok(string_values)
+        sep = " / ";
+        elem.parse_f32s::<Endian>()?.into_iter()
+            .map(|val: f32| format!("{}", val))
+            .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::FD {
-        Ok(format!("{}", elem.parse_f64::<Endian>()?))
+        str_vals.push(format!("{}", elem.parse_f64::<Endian>()?));
     } else if elem.vr == &vr::OD {
-        let values: Vec<f64> = elem.parse_f64s::<Endian>()?;
-        let mut string_values: String = String::new();
-        for value in values {
-            string_values.push_str(&format!("{} / ", value));
-        }
-        Ok(string_values)
+        sep = " / ";
+        elem.parse_f64s::<Endian>()?.into_iter()
+            .map(|val: f64| format!("{}", val))
+            .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::SS {
-        Ok(format!("{}", elem.parse_i16::<Endian>()?))
+        str_vals.push(format!("{}", elem.parse_i16::<Endian>()?));
     } else if elem.vr == &vr::OW {
-        let values: Vec<i16> = elem.parse_i16s::<Endian>()?;
-        let mut string_values: String = String::new();
-        for value in values {
-            string_values.push_str(&format!("{} / ", value));
-        }
-        Ok(string_values)
+        sep = " / ";
+        elem.parse_i16s::<Endian>()?.into_iter()
+            .map(|val: i16| format!("{}", val))
+            .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::SL {
-        Ok(format!("{}", elem.parse_i32::<Endian>()?))
+        str_vals.push(format!("{}", elem.parse_i32::<Endian>()?));
     } else if elem.vr == &vr::OL {
-        let values: Vec<i32> = elem.parse_i32s::<Endian>()?;
-        let mut string_values: String = String::new();
-        for value in values {
-            string_values.push_str(&format!("{} / ", value));
-        }
-        Ok(string_values)
+        sep = " / ";
+        elem.parse_i32s::<Endian>()?.into_iter()
+            .map(|val: i32| format!("{}", val))
+            .for_each(|val: String| str_vals.push(val));
     } else if elem.vr == &vr::UI {
         let str_val: String = elem.parse_string(cs)?;
         if let Some(uid) = UID_BY_ID.get(str_val.as_str()) {
-            Ok(format!("{} ({})", str_val, uid.name))
+            str_vals.push(format!("{} ({})", str_val, uid.name));
         } else {
-            Ok(str_val)
+            str_vals.push(str_val);
         }
     } else if elem.vr == &vr::UL {
-        Ok(format!("{}", elem.parse_u32::<Endian>()?))
+        str_vals.push(format!("{}", elem.parse_u32::<Endian>()?));
     } else if elem.vr == &vr::US {
-        Ok(format!("{}", elem.parse_u16::<Endian>()?))
+        str_vals.push(format!("{}", elem.parse_u16::<Endian>()?));
     } else if elem.vr.is_character_string {
-        Ok(elem.parse_strings(cs)?
-            .iter_mut()
-            .map(|val: &mut String| {
-                format!("\"{}\"", val)
-            })
-            .collect::<Vec<String>>()
-            .join(", "))
+        elem.parse_strings(cs)?.iter_mut()
+            .map(|val: &mut String| format!("\"{}\"", val))
+            .for_each(|val: String| str_vals.push(val));
     } else {
         let byte_vec: &Vec<u8> = elem.get_value().get_ref();
-        if byte_vec.len() <= MAX_BYTES_DISPLAY {
-            Ok(format!("{:?}", byte_vec))
-        } else {
-            let byte_display: String = byte_vec
-                .iter()
-                .take(MAX_BYTES_DISPLAY)
-                .map(|val: &u8| format!("{}", val))
-                .collect::<Vec<String>>()
-                .join(", ");
-            Ok(format!("[{}, ..]", byte_display))
+        byte_vec.iter()
+            .take(MAX_BYTES_DISPLAY)
+            .map(|val: &u8| format!("{}", val))
+            .for_each(|val: String| str_vals.push(val));
+
+        if byte_vec.len() > MAX_BYTES_DISPLAY {
+            str_vals.push("..".to_string());
         }
     }
+
+    let num_vals: usize = str_vals.len();
+    if num_vals == 1 {
+        return Ok(str_vals.remove(0));
+    }
+
+    Ok(format!("[{}]", str_vals.into_iter().collect::<Vec<String>>().join(sep)))
 }
