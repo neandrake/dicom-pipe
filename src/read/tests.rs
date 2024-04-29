@@ -8,7 +8,7 @@ use byteorder::ReadBytesExt;
 use core::lookup::Lookup;
 
 use read::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
-use read::DicomStream;
+use read::{DicomElement, DicomStream};
 use read::mock::MockDicomStream;
 
 use std::fs::File;
@@ -81,12 +81,17 @@ fn test_parse_known_dicom_files() {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
         let lookup: Lookup = Lookup::new();
+
         let mut dstream: DicomStream<File> = DicomStream::new_from_path(path, &lookup)
             .expect("Unable to read file");
+
         dstream.read_file_meta()
             .expect(&format!("Unable to read FileMetaInformation: {:?}", path));
         let is_dcm = is_standard_preamble(&dstream);
         assert!(is_dcm);
+
+        let element: DicomElement = dstream.read_dicom_element()
+            .expect("Unable to read element");
     }
 }
 
