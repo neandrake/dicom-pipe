@@ -12,26 +12,25 @@ pub struct DicomStream<StreamType> {
 impl DicomStream<File> {
     pub fn new_from_path(path: &Path) -> Result<DicomStream<File>, Error> {
         if !path.is_file() {
-            return Result::Err(Error::new(ErrorKind::InvalidData, format!("Invalid file: {:?}", path)));
+            return Result::Err(Error::new(ErrorKind::InvalidData,
+                                          format!("Invalid file: {:?}", path)));
         }
-        
+
         let mut fstream: DicomStream<File> = DicomStream::new(try!(File::open(path)));
         let is_dcm: bool = try!(fstream.is_standard_dicom());
         if is_dcm {
             return Result::Ok(fstream);
         }
         return Result::Err(Error::new(ErrorKind::InvalidData,
-                                    format!("File is not DICOM: {:?}", path)));
+                                      format!("File is not DICOM: {:?}", path)));
     }
 }
 
 impl<StreamType: Read + Seek> DicomStream<StreamType> {
     pub fn new(stream: StreamType) -> DicomStream<StreamType> {
-        DicomStream {
-            stream: stream,
-        }
+        DicomStream { stream: stream }
     }
-    
+
     pub fn is_standard_dicom(&mut self) -> Result<bool, Error> {
         let standard_preamble: Vec<u8> = vec!['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
         let filler_size: usize = 128;
