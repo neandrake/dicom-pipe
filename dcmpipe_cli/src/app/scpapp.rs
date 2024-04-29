@@ -275,7 +275,7 @@ impl AssociationDevice {
     fn handle_c_store_req(
         assoc: &Association,
         msg: &DimseMsg,
-        reader: &mut dyn Read,
+        mut reader: &mut dyn Read,
         mut writer: &mut dyn Write,
     ) -> Result<(), AssocError> {
         let Some(pres_ctx) = assoc.get_pres_ctx(msg.ctx_id()) else {
@@ -299,9 +299,15 @@ impl AssociationDevice {
             .state(ParserState::ReadElement)
             .dataset_ts(ts)
             .stop(ParseStop::AfterBytesRead(u64::from(msg.dcm_len())))
-            .build(reader, &STANDARD_DICOM_DICTIONARY);
+            .build(&mut reader, &STANDARD_DICOM_DICTIONARY);
+
         let dataset = DicomRoot::parse(&mut parser)
             .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
+        println!(
+            "Told to read {}, read: {}",
+            msg.dcm_len(),
+            parser.bytes_read()
+        );
         let Some(_dataset) = dataset else {
             return Err(AssocError::ab_failure(DimseError::GeneralError(
                 "No DICOM query after parsing query".to_string(),
@@ -325,6 +331,13 @@ impl AssociationDevice {
             &CommandStatus::success(),
         )?;
         assoc.write_pdu(&end_rsp, &mut writer)?;
+
+        let mut buf = Vec::<u8>::new();
+        reader
+            .read_to_end(&mut buf)
+            .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
+
+        println!("Remaining: {buf:?}");
 
         Ok(())
     }

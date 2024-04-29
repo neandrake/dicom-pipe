@@ -40,23 +40,33 @@ use crate::{
                 P_DATA_DCM_DATASET_LAST,
             },
             pduiter::{DimseMsg, DimseMsgIter},
-            Pdu, PduType,
+            Pdu, PduType, UserPdu,
         },
         Syntax,
     },
+};
+
+use super::pdus::{
+    mainpdus::UserInformationItem,
+    userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
 };
 
 pub type MsgHandler =
     fn(&Association, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
 
 pub struct Association {
+    /* Fields configured by this SCU. */
     _id: usize,
     host_ae: String,
     accept_aets: HashSet<String>,
     accept_abs: HashSet<UIDRef>,
     accept_ts: HashSet<TSRef>,
     handlers: HashMap<CommandType, MsgHandler>,
-    pres_ctx: HashMap<u8, AssocACPresentationContext>,
+    my_user_data: Vec<UserPdu>,
+
+    /* Fields negotiated with other SCU. */
+    their_user_data: Vec<UserPdu>,
+    negotiated_pres_ctx: HashMap<u8, AssocACPresentationContext>,
 }
 
 impl Association {
@@ -90,7 +100,7 @@ impl Association {
     /// Retrieve the accepted presentation context by the given context ID.
     #[must_use]
     pub fn get_pres_ctx(&self, ctx_id: u8) -> Option<&AssocACPresentationContext> {
-        self.pres_ctx.get(&ctx_id)
+        self.negotiated_pres_ctx.get(&ctx_id)
     }
 
     /// Begin processing an `Association` acting as a Service Class Provider, reading requests from
@@ -125,13 +135,14 @@ impl Association {
 
         for pres_ctx in assoc_ac.pres_ctxs() {
             if pres_ctx.is_accepted() {
-                self.pres_ctx.insert(pres_ctx.ctx_id(), pres_ctx.to_owned());
+                self.negotiated_pres_ctx
+                    .insert(pres_ctx.ctx_id(), pres_ctx.to_owned());
             }
         }
 
         self.write_pdu(&Pdu::AssocAC(assoc_ac), &mut writer)?;
 
-        if self.pres_ctx.is_empty() {
+        if self.negotiated_pres_ctx.is_empty() {
             return Err(AssocError::error(DimseError::GeneralError(
                 "No presentation contexts negotiated".to_owned(),
             )));
@@ -199,6 +210,26 @@ impl Association {
             )));
         }
 
+        for user_pdu in rq.user_info().user_data() {
+            self.their_user_data.push(user_pdu.clone());
+            match user_pdu {
+                UserPdu::RoleSelectionItem(role_item) => {
+                    // TODO: This should be set prior to clarify what operations this SCU supports.
+                    self.my_user_data
+                        .push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
+                            role_item.sop_class_uid().clone(),
+                            role_item.sc_provider_role(),
+                            role_item.sc_user_role(),
+                        )));
+                }
+                UserPdu::SOPClassExtendedNegotiationItem(_) => {}
+                UserPdu::SOPClassCommonExtendedNegotiationItem(_) => {}
+                UserPdu::UserIdentityItem(_) => {}
+                UserPdu::UserIdentityNegotiationItem(_) => {}
+                _ => {}
+            }
+        }
+
         // Check the proposed presentation contexts and create responses for each.
         let mut rsp_pres_ctx: Vec<AssocACPresentationContext> =
             Vec::with_capacity(rq.pres_ctxs().len());
@@ -249,7 +280,7 @@ impl Association {
             rq.reserved_3().to_owned(),
             rq.app_ctx().to_owned(),
             rsp_pres_ctx,
-            rq.user_info().to_owned(),
+            UserInformationItem::new(self.my_user_data.clone()),
         ))
     }
 
@@ -420,6 +451,7 @@ pub struct AssociationBuilder {
     accept_aets: HashSet<String>,
     accept_abs: HashSet<UIDRef>,
     accept_ts: HashSet<TSRef>,
+    pdu_rcv_max_len: u32,
     handlers: HashMap<CommandType, MsgHandler>,
 }
 
@@ -460,6 +492,12 @@ impl AssociationBuilder {
     }
 
     #[must_use]
+    pub fn pdu_rcv_max_len(mut self, pdu_rcv_max_len: u32) -> Self {
+        self.pdu_rcv_max_len = pdu_rcv_max_len;
+        self
+    }
+
+    #[must_use]
     pub fn handler(mut self, cmd_type: CommandType, handler: MsgHandler) -> Self {
         self.handlers.insert(cmd_type, handler);
         self
@@ -467,6 +505,16 @@ impl AssociationBuilder {
 
     #[must_use]
     pub fn build(self) -> Association {
+        let mut my_user_data = Vec::<UserPdu>::new();
+        my_user_data.push(UserPdu::MaxLengthItem(MaxLengthItem::new(
+            self.pdu_rcv_max_len,
+        )));
+
+        // Require synchronous transfers, until async is incorporated.
+        my_user_data.push(UserPdu::AsyncOperationsWindowItem(
+            AsyncOperationsWindowItem::new(1, 1),
+        ));
+
         Association {
             _id: self.id,
             host_ae: self.host_ae,
@@ -474,7 +522,10 @@ impl AssociationBuilder {
             accept_abs: self.accept_abs,
             accept_ts: self.accept_ts,
             handlers: self.handlers,
-            pres_ctx: HashMap::new(),
+            my_user_data,
+
+            their_user_data: Vec::new(),
+            negotiated_pres_ctx: HashMap::new(),
         }
     }
 }
