@@ -10,7 +10,7 @@ use crate::{
         charset::CSRef,
         dcmelement::DicomElement,
         dcmsqelem::SequenceElement,
-        read::parser::{Parser, ParseResult},
+        read::parser::{ParseResult, Parser},
     },
     defn::{
         constants::{tags, ts},

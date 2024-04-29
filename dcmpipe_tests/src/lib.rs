@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::{Parser, ParserBuilder, ParseResult};
+use dcmpipe_lib::core::read::{ParseResult, Parser, ParserBuilder};
 use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 
 #[cfg(test)]

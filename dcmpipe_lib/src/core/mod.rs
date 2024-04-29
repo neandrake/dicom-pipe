@@ -3,8 +3,8 @@ pub mod dcmelement;
 pub mod dcmobject;
 pub mod dcmsqelem;
 pub mod read;
-pub mod write;
 pub mod values;
+pub mod write;
 
 pub use values::Attribute;
 pub use values::RawValue;

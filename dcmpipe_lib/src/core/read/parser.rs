@@ -1,23 +1,12 @@
-use std::{
-    convert::TryFrom,
-    io::Read,
-    iter::once,
-};
+use std::{convert::TryFrom, io::Read, iter::once};
 
 use crate::{
     core::{
         charset::{self, CSRef},
         dcmelement::DicomElement,
         dcmsqelem::SequenceElement,
-        read::{
-            behavior::ParseBehavior,
-            ds::dataset::Dataset,
-            error::ParseError,
-            stop::ParseStop,
-        },
-        DICOM_PREFIX,
-        DICOM_PREFIX_LENGTH,
-        FILE_PREAMBLE_LENGTH,
+        read::{behavior::ParseBehavior, ds::dataset::Dataset, error::ParseError, stop::ParseStop},
+        DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
     },
     defn::{
         constants::tags,

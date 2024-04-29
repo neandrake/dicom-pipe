@@ -1,6 +1,5 @@
 use crate::{core::dcmelement::DicomElement, defn::vr::VRRef};
 
-
 /// Wrapper around `&[u8]` for getting a slice of the element value without the padding values
 pub(crate) struct BytesWithoutPadding<'bytes>(pub &'bytes [u8]);
 

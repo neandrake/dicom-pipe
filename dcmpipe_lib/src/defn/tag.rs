@@ -142,9 +142,9 @@ impl Hash for Tag {
 }
 
 /// Access the numeric tag, to allow functions to take `Into<u32>` rather than plain u32.
-impl Into<u32> for &Tag {
-    fn into(self) -> u32 {
-        self.tag
+impl From<&Tag> for u32 {
+    fn from(value: &Tag) -> Self {
+        value.tag
     }
 }
 

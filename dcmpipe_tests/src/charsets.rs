@@ -6,7 +6,7 @@ use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::{Parser, ParserBuilder, ParseResult};
+use dcmpipe_lib::core::read::{ParseResult, Parser, ParserBuilder};
 
 use crate::parse_file;
 

@@ -51,7 +51,7 @@ pub trait DicomNode {
 
     /// Get a child node with the given `TagPath`.
     fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
-        let mut target = tagpath.nodes.get(0).map(|n| self.get_child_by_tagnode(n))?;
+        let mut target = tagpath.nodes.first().map(|n| self.get_child_by_tagnode(n))?;
         for node in tagpath.nodes.iter().skip(1) {
             target = target.and_then(|parent| parent.get_child_by_tagnode(node));
         }

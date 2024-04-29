@@ -56,9 +56,10 @@ impl TryFrom<&DicomElement> for RawValue {
             }
         } else if value.get_vr() == &vr::OF || value.get_vr() == &vr::FL {
             Ok(RawValue::Floats(Vec::<f32>::try_from(value)?))
-        } else if value.get_vr() == &vr::DS {
-            Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
-        } else if value.get_vr() == &vr::OD || value.get_vr() == &vr::FD {
+        } else if value.get_vr() == &vr::DS
+            || value.get_vr() == &vr::OD
+            || value.get_vr() == &vr::FD
+        {
             Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
         } else if value.get_vr().is_character_string {
             // Check is_character_string last, as that will be true for a number of VRs above which
@@ -253,7 +254,7 @@ where
         .into_iter()
         .map(ParseResult::unwrap)
         .collect::<Vec<T>>();
-    return Ok(values);
+    Ok(values)
 }
 
 fn bin_parse_nums<T, FLE, FBE>(value: &DicomElement, le: FLE, be: FBE) -> ParseResult<Vec<T>>

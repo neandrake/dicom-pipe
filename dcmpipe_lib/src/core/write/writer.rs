@@ -196,7 +196,10 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(element)
     }
 
-    fn write_element(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
+    fn write_element(
+        dataset: &mut Dataset<DatasetType>,
+        element: &DicomElement,
+    ) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         bytes_written += Writer::write_tag(dataset, element)?;
@@ -285,7 +288,10 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_data(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
+    fn write_data(
+        dataset: &mut Dataset<DatasetType>,
+        element: &DicomElement,
+    ) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         #[cfg(feature = "compress")]

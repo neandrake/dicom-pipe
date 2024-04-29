@@ -19,7 +19,7 @@ use crate::{
         dcmsqelem::SequenceElement,
         read::{
             self,
-            parser::{Parser, ParseResult},
+            parser::{ParseResult, Parser},
             util::is_non_standard_seq,
             ParseError,
         },
@@ -51,7 +51,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Reads the remainder of the dicom element from the dataset. This assumes `self.read_tag()`
     /// was called just prior and its result passed as the tag parameter here.
-    pub(super) fn read_dicom_element(&mut self, tag: u32, elem_ts: TSRef) -> ParseResult<DicomElement> {
+    pub(super) fn read_dicom_element(
+        &mut self,
+        tag: u32,
+        elem_ts: TSRef,
+    ) -> ParseResult<DicomElement> {
         // Part 5, Section 7.5
         // There are three special SQ related Data Elements that are not ruled by the VR encoding
         // rules conveyed by the Transfer Syntax. They shall be encoded as Implicit VR. These

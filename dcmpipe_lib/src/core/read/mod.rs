@@ -1,13 +1,13 @@
 pub use builder::ParserBuilder;
 pub use error::ParseError;
+pub use parser::ParseResult;
 pub use parser::ParseState;
 pub use parser::Parser;
-pub use parser::ParseResult;
 
 mod ds;
 
-pub(crate) mod valdecode;
 pub(crate) mod util;
+pub(crate) mod valdecode;
 
 pub mod behavior;
 pub mod builder;

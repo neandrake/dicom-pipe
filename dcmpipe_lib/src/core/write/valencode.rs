@@ -428,14 +428,13 @@ impl<'a> From<ElemAndWords<'a>> for Vec<u8> {
 
         words
             .into_iter()
-            .map(|word| {
+            .flat_map(|word| {
                 if elem.get_ts().is_big_endian() {
                     word.to_be_bytes()
                 } else {
                     word.to_le_bytes()
                 }
             })
-            .flatten()
             .collect::<Vec<u8>>()
     }
 }
@@ -448,14 +447,13 @@ impl<'a> From<ElemAndDoubleWords<'a>> for Vec<u8> {
 
         dwords
             .into_iter()
-            .map(|dword| {
+            .flat_map(|dword| {
                 if elem.get_ts().is_big_endian() {
                     dword.to_be_bytes()
                 } else {
                     dword.to_le_bytes()
                 }
             })
-            .flatten()
             .collect::<Vec<u8>>()
     }
 }
@@ -468,14 +466,13 @@ impl<'a> From<ElemAndQuadWords<'a>> for Vec<u8> {
 
         qwords
             .into_iter()
-            .map(|qword| {
+            .flat_map(|qword| {
                 if elem.get_ts().is_big_endian() {
                     qword.to_be_bytes()
                 } else {
                     qword.to_le_bytes()
                 }
             })
-            .flatten()
             .collect::<Vec<u8>>()
     }
 }

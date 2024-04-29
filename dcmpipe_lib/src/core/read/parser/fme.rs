@@ -10,7 +10,7 @@ use crate::{
     core::{
         dcmelement::DicomElement,
         read::parser::{
-            ParseError, ParseState, Parser, ParseResult, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
+            ParseError, ParseResult, ParseState, Parser, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
             FILE_PREAMBLE_LENGTH,
         },
     },

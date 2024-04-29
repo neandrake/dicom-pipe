@@ -6,10 +6,10 @@ use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags::{self};
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
-use dcmpipe_lib::core::dcmelement::{DicomElement};
+use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
-use dcmpipe_lib::core::read::{ParseError, ParseState, Parser, ParserBuilder, ParseResult};
+use dcmpipe_lib::core::read::{ParseError, ParseResult, ParseState, Parser, ParserBuilder};
 use dcmpipe_lib::core::values::{ElementWithVr, RawValue};
 use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
@@ -1254,7 +1254,9 @@ fn test_sq_with_undefined_length_unconvertable_to_defined_length_without_std() -
 }
 
 /// This is a deflated dataset
-fn test_sq_with_undefined_length_unconvertable_to_defined_length(with_std: bool) -> ParseResult<()> {
+fn test_sq_with_undefined_length_unconvertable_to_defined_length(
+    with_std: bool,
+) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
     Ok(())
@@ -1266,7 +1268,8 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_with_std() -
 }
 
 #[test]
-fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std() -> ParseResult<()> {
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std() -> ParseResult<()>
+{
     test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(false)
 }
 
@@ -1281,7 +1284,9 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std(
 /// >code that would "guess" the transfer syntax for every sequence item and would even
 /// >handle implicit VR big endian encoding. However, the heuristics created more problems
 /// >then they solved.
-fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bool) -> ParseResult<()> {
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(
+    with_std: bool,
+) -> ParseResult<()> {
     let file: &str =
         "./fixtures/gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm";
     let dict: &dyn DicomDictionary = if with_std {
