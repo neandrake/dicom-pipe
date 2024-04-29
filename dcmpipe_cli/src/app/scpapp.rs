@@ -17,7 +17,7 @@ use dcmpipe_lib::{
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{CommandField, PatientID},
+        tags::{CommandField, PatientID, PatientsName},
         uids::{
             ModalityWorklistInformationModelFIND, PatientRootQueryRetrieveInformationModelFIND,
             PatientStudyOnlyQueryRetrieveInformationModelFIND,
@@ -448,9 +448,16 @@ impl Association {
 
         /* TODO: Execute Search on Query */
         let mut results = Vec::<DicomRoot>::new();
-        for name in ["SNOW^JON", "STARK^ROB", "MARTELL^OBERYN"] {
+        for patient in [
+            ("477-0101", "SNOW^JON"),
+            ("477-0183", "STARK^ROB"),
+            ("212-0309", "MARTELL^OBERYN"),
+        ] {
+            let pid = patient.0;
+            let name = patient.1;
             let mut result = DicomRoot::new_empty(ts, CS);
-            result.add_child_with_val(&PatientID, RawValue::of_string(name));
+            result.add_child_with_val(&PatientID, RawValue::of_string(pid));
+            result.add_child_with_val(&PatientsName, RawValue::of_string(name));
             results.push(result);
         }
 
