@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
-dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1" }
+dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["deflate"] }
 encoding = "0.2"
 walkdir = "2.3"
 

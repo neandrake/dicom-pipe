@@ -4,9 +4,14 @@ version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
 edition = "2018"
 
+[features]
+deflate = ["libflate"]
+
 [dependencies]
 encoding = "0.2"
 thiserror = "1.0"
+
+libflate = { version="1.0", optional=true }
 
 [lib]
 name="dcmpipe_lib"
