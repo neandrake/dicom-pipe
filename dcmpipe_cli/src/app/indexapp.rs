@@ -357,7 +357,10 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 if ushorts.len() == 1 {
                     dicom_doc.insert(key, ushorts[0] as u32);
                 } else {
-                    let uints = ushorts.into_iter().map(|ushort: u16| ushort as u32).collect::<Vec<u32>>();
+                    let uints = ushorts
+                        .into_iter()
+                        .map(|ushort: u16| ushort as u32)
+                        .collect::<Vec<u32>>();
                     dicom_doc.insert(key, uints);
                 }
             }

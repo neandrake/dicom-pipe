@@ -48,7 +48,5 @@ pub enum ParseError {
 
     /// An error occurs when converting RawValue to bytes.
     #[error("error converting RawValue to bytes: {message}")]
-    RawValueConversionError {
-        message: String,
-    },
+    RawValueConversionError { message: String },
 }

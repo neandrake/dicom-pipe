@@ -90,8 +90,10 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
         let fme_length: u32 = 0;
         let group_len_element: DicomElement = self.new_fme(
-            tags::FILE_META_INFORMATION_GROUP_LENGTH, &vr::UL,
-            RawValue::UnsignedIntegers(vec![fme_length]))?;
+            tags::FILE_META_INFORMATION_GROUP_LENGTH,
+            &vr::UL,
+            RawValue::UnsignedIntegers(vec![fme_length]),
+        )?;
 
         bytes_written += self.write_element(&group_len_element)?;
 
@@ -99,12 +101,18 @@ impl<DatasetType: Write> Writer<DatasetType> {
     }
 
     fn new_fme(&self, tag: u32, vr: VRRef, value: RawValue) -> Result<DicomElement> {
-        let mut element = DicomElement::new(tag, vr,
-                          ValueLength::UndefinedLength,
-                          &ts::ExplicitVRLittleEndian, DEFAULT_CHARACTER_SET,
-                          Vec::with_capacity(0), Vec::with_capacity(0));
+        let mut element = DicomElement::new(
+            tag,
+            vr,
+            ValueLength::UndefinedLength,
+            &ts::ExplicitVRLittleEndian,
+            DEFAULT_CHARACTER_SET,
+            Vec::with_capacity(0),
+            Vec::with_capacity(0),
+        );
 
-        element.encode_value(value)
+        element
+            .encode_value(value)
             .map_err(<ParseError as Into<WriteError>>::into)?;
 
         Ok(element)
@@ -192,7 +200,8 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let mut bytes_written: usize = 0;
 
         #[cfg(feature = "deflate")]
-        self.dataset.set_write_deflated(element.get_ts().is_deflated());
+        self.dataset
+            .set_write_deflated(element.get_ts().is_deflated());
 
         bytes_written += self.dataset.write(element.get_data().as_slice())?;
         Ok(bytes_written)

@@ -26,4 +26,3 @@ pub enum WriteError {
         detail: String,
     },
 }
-
