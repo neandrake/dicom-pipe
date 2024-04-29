@@ -46,6 +46,12 @@ pub enum PduType {
     UserIdentityNegotiationItem = 0x59,
 }
 
+impl From<PduType> for u8 {
+    fn from(value: PduType) -> Self {
+        value as Self
+    }
+}
+
 impl TryFrom<u8> for PduType {
     type Error = DimseError;
 
@@ -240,18 +246,18 @@ impl AssocRQ {
         pres_ctxs: Vec<AssocRQPresentationContext>,
         user_info: UserInformationItem,
     ) -> AssocRQ {
-        let length: u32 = size_of::<u8>() as u32 + // version
-            size_of::<[u8; 2]>() as u32 + // reserved_2
-            size_of::<[u8; 16]>() as u32 + // called_ae
-            size_of::<[u8; 16]>() as u32 + // calling_ae
-            size_of::<[u8; 32]>() as u32 + // reserved_3
-            app_ctx.num_bytes() as u32 +
-            pres_ctxs.iter().map(|p| p.num_bytes() as u32).sum::<u32>() +
-            user_info.num_bytes() as u32;
+        let length: usize = size_of::<u8>() + // version
+            size_of::<[u8; 2]>() + // reserved_2
+            size_of::<[u8; 16]>() + // called_ae
+            size_of::<[u8; 16]>() + // calling_ae
+            size_of::<[u8; 32]>() + // reserved_3
+            app_ctx.num_bytes() +
+            pres_ctxs.iter().map(|p| p.num_bytes()).sum::<usize>() +
+            user_info.num_bytes();
 
         AssocRQ {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             version: ASSOCIATION_VERSION,
             reserved_2: [0u8; 2],
             called_ae,
@@ -309,7 +315,7 @@ impl AssocRQ {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -355,7 +361,7 @@ impl AssocRQ {
 
         let mut pres_ctxs: Vec<AssocRQPresentationContext> = Vec::new();
         dataset.read_exact(&mut buf)?;
-        while buf[0] == PduType::AssocRQPresentationContext as u8 {
+        while buf[0] == PduType::AssocRQPresentationContext.into() {
             let pres_ctx = AssocRQPresentationContext::read(&mut dataset, buf[1])?;
             pres_ctxs.push(pres_ctx);
             dataset.read_exact(&mut buf)?;
@@ -414,18 +420,18 @@ impl AssocAC {
         pres_ctxs: Vec<AssocACPresentationContext>,
         user_info: UserInformationItem,
     ) -> AssocAC {
-        let length: u32 = size_of::<u16>() as u32 // version
-            + size_of::<[u8; 2]>() as u32 // reserved_2
-            + size_of::<[u8; 16]>() as u32 // reserved_3
-            + size_of::<[u8; 16]>() as u32 // reserved_4
-            + size_of::<[u8; 32]>() as u32 // reserved_5
-            + app_ctx.num_bytes() as u32
-            + pres_ctxs.iter().map(|p| p.num_bytes() as u32).sum::<u32>()
-            + user_info.num_bytes() as u32;
+        let length: usize = size_of::<u16>() // version
+            + size_of::<[u8; 2]>() // reserved_2
+            + size_of::<[u8; 16]>() // reserved_3
+            + size_of::<[u8; 16]>() // reserved_4
+            + size_of::<[u8; 32]>() // reserved_5
+            + app_ctx.num_bytes()
+            + pres_ctxs.iter().map(|p| p.num_bytes()).sum::<usize>()
+            + user_info.num_bytes();
 
         AssocAC {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             version: ASSOCIATION_VERSION,
             reserved_2: [0u8; 2],
             reserved_3,
@@ -465,7 +471,7 @@ impl AssocAC {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -511,7 +517,7 @@ impl AssocAC {
 
         let mut pres_ctxs: Vec<AssocACPresentationContext> = Vec::new();
         dataset.read_exact(&mut buf)?;
-        while buf[0] == PduType::AssocACPresentationContext as u8 {
+        while buf[0] == PduType::AssocACPresentationContext.into() {
             let pres_ctx = AssocACPresentationContext::read(&mut dataset, buf[1])?;
             pres_ctxs.push(pres_ctx);
             dataset.read_exact(&mut buf)?;
@@ -553,14 +559,14 @@ impl AssocRJ {
     }
 
     pub fn new(result: u8, source: u8, reason: u8) -> AssocRJ {
-        let length: u32 = size_of::<u8>() as u32 // reserved_2
-            + size_of::<u8>() as u32 // result
-            + size_of::<u8>() as u32 // source
-            + size_of::<u8>() as u32; // reason
+        let length: usize = size_of::<u8>() // reserved_2
+            + size_of::<u8>() // result
+            + size_of::<u8>() // source
+            + size_of::<u8>(); // reason
 
         AssocRJ {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             reserved_2: 0u8,
             result,
             source,
@@ -615,7 +621,7 @@ impl AssocRJ {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -664,11 +670,11 @@ impl ReleaseRQ {
     }
 
     pub fn new() -> ReleaseRQ {
-        let length: u32 = size_of::<[u8; 4]>() as u32; // reserved_2
+        let length: usize = size_of::<[u8; 4]>(); // reserved_2
 
         ReleaseRQ {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             reserved_2: [0u8; 4],
         }
     }
@@ -680,7 +686,7 @@ impl ReleaseRQ {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -720,11 +726,11 @@ impl ReleaseRP {
     }
 
     pub fn new() -> ReleaseRP {
-        let length: u32 = size_of::<[u8; 4]>() as u32; // reserved_2
+        let length: usize = size_of::<[u8; 4]>(); // reserved_2
 
         ReleaseRP {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             reserved_2: [0u8; 4],
         }
     }
@@ -736,7 +742,7 @@ impl ReleaseRP {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -780,14 +786,14 @@ impl Abort {
     }
 
     pub fn new(source: u8, reason: u8) -> Abort {
-        let length: u32 = size_of::<u8>() as u32 // reserved_2
-            + size_of::<u8>() as u32 // reserved_3
-            + size_of::<u8>() as u32 // source
-            + size_of::<u8>() as u32; // reason
+        let length: usize = size_of::<u8>() // reserved_2
+            + size_of::<u8>() // reserved_3
+            + size_of::<u8>() // source
+            + size_of::<u8>(); // reason
 
         Abort {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             reserved_2: 0u8,
             reserved_3: 0u8,
             source,
@@ -827,7 +833,7 @@ impl Abort {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -875,11 +881,11 @@ impl PresentationDataItem {
     }
 
     pub fn new(pres_data: Vec<PresentationDataValue>) -> PresentationDataItem {
-        let length: u32 = pres_data.iter().map(|p| p.num_bytes() as u32).sum::<u32>();
+        let length: usize = pres_data.iter().map(|p| p.num_bytes()).sum::<usize>();
 
         PresentationDataItem {
             reserved: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             pres_data,
         }
     }
@@ -896,7 +902,7 @@ impl PresentationDataItem {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -916,12 +922,13 @@ impl PresentationDataItem {
         let length = u32::from_be_bytes(buf);
 
         let mut pres_data: Vec<PresentationDataValue> = Vec::new();
-        let mut pres_data_len_marker = length as usize;
+        let mut pres_data_len_marker = TryInto::<usize>::try_into(length).unwrap_or_default();
         while pres_data_len_marker > 0 {
             let value = PresentationDataValue::read(&mut dataset)?;
             // The total bytes read for a single data value is 4 for the length field and then the
             // value of the length field which includes the ctx_id, msg_header, and data fields.
-            pres_data_len_marker -= 4 + value.length() as usize;
+            pres_data_len_marker -=
+                TryInto::<usize>::try_into(4 + value.length()).unwrap_or_default();
             pres_data.push(value);
         }
 
@@ -943,12 +950,12 @@ pub struct PresentationDataValue {
 
 impl PresentationDataValue {
     pub fn new(ctx_id: u8, msg_header: u8, data: Vec<u8>) -> PresentationDataValue {
-        let length: u32 = size_of::<u8>() as u32 // ctx_id
-            + size_of::<u8>() as u32 // msg_header
-            + data.len() as u32;
+        let length: usize = size_of::<u8>() // ctx_id
+            + size_of::<u8>() // msg_header
+            + data.len();
 
         PresentationDataValue {
-            length,
+            length: length.try_into().unwrap_or_default(),
             ctx_id,
             msg_header,
             data,
@@ -1014,7 +1021,7 @@ impl PresentationDataValue {
         let ctx_id = buf[0];
         let msg_header = buf[1];
 
-        let data_len = length as usize - 2;
+        let data_len = (length - 2).try_into().unwrap_or_default();
         let mut data: Vec<u8> = vec![0u8; data_len];
         dataset.read_exact(&mut data)?;
 
@@ -1042,7 +1049,7 @@ impl ApplicationContextItem {
     }
 
     pub fn new(app_context_name: Vec<u8>) -> ApplicationContextItem {
-        let length: u16 = app_context_name.len() as u16;
+        let length: u16 = app_context_name.len().try_into().unwrap_or_default();
 
         ApplicationContextItem {
             reserved: 0u8,
@@ -1070,7 +1077,7 @@ impl ApplicationContextItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1087,7 +1094,7 @@ impl ApplicationContextItem {
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut app_context_name: Vec<u8> = vec![0u8; length as usize];
+        let mut app_context_name: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut app_context_name)?;
 
         Ok(ApplicationContextItem {
@@ -1125,16 +1132,16 @@ impl AssocRQPresentationContext {
         abstract_syntax: AbstractSyntaxItem,
         transfer_syntaxes: Vec<TransferSyntaxItem>,
     ) -> AssocRQPresentationContext {
-        let length: u16 = size_of::<u8>() as u16 // ctx_id
-            + size_of::<u8>() as u16 // reserved_2
-            + size_of::<u8>() as u16 // reserved_3
-            + size_of::<u8>() as u16 // reserved_4
-            + abstract_syntax.num_bytes() as u16
-            + transfer_syntaxes.iter().map(|p| p.num_bytes() as u16).sum::<u16>();
+        let length: usize = size_of::<u8>() // ctx_id
+            + size_of::<u8>() // reserved_2
+            + size_of::<u8>() // reserved_3
+            + size_of::<u8>() // reserved_4
+            + abstract_syntax.num_bytes()
+            + transfer_syntaxes.iter().map(|p| p.num_bytes()).sum::<usize>();
 
         AssocRQPresentationContext {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             ctx_id,
             reserved_2: 0u8,
             reserved_3: 0u8,
@@ -1178,7 +1185,7 @@ impl AssocRQPresentationContext {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let mut buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let mut buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1225,12 +1232,12 @@ impl AssocRQPresentationContext {
         // additional 2 for the length field, and the value of the length field being the size of
         // the last variable-length field.
         bytes_read += buf.len();
-        bytes_read += 2 + abstract_syntax.length() as usize;
+        bytes_read += TryInto::<usize>::try_into(2 + abstract_syntax.length()).unwrap_or_default();
 
         // The length of total transfer syntax list is value of this PDU's length field less the
         // number of bytes before the transfer syntaxes field. There are no fields after the
         // transfer syntaxes.
-        let mut transfer_syntax_len_marker = length as usize - bytes_read;
+        let mut transfer_syntax_len_marker = Into::<usize>::into(length) - bytes_read;
         let mut transfer_syntaxes: Vec<TransferSyntaxItem> = Vec::new();
         while transfer_syntax_len_marker > 0 {
             dataset.read_exact(&mut buf)?;
@@ -1238,7 +1245,8 @@ impl AssocRQPresentationContext {
             // Total bytes read is 2 for the type and reserved, plus another 2 for the length
             // field, and also the value of the length field being the size of the last
             // variable-length field.
-            transfer_syntax_len_marker -= 4 + transfer_syntax.length() as usize;
+            transfer_syntax_len_marker -=
+                TryInto::<usize>::try_into(4 + transfer_syntax.length()).unwrap_or_default();
             transfer_syntaxes.push(transfer_syntax);
         }
 
@@ -1280,15 +1288,15 @@ impl AssocACPresentationContext {
         result: u8,
         transfer_syntax: TransferSyntaxItem,
     ) -> AssocACPresentationContext {
-        let length: u16 = size_of::<u8>() as u16 // ctx_id
-            + size_of::<u8>() as u16 // reserved_2
-            + size_of::<u8>() as u16 // result
-            + size_of::<u8>() as u16 // reserved_3
-            + transfer_syntax.num_bytes() as u16;
+        let length: usize = size_of::<u8>() // ctx_id
+            + size_of::<u8>() // reserved_2
+            + size_of::<u8>() // result
+            + size_of::<u8>() // reserved_3
+            + transfer_syntax.num_bytes();
 
         AssocACPresentationContext {
             reserved_1: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             ctx_id,
             reserved_2: 0u8,
             result,
@@ -1338,7 +1346,7 @@ impl AssocACPresentationContext {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let mut buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved_1];
+        let mut buf: [u8; 2] = [Self::pdu_type().into(), self.reserved_1];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1402,11 +1410,9 @@ impl AbstractSyntaxItem {
     }
 
     pub fn new(abstract_syntax: Vec<u8>) -> AbstractSyntaxItem {
-        let length: u16 = abstract_syntax.len() as u16;
-
         AbstractSyntaxItem {
             reserved: 0u8,
-            length,
+            length: abstract_syntax.len().try_into().unwrap_or_default(),
             abstract_syntax,
         }
     }
@@ -1430,7 +1436,7 @@ impl AbstractSyntaxItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1444,7 +1450,7 @@ impl AbstractSyntaxItem {
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut abstract_syntax: Vec<u8> = vec![0u8; length as usize];
+        let mut abstract_syntax: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut abstract_syntax)?;
 
         Ok(AbstractSyntaxItem {
@@ -1470,11 +1476,9 @@ impl TransferSyntaxItem {
     }
 
     pub fn new(transfer_syntaxes: Vec<u8>) -> TransferSyntaxItem {
-        let length: u16 = transfer_syntaxes.len() as u16;
-
         TransferSyntaxItem {
             reserved: 0u8,
-            length,
+            length: transfer_syntaxes.len().try_into().unwrap_or_default(),
             transfer_syntaxes,
         }
     }
@@ -1498,7 +1502,7 @@ impl TransferSyntaxItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1512,7 +1516,7 @@ impl TransferSyntaxItem {
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut transfer_syntaxes: Vec<u8> = vec![0u8; length as usize];
+        let mut transfer_syntaxes: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut transfer_syntaxes)?;
 
         Ok(TransferSyntaxItem {
@@ -1538,11 +1542,9 @@ impl UserInformationItem {
     }
 
     pub fn new(user_data: Vec<u8>) -> UserInformationItem {
-        let length: u16 = user_data.len() as u16;
-
         UserInformationItem {
             reserved: 0u8,
-            length,
+            length: user_data.len().try_into().unwrap_or_default(),
             user_data,
         }
     }
@@ -1566,7 +1568,7 @@ impl UserInformationItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1580,7 +1582,7 @@ impl UserInformationItem {
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut user_data: Vec<u8> = vec![0u8; length as usize];
+        let mut user_data: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut user_data)?;
 
         Ok(UserInformationItem {
@@ -1606,7 +1608,7 @@ impl MaxLengthItem {
     }
 
     pub fn new(max_length: u32) -> MaxLengthItem {
-        let length: u16 = size_of::<u32>() as u16; // max_length
+        let length: u16 = size_of::<u32>().try_into().unwrap_or_default(); // max_length
 
         MaxLengthItem {
             reserved: 0u8,
@@ -1627,7 +1629,7 @@ impl MaxLengthItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1668,11 +1670,9 @@ impl ImplementationClassUIDItem {
     }
 
     pub fn new(impl_class_uid: Vec<u8>) -> ImplementationClassUIDItem {
-        let length: u16 = impl_class_uid.len() as u16;
-
         ImplementationClassUIDItem {
             reserved: 0u8,
-            length,
+            length: impl_class_uid.len().try_into().unwrap_or_default(),
             impl_class_uid,
         }
     }
@@ -1688,7 +1688,7 @@ impl ImplementationClassUIDItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1705,7 +1705,7 @@ impl ImplementationClassUIDItem {
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut impl_class_uid: Vec<u8> = vec![0u8; length as usize];
+        let mut impl_class_uid: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut impl_class_uid)?;
 
         Ok(ImplementationClassUIDItem {
@@ -1732,12 +1732,12 @@ impl AsyncOperationsWindowItem {
     }
 
     pub fn new(max_ops_invoked: u16, max_ops_performed: u16) -> AsyncOperationsWindowItem {
-        let length: u16 = size_of::<u16>() as u16 // max_ops_invoked
-            + size_of::<u16>() as u16; // max_ops_performed
+        let length: usize = size_of::<u16>() // max_ops_invoked
+            + size_of::<u16>(); // max_ops_performed
 
         AsyncOperationsWindowItem {
             reserved: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             max_ops_invoked,
             max_ops_performed,
         }
@@ -1760,7 +1760,7 @@ impl AsyncOperationsWindowItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1811,15 +1811,15 @@ impl RoleSelectionItem {
     }
 
     pub fn new(sop_class_uid: Vec<u8>, scu_role: u8, scp_role: u8) -> RoleSelectionItem {
-        let length: u16 = size_of::<u16>() as u16 // sop_class_uid_length
-            + sop_class_uid.len() as u16
-            + size_of::<u8>() as u16 // scu_role
-            + size_of::<u8>() as u16; // scp_role
+        let length: usize = size_of::<u16>() // sop_class_uid_length
+            + sop_class_uid.len()
+            + size_of::<u8>() // scu_role
+            + size_of::<u8>(); // scp_role
 
         RoleSelectionItem {
             reserved: 0u8,
-            length,
-            sop_class_uid_length: sop_class_uid.len() as u16,
+            length: length.try_into().unwrap_or_default(),
+            sop_class_uid_length: sop_class_uid.len().try_into().unwrap_or_default(),
             sop_class_uid,
             scu_role,
             scp_role,
@@ -1859,7 +1859,7 @@ impl RoleSelectionItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let mut buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let mut buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1880,7 +1880,7 @@ impl RoleSelectionItem {
 
         dataset.read_exact(&mut buf)?;
         let sop_class_uid_length = u16::from_be_bytes(buf);
-        let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length as usize];
+        let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length.into()];
         dataset.read_exact(&mut sop_class_uid)?;
 
         dataset.read_exact(&mut buf)?;
@@ -1913,11 +1913,9 @@ impl ImplementationVersionNameItem {
     }
 
     pub fn new(impl_ver_name: Vec<u8>) -> ImplementationVersionNameItem {
-        let length: u16 = impl_ver_name.len() as u16;
-
         ImplementationVersionNameItem {
             reserved: 0u8,
-            length,
+            length: impl_ver_name.len().try_into().unwrap_or_default(),
             impl_ver_name,
         }
     }
@@ -1933,7 +1931,7 @@ impl ImplementationVersionNameItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -1950,7 +1948,7 @@ impl ImplementationVersionNameItem {
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut impl_ver_name: Vec<u8> = vec![0u8; length as usize];
+        let mut impl_ver_name: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut impl_ver_name)?;
 
         Ok(ImplementationVersionNameItem {
@@ -1981,14 +1979,14 @@ impl SOPClassExtendedNegotiationItem {
         sop_class_uid: Vec<u8>,
         service_class_app_info: Vec<u8>,
     ) -> SOPClassExtendedNegotiationItem {
-        let length: u16 = size_of::<u16>() as u16 // sop_class_uid_length
-            + sop_class_uid.len() as u16
-            + service_class_app_info.len() as u16;
+        let length: usize = size_of::<u16>() // sop_class_uid_length
+            + sop_class_uid.len()
+            + service_class_app_info.len();
 
         SOPClassExtendedNegotiationItem {
             reserved: 0u8,
-            length,
-            sop_class_uid_length: sop_class_uid.len() as u16,
+            length: length.try_into().unwrap_or_default(),
+            sop_class_uid_length: sop_class_uid.len().try_into().unwrap_or_default(),
             sop_class_uid,
             service_class_app_info,
         }
@@ -2016,7 +2014,7 @@ impl SOPClassExtendedNegotiationItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -2037,11 +2035,12 @@ impl SOPClassExtendedNegotiationItem {
 
         dataset.read_exact(&mut buf)?;
         let sop_class_uid_length = u16::from_be_bytes(buf);
-        let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length as usize];
+        let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length.into()];
         dataset.read_exact(&mut sop_class_uid)?;
 
-        let service_class_app_info_length = length - size_of::<u16>() as u16 - sop_class_uid_length;
-        let mut service_class_app_info: Vec<u8> = vec![0u8; service_class_app_info_length as usize];
+        let length_field_bytesize: u16 = size_of::<u16>().try_into().unwrap_or_default();
+        let service_class_app_info_length = length - length_field_bytesize - sop_class_uid_length;
+        let mut service_class_app_info: Vec<u8> = vec![0u8; service_class_app_info_length.into()];
         dataset.read_exact(&mut service_class_app_info)?;
 
         Ok(SOPClassExtendedNegotiationItem {
@@ -2078,16 +2077,16 @@ impl SOPClassCommonExtendedNegotiationItem {
         service_class_uid: Vec<u8>,
         rel_gen_sop_classes: Vec<RelatedGeneralSOPClassUID>,
     ) -> SOPClassCommonExtendedNegotiationItem {
-        let rel_gen_sop_classes_length: u16 = rel_gen_sop_classes
+        let rel_gen_sop_classes_length: usize = rel_gen_sop_classes
             .iter()
-            .map(|r| r.num_bytes() as u16)
-            .sum::<u16>();
+            .map(|r| r.num_bytes())
+            .sum::<usize>();
 
-        let length: u16 = size_of::<u16>() as u16 // sop_class_uid_length
-            + sop_class_uid.len() as u16
-            + size_of::<u16>() as u16 // service_class_uid_length
-            + service_class_uid.len() as u16
-            + size_of::<u16>() as u16 // rel_gen_sop_classes_length
+        let length: usize = size_of::<u16>() // sop_class_uid_length
+            + sop_class_uid.len()
+            + size_of::<u16>() // service_class_uid_length
+            + service_class_uid.len()
+            + size_of::<u16>() // rel_gen_sop_classes_length
             + rel_gen_sop_classes_length;
 
         // zero-length for version 0 of this sub-item definition
@@ -2095,12 +2094,12 @@ impl SOPClassCommonExtendedNegotiationItem {
 
         SOPClassCommonExtendedNegotiationItem {
             version: SOP_CLASS_COMMON_EXTENDED_NEGOTIATION_VERSION,
-            length,
-            sop_class_uid_length: sop_class_uid.len() as u16,
+            length: length.try_into().unwrap_or_default(),
+            sop_class_uid_length: sop_class_uid.len().try_into().unwrap_or_default(),
             sop_class_uid,
-            service_class_uid_length: service_class_uid.len() as u16,
+            service_class_uid_length: service_class_uid.len().try_into().unwrap_or_default(),
             service_class_uid,
-            rel_gen_sop_classes_length,
+            rel_gen_sop_classes_length: rel_gen_sop_classes_length.try_into().unwrap_or_default(),
             rel_gen_sop_classes,
             reserved,
         }
@@ -2149,7 +2148,7 @@ impl SOPClassCommonExtendedNegotiationItem {
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.version];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.version];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -2179,12 +2178,12 @@ impl SOPClassCommonExtendedNegotiationItem {
 
         dataset.read_exact(&mut buf)?;
         let sop_class_uid_length = u16::from_be_bytes(buf);
-        let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length as usize];
+        let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length.into()];
         dataset.read_exact(&mut sop_class_uid)?;
 
         dataset.read_exact(&mut buf)?;
         let service_class_length = u16::from_be_bytes(buf);
-        let mut service_class_uid: Vec<u8> = vec![0u8; service_class_length as usize];
+        let mut service_class_uid: Vec<u8> = vec![0u8; service_class_length.into()];
         dataset.read_exact(&mut service_class_uid)?;
 
         dataset.read_exact(&mut buf)?;
@@ -2193,25 +2192,23 @@ impl SOPClassCommonExtendedNegotiationItem {
         // The rel_gen_sop_class_length field is the number of bytes in total for all
         // RelatedGeneralSOPClasUIDs. After reading one, subtract its size in bytes so
         // we know when the last byte of this PDU has been read.
-        let mut rel_gen_sop_class_len_marker = rel_gen_sop_class_length as usize;
+        let mut rel_gen_sop_class_len_marker: usize = rel_gen_sop_class_length.into();
         let mut rel_gen_sop_classes: Vec<RelatedGeneralSOPClassUID> = Vec::new();
         while rel_gen_sop_class_len_marker > 0 {
             let rel_gen_sop_class = RelatedGeneralSOPClassUID::read(&mut dataset)?;
-            // The number of bytes in this struct is the length field + length value.
-            let size = size_of::<u16>() + rel_gen_sop_class.length() as usize;
-            rel_gen_sop_class_len_marker -= size;
+            rel_gen_sop_class_len_marker -= rel_gen_sop_class.num_bytes();
             rel_gen_sop_classes.push(rel_gen_sop_class);
         }
 
-        let reserved_len = length
-            - (size_of::<u16>() as u16
-                + sop_class_uid_length
-                + size_of::<u16>() as u16
-                + service_class_length
-                + size_of::<u16>() as u16
-                + rel_gen_sop_class_length);
+        let reserved_len: usize = Into::<usize>::into(length)
+            - (size_of::<u16>()
+                + Into::<usize>::into(sop_class_uid_length)
+                + size_of::<u16>()
+                + Into::<usize>::into(service_class_length)
+                + size_of::<u16>()
+                + Into::<usize>::into(rel_gen_sop_class_length));
         let reserved = if reserved_len > 0 {
-            let mut reserved: Vec<u8> = vec![0u8; reserved_len as usize];
+            let mut reserved: Vec<u8> = vec![0u8; reserved_len.into()];
             dataset.read_exact(&mut reserved)?;
             reserved
         } else {
@@ -2240,10 +2237,8 @@ pub struct RelatedGeneralSOPClassUID {
 
 impl RelatedGeneralSOPClassUID {
     pub fn new(rel_gen_sop_class: Vec<u8>) -> RelatedGeneralSOPClassUID {
-        let length: u16 = rel_gen_sop_class.len() as u16;
-
         RelatedGeneralSOPClassUID {
-            length,
+            length: rel_gen_sop_class.len().try_into().unwrap_or_default(),
             rel_gen_sop_class,
         }
     }
@@ -2274,7 +2269,7 @@ impl RelatedGeneralSOPClassUID {
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut rel_gen_sop_class: Vec<u8> = vec![0u8; length as usize];
+        let mut rel_gen_sop_class: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut rel_gen_sop_class)?;
 
         Ok(RelatedGeneralSOPClassUID {
@@ -2309,21 +2304,21 @@ impl UserIdentityItem {
         pri_value: Vec<u8>,
         sec_value: Vec<u8>,
     ) -> UserIdentityItem {
-        let length: u16 = size_of::<u8>() as u16 // identity_type
-            + size_of::<u8>() as u16 // pos_rsp_req
-            + size_of::<u16>() as u16 // pri_length
-            + pri_value.len() as u16
-            + size_of::<u16>() as u16 // sec_length
-            + sec_value.len() as u16;
+        let length: usize = size_of::<u8>() // identity_type
+            + size_of::<u8>() // pos_rsp_req
+            + size_of::<u16>() // pri_length
+            + pri_value.len()
+            + size_of::<u16>() // sec_length
+            + sec_value.len();
 
         UserIdentityItem {
             reserved: 0u8,
-            length,
+            length: length.try_into().unwrap_or_default(),
             identity_type,
             pos_rsp_req,
-            pri_length: pri_value.len() as u16,
+            pri_length: pri_value.len().try_into().unwrap_or_default(),
             pri_value,
-            sec_length: sec_value.len() as u16,
+            sec_length: sec_value.len().try_into().unwrap_or_default(),
             sec_value,
         }
     }
@@ -2375,7 +2370,7 @@ impl UserIdentityItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -2402,12 +2397,12 @@ impl UserIdentityItem {
 
         dataset.read_exact(&mut buf)?;
         let pri_length = u16::from_be_bytes(buf);
-        let mut pri_value: Vec<u8> = vec![0u8; pri_length as usize];
+        let mut pri_value: Vec<u8> = vec![0u8; pri_length.into()];
         dataset.read_exact(&mut pri_value)?;
 
         dataset.read_exact(&mut buf)?;
         let sec_length = u16::from_be_bytes(buf);
-        let mut sec_value: Vec<u8> = vec![0u8; sec_length as usize];
+        let mut sec_value: Vec<u8> = vec![0u8; sec_length.into()];
         dataset.read_exact(&mut sec_value)?;
 
         Ok(UserIdentityItem {
@@ -2439,13 +2434,13 @@ impl UserIdentityNegotiationItem {
     }
 
     pub fn new(server_rsp: Vec<u8>) -> UserIdentityNegotiationItem {
-        let length: u16 = size_of::<u16>() as u16 // server_rsp_length
-            + server_rsp.len() as u16;
+        let length: usize = size_of::<u16>() // server_rsp_length
+            + server_rsp.len();
 
         UserIdentityNegotiationItem {
             reserved: 0u8,
-            length,
-            server_rsp_length: server_rsp.len() as u16,
+            length: length.try_into().unwrap_or_default(),
+            server_rsp_length: server_rsp.len().try_into().unwrap_or_default(),
             server_rsp,
         }
     }
@@ -2469,7 +2464,7 @@ impl UserIdentityNegotiationItem {
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), DimseError> {
-        let buf: [u8; 2] = [Self::pdu_type() as u8, self.reserved];
+        let buf: [u8; 2] = [Self::pdu_type().into(), self.reserved];
         dataset.write_all(&buf)?;
         dataset.write_all(&self.length.to_be_bytes())?;
         dataset.write_all(&self.server_rsp_length.to_be_bytes())?;
@@ -2487,7 +2482,7 @@ impl UserIdentityNegotiationItem {
 
         dataset.read_exact(&mut buf)?;
         let server_rsp_length = u16::from_be_bytes(buf);
-        let mut server_rsp: Vec<u8> = vec![0u8; server_rsp_length as usize];
+        let mut server_rsp: Vec<u8> = vec![0u8; server_rsp_length.into()];
         dataset.read_exact(&mut server_rsp)?;
 
         Ok(UserIdentityNegotiationItem {
@@ -2703,109 +2698,128 @@ mod tests {
     fn test_pdu_type_roundtrip() {
         assert_eq!(
             PduType::AssocRQ,
-            (PduType::AssocRQ as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::AssocRQ)).try_into().unwrap()
         );
         assert_eq!(
             PduType::AssocAC,
-            (PduType::AssocAC as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::AssocAC)).try_into().unwrap()
         );
         assert_eq!(
             PduType::AssocRJ,
-            (PduType::AssocRJ as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::AssocRJ)).try_into().unwrap()
         );
 
         assert_eq!(
             PduType::PresentationDataItem,
-            (PduType::PresentationDataItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::PresentationDataItem))
+                .try_into()
+                .unwrap()
         );
 
         assert_eq!(
             PduType::ReleaseRQ,
-            (PduType::ReleaseRQ as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::ReleaseRQ)).try_into().unwrap()
         );
         assert_eq!(
             PduType::ReleaseRP,
-            (PduType::ReleaseRP as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::ReleaseRP)).try_into().unwrap()
         );
-        assert_eq!(PduType::Abort, (PduType::Abort as u8).try_into().unwrap());
+        assert_eq!(
+            PduType::Abort,
+            (Into::<u8>::into(PduType::Abort)).try_into().unwrap()
+        );
 
         assert_eq!(
             PduType::ApplicationContextItem,
-            (PduType::ApplicationContextItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::ApplicationContextItem))
+                .try_into()
+                .unwrap()
         );
 
         assert_eq!(
             PduType::AssocRQPresentationContext,
-            (PduType::AssocRQPresentationContext as u8)
+            (Into::<u8>::into(PduType::AssocRQPresentationContext))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::AssocACPresentationContext,
-            (PduType::AssocACPresentationContext as u8)
+            (Into::<u8>::into(PduType::AssocACPresentationContext))
                 .try_into()
                 .unwrap()
         );
 
         assert_eq!(
             PduType::AbstractSyntaxItem,
-            (PduType::AbstractSyntaxItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::AbstractSyntaxItem))
+                .try_into()
+                .unwrap()
         );
         assert_eq!(
             PduType::TransferSyntaxItem,
-            (PduType::TransferSyntaxItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::TransferSyntaxItem))
+                .try_into()
+                .unwrap()
         );
         assert_eq!(
             PduType::UserInformationItem,
-            (PduType::UserInformationItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::UserInformationItem))
+                .try_into()
+                .unwrap()
         );
 
         assert_eq!(
             PduType::MaxLengthItem,
-            (PduType::MaxLengthItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::MaxLengthItem))
+                .try_into()
+                .unwrap()
         );
 
         assert_eq!(
             PduType::ImplementationClassUIDItem,
-            (PduType::ImplementationClassUIDItem as u8)
+            (Into::<u8>::into(PduType::ImplementationClassUIDItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::AsyncOperationsWindowItem,
-            (PduType::AsyncOperationsWindowItem as u8)
+            (Into::<u8>::into(PduType::AsyncOperationsWindowItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::RoleSelectionItem,
-            (PduType::RoleSelectionItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::RoleSelectionItem))
+                .try_into()
+                .unwrap()
         );
         assert_eq!(
             PduType::ImplementationVersionNameItem,
-            (PduType::ImplementationVersionNameItem as u8)
+            (Into::<u8>::into(PduType::ImplementationVersionNameItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::SOPClassExtendedNegotiationItem,
-            (PduType::SOPClassExtendedNegotiationItem as u8)
+            (Into::<u8>::into(PduType::SOPClassExtendedNegotiationItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::SOPClassCommonExtendedNegotiationItem,
-            (PduType::SOPClassCommonExtendedNegotiationItem as u8)
+            (Into::<u8>::into(PduType::SOPClassCommonExtendedNegotiationItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
             PduType::UserIdentityItem,
-            (PduType::UserIdentityItem as u8).try_into().unwrap()
+            (Into::<u8>::into(PduType::UserIdentityItem))
+                .try_into()
+                .unwrap()
         );
         assert_eq!(
             PduType::UserIdentityNegotiationItem,
-            (PduType::UserIdentityNegotiationItem as u8)
+            (Into::<u8>::into(PduType::UserIdentityNegotiationItem))
                 .try_into()
                 .unwrap()
         );
