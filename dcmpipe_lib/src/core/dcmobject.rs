@@ -253,7 +253,7 @@ impl DicomRoot {
         let elems = self
             .flatten()
             .iter()
-            .map(|o| FormattedElement::default(o))
+            .map(|o| FormattedElement::new(o))
             .collect::<Vec<FormattedElement>>();
         let mut stdout = stdout().lock();
         for elem in elems {

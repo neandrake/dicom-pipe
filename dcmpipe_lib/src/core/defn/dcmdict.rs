@@ -43,6 +43,7 @@ impl core::fmt::Debug for dyn DicomDictionary + '_ {
 
 /// Wraps a list of DICOM dictionaries to be used a single dictionary. The order of the
 /// dictionaries affects the resulting lookup if the search key exists in multiple dictionaries.
+#[derive(Default)]
 pub struct MultiDicomDictionary<'d> {
     dicts: Vec<&'d dyn DicomDictionary>,
 }
@@ -51,6 +52,10 @@ impl<'d> MultiDicomDictionary<'d> {
     #[must_use]
     pub fn new(dicts: Vec<&'d dyn DicomDictionary>) -> Self {
         Self { dicts }
+    }
+
+    pub fn add(&mut self, dict: &'d dyn DicomDictionary) {
+        self.dicts.push(dict);
     }
 }
 

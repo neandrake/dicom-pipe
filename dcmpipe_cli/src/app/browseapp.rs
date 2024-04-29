@@ -95,13 +95,11 @@ struct DisplayOpts {
 
 impl DisplayOpts {
     fn for_obj<'app>(&'app self, obj: &'app DicomObject) -> FormattedElement {
-        FormattedElement {
-            elem: obj.element(),
-            multiline: self.multiline,
-            max_items: self.max_items,
-            hide_delims: self.hide_delims,
-            hide_groups: self.hide_groups,
-        }
+        FormattedElement::new(obj.element())
+            .with_multiline(self.multiline)
+            .with_max_items(self.max_items)
+            .with_hide_delims(self.hide_delims)
+            .with_hide_groups(self.hide_groups)
     }
 
     fn should_omit(&self, obj: &DicomObject) -> bool {
@@ -530,13 +528,11 @@ impl<'m> DicomNodeModel<'m> {
             map.extend(child_map);
         }
 
-        let formatted_elem = FormattedElement {
-            elem: child.element(),
-            multiline: display_opts.multiline,
-            max_items: display_opts.max_items,
-            hide_delims: display_opts.hide_delims,
-            hide_groups: display_opts.hide_groups,
-        };
+        let formatted_elem = FormattedElement::new(child.element())
+            .with_multiline(display_opts.multiline)
+            .with_max_items(display_opts.max_items)
+            .with_hide_delims(display_opts.hide_delims)
+            .with_hide_groups(display_opts.hide_groups);
         if formatted_elem.should_omit() {
             return None;
         }

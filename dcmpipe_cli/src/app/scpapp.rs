@@ -302,13 +302,11 @@ impl AssociationDevice {
             .build(reader, &STANDARD_DICOM_DICTIONARY);
         let dataset = DicomRoot::parse(&mut parser)
             .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-        let Some(dataset) = dataset else {
+        let Some(_dataset) = dataset else {
             return Err(AssocError::ab_failure(DimseError::GeneralError(
                 "No DICOM query after parsing query".to_string(),
             )));
         };
-
-        let _ = dataset.dbg_dump();
 
         let ctx_id = msg.ctx_id();
         let msg_id = msg

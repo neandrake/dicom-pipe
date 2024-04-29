@@ -124,9 +124,9 @@ impl<W: Write> Writer<W> {
             if let Some(preamble) = self.file_preamble {
                 self.dataset.write_all(&preamble)?;
                 bytes_written += preamble.len();
+                self.dataset.write_all(DICOM_PREFIX)?;
+                bytes_written += DICOM_PREFIX.len();
             }
-            self.dataset.write_all(DICOM_PREFIX)?;
-            bytes_written += DICOM_PREFIX.len();
             self.state = WriterState::FileMeta;
         }
 

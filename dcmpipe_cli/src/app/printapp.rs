@@ -72,7 +72,7 @@ impl CommandApplication for PrintApp {
                 prev_was_file_meta = false;
             }
 
-            let printed: String = FormattedElement::default(&elem).to_string();
+            let printed: String = FormattedElement::new(&elem).to_string();
             stdout.write_all(format!("{printed}\n").as_ref())?;
         }
 

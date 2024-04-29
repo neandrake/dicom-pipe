@@ -22,10 +22,7 @@ use crate::core::{
     dcmelement::DicomElement,
     dcmsqelem::SequenceElement,
     defn::{
-        constants::{
-            lookup::MINIMAL_DICOM_DICTIONARY,
-            tags::{ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM},
-        },
+        constants::tags::{ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM},
         vl::ValueLength,
         vr::{INVALID_VR, UN},
     },
@@ -35,6 +32,8 @@ use crate::core::{
 
 #[cfg(feature = "stddicom")]
 use crate::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+
+use super::defn::dcmdict::MultiDicomDictionary;
 
 /// Convenience for coordinating a tag's type display.
 pub enum FormattedTagType {
@@ -89,27 +88,95 @@ impl fmt::Display for FormattedTagValue {
 /// Convenience for coordinating an element's display with formatting options.
 pub struct FormattedElement<'e> {
     /// The element to render.
-    pub elem: &'e DicomElement,
+    elem: &'e DicomElement,
     /// Whether the value can render across a single line or multiple lines.
-    pub multiline: bool,
+    multiline: bool,
     /// The maximum number of value items to display.
-    pub max_items: usize,
+    max_items: usize,
     /// Whether sequence and item delimiters should be rendered or not.
-    pub hide_delims: bool,
+    hide_delims: bool,
     /// Whether group length elements should be rendered or not.
-    pub hide_groups: bool,
+    hide_groups: bool,
+    /// Dictionary to resolve VRs, tag names, UID names, etc.
+    dict: MultiDicomDictionary<'e>,
 }
 
 impl<'e> FormattedElement<'e> {
     #[must_use]
-    pub fn default(elem: &'e DicomElement) -> Self {
+    pub fn new(elem: &'e DicomElement) -> Self {
+        #[cfg(not(feature = "stddicom"))]
+        let dict = MultiDicomDictionary::new(Vec::with_capacity(0));
+        #[cfg(feature = "stddicom")]
+        let dict = MultiDicomDictionary::new(vec![&STANDARD_DICOM_DICTIONARY]);
+
         Self {
             elem,
             multiline: false,
             max_items: 16,
             hide_delims: false,
             hide_groups: false,
+            dict,
         }
+    }
+
+    #[must_use]
+    pub fn with_multiline(mut self, multiline: bool) -> Self {
+        self.multiline = multiline;
+        self
+    }
+
+    #[must_use]
+    pub fn with_max_items(mut self, max_items: usize) -> Self {
+        self.max_items = max_items;
+        self
+    }
+
+    #[must_use]
+    pub fn with_hide_delims(mut self, hide_delims: bool) -> Self {
+        self.hide_delims = hide_delims;
+        self
+    }
+
+    #[must_use]
+    pub fn with_hide_groups(mut self, hide_groups: bool) -> Self {
+        self.hide_groups = hide_groups;
+        self
+    }
+
+    #[must_use]
+    pub fn with_dict(mut self, dict: MultiDicomDictionary<'e>) -> Self {
+        self.dict = dict;
+        self
+    }
+
+    #[must_use]
+    pub fn elem(&self) -> &'e DicomElement {
+        self.elem
+    }
+
+    #[must_use]
+    pub fn multiline(&self) -> bool {
+        self.multiline
+    }
+
+    #[must_use]
+    pub fn max_items(&self) -> usize {
+        self.max_items
+    }
+
+    #[must_use]
+    pub fn hide_delims(&self) -> bool {
+        self.hide_delims
+    }
+
+    #[must_use]
+    pub fn hide_groups(&self) -> bool {
+        self.hide_groups
+    }
+
+    #[must_use]
+    pub fn dict(&self) -> &MultiDicomDictionary<'e> {
+        &self.dict
     }
 
     #[must_use]
@@ -138,9 +205,7 @@ impl<'e> FormattedElement<'e> {
 
     #[must_use]
     pub fn get_tag_type(&self) -> FormattedTagType {
-        if let Some(tag) = MINIMAL_DICOM_DICTIONARY.get_tag_by_number(self.elem.tag()) {
-            FormattedTagType::Known(tag.tag, tag.ident.to_string())
-        } else if Tag::is_private_creator(self.elem.tag()) {
+        if Tag::is_private_creator(self.elem.tag()) {
             FormattedTagType::PrivateCreator(self.elem.tag())
         } else if Tag::is_private(self.elem.tag()) && self.elem.is_sq_like() {
             FormattedTagType::PrivateSequence(self.elem.tag())
@@ -151,8 +216,7 @@ impl<'e> FormattedElement<'e> {
         } else if Tag::is_group_length(self.elem.tag()) {
             FormattedTagType::GroupLength(self.elem.tag())
         } else {
-            #[cfg(feature = "stddicom")]
-            if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(self.elem.tag()) {
+            if let Some(tag) = self.dict.get_tag_by_number(self.elem.tag()) {
                 return FormattedTagType::Known(tag.tag, tag.ident.to_string());
             }
 
@@ -168,16 +232,14 @@ impl<'e> FormattedElement<'e> {
 
         let mut sep = if self.multiline { " " } else { "\\" };
 
-        let vr = self.elem.vr();
-        #[cfg(feature = "stddicom")]
-        let vr = if vr == &UN {
-            STANDARD_DICOM_DICTIONARY
+        let mut vr = self.elem.vr();
+        if !self.elem.ts().explicit_vr() || vr == &UN {
+            vr = self
+                .dict
                 .get_tag_by_number(self.elem.tag())
                 .and_then(Tag::implicit_vr)
                 .unwrap_or(vr)
-        } else {
-            vr
-        };
+        }
 
         let elem_value = match self.elem.parse_value_as(vr) {
             Err(e) => return FormattedTagValue::Error(e.to_string()),
@@ -189,12 +251,7 @@ impl<'e> FormattedElement<'e> {
                 self.format_vec_to_strings(&attrs, |attr| Tag::format_tag_to_display(attr.0))
             }
             RawValue::Uid(uid_str) => {
-                let uid_lookup = MINIMAL_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
-
-                #[cfg(feature = "stddicom")]
-                let uid_lookup =
-                    uid_lookup.or_else(|| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str));
-
+                let uid_lookup = self.dict.get_uid_by_uid(&uid_str);
                 match uid_lookup {
                     Some(found_uid) => {
                         let uid_name = if let Some((name, _detail)) = found_uid.name.split_once(':')
@@ -311,16 +368,14 @@ impl<'e> fmt::Display for FormattedElement<'e> {
         let tag_num: String = Tag::format_tag_to_display(self.elem.tag());
         let tag_name: FormattedTagType = self.get_tag_type();
 
-        let vr = self.elem.vr();
-        #[cfg(feature = "stddicom")]
-        let vr = if vr == &UN {
-            STANDARD_DICOM_DICTIONARY
+        let mut vr = self.elem.vr();
+        if vr == &UN {
+            vr = self
+                .dict
                 .get_tag_by_number(self.elem.tag())
                 .and_then(Tag::implicit_vr)
                 .unwrap_or(vr)
-        } else {
-            vr
-        };
+        }
         let vr: &str = vr.ident;
 
         let vl: String = match self.elem.vl() {
