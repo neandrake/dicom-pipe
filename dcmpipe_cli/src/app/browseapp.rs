@@ -18,9 +18,11 @@ use crossterm::terminal::{
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::vr;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Cell, Row, Table, TableState};
 use ratatui::{Frame, Terminal};
 
@@ -142,8 +144,17 @@ impl BrowseApp {
             return;
         }
 
-        let index = state.table_state.offset().saturating_add(event.row.saturating_sub(3) as usize);
-        state.table_state.select(Some(index));
+        let index = Some(
+            state
+                .table_state
+                .offset()
+                .saturating_add(event.row.saturating_sub(3) as usize),
+        );
+        if state.table_state.selected() == index {
+            state.table_state.select(None)
+        } else {
+            state.table_state.select(index);
+        }
     }
 
     fn event_mouse_scroll_up(&self, state: &mut BrowseAppState, _event: MouseEvent) {
@@ -177,15 +188,59 @@ impl BrowseApp {
                 .unwrap_or_else(|_err| "<Error>".to_owned());
 
             let mut cells: Vec<Cell> = Vec::with_capacity(5);
-            cells.push(Cell::from(if dcmobj.get_element().is_seq_like() {
-                "+"
+            cells.push(
+                Cell::from(if dcmobj.get_child_count() > 0 {
+                    "+"
+                } else {
+                    ""
+                })
+                .style(Style::default().fg(Color::DarkGray)),
+            );
+
+            cells.push(
+                Cell::from(Tag::format_tag_to_display(*tag))
+                    .style(Style::default().fg(Color::DarkGray)),
+            );
+
+            if elem_name.starts_with("<") {
+                cells.push(
+                    Cell::from(elem_name).style(
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
+                    ),
+                );
             } else {
-                ""
-            }));
-            cells.push(Cell::from(Tag::format_tag_to_display(*tag)));
-            cells.push(Cell::from(elem_name));
-            cells.push(Cell::from(dcmobj.get_element().get_vr().ident));
-            cells.push(Cell::from(elem_value));
+                cells.push(Cell::from(elem_name));
+            }
+
+            cells.push(
+                Cell::from(dcmobj.get_element().get_vr().ident)
+                    .style(Style::default().fg(Color::DarkGray)),
+            );
+
+            if elem_value.starts_with("<") {
+                cells.push(Cell::from(elem_value).style(Style::default().bg(Color::Red)));
+            } else {
+                let cell = if dcmobj.get_element().get_vr() == &vr::UI {
+                    let parts = elem_value
+                        .split("=>")
+                        .map(|s| s.to_owned())
+                        .collect::<Vec<String>>();
+                    if parts.len() > 1 {
+                        Cell::from(Line::from(vec![
+                            Span::styled(parts[0].clone(), Style::default()),
+                            Span::styled(parts[1].clone(), Style::default().fg(Color::LightYellow)),
+                        ]))
+                    } else {
+                        Cell::from(elem_value.clone())
+                    }
+                } else {
+                    Cell::from(elem_value)
+                };
+                cells.push(cell);
+            }
+
             rows.push(Row::new(cells));
         }
 
@@ -200,7 +255,7 @@ impl BrowseApp {
         let table = Table::new(rows)
             .header(
                 Row::new(vec!["+", "Tag", "Name", "VR", "Value"])
-                    .style(Style::default().fg(Color::Red)),
+                    .style(Style::default().fg(Color::LightYellow)),
             )
             .block(
                 Block::default()
@@ -208,11 +263,7 @@ impl BrowseApp {
                     .borders(Borders::all()),
             )
             .widths(&column_widths)
-            .highlight_style(
-                Style::default()
-                    .bg(Color::LightBlue)
-                    .add_modifier(Modifier::BOLD),
-            );
+            .highlight_style(Style::default().bg(Color::LightBlue));
 
         let sections = Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
