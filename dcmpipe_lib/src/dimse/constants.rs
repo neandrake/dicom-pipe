@@ -202,11 +202,15 @@ mod tests {
 
         assert_eq!(
             CommandField::NEventReportReq,
-            (u32::from(CommandField::NEventReportReq)).try_into().unwrap()
+            (u32::from(CommandField::NEventReportReq))
+                .try_into()
+                .unwrap()
         );
         assert_eq!(
             CommandField::NEventReportRsp,
-            (u32::from(CommandField::NEventReportRsp)).try_into().unwrap()
+            (u32::from(CommandField::NEventReportRsp))
+                .try_into()
+                .unwrap()
         );
         assert_eq!(
             CommandField::NGetReq,
@@ -257,11 +261,17 @@ mod tests {
 
     #[test]
     fn test_priority_roundtrip() {
-        assert_eq!(Priority::Low, (u32::from(Priority::Low)).try_into().unwrap());
+        assert_eq!(
+            Priority::Low,
+            (u32::from(Priority::Low)).try_into().unwrap()
+        );
         assert_eq!(
             Priority::Medium,
             (u32::from(Priority::Medium)).try_into().unwrap()
         );
-        assert_eq!(Priority::High, (u32::from(Priority::High)).try_into().unwrap());
+        assert_eq!(
+            Priority::High,
+            (u32::from(Priority::High)).try_into().unwrap()
+        );
     }
 }

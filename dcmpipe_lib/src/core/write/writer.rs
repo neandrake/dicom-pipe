@@ -201,14 +201,18 @@ impl<W: Write> Writer<W> {
             ))?;
             bytes_written += 2;
 
-            dataset.write_all(&u16::to_be_bytes(u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX)))?;
+            dataset.write_all(&u16::to_be_bytes(
+                u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX),
+            ))?;
             bytes_written += 2;
         } else {
             dataset.write_all(&u16::to_le_bytes(
                 u16::try_from(element.tag() >> 16 & 0x0000_FFFF).unwrap_or(u16::MAX),
             ))?;
             bytes_written += 2;
-            dataset.write_all(&u16::to_le_bytes(u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX)))?;
+            dataset.write_all(&u16::to_le_bytes(
+                u16::try_from(element.tag() & 0x0000_FFFF).unwrap_or(u16::MAX),
+            ))?;
             bytes_written += 2;
         }
 

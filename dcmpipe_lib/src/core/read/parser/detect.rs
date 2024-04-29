@@ -121,7 +121,8 @@ impl<'d, R: Read> Parser<'d, R> {
                 // read the remainder of the preamble, the prefix
                 self.dataset
                     .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
-                self.bytes_read += TryInto::<u64>::try_into(file_preamble.len()).unwrap_or_default();
+                self.bytes_read +=
+                    TryInto::<u64>::try_into(file_preamble.len()).unwrap_or_default();
                 self.file_preamble = Some(file_preamble);
                 self.iterate_prefix()?;
                 self.state = ParserState::DetectTransferSyntax;
