@@ -1,5 +1,5 @@
 use crate::mock::MockDicomDataset;
-use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
+use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_tagstop};
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
@@ -691,9 +691,12 @@ fn test_illegal_cp246_without_std() -> Result<()> {
 
 /// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
 fn test_illegal_cp246(with_std: bool) -> Result<()> {
-    let dcmroot: DicomRoot<'_> = parse_file(
+    let dcmroot: DicomRoot<'_> = parse_file_with_tagstop(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
         with_std,
+        // this file has invalid tag after this position, sequence-contained tag (0700,0300) which
+        // has a massive value length which goes past the file contents.
+        TagStop::AfterBytePos(6484)
     )?;
 
     let ref_sop_class_uid: String = dcmroot

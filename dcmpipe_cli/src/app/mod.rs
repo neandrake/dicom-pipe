@@ -170,7 +170,12 @@ fn render_value(elem: &DicomElement) -> Result<String, Error> {
         RawValue::Attribute(attr) => {
             str_vals.push(Tag::format_tag_to_display(attr.0));
         }
-        RawValue::Uid(uid_str) => {
+        RawValue::Uid(mut uid_str) => {
+            if uid_str.len() > 64 {
+                uid_str = String::from_utf8(uid_str.as_bytes()[0..64].to_vec())
+                    .unwrap_or_else(|_| "<Unviewable>".to_string());
+                uid_str = format!("[>64bytes] {}", uid_str);
+            }
             if let Some(uid) = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str) {
                 str_vals.push(format!("{} ({})", uid_str, uid.name));
             } else {
