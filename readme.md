@@ -18,6 +18,7 @@ A set of crates for reading and writing DICOM.
 - `dcmpipe_tests`: Tests which depend on both `dcmpipe_lib` and `dcmpipe_dict`.
 
 ## Milestone v1.0 ##
-- [ ] Conform to [Rust's API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html)
-- [ ] Add support for writing DICOM streams
+- [x] Conform to [Rust's API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html)
+  - [ ] Documentation
+- [x] Add support for writing DICOM streams
 - [ ] Add support for DICOM network connectivity
