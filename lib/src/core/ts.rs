@@ -33,11 +33,13 @@ impl Hash for TransferSyntax {
 }
 
 impl TransferSyntax {
-    pub fn new(uid: UIDRef,
+    pub fn new(
+        uid: UIDRef,
         explicit_vr: bool,
         big_endian: bool,
         deflated: bool,
-        encapsulated: bool) -> TransferSyntax {
+        encapsulated: bool,
+    ) -> TransferSyntax {
         TransferSyntax {
             uid: uid,
             explicit_vr: explicit_vr,

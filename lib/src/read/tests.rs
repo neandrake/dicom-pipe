@@ -1,15 +1,17 @@
 extern crate byteorder;
 extern crate walkdir;
 
-use byteorder::ReadBytesExt;
+use self::walkdir::{DirEntry, WalkDir};
 use crate::core::dict::dicom_elements as tags;
-use crate::read::dcmparser::{DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
+use crate::read::dcmparser::{
+    DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
+};
 use crate::read::mock::MockDicomStream;
 use crate::read::tagstop::TagStop;
+use byteorder::ReadBytesExt;
 use std::fs::File;
 use std::io::Seek;
 use std::path::Path;
-use self::walkdir::{DirEntry, WalkDir};
 
 static FIXTURE_DATASET1_FOLDER: &'static str = "../fixtures/dataset1";
 
@@ -19,8 +21,7 @@ fn test_good_preamble() {
         MockDicomStream::standard_dicom_preamble();
 
     // reads the preamble, prefix, and first element
-    let _ = test_good_iter.next()
-        .expect("Value should be Some Error");
+    let _ = test_good_iter.next().expect("Value should be Some Error");
 
     let is_dcm: bool = is_standard_preamble(&test_good_iter);
     assert_eq!(is_dcm, true);
@@ -32,8 +33,7 @@ fn test_nonzero_preamble() {
         MockDicomStream::nonzero_preamble();
 
     // reads the preamble, prefix, and first element
-    let _ = test_size_iter.next()
-        .expect("Value should be Some Error");
+    let _ = test_size_iter.next().expect("Value should be Some Error");
 
     let is_dcm: bool = is_standard_preamble(&test_size_iter);
     assert_eq!(is_dcm, false);
@@ -46,7 +46,8 @@ fn test_bad_dicom_prefix() {
         MockDicomStream::invalid_dicom_prefix();
 
     // reads the preamble, prefix, and first element
-    let _ = test_bad_iter.next()
+    let _ = test_bad_iter
+        .next()
         .expect("Value should be Some Error")
         .expect("This should fail to read a valid prefix");
 
@@ -61,7 +62,8 @@ fn test_failure_to_read_preamble() {
         MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
 
     // reads the preamble, prefix, and first element
-    let _first_elem = test_iter.next()
+    let _first_elem = test_iter
+        .next()
         .expect("Value should be Some Error")
         .expect("This should fail to read preamble due to not enough data");
 
@@ -70,12 +72,14 @@ fn test_failure_to_read_preamble() {
     assert_eq!(start_pos, 0);
 }
 
-#[test]	// slow
+#[test] // slow
 fn test_parse_known_dicom_files() {
     let tagstop: u32 = tags::PixelData.tag;
-    let mut dicom_iter: DicomStreamParser<File> = get_first_file_stream(TagStop::BeforeTag(tagstop));
+    let mut dicom_iter: DicomStreamParser<File> =
+        get_first_file_stream(TagStop::BeforeTag(tagstop));
 
-    let _first_elem = dicom_iter.next()
+    let _first_elem = dicom_iter
+        .next()
         .expect("Unable to read first element")
         .expect("Unable to read first element");
 
@@ -95,7 +99,8 @@ fn test_parse_known_dicom_files() {
     assert!(next_elem.is_none());
 
     // the iterator
-    let stopped_at_tag = dicom_iter.partial_tag()
+    let stopped_at_tag = dicom_iter
+        .partial_tag()
         .expect("Iteration should have stopped after reading the PixelData tag");
     assert_eq!(tagstop, stopped_at_tag);
 }
@@ -109,8 +114,7 @@ fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
 
-        let file: File = File::open(path)
-            .expect(&format!("Unable to open file: {:?}", path));
+        let file: File = File::open(path).expect(&format!("Unable to open file: {:?}", path));
 
         let dstream: DicomStreamParser<File> = DicomStreamParser::new(file, tagstop);
 
@@ -122,7 +126,9 @@ fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'
 fn is_standard_preamble<StreamType>(stream: &DicomStreamParser<StreamType>) -> bool
-    where StreamType: ReadBytesExt + Seek {
+where
+    StreamType: ReadBytesExt + Seek,
+{
     for i in 0..FILE_PREAMBLE_LENGTH {
         if stream.get_file_preamble()[i] != 0 {
             return false;

@@ -2,8 +2,8 @@
 
 use crate::core::vm::VMRef;
 use crate::core::vr::VRRef;
-use std::hash::{Hash, Hasher};
 use std::fmt::{Formatter, LowerHex, Result as FmtResult, UpperHex};
+use std::hash::{Hash, Hasher};
 
 pub type TagRef = &'static Tag;
 
@@ -59,7 +59,6 @@ impl Hash for Tag {
     }
 }
 
-
 pub enum ElementTag<'et> {
     Undefined(u32),
     Defined(&'et Tag),
@@ -68,12 +67,8 @@ pub enum ElementTag<'et> {
 impl<'et> UpperHex for ElementTag<'et> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match *self {
-            ElementTag::Undefined(num) => {
-                write!(f, "0x{:08X}", num)
-            },
-            ElementTag::Defined(tag) => {
-                write!(f, "0x{:08X}", tag.tag)
-            }
+            ElementTag::Undefined(num) => write!(f, "0x{:08X}", num),
+            ElementTag::Defined(tag) => write!(f, "0x{:08X}", tag.tag),
         }
     }
 }
@@ -81,12 +76,8 @@ impl<'et> UpperHex for ElementTag<'et> {
 impl<'et> LowerHex for ElementTag<'et> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match *self {
-            ElementTag::Undefined(num) => {
-                write!(f, "0x{:08x}", num)
-            },
-            ElementTag::Defined(tag) => {
-                write!(f, "0x{:08x}", tag.tag)
-            }
+            ElementTag::Undefined(num) => write!(f, "0x{:08x}", num),
+            ElementTag::Defined(tag) => write!(f, "0x{:08x}", tag.tag),
         }
     }
 }
