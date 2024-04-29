@@ -10,13 +10,13 @@ use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::{ParseError, ParseState, Parser, ParserBuilder, Result};
-use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 
 use crate::mock::MockDicomDataset;
-use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_tagstop};
+use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_parsestop};
 
 #[test]
 fn test_good_preamble() {
@@ -129,11 +129,11 @@ fn test_parser_state_without_std() -> Result<()> {
 }
 
 fn test_parser_state(with_std: bool) -> Result<()> {
-    let tagstop: u32 = tags::PixelData.tag;
+    let stop: u32 = tags::PixelData.tag;
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().tagstop(TagStop::BeforeTag(tagstop.into()));
+        ParserBuilder::default().stop(ParseStop::BeforeTag(stop.into()));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -165,7 +165,7 @@ fn test_parser_state(with_std: bool) -> Result<()> {
     let stopped_at_tag: u32 = parser.get_tag_last_read();
     assert_eq!(
         Tag::format_tag_to_display(stopped_at_tag),
-        Tag::format_tag_to_display(tagstop)
+        Tag::format_tag_to_display(stop)
     );
 
     Ok(())
@@ -185,7 +185,7 @@ fn test_dicom_object(with_std: bool) -> Result<()> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag.into()));
+        ParserBuilder::default().stop(ParseStop::BeforeTag(tags::PixelData.tag.into()));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -220,7 +220,7 @@ fn test_dicom_object_sequences_without_std() -> Result<()> {
 fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
     let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().tagstop(TagStop::BeforeTag(tags::PixelData.tag.into()));
+        ParserBuilder::default().stop(ParseStop::BeforeTag(tags::PixelData.tag.into()));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -728,12 +728,12 @@ fn test_illegal_cp246_without_std() -> Result<()> {
 /// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1] - also can't be parsed by
 /// dcmtk for the same reason.
 fn test_illegal_cp246(with_std: bool) -> Result<()> {
-    let dcmroot: DicomRoot<'_> = parse_file_with_tagstop(
+    let dcmroot: DicomRoot<'_> = parse_file_with_parsestop(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
         with_std,
         // this file has invalid tag after this position, sequence-contained tag (0700,0300) which
         // has a massive value length which goes past the file contents.
-        TagStop::AfterBytePos(6484),
+        ParseStop::AfterBytePos(6484),
     )?;
 
     let ref_sop_class_uid_elem: &DicomElement = dcmroot

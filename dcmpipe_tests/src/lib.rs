@@ -11,7 +11,7 @@ use dcmpipe_lib::core::read::{
 };
 
 use dcmpipe_lib::core::read::util::parse_into_object;
-use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::defn::tag::Tag;
 
 #[cfg(test)]
@@ -23,18 +23,18 @@ mod parsing;
 
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
-    parse_file_with_tagstop(path, with_std, TagStop::EndOfDataset)
+    parse_file_with_parsestop(path, with_std, ParseStop::EndOfDataset)
 }
 
-/// Parses the given file into a `DicomObject` using the given tagstop
-pub fn parse_file_with_tagstop(
+/// Parses the given file into a `DicomObject` using the given parsestop
+pub fn parse_file_with_parsestop(
     path: &str,
     with_std: bool,
-    tagstop: TagStop,
+    stop: ParseStop,
 ) -> Result<DicomRoot<'_>> {
     let file: File = File::open(path)?;
 
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default().tagstop(tagstop);
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default().stop(stop);
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }

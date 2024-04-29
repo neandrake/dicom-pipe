@@ -16,7 +16,7 @@ use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
-use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::defn::tag::Tag;
 
 use crate::app::CommandApplication;
@@ -91,7 +91,7 @@ impl IndexApp {
         let walkdir = WalkDir::new(&folder).into_iter().filter_map(|e| e.ok());
 
         let parser_builder: ParserBuilder<'_> = ParserBuilder::default()
-            .tagstop(TagStop::BeforeTag(tags::PixelData.tag.into()))
+            .stop(ParseStop::BeforeTag(tags::PixelData.tag.into()))
             .dictionary(&STANDARD_DICOM_DICTIONARY);
         for entry in walkdir {
             if !entry.metadata()?.file_type().is_file() {

@@ -4,7 +4,7 @@ use super::parser::ParseState;
 use super::parser::Parser;
 use crate::core::charset::DEFAULT_CHARACTER_SET;
 use crate::core::read::ds::dataset::Dataset;
-use crate::core::tagstop::TagStop;
+use crate::core::read::stop::ParseStop;
 use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use crate::defn::constants::ts;
 use crate::defn::dcmdict::DicomDictionary;
@@ -13,8 +13,8 @@ use crate::defn::dcmdict::DicomDictionary;
 pub struct ParserBuilder<'dict> {
     /// Initial parse state. Default is `ParseState::DetectState`.
     state: Option<ParseState>,
-    /// When to stop parsing the dataset. Default is `TagStop::EndOfDataset`.
-    tagstop: Option<TagStop>,
+    /// When to stop parsing the dataset. Default is `ParseStop::EndOfDataset`.
+    stop: Option<ParseStop>,
     /// The `DicomDictionary` to be used when parsing elements. Default is `MinimalDicomDictionary`.
     dictionary: &'dict dyn DicomDictionary,
     /// The dataset will be wrapped in a `BufReader`, this lets the buffere size be set.
@@ -22,9 +22,9 @@ pub struct ParserBuilder<'dict> {
 }
 
 impl<'dict> ParserBuilder<'dict> {
-    /// Sets the `TagStop` for when to stop parsing the dataset.
-    pub fn tagstop(mut self, tagstop: TagStop) -> Self {
-        self.tagstop = Some(tagstop);
+    /// Sets the `ParseStop` for when to stop parsing the dataset.
+    pub fn stop(mut self, stop: ParseStop) -> Self {
+        self.stop = Some(stop);
         self
     }
 
@@ -47,7 +47,7 @@ impl<'dict> ParserBuilder<'dict> {
     pub fn build<DatasetType: Read>(&self, dataset: DatasetType) -> Parser<'dict, DatasetType> {
         Parser {
             dataset: Dataset::new(dataset, self.buffsize),
-            tagstop: self.tagstop.clone().unwrap_or(TagStop::EndOfDataset),
+            stop: self.stop.clone().unwrap_or(ParseStop::EndOfDataset),
             dictionary: self.dictionary,
             state: self
                 .state
@@ -76,7 +76,7 @@ impl<'dict> Default for ParserBuilder<'dict> {
     fn default() -> Self {
         ParserBuilder {
             state: None,
-            tagstop: None,
+            stop: None,
             dictionary: &MINIMAL_DICOM_DICTIONARY,
             // BufReader's current default buffer size is 8k
             buffsize: 8 * 1024,

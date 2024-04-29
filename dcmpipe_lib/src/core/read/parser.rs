@@ -7,7 +7,7 @@ use crate::core::dcmsqelem::SequenceElement;
 use crate::core::read;
 use crate::core::read::ds::dataset::Dataset;
 use crate::core::read::error::ParseError;
-use crate::core::tagstop::TagStop;
+use crate::core::read::stop::ParseStop;
 use crate::defn::constants::{tags, ts};
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::tag::Tag;
@@ -56,7 +56,7 @@ pub struct Parser<'dict, DatasetType: Read> {
 
     /// The condition under which this iterator should stop parsing elements from the dataset. This
     /// can be used for only partially parsing through a dataset.
-    pub(crate) tagstop: TagStop,
+    pub(crate) stop: ParseStop,
 
     /// The DICOM dictionary. Parsing uses `get_ts_by_uid` to identify transfer syntax for parsing
     /// through the stream, and `get_tag_by_number` for resolving VR of parsed elements. The VR is
@@ -96,10 +96,10 @@ pub struct Parser<'dict, DatasetType: Read> {
 
     /// This is the element tag currently being read from the dataset. It will be `Some` once the
     /// element starts parsing and will be `None` after the element has completed parsing. Elements
-    /// may be partially parsed either due to parsing errors or `TagStop`. This is used regularly
+    /// may be partially parsed either due to parsing errors or `ParseStop`. This is used regularly
     /// through all element parsing as a means of "peeking" what tag is next, particularly for
-    /// checking `self.tagstop` for when to stop parsing. This is done in the case of wanting to
-    /// parse all tags up to a commonly large tag such as `PixelData`.
+    /// checking `self.stop` for when to stop parsing. This is done in the case of wanting to parse
+    /// all tags up to a commonly large tag such as `PixelData`.
     pub(crate) partial_tag: Option<u32>,
 
     /// This is the element's VR read from the dataset when in `ParseState::DetectState`. This will
@@ -195,24 +195,24 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         &self.dicom_prefix
     }
 
-    /// Checks if the stream should stop being parsed based on `self.tagstop`. This should be
-    /// checked after parsing a tag number from the dataset.
-    fn is_at_tag_stop(&self) -> bool {
-        match &self.tagstop {
-            TagStop::EndOfDataset => false,
-            TagStop::BeforeTag(tagpath) => TagStop::eval_tagpath(
+    /// Checks if the stream should stop being parsed based on `self.stop`. This should be checked
+    /// after parsing a tag number from the dataset.
+    fn is_at_parse_stop(&self) -> bool {
+        match &self.stop {
+            ParseStop::EndOfDataset => false,
+            ParseStop::BeforeTag(tagpath) => ParseStop::eval_tagpath(
                 tagpath,
                 &self.current_path,
                 self.tag_last_read,
                 |(to_check, current)| current >= to_check,
             ),
-            TagStop::AfterTag(tagpath) => TagStop::eval_tagpath(
+            ParseStop::AfterTag(tagpath) => ParseStop::eval_tagpath(
                 tagpath,
                 &self.current_path,
                 self.tag_last_read,
                 |(to_check, current)| current > to_check,
             ),
-            TagStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
+            ParseStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
         }
     }
 
@@ -803,7 +803,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     fn iterate_group_length(&mut self) -> Result<Option<DicomElement>> {
         let ts: TSRef = self.detected_ts;
         let tag: u32 = self.read_tag(ts)?;
-        if self.is_at_tag_stop() {
+        if self.is_at_parse_stop() {
             return Ok(None);
         }
 
@@ -845,7 +845,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         let tag: u32 = self.read_tag(&ts::ExplicitVRLittleEndian)?;
-        if self.is_at_tag_stop() {
+        if self.is_at_parse_stop() {
             return Ok(None);
         }
 
@@ -897,7 +897,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         let tag: u32 = self.read_tag(ts)?;
-        if self.is_at_tag_stop() {
+        if self.is_at_parse_stop() {
             return Ok(None);
         }
 

@@ -1,7 +1,7 @@
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
-use dcmpipe_lib::core::tagstop::TagStop;
+use dcmpipe_lib::core::read::stop::ParseStop;
 
 pub struct MockDicomDataset {
     pub data: Vec<u8>,
@@ -11,9 +11,9 @@ pub struct MockDicomDataset {
 impl MockDicomDataset {
     fn create_parser(
         mockup: MockDicomDataset,
-        tagstop: TagStop,
+        tagstop: ParseStop,
     ) -> Parser<'static, MockDicomDataset> {
-        ParserBuilder::default().tagstop(tagstop).build(mockup)
+        ParserBuilder::default().stop(tagstop).build(mockup)
     }
 
     pub fn standard_dicom_preamble() -> Parser<'static, MockDicomDataset> {
@@ -28,7 +28,7 @@ impl MockDicomDataset {
             },
             pos: 0,
         };
-        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
+        MockDicomDataset::create_parser(mockup, ParseStop::EndOfDataset)
     }
 
     pub fn invalid_dicom_prefix() -> Parser<'static, MockDicomDataset> {
@@ -43,7 +43,7 @@ impl MockDicomDataset {
             },
             pos: 0,
         };
-        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
+        MockDicomDataset::create_parser(mockup, ParseStop::EndOfDataset)
     }
 
     pub fn nonzero_preamble() -> Parser<'static, MockDicomDataset> {
@@ -58,7 +58,7 @@ impl MockDicomDataset {
             },
             pos: 0,
         };
-        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
+        MockDicomDataset::create_parser(mockup, ParseStop::EndOfDataset)
     }
 
     pub fn standard_dicom_preamble_diff_startpos_and_short_dataset(
@@ -74,7 +74,7 @@ impl MockDicomDataset {
             },
             pos: 131,
         };
-        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
+        MockDicomDataset::create_parser(mockup, ParseStop::EndOfDataset)
     }
 
     pub fn standard_dicom_header_bad_explicit_vr() -> Parser<'static, MockDicomDataset> {
@@ -112,7 +112,7 @@ impl MockDicomDataset {
             ],
             pos: 0,
         };
-        MockDicomDataset::create_parser(mockup, TagStop::EndOfDataset)
+        MockDicomDataset::create_parser(mockup, ParseStop::EndOfDataset)
     }
 }
 

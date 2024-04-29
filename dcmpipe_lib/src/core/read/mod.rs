@@ -12,4 +12,5 @@ pub(crate) mod ds;
 pub mod error;
 pub mod iter;
 pub mod parser;
+pub mod stop;
 pub mod util;
