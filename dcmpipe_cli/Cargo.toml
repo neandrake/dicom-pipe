@@ -6,9 +6,9 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-bson = "2.4"
-clap = { version = "4.0", features = ["derive"] }
-crossterm = "0.25"
+bson = "2.5"
+clap = { version = "4.1", features = ["derive"] }
+crossterm = "0.26"
 cursive = { version = "0.20", default-features = false, features = ["crossterm-backend"] }
 cursive_table_view = "0.14"
 dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
