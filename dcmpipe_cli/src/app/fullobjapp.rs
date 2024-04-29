@@ -1,7 +1,7 @@
 use crate::app::render_element;
 use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::DicomObject;
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmreader::parse_stream;
 use dcmpipe_lib::defn::ts::TSRef;
@@ -43,8 +43,8 @@ impl FullObjApp {
             parser.get_ts().uid.ident).as_ref()
         )?;
 
-        let dcmobj: DicomObject = parse_stream(&mut parser)?;
-        let obj_iter: Iter<u32, DicomObject> = dcmobj.iter();
+        let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+        let obj_iter: Iter<u32, DicomObject> = dcmroot.iter();
         self.render_objects(obj_iter, true, parser.get_ts(), &mut stdout)?;
         Ok(())
     }
@@ -57,9 +57,7 @@ impl FullObjApp {
         stdout: &mut StdoutLock,
     ) -> Result<(), Error> {
         for (tag, obj) in obj_iter {
-            let elem: &DicomElement = obj.as_element().ok_or_else(|| {
-                Error::new(ErrorKind::InvalidData, "DicomObject is not also element")
-            })?;
+            let elem: &DicomElement = obj.as_element();
 
             if prev_was_file_meta && *tag > 0x0002_FFFF {
                 stdout.write_all(
@@ -77,7 +75,7 @@ impl FullObjApp {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
             }
 
-            if obj.get_object_count() > 0 {
+            if obj.get_child_count() > 0 {
                 self.render_objects(obj.iter(), prev_was_file_meta, ts, stdout)?;
             }
         }

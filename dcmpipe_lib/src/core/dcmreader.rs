@@ -1,13 +1,11 @@
 use crate::core::dcmelement::DicomElement;
-use crate::core::dcmobject::DicomObject;
+use crate::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use crate::core::dcmparser::Parser;
 use crate::defn::constants::tags;
 use std::io::{Error, Read};
 
-pub fn parse_stream<StreamType: Read>(
-    parser: &mut Parser<StreamType>,
-) -> Result<DicomObject, Error> {
-    let mut root: DicomObject = DicomObject::new_root();
+pub fn parse_stream<StreamType: Read>(parser: &mut Parser<StreamType>) -> Result<DicomRoot, Error> {
+    let mut root: DicomRoot = DicomRoot::default();
     if let Some(Err(e)) = parse_stream_recurse(parser, &mut root) {
         return Err(e);
     }
@@ -16,7 +14,7 @@ pub fn parse_stream<StreamType: Read>(
 
 fn parse_stream_recurse<StreamType: Read>(
     parser: &mut Parser<StreamType>,
-    parent: &mut DicomObject,
+    parent: &mut impl DicomNode,
 ) -> Option<Result<DicomElement, Error>> {
     let mut prev_seq_path_len: usize = 0;
     let mut next_element: Option<Result<DicomElement, Error>> = parser.next();
@@ -34,15 +32,13 @@ fn parse_stream_recurse<StreamType: Read>(
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.
         let dcmobj: DicomObject = if element.is_seq_like() || element.tag == tags::ITEM {
-            let mut object: DicomObject = DicomObject::new_with_element(element);
+            let mut object: DicomObject = DicomObject::new(element);
             possible_next_elem = parse_stream_recurse(parser, &mut object);
             object
         } else {
-            DicomObject::new_with_element(element)
+            DicomObject::new(element)
         };
-        if let Err(e) = parent.put_object(dcmobj) {
-            return Some(Err(e));
-        }
+        parent.insert_child(dcmobj);
 
         prev_seq_path_len = cur_seq_path_len;
 

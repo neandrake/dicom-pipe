@@ -5,7 +5,7 @@ use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::DicomObject;
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{
     ParseState, Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
@@ -103,7 +103,7 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
     assert_eq!(parser.get_parser_state(), ParseState::FileMeta);
 
     while let Some(_) = parser.next() {
-        // read elements while iterator returns non-None
+        // read through the entire stream
     }
 
     assert_eq!(parser.get_parser_state(), ParseState::Element);
@@ -145,14 +145,12 @@ fn test_dicom_object(with_std: bool) -> Result<(), Error> {
     }
     let mut parser: Parser<File> = parser.build();
 
-    let dcmobj: DicomObject = parse_stream(&mut parser)?;
-    let sop_class_uid: &DicomObject = dcmobj
-        .get_object(tags::SOPClassUID.tag)
+    let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+    let sop_class_uid: &DicomObject = dcmroot
+        .get_child(tags::SOPClassUID.tag)
         .expect("Should have SOP Class UID");
 
-    let element: &DicomElement = sop_class_uid
-        .as_element()
-        .expect("Element should exist for SOP Class UID");
+    let element: &DicomElement = sop_class_uid.as_element();
 
     assert_eq!(
         element.parse_string_with_vr(&vr::UI)?,
@@ -176,34 +174,27 @@ fn test_empty_seq_undefined_length_without_std() -> Result<(), Error> {
 /// elements defined with `UndefinedLength` and contain no data - the first element they have as
 /// contents are `SequenceDelimitationItem` which ends the sequence.
 fn test_empty_seq_undefined_length(with_std: bool) -> Result<(), Error> {
-    let (_parser, dcmobj) = parse_file(
+    let (_parser, dcmroot) = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm",
         with_std,
     )?;
 
-    let rss_obj: &DicomObject = dcmobj
-        .get_object(tags::ReferencedStudySequence.tag)
+    let rss_obj: &DicomObject = dcmroot
+        .get_child(tags::ReferencedStudySequence.tag)
         .expect("Should be able to parse ReferencedStudySequence");
-
-    let rss_elem: &DicomElement = rss_obj
-        .as_element()
-        .expect("Should be able to access rss as element");
-
-    assert_eq!(rss_elem.vl, ValueLength::UndefinedLength);
-
     // does contain a child item which is the delimitation item
-    assert_eq!(rss_obj.get_object_count(), 1);
+    assert_eq!(rss_obj.get_child_count(), 1);
+
+    let rss_elem: &DicomElement = rss_obj.as_element();
+    assert_eq!(rss_elem.vl, ValueLength::UndefinedLength);
 
     let sdi_pair: (&u32, &DicomObject) = rss_obj
         .iter()
         .next()
         .expect("Should be able to get single child item");
-
     assert_eq!(*sdi_pair.0, tags::SequenceDelimitationItem.tag);
-    let sdi_elem: &DicomElement = sdi_pair
-        .1
-        .as_element()
-        .expect("Should be able to access as element");
+
+    let sdi_elem: &DicomElement = sdi_pair.1.as_element();
     assert_eq!(sdi_elem.tag, tags::SequenceDelimitationItem.tag);
 
     Ok(())
@@ -222,44 +213,38 @@ fn test_private_tag_un_sq_without_std() -> Result<(), Error> {
 /// Private tags with UN VR and UndefinedLength should be parsed as sequences. This file uses tags
 /// which are not known to the dictionaries we're parsing with.
 fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
-    let (_parser, dcmobj) =
+    let (_parser, dcmroot) =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm", with_std)?;
 
-    let private_un_seq_obj: &DicomObject = dcmobj
-        .get_object(tags::SharedFunctionalGroupsSequence.tag)
+    let private_un_seq_obj: &DicomObject = dcmroot
+        .get_child(tags::SharedFunctionalGroupsSequence.tag)
         .expect("Fixture should have this this tag")
         .iter()
         .next()
         .expect("This sequence should have 1 sequence item")
         .1
-        .get_object(0x2005_140E)
+        .get_child(0x2005_140E)
         .expect("This sequence should have private element as child");
+    assert_eq!(private_un_seq_obj.get_child_count(), 1);
 
-    let private_un_seq_elem: &DicomElement = private_un_seq_obj
-        .as_element()
-        .expect("Should be able to get private un seq as element");
-
+    let private_un_seq_elem: &DicomElement = private_un_seq_obj.as_element();
     assert_eq!(private_un_seq_elem.vr, &vr::UN);
     assert_eq!(private_un_seq_elem.vl, ValueLength::UndefinedLength);
     assert_eq!(private_un_seq_elem.is_seq_like(), true);
     assert_eq!(private_un_seq_elem.get_data().len(), 0);
-    assert_eq!(private_un_seq_obj.get_object_count(), 1);
 
     let child_obj: &DicomObject = private_un_seq_obj
         .iter()
         .next()
         .expect("Private sequence should have one item")
         .1;
-
     // The first item has 28 elements
-    assert_eq!(child_obj.get_object_count(), 28);
+    assert_eq!(child_obj.get_child_count(), 28);
 
     let sopuid: &DicomElement = child_obj
-        .get_object(tags::SOPClassUID.tag)
+        .get_child(tags::SOPClassUID.tag)
         .expect("Should have SOPClassUID child element")
-        .as_element()
-        .expect("Should be able to get child element as element");
-
+        .as_element();
     assert_eq!(sopuid.parse_string()?, uids::MRImageStorage.uid);
 
     Ok(())
@@ -278,23 +263,18 @@ fn test_seq_switch_to_ivrle_without_std() -> Result<(), Error> {
 /// `SequenceDelimitationItem`, `Item`, and `ItemDelimitationItem` are always encoded as IVRLE
 /// despite what the transfer syntax is.
 fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
-    let (parser, dcmobj) = parse_file(
+    let (parser, dcmroot) = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
         with_std,
     )?;
-
     assert_eq!(parser.get_ts(), &ts::ExplicitVRBigEndian);
 
-    let sis_obj: &DicomObject = dcmobj
-        .get_object(tags::SourceImageSequence.tag)
+    let sis_obj: &DicomObject = dcmroot
+        .get_child(tags::SourceImageSequence.tag)
         .expect("Should have Source Image Sequence");
+    assert_eq!(sis_obj.get_child_count(), 1);
 
-    assert_eq!(sis_obj.get_object_count(), 1);
-
-    let sis_elem: &DicomElement = sis_obj
-        .as_element()
-        .expect("Should be able to get element for Source Image Sequence");
-
+    let sis_elem: &DicomElement = sis_obj.as_element();
     assert_eq!(sis_elem.get_ts(), &ts::ImplicitVRLittleEndian);
 
     let item_obj: &DicomObject = sis_obj
@@ -302,18 +282,14 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
         .next()
         .expect("Should be able to get child object")
         .1;
+    assert_eq!(item_obj.get_child_count(), 2);
 
-    assert_eq!(item_obj.get_object_count(), 2);
-
-    let item_elem: &DicomElement = item_obj
-        .as_element()
-        .expect("Should be able to get child element");
-
+    let item_elem: &DicomElement = item_obj.as_element();
     assert_eq!(item_elem.tag, tags::Item.tag);
     assert_eq!(item_elem.get_ts(), &ts::ImplicitVRLittleEndian);
 
     for (_tag, inner_obj) in item_obj.iter() {
-        let elem: &DicomElement = inner_obj.as_element().expect("Get inner object element");
+        let elem: &DicomElement = inner_obj.as_element();
         // This assertion seems wrong (should be EVRBE) based on Part 5, Section 7.5 --
         // However, the Data Set within the Value Field of the Data Element Item (FFFE,E000) shall
         // be encoded according to the rules conveyed by the Transfer Syntax.
@@ -360,8 +336,8 @@ fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     }
 
     // parse the rest of the stream into an object
-    let dcm_obj: DicomObject = parse_stream(&mut parser)?;
-    assert_eq!(dcm_obj.get_object_count(), 32);
+    let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+    assert_eq!(dcmroot.get_child_count(), 32);
     Ok(())
 }
 
@@ -377,31 +353,28 @@ fn test_undefined_charset_without_std() -> Result<(), Error> {
 
 /// This file has no Specific Character Set defined and tests the behavior of parsing string values.
 fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
-    let (_parser, dcmobj) = parse_file(
+    let (_parser, dcmroot) = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/UndefinedValueLengthIllegalNonEncapsulatedTS.dcm",
         with_std,
     )?;
 
-    let scs_elem: &DicomElement = dcmobj
-        .get_object(tags::SpecificCharacterSet.tag)
+    let scs_elem: &DicomElement = dcmroot
+        .get_child(tags::SpecificCharacterSet.tag)
         .expect("Should have Specific Character Set")
-        .as_element()
-        .expect("Should get SCS as element");
+        .as_element();
     assert!(scs_elem.is_empty());
 
-    let pat_name: &DicomElement = dcmobj
-        .get_object(tags::PatientsName.tag)
+    let pat_name: &DicomElement = dcmroot
+        .get_child(tags::PatientsName.tag)
         .expect("Should have Patient Name")
-        .as_element()
-        .expect("Should get PN as element");
+        .as_element();
     let pn: String = pat_name.parse_string()?;
     assert_eq!(pn, "6063^Anon17216");
 
-    let pat_com: &DicomElement = dcmobj
-        .get_object(tags::PatientComments.tag)
+    let pat_com: &DicomElement = dcmroot
+        .get_child(tags::PatientComments.tag)
         .expect("Should have Patient Comments")
-        .as_element()
-        .expect("Should get Patient Comments as element");
+        .as_element();
 
     let pc: String = pat_com.parse_string()?;
     let pc_expected: String = String::from_utf8(vec![0,0,0,0,0,0,0,0,0,0,0,0])
@@ -423,7 +396,7 @@ fn test_rle_without_std() -> Result<(), Error> {
 
 /// This file is RLE encoded. Eventually test the data can be decompressed properly.
 fn test_rle(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmobj) = parse_file(
+    let (_parser, _dcmroot) = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_RLE_FRAGS.dcm",
         with_std,
     )?;
@@ -442,7 +415,7 @@ fn test_deflated_evrle_without_std() -> Result<(), Error> {
 }
 
 fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
-    let (_parser, _dcmobj) =
+    let (_parser, _dcmroot) =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
     Ok(())
@@ -469,15 +442,15 @@ fn test_parse_all_dicom_files_without_std() -> Result<(), Error> {
 }
 
 /// Parses the given file into a `DicomObject`
-fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomObject), Error> {
+fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomRoot), Error> {
     let file: File = File::open(path)?;
     let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
     if with_std {
         parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
     }
     let mut parser: Parser<File> = parser.build();
-    let dcmobj: DicomObject = parse_stream(&mut parser)?;
-    Ok((parser, dcmobj))
+    let dcmroot: DicomRoot = parse_stream(&mut parser)?;
+    Ok((parser, dcmroot))
 }
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
