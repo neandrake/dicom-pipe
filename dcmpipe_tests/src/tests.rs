@@ -288,10 +288,25 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
     let sis_obj: &DicomObject = dcmroot
         .get_child(tags::SourceImageSequence.tag)
         .expect("Should have Source Image Sequence");
-    assert_eq!(sis_obj.get_child_count(), 1);
+
+    if with_std {
+        assert_eq!(sis_obj.get_child_count(), 1);
+    } else {
+        // Without standard lookup we won't know the implicit VR for this element and won't know
+        // that it should be parsed as a sequence, so it won't be a parent element.
+        assert_eq!(sis_obj.get_child_count(), 0);
+    }
 
     let sis_elem: &DicomElement = sis_obj.as_element();
-    assert_eq!(sis_elem.get_ts(), &ts::ImplicitVRLittleEndian);
+    if with_std {
+        // Should be switched to IVRLE during parse just for this element
+        assert_eq!(sis_elem.get_ts(), &ts::ImplicitVRLittleEndian);
+    } else {
+        // If not parsed as sequence then it should have the same TS as the parsed file
+        assert_eq!(sis_elem.get_ts(), parser.get_ts());
+        // Nothing else to test in this case
+        return Ok(());
+    }
 
     let item_obj: &DicomObject = sis_obj
         .iter()
@@ -378,8 +393,18 @@ fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
         .get_child(tags::PatientsName.tag)
         .expect("Should have Patient Name")
         .as_element();
+
     let pn: String = pat_name.parse_string()?;
-    assert_eq!(pn, "6063^Anon17216");
+    if with_std {
+        assert_eq!(pn, "6063^Anon17216");
+    } else {
+        // The patient name won't be trimmed because without knowing it's a PN element the padding
+        // isn't considered in parsing.
+        assert_eq!(pn, "6063^Anon17216      ");
+        // Forcing the parse using a specific VR should trim the value though
+        let pn: String = pat_name.parse_string_with_vr(&vr::PN)?;
+        assert_eq!(pn, "6063^Anon17216");
+    }
 
     let pat_com: &DicomElement = dcmroot
         .get_child(tags::PatientComments.tag)
