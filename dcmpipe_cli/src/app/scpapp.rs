@@ -16,25 +16,17 @@
 
 use crate::{app::CommandApplication, args::SvcProviderArgs, threadpool::ThreadPool};
 use anyhow::Result;
-use bson::{doc, Document};
 use dcmpipe_lib::{
     core::{
-        charset::DEFAULT_CHARACTER_SET,
-        dcmelement::DicomElement,
         dcmobject::DicomRoot,
         defn::{
             constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
             dcmdict::DicomDictionary,
-            tag::Tag,
-            ts::TSRef,
-            vr::UN,
         },
         read::{ParserBuilder, ParserState},
-        RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{AffectedSOPClassUID, MessageID, PatientID, PatientsName, QueryRetrieveLevel},
         uids::{
             CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
             NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
@@ -46,20 +38,21 @@ use dcmpipe_lib::{
     },
     dimse::{
         assoc::{Association, AssociationBuilder, DimseMsg},
-        commands::{messages::CommandMessage, CommandStatus, CommandType},
-        error::{AssocError, DimseError},
+        commands::CommandType,
+        error::{AssocError, AssocRsp, DimseError},
         pdus::PduType,
         Syntax,
     },
 };
-use mongodb::sync::Collection;
 use std::{
     collections::HashSet,
     io::{BufReader, BufWriter, Cursor, Read, Write},
     net::TcpListener,
 };
 
-use super::indexapp::IndexApp;
+mod cecho;
+mod cfind;
+mod cstore;
 
 pub struct SvcProviderApp {
     args: SvcProviderArgs,
@@ -115,22 +108,15 @@ impl CommandApplication for SvcProviderApp {
                 .accept_ts(accept_ts.clone())
                 .build();
             pool.execute(move || {
-                let bufread = BufReader::new(&stream);
-                let bufwrite = BufWriter::new(&stream);
-                let coll = if let Some(db) = db {
-                    IndexApp::get_dicom_coll(db).ok()
-                } else {
-                    None
+                let reader = BufReader::new(&stream);
+                let writer = BufWriter::new(&stream);
+                let mut assoc_dev = AssociationDevice {
+                    assoc,
+                    reader,
+                    writer,
+                    db,
                 };
-
-                let mut assoc_dev = AssociationDevice::new(assoc, bufread, bufwrite, coll);
-                match assoc_dev.start() {
-                    Ok(DimseMsg::Cancel) => println!("[info <-]: {:?}", CommandType::CCancelReq),
-                    Ok(DimseMsg::ReleaseRQ) => println!("[info <-]: {:?}", PduType::ReleaseRQ),
-                    Ok(DimseMsg::Abort(ab)) => println!("[warn <-]: {}", ab.get_reason_desc()),
-                    Ok(other) => eprintln!("Unexpected ending: {other:?}"),
-                    Err(e) => eprintln!("[ err ><]: {e}"),
-                }
+                assoc_dev.start();
             })?;
         }
         Ok(())
@@ -141,22 +127,32 @@ struct AssociationDevice<R: Read, W: Write> {
     assoc: Association,
     reader: R,
     writer: W,
-    coll: Option<Collection<Document>>,
+    db: Option<String>,
 }
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    fn new(assoc: Association, reader: R, writer: W, coll: Option<Collection<Document>>) -> Self {
-        Self {
-            assoc,
-            reader,
-            writer,
-            coll,
+    fn start(&mut self) {
+        match self.main_loop() {
+            Ok(DimseMsg::ReleaseRQ) => println!("[info <-]: {:?}", PduType::ReleaseRQ),
+            Ok(DimseMsg::Abort(ab)) => println!("[warn <-]: {}", ab.get_reason_desc()),
+            Ok(other) => eprintln!("[ err xx]: Unexpected ending state: {other:?}"),
+            Err(e) => {
+                eprintln!("[ err ><]: {e}");
+                match e.rsp() {
+                    Some(AssocRsp::RJ(rj)) => println!("[info ->]: {:?}", rj.pdu_type()),
+                    Some(AssocRsp::AB(ab)) => println!("[info ->]: {:?}", ab.pdu_type()),
+                    None => {}
+                }
+                if let Err(inner) = e.write(&mut self.writer) {
+                    eprintln!("[ err xx]: Failure writing error response: {inner}");
+                }
+            }
         }
     }
 
-    fn start(&mut self) -> Result<DimseMsg, AssocError> {
-        self.assoc.accept(&mut self.reader, &mut self.writer)?;
+    fn main_loop(&mut self) -> Result<DimseMsg, AssocError> {
         println!("[info <-]: {:?}", PduType::AssocRQ);
+        self.assoc.accept(&mut self.reader, &mut self.writer)?;
         println!("[info ->]: {:?}", PduType::AssocAC);
 
         loop {
@@ -168,9 +164,6 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                         "Received DICOM dataset without prior Command.".to_string(),
                     )));
                 }
-                // Cancel won't actually get thrown from here as it's a CommandType and not
-                // PduType.
-                DimseMsg::Cancel => continue,
                 DimseMsg::ReleaseRQ => return Ok(DimseMsg::ReleaseRQ),
                 DimseMsg::Abort(ab) => return Ok(DimseMsg::Abort(ab)),
             };
@@ -193,6 +186,9 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 })?;
 
             if cmd.cmd_type() == &CommandType::CCancelReq {
+                // TODO: After implementing async PDU handling this should cancel in-flight
+                // operations.
+                println!("[warn <-]: {:?}", CommandType::CCancelReq);
                 continue;
             }
 
@@ -204,30 +200,20 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 continue;
             }
 
-            let mut buffer = Vec::<u8>::new();
-            let mut all_read = false;
-            while !all_read {
-                let dcm_msg = self.assoc.next_msg(&mut self.reader, &mut self.writer)?;
-                let DimseMsg::Dataset(pdv) = dcm_msg else {
-                    return Err(AssocError::ab_failure(DimseError::GeneralError(
-                        "Expected DICOM dataset".to_string(),
-                    )));
-                };
-
-                all_read = pdv.is_last_fragment();
-                buffer.append(&mut pdv.into_data());
-            }
+            let mut buffer = Cursor::new(Vec::<u8>::new());
+            self.read_dataset(&mut buffer)?;
+            buffer.set_position(0);
 
             let mut dcm_parser = ParserBuilder::default()
                 .dataset_ts(ts)
                 .state(ParserState::ReadElement)
-                .build(Cursor::new(buffer), &STANDARD_DICOM_DICTIONARY);
+                .build(buffer, &STANDARD_DICOM_DICTIONARY);
 
             let dcm = DicomRoot::parse(&mut dcm_parser)
                 .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
                 .ok_or_else(|| {
                     AssocError::ab_failure(DimseError::GeneralError(
-                        "Expected DICOM dataset".to_string(),
+                        "Parsing DICOM dataset failed".to_string(),
                     ))
                 })?;
 
@@ -241,171 +227,27 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         }
     }
 
-    fn handle_c_echo_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
-        let end_rsp = Association::create_cecho_end(cmd.ctx_id(), cmd.msg_id(), &aff_sop_class)?;
-        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
-        Ok(())
-    }
-
-    fn handle_c_find_req(
-        &mut self,
-        cmd: &CommandMessage,
-        dcm: &DicomRoot,
-    ) -> Result<(), AssocError> {
-        /* TODO: Execute Search on Query */
-        let results = if let Some(coll) = &self.coll {
-            let mut query = Document::new();
-            let mut include_keys: Vec<u32> = Vec::new();
-            for elem in dcm.flatten() {
-                if elem.tag() == QueryRetrieveLevel.tag() {
-                    continue;
-                }
-                let elem_key = IndexApp::tag_to_key(elem.tag());
-                include_keys.push(elem.tag());
-                if !elem.is_empty() {
-                    let val = elem
-                        .parse_value()
-                        .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-                    if let Some(string) = val.string() {
-                        let string = string.replace(['*', '/', '\\', '^'], "");
-                        let regex = doc! {
-                                "$regex": string,
-                                "$options": "i",
-                        };
-                        query.insert(elem_key, regex);
-                    }
-                }
-            }
-
-            let query_results = IndexApp::query_docs(coll, Some(query))
-                .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
-
-            let mut dcm_results: Vec<DicomRoot> = Vec::new();
-            for result in query_results {
-                let mut res_root = DicomRoot::new_empty(dcm.ts(), dcm.cs());
-                for key in &include_keys {
-                    let tag = *key;
-                    let key = IndexApp::tag_to_key(tag);
-
-                    let vr = STANDARD_DICOM_DICTIONARY
-                        .get_tag_by_number(tag)
-                        .and_then(Tag::implicit_vr)
-                        .unwrap_or(&UN);
-                    let mut res_elem = DicomElement::new_empty(tag, vr, dcm.ts());
-                    if let Some(value) = result.doc().get(key) {
-                        if let Some(string) = value.as_str() {
-                            res_elem
-                                .encode_val(RawValue::of_string(string))
-                                .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-                        } else if let Some(int) = value.as_i32() {
-                            res_elem
-                                .encode_val(RawValue::of_int(int))
-                                .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-                        } else if let Some(long) = value.as_i64() {
-                            res_elem
-                                .encode_val(RawValue::of_long(long))
-                                .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-                        } else if let Some(double) = value.as_f64() {
-                            res_elem
-                                .encode_val(RawValue::of_double(double))
-                                .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-                        }
-                    }
-                    if !res_elem.is_empty() {
-                        res_root.add_element(res_elem);
-                    }
-                }
-                if res_root.get_child_count() > 0 {
-                    dcm_results.push(res_root);
-                }
-            }
-            dcm_results
-        } else {
-            AssociationDevice::<R, W>::create_dummy_results(dcm, dcm.ts())
-        };
-
-        let ctx_id = cmd.ctx_id();
-        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
-
-        for result in results {
-            let res_rsp =
-                Association::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
-            self.assoc.write_pdu(&res_rsp.0, &mut self.writer)?;
-            self.assoc.write_pdu(&res_rsp.1, &mut self.writer)?;
-        }
-
-        let end_rsp = Association::create_cfind_end(ctx_id, msg_id, &aff_sop_class)?;
-        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
-
-        Ok(())
-    }
-
-    fn create_dummy_results(query: &DicomRoot, ts: TSRef) -> Vec<DicomRoot> {
-        let q_pid = query
-            .get_value_by_tag(&PatientID)
-            .and_then(|v| v.string().cloned())
-            .unwrap_or_default();
-        let q_name = query
-            .get_value_by_tag(&PatientsName)
-            .and_then(|v| v.string().cloned())
-            .unwrap_or_default();
-
-        let mut results = Vec::<DicomRoot>::new();
-        for patient in [
-            ("477-0101", "SNOW^JON"),
-            ("477-0183", "STARK^ROB"),
-            ("212-0309", "MARTELL^OBERYN"),
-        ] {
-            let pid = patient.0;
-            let name = patient.1;
-
-            let pid_match = if q_pid.is_empty() {
-                false
-            } else {
-                pid.starts_with(&q_pid) || pid.ends_with(&q_pid)
+    /// Continuously reads DICOM `PresentationDataValue` PDUs from the stream and writes the bytes
+    /// to the given writer, stopping after processing the last fragment.
+    ///
+    /// # Errors
+    /// I/O errors may occur reading from `self.reader`, writing a failure response to
+    /// `self.writer`, or writing the DICOM PDV bytes to the given `writer`.
+    pub(crate) fn read_dataset(&mut self, writer: &mut dyn Write) -> Result<(), AssocError> {
+        let mut all_read = false;
+        while !all_read {
+            let dcm_msg = self.assoc.next_msg(&mut self.reader, &mut self.writer)?;
+            let DimseMsg::Dataset(pdv) = dcm_msg else {
+                return Err(AssocError::ab_failure(DimseError::GeneralError(
+                    "Expected DICOM dataset".to_string(),
+                )));
             };
-            let name_match = if q_name.is_empty() {
-                false
-            } else {
-                name.split('^')
-                    .any(|p| p.starts_with(&q_name) || p.ends_with(&q_name))
-            };
-            if !pid_match && !name_match {
-                continue;
-            }
 
-            let mut result = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
-            result.add_child_with_val(&PatientID, RawValue::of_string(pid));
-            result.add_child_with_val(&PatientsName, RawValue::of_string(name));
-            results.push(result);
+            all_read = pdv.is_last_fragment();
+            writer
+                .write_all(pdv.data())
+                .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
         }
-        results
-    }
-
-    fn handle_c_store_req(
-        &mut self,
-        cmd: &CommandMessage,
-        _dcm: &DicomRoot,
-    ) -> Result<(), AssocError> {
-        let ctx_id = cmd.ctx_id();
-        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
-
-        let end_rsp = Association::create_cstore_end(
-            ctx_id,
-            msg_id,
-            &aff_sop_class,
-            &CommandStatus::success(),
-        )?;
-        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
 
         Ok(())
     }

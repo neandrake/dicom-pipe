@@ -51,7 +51,6 @@ use crate::{
 pub enum DimseMsg {
     Cmd(CommandMessage),
     Dataset(PresentationDataValue),
-    Cancel,
     ReleaseRQ,
     Abort(Abort),
 }
@@ -146,12 +145,22 @@ impl Association {
 
         let rq = match rq {
             Ok(rq) => rq,
-            Err(e) => return e.write(&mut writer).map_err(AssocError::error),
+            Err(e) => {
+                if let Err(inner) = e.write(&mut writer) {
+                    eprintln!("[ err xx]: Failure writing error response: {inner}");
+                }
+                return Err(AssocError::error(e.into_err()));
+            }
         };
 
         let assoc_ac = match self.validate_assoc_rq(&rq) {
             Ok(rq) => rq,
-            Err(e) => return e.write(&mut writer).map_err(AssocError::error),
+            Err(e) => {
+                if let Err(inner) = e.write(&mut writer) {
+                    eprintln!("[ err xx]: Failure writing error response: {inner}");
+                }
+                return Err(AssocError::error(e.into_err()));
+            }
         };
 
         for pres_ctx in assoc_ac.pres_ctxs() {

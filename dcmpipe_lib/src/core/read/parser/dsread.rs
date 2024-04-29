@@ -159,7 +159,7 @@ impl<'d, R: Read> Parser<'d, R> {
         // being parsed as more elements.
         let skip_bytes: bool = vr == &SQ || (tag == ITEM && !in_pixeldata) || parse_as_seq;
 
-        //eprintln!("{}", &self.get_debug_str(ts, tag, vr, vl));
+        //eprintln!("{}", &self.current_debug_str());
 
         let bytes: Vec<u8> = if skip_bytes {
             Vec::with_capacity(0)

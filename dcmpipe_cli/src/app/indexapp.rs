@@ -29,6 +29,7 @@ use dcmpipe_lib::{
     core::{
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
+        defn::vr::LT,
         read::{stop::ParseStop, Parser, ParserBuilder},
         RawValue,
     },
@@ -85,9 +86,12 @@ impl CommandApplication for IndexApp {
     fn run(&mut self) -> Result<()> {
         match &self.args.cmd {
             IndexCommand::Scan { folder } => {
+                // Establish connection to mongo first, to avoid scanning a directory only to find
+                // out the connection string was invalid.
+                let dicom_coll: Collection<Document> = Self::get_dicom_coll(&self.args.db)?;
                 let folder = folder.clone();
-                let uid_to_doc: HashMap<String, DicomDoc> = Self::scan_dir(folder)?;
-                Self::upsert_records(&self.args.db, uid_to_doc)?;
+                let uid_to_doc = Self::scan_dir(folder)?;
+                Self::upsert_records(&dicom_coll, uid_to_doc)?;
             }
             IndexCommand::Verify {} => {
                 Self::verify_records(&self.args.db)?;
@@ -102,6 +106,15 @@ impl IndexApp {
         IndexApp { args }
     }
 
+    /// Formats the tag to a hexidecimal representation to be used as keys in mongo documents.
+    pub fn tag_to_key(tag: u32) -> String {
+        let tag_group: u32 = tag >> 16;
+        let tag_elem: u32 = tag & 0x0000_FFFF;
+        format!("{tag_group:04X}{tag_elem:04X}")
+    }
+
+    /// Connects to the mongo database represented by the given connection string and returns the
+    /// collection used for storing DICOM records.
     pub fn get_dicom_coll(db: impl AsRef<str>) -> Result<Collection<Document>> {
         let client: Client = Client::with_uri_str(db.as_ref())
             .with_context(|| format!("Invalid database URI: {}", db.as_ref()))?;
@@ -160,7 +173,8 @@ impl IndexApp {
                 if child_elem.is_sq_like() {
                     // TODO: handle sequences
                 } else {
-                    Self::insert_elem_entry(child_elem, &mut dicom_doc.doc)?;
+                    Self::insert_elem_entry(child_elem, &mut dicom_doc.doc)
+                        .with_context(|| format!("Scan of file {:?}", entry.path()))?;
                 }
             }
         }
@@ -171,9 +185,10 @@ impl IndexApp {
     /// Queries mongo for existing documents and updates `self.uid_to_doc` with a related id field
     /// if appropriate, or marks the document as missing on-disk and then deletes it.
     /// Performs all updates to mongo based on the scan results.
-    fn upsert_records(db: &String, mut uid_to_doc: HashMap<String, DicomDoc>) -> Result<()> {
-        let dicom_coll: Collection<Document> = Self::get_dicom_coll(db)?;
-
+    fn upsert_records(
+        dicom_coll: &Collection<Document>,
+        mut uid_to_doc: HashMap<String, DicomDoc>,
+    ) -> Result<()> {
         let mut serieskeys: Vec<Bson> = Vec::new();
         for key in uid_to_doc.keys() {
             serieskeys.push(Bson::String(key.clone()));
@@ -184,7 +199,7 @@ impl IndexApp {
             }
         };
 
-        for dicom_doc in Self::query_docs(&dicom_coll, Some(query))? {
+        for dicom_doc in Self::query_docs(dicom_coll, Some(query))? {
             if let Some(existing) = uid_to_doc.get_mut(&dicom_doc.key) {
                 existing.id = dicom_doc.id;
             }
@@ -331,18 +346,21 @@ impl IndexApp {
         Ok(doc_iter)
     }
 
-    pub fn tag_to_key(tag: u32) -> String {
-        let tag_group: u32 = tag >> 16;
-        let tag_elem: u32 = tag & 0x0000_FFFF;
-        format!("{tag_group:04X}{tag_elem:04X}")
-    }
-
     /// Builds a bson value from the given `DicomElement` and inserts it into the bson document
     #[allow(clippy::too_many_lines)]
     fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()> {
         let key: String = Self::tag_to_key(elem.tag());
-        let raw_value: RawValue = elem.parse_value()?;
-        match raw_value {
+        let mut raw_value = elem.parse_value();
+
+        // If parsing a value fails then attempt to read it as a string.
+        if let Err(e) = raw_value {
+            raw_value = elem.parse_value_as(&LT);
+            if raw_value.is_err() {
+                return Err(e.into());
+            }
+        }
+
+        match raw_value? {
             RawValue::Attributes(attrs) => {
                 if attrs.len() == 1 {
                     dicom_doc.insert(key, attrs[0].0);
