@@ -10,22 +10,26 @@ pub struct Arguments {
 
 #[derive(StructOpt, Debug)]
 pub enum Command {
-    /// Dump a DICOM dataset
-    ///
-    /// This will display all elements of a dataset, printing to stdout
+    /// Parses a single file and prints the DICOM elements to stdout.
     Dump {
         #[structopt(short, long)]
-        /// Process the dataset as a stream
+        /// Process the dataset as a stream.
         ///
-        /// If not specified then the entire dataset will be loaded into memory prior to display
+        /// If specified, instead of reading the entire dataset into memory will print elements as
+        /// they are parsed.
         stream: bool,
 
-        /// The file to process as a DICOM dataset
+        /// The file to process as a DICOM dataset.
         file: PathBuf,
     },
-    /// Opens a DICOM dataset in a TUI for browsing and editing
+    /// Opens a DICOM dataset in a TUI for browsing and editing.
     Edit {
-        /// The file to process as a DICOM dataset
+        /// The file to process as a DICOM dataset.
         file: PathBuf,
+    },
+    /// Scans a folder recursively for DICOM datasets and prints results of found DICOM.
+    Scan {
+        /// The folder to recursively scan for DICOM datasets.
+        folder: PathBuf,
     },
 }

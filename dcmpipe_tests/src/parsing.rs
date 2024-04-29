@@ -95,12 +95,11 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
     let tagstop: u32 = tags::PixelData.tag;
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
-    let mut parser: ParserBuilder<'_, File> =
-        ParserBuilder::new(file).tagstop(TagStop::BeforeTag(tagstop));
+    let mut parser: ParserBuilder<'_> = ParserBuilder::new().tagstop(TagStop::BeforeTag(tagstop));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let mut parser: Parser<'_, File> = parser.build();
+    let mut parser: Parser<'_, File> = parser.build(file);
 
     assert_eq!(parser.get_parser_state(), ParseState::DetectState);
 
@@ -147,14 +146,15 @@ fn test_dicom_object_without_std() -> Result<(), Error> {
 fn test_dicom_object(with_std: bool) -> Result<(), Error> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
-    let mut parser: ParserBuilder<'_, File> =
-        ParserBuilder::new(file).tagstop(TagStop::BeforeTag(tags::PixelData.tag));
+    let mut parser: ParserBuilder<'_> =
+        ParserBuilder::new().tagstop(TagStop::BeforeTag(tags::PixelData.tag));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let mut parser: Parser<'_, File> = parser.build();
+    let mut parser: Parser<'_, File> = parser.build(file);
 
-    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
+    let dcmroot: DicomRoot<'_> =
+        parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
     let sop_class_uid: &DicomObject = dcmroot
         .get_child(tags::SOPClassUID.tag)
         .expect("Should have SOP Class UID");
@@ -345,11 +345,11 @@ fn test_missing_preamble_without_std() -> Result<(), Error> {
 /// This file has no preamble or file meta - should parse as the DICOM default IVRLE
 fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
-    let mut parser: ParserBuilder<'_, File> = ParserBuilder::new(file);
+    let mut parser: ParserBuilder<'_> = ParserBuilder::new();
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let mut parser: Parser<'_, File> = parser.build();
+    let mut parser: Parser<'_, File> = parser.build(file);
 
     let first_elem: DicomElement = parser.next().expect("First element should be parsable")?;
 
@@ -363,7 +363,8 @@ fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     assert!(parser.get_dicom_prefix().is_none());
 
     // parse the rest of the dataset into an object
-    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
+    let dcmroot: DicomRoot<'_> =
+        parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
     assert_eq!(dcmroot.get_child_count(), 32);
     Ok(())
 }

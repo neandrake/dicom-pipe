@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 phf_codegen = "0.7"
-quick-xml = "0.16"
+quick-xml = "0.18"
 
 [lib]
 name="dcmpipe_dict_builder"

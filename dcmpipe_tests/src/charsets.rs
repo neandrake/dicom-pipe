@@ -16,11 +16,12 @@ use std::io::Error;
 fn test_parse_nested_charset_values() -> Result<(), Error> {
     let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
     let file: File = File::open(path_str)?;
-    let mut parser: Parser<'_, File> = ParserBuilder::new(file)
+    let mut parser: Parser<'_, File> = ParserBuilder::new()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
-        .build();
+        .build(file);
 
-    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
+    let dcmroot: DicomRoot<'_> =
+        parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
 
     test_nested_charset(&dcmroot, 0, all::ISO_8859_8, "ISO_IR 138", "שרון^דבורה")?;
     test_nested_charset(&dcmroot, 4, all::ISO_8859_5, "ISO_IR 144", "Люкceмбypг")?;
