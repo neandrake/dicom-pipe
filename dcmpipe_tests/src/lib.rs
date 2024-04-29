@@ -1,7 +1,6 @@
 extern crate encoding;
 extern crate walkdir;
 
-use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmobject::DicomRoot;
 use dcmpipe_lib::core::dcmparser::{
     Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
@@ -11,6 +10,7 @@ use std::fs::File;
 use std::io::{Error, Read};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 #[cfg(test)]
 mod charsets;
@@ -24,7 +24,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot, Error> {
     let file: File = File::open(path)?;
     let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
     if with_std {
-        parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
+        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
     let mut parser: Parser<File> = parser.build();
     let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
@@ -51,7 +51,7 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<(), Error> {
 /// Creates parsers for every dicom file in the `fixutres` folder. The `use_std_dict` argument
 /// specifies whether the standard dicom dictionary should be registered with the parser.
 /// See the `readme.md` in this project for information on obtaining test fixtures.
-pub fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser<File>)>, Error> {
+pub fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser<'static, File>)>, Error> {
     let fixtures_path: &Path = Path::new("./fixtures");
     assert!(
         fixtures_path.is_dir(),
@@ -79,7 +79,7 @@ pub fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser
         if file.metadata()?.is_file() {
             let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
             if with_std {
-                parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
+                parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
             }
 
             let parser: Parser<File> = parser.build();

@@ -96,9 +96,9 @@ pub fn read_value_length_from_dataset(
 }
 
 /// Parses elements to build a `DicomObject` tree to represent the dataset in-memory
-pub fn parse_into_object<DatasetType: Read>(
-    parser: &mut Parser<DatasetType>,
-) -> Result<DicomRoot, Error> {
+pub fn parse_into_object<'dict, DatasetType: Read>(
+    parser: &mut Parser<'dict, DatasetType>,
+) -> Result<DicomRoot<'dict>, Error> {
     let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
     if let Some(Err(e)) = parse_into_object_recurse(parser, &mut child_nodes) {
         return Err(e);
@@ -108,8 +108,7 @@ pub fn parse_into_object<DatasetType: Read>(
     let root: DicomRoot = DicomRoot::new(
         parser.get_ts(),
         parser.get_cs(),
-        parser.get_ts_by_uid(),
-        parser.get_tag_by_uid(),
+        parser.get_dictionary(),
         child_nodes,
     );
     Ok(root)

@@ -1,9 +1,9 @@
 use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
-use crate::core::dcmparser::{TagByValueLookup, TsByUidLookup};
 use crate::defn::ts::TSRef;
 use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
+use crate::defn::dcmdict::DicomDictionary;
 
 /// Trait for a dicom node which contains child elements.
 pub trait DicomNode {
@@ -18,26 +18,23 @@ pub trait DicomNode {
 }
 
 /// A root node of a DICOM dataset. It does not represent an element but contains child elements.
-pub struct DicomRoot {
+pub struct DicomRoot<'dict> {
     ts: TSRef,
     cs: CSRef,
-    ts_by_uid: Option<TsByUidLookup>,
-    tag_by_value: Option<TagByValueLookup>,
+    dictionary: &'dict dyn DicomDictionary,
     child_nodes: BTreeMap<u32, DicomObject>,
 }
-impl DicomRoot {
+impl <'dict> DicomRoot<'dict> {
     pub fn new(
         ts: TSRef,
         cs: CSRef,
-        ts_by_uid: Option<TsByUidLookup>,
-        tag_by_value: Option<TagByValueLookup>,
+        dictionary: &dyn DicomDictionary,
         child_nodes: BTreeMap<u32, DicomObject>,
     ) -> DicomRoot {
         DicomRoot {
             ts,
             cs,
-            ts_by_uid,
-            tag_by_value,
+            dictionary,
             child_nodes,
         }
     }
@@ -50,15 +47,11 @@ impl DicomRoot {
         self.cs
     }
 
-    pub fn get_ts_by_uid(&self) -> &Option<TsByUidLookup> {
-        &self.ts_by_uid
-    }
-
-    pub fn get_tag_by_value(&self) -> &Option<TagByValueLookup> {
-        &self.tag_by_value
+    pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
+        self.dictionary
     }
 }
-impl DicomNode for DicomRoot {
+impl <'dict> DicomNode for DicomRoot<'dict> {
     fn get_child_count(&self) -> usize {
         self.child_nodes.len()
     }
