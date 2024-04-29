@@ -2,7 +2,7 @@
 name = "dcmpipe"
 version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
-#build = "build/buildconstants.rs"
+build = "build/buildconstants.rs"
 
 [dependencies]
 byteorder = "1"
