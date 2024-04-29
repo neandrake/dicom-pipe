@@ -1,14 +1,11 @@
 //! Value Representation
 
-use encoding::all::WINDOWS_1252;
-use encoding::types::EncodingRef;
+use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
 /// The BACKSLASH used to delimit multi-value character string values, `\`
 pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
-
-pub static DEFAULT_CHARACTER_SET: EncodingRef = WINDOWS_1252 as EncodingRef;
 
 pub type VRRef = &'static VR;
 
@@ -129,7 +126,7 @@ impl VR {
         }
     }
 
-    pub fn get_proper_cs(&self, cs: EncodingRef) -> EncodingRef {
+    pub fn get_proper_cs(&self, cs: CSRef) -> CSRef {
         match self.decode_text_with_replaced_cs {
             true => cs,
             false => DEFAULT_CHARACTER_SET,
