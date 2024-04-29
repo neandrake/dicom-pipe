@@ -447,7 +447,11 @@ impl DicomObject {
     /// Gets the total number of bytes that will be needed to encode this `DicomObject` and its
     /// child/index nodes into a dataset.
     pub fn byte_size(&self) -> usize {
-        let start = if self.element.is_sentinel() { 0 } else { self.element.byte_size() };
+        let start = if self.element.is_sentinel() {
+            0
+        } else {
+            self.element.byte_size()
+        };
         start + self.flatten().iter().map(|e| e.byte_size()).sum::<usize>()
     }
 
