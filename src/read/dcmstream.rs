@@ -104,6 +104,33 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
     }
 
+    pub fn read_specific_character_set(&self) -> Result<EncodingRef, Error> {
+        if let Ok(element) = self.get_element(tags::SpecificCharacterSet.tag) {
+            let decoder: EncodingRef = self.get_text_codec(element);
+            // Change the lookup key into format that the encoding package and recognize
+            // TODO: I think this also needs to remove padding characters
+            let new_cs: String = decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
+                .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+                .iter()
+                .flat_map(|s| s.chars())
+                .map(|c: char| {
+                    match c {
+                        '_' => '-',
+                        ' ' => '-',
+                        a => a.to_ascii_lowercase(),
+                    }
+                })
+                .collect::<String>();
+
+            // TODO: There are options for what to do if we can't support the character repertoire
+            // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
+            return encoding_from_whatwg_label(&new_cs)
+                .ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {:?}", &new_cs)));
+        }
+
+        Err(Error::new(ErrorKind::InvalidData, format!("DicomStream does not have SpecificCharacterSet")))
+    }
+
     pub fn read_file_preamble(&mut self) -> Result<(), Error> {
         self.stream.read_exact(&mut self.file_preamble)?;
         self.bytes_read += self.file_preamble.len();
@@ -283,40 +310,9 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
         while still_loop {
             let element_tag: u32 = self.read_dicom_element()?;
-            let mut new_cs: Option<String> = None;
 
-            // `self` cannot be borrowed while we retain the reference to the element
-            // which means that we can't modify self.cs while we read the value of the element
-            if let Ok(element) = self.get_element(element_tag) {
-                if element.tag == tags::SpecificCharacterSet.tag {
-                    let decoder: EncodingRef = self.get_text_codec(element);
-                    // Change the lookup key into format that the encoding package and recognize
-                    // TODO: I think this also needs to remove padding characters
-                    new_cs = Some(
-                        decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
-                        .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
-                        .iter()
-                        .flat_map(|s| s.chars())
-                        .map(|c: char| {
-                            match c {
-                                '_' => '-',
-                                ' ' => '-',
-                                a => a.to_ascii_lowercase(),
-                            }
-                        })
-                        .collect::<String>()
-                    );
-                }
-            }
-
-            if let Some(cs_label) = new_cs {
-                if let Some(new_encoding) = encoding_from_whatwg_label(&cs_label) {
-                    self.cs = new_encoding;
-                } else {
-                    // TODO: There are options for what to do if we can't support the character repertoire
-                    // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
-                    return Err(Error::new(ErrorKind::InvalidData, format!("Unable to determine Specific Character Set: {}", cs_label)));
-                }
+            if element_tag == tags::SpecificCharacterSet.tag {
+                self.cs = self.read_specific_character_set()?;
             }
 
             // TODO: This should have a test.
