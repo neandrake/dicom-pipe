@@ -83,7 +83,7 @@ impl<'e> TryFrom<ElementWithVr<'e>> for RawValue<'e> {
 impl<'e> TryFrom<&'e DicomElement> for RawValue<'e> {
     type Error = ParseError;
 
-    /// Based on the VR of this element, parses the binary data into a RawValue.
+    /// Based on the VR of this element, parses the binary data into a `RawValue`.
     fn try_from(value: &'e DicomElement) -> ParseResult<Self> {
         Self::try_from(ElementWithVr(value, value.vr()))
     }
@@ -171,13 +171,13 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<String> {
             .decode(data)
             .map_err(|e| ParseError::CharsetError { source: e })
             .map(|multivalue: String| {
-                if !vr.allows_backslash_text_value {
+                if vr.allows_backslash_text_value {
+                    vec![multivalue]
+                } else {
                     multivalue
                         .split(CS_SEPARATOR)
                         .map(str::to_owned)
                         .collect::<Vec<String>>()
-                } else {
-                    vec![multivalue]
                 }
             })
     }
@@ -189,29 +189,29 @@ impl<'e> From<ElementWithVr<'e>> for BytesWithoutPadding<'e> {
     /// padding is significant.
     fn from(value: ElementWithVr<'e>) -> Self {
         // grab the position to start reading bytes from prior to computing the new bytes_read
-        let mut lindex: usize = 0;
+        let mut left_index: usize = 0;
 
         let data: &[u8] = value.0.data().as_slice();
         if data.is_empty() {
             return BytesWithoutPadding(data);
         }
 
-        let mut rindex: usize = data.len() - 1;
+        let mut right_index: usize = data.len() - 1;
         if value.1.can_pad_end {
             if value.1.padding == SPACE_PADDING {
                 // space padding should strip all trailing spaces
-                while rindex > lindex {
+                while right_index > left_index {
                     // character string vr's also sometimes seem to be zero-padded
-                    if data[rindex] == SPACE_PADDING || data[rindex] == NULL_PADDING {
-                        rindex -= 1;
+                    if data[right_index] == SPACE_PADDING || data[right_index] == NULL_PADDING {
+                        right_index -= 1;
                     } else {
                         break;
                     }
                 }
             } else if value.1.padding == NULL_PADDING {
                 // null byte padding is only singular and only if used to achieve even length
-                if data.len() % 2 == 0 && data[rindex] == NULL_PADDING {
-                    rindex -= 1;
+                if data.len() % 2 == 0 && data[right_index] == NULL_PADDING {
+                    right_index -= 1;
                 }
             }
         }
@@ -219,9 +219,9 @@ impl<'e> From<ElementWithVr<'e>> for BytesWithoutPadding<'e> {
         if value.1.can_pad_front {
             // space padding should strip all leading spaces
             if value.1.padding == SPACE_PADDING {
-                while lindex < rindex {
-                    if data[lindex] == SPACE_PADDING {
-                        lindex += 1;
+                while left_index < right_index {
+                    if data[left_index] == SPACE_PADDING {
+                        left_index += 1;
                     } else {
                         break;
                     }
@@ -232,10 +232,13 @@ impl<'e> From<ElementWithVr<'e>> for BytesWithoutPadding<'e> {
 
         // if a character string is trimmed down to just a null byte then return empty data.
         // use `..` to return empty slice instead of `..=`.
-        if lindex == rindex && value.1.is_character_string && data[lindex] == NULL_PADDING {
-            BytesWithoutPadding(&data[lindex..rindex])
+        if left_index == right_index
+            && value.1.is_character_string
+            && data[left_index] == NULL_PADDING
+        {
+            BytesWithoutPadding(&data[left_index..right_index])
         } else {
-            BytesWithoutPadding(&data[lindex..=rindex])
+            BytesWithoutPadding(&data[left_index..=right_index])
         }
     }
 }
@@ -281,7 +284,7 @@ where
         let t_name = type_name::<T>();
         return Err(ParseErrorInfo(
             value,
-            &format!("num bytes not multiple of size of {}", t_name),
+            &format!("num bytes not multiple of size of {t_name}"),
             None,
         )
         .into());

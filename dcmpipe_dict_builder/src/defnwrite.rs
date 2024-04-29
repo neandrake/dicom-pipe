@@ -2,9 +2,10 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Error, Write};
 use std::path::{Path, PathBuf};
 
+use phf_codegen::Map;
+
 use crate::xmlparser::{
-    XmlDicomDefinition, XmlDicomDefinitionIterator, XmlDicomDefinitionResult, XmlDicomElement,
-    XmlDicomUid,
+    XmlDicomDefinition, XmlDicomDefinitionIterator, XmlDicomElement, XmlDicomUid,
 };
 
 static LOOKUP_PREAMBLE: &str = "//! This is an auto-generated file. Do not make modifications here.
@@ -110,16 +111,28 @@ pub static {}: Tag = Tag {{
 }
 
 pub fn process_xml_files(files: Vec<File>, folder: &Path) -> Result<(), Error> {
-    let mut xml_definitions: Vec<XmlDicomDefinition> = Vec::new();
+    type PossibleDef = Result<XmlDicomDefinition, quick_xml::Error>;
 
+    let mut xml_definitions: Vec<XmlDicomDefinition> = Vec::new();
     for file in files {
         let bufread: BufReader<File> = BufReader::new(file);
-        let mut file_definitions: Vec<XmlDicomDefinition> =
-            XmlDicomDefinitionIterator::new(bufread)
-                .map(|item: XmlDicomDefinitionResult| {
-                    item.unwrap_or_else(|_| panic!("Error parsing XML dicom entry"))
-                })
-                .collect::<Vec<XmlDicomDefinition>>();
+        let (file_definitions, errors): (Vec<PossibleDef>, Vec<PossibleDef>) =
+            XmlDicomDefinitionIterator::new(bufread).partition(Result::is_ok);
+
+        if !errors.is_empty() {
+            let error = errors
+                .into_iter()
+                .filter_map(Result::err)
+                .map(|e| Error::new(std::io::ErrorKind::Other, e))
+                .next();
+            if let Some(error) = error {
+                return Err(error);
+            }
+        }
+        let mut file_definitions = file_definitions
+            .into_iter()
+            .filter_map(Result::ok)
+            .collect();
         xml_definitions.append(&mut file_definitions);
     }
 
@@ -144,10 +157,10 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
 
     for defn in xml_definitions {
         match defn {
-            XmlDicomDefinition::DicomElement(e) => xml_dicom_elements.push(e),
-            XmlDicomDefinition::FileMetaElement(e) => xml_dicom_elements.push(e),
-            XmlDicomDefinition::DirStructureElement(e) => xml_dicom_elements.push(e),
-            XmlDicomDefinition::CommandElement(e) => xml_dicom_elements.push(e),
+            XmlDicomDefinition::DicomElement(e)
+            | XmlDicomDefinition::FileMetaElement(e)
+            | XmlDicomDefinition::DirStructureElement(e)
+            | XmlDicomDefinition::CommandElement(e) => xml_dicom_elements.push(e),
             XmlDicomDefinition::Uid(uid) => xml_uids.push(uid),
             XmlDicomDefinition::TransferSyntax(uid) => {
                 xml_uids.push(uid.clone());
@@ -219,55 +232,53 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
 
     let mut lookup_file: BufWriter<File> =
         BufWriter::new(File::create(lookup_file_path.as_path()).unwrap());
-    write!(&mut lookup_file, "{}", LOOKUP_PREAMBLE)?;
+    write!(&mut lookup_file, "{LOOKUP_PREAMBLE}")?;
 
-    write!(
-        &mut lookup_file,
-        "pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = "
-    )?;
-    let map_display = tag_ident_lookup_phf.build();
-    write!(&mut lookup_file, "{}", &map_display)?;
+    let write_stringkey_map =
+        |mut lookup_file: &mut BufWriter<File>, decl: &str, map: Map<String>| {
+            write!(&mut lookup_file, "{decl}")?;
+            let map_display = map.build();
+            write!(&mut lookup_file, "{map_display}")?;
+            write!(&mut lookup_file, ";\n\n")
+        };
 
-    write!(&mut lookup_file, ";\n\n")?;
-    write!(
-        &mut lookup_file,
-        "pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = "
-    )?;
-    let map_display = tag_tag_lookup_phf.build();
-    write!(&mut lookup_file, "{}", &map_display)?;
+    let write_uintkey_map = |mut lookup_file: &mut BufWriter<File>, decl: &str, map: Map<u32>| {
+        write!(&mut lookup_file, "{decl}")?;
+        let map_display = map.build();
+        write!(&mut lookup_file, "{map_display}")?;
+        write!(&mut lookup_file, ";\n\n")
+    };
 
-    write!(&mut lookup_file, ";\n\n")?;
-    write!(
+    write_stringkey_map(
         &mut lookup_file,
-        "pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = "
+        "pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ",
+        tag_ident_lookup_phf,
     )?;
-    let map_display = ts_ident_lookup_phf.build();
-    write!(&mut lookup_file, "{}", &map_display)?;
-
-    write!(&mut lookup_file, ";\n\n")?;
-    write!(
+    write_uintkey_map(
         &mut lookup_file,
-        "pub static TS_BY_UID: phf::Map<&'static str, TSRef> = "
+        "pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = ",
+        tag_tag_lookup_phf,
     )?;
-    let map_display = ts_id_lookup_phf.build();
-    write!(&mut lookup_file, "{}", &map_display)?;
-
-    write!(&mut lookup_file, ";\n\n")?;
-    write!(
+    write_stringkey_map(
         &mut lookup_file,
-        "pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = "
+        "pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = ",
+        ts_ident_lookup_phf,
     )?;
-    let map_display = uid_ident_lookup_phf.build();
-    write!(&mut lookup_file, "{}", &map_display)?;
-
-    write!(&mut lookup_file, ";\n\n")?;
-    write!(
+    write_stringkey_map(
         &mut lookup_file,
-        "pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = "
+        "pub static TS_BY_UID: phf::Map<&'static str, TSRef> = ",
+        ts_id_lookup_phf,
     )?;
-    let map_display = uid_id_lookup_phf.build();
-    write!(&mut lookup_file, "{}", &map_display)?;
-    writeln!(&mut lookup_file, ";")?;
+    write_stringkey_map(
+        &mut lookup_file,
+        "pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = ",
+        uid_ident_lookup_phf,
+    )?;
+    write_stringkey_map(
+        &mut lookup_file,
+        "pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = ",
+        uid_id_lookup_phf,
+    )?;
 
     Ok(())
 }
@@ -301,15 +312,15 @@ fn process_uid(
     ); // field placeholders
 
     let var_name_key: String = var_name.to_lowercase();
-    ident_lookup.entry(var_name_key, &format!("&uids::{}", var_name));
+    ident_lookup.entry(var_name_key, &format!("&uids::{var_name}"));
 
     let id_val_key: String = uid.value.clone();
-    id_lookup.entry(id_val_key, &format!("&uids::{}", var_name));
+    id_lookup.entry(id_val_key, &format!("&uids::{var_name}"));
 
     Some(code)
 }
 
-/// Processes a TransferSyntax UID into code definition
+/// Processes a `TransferSyntax` UID into code definition
 fn process_transfer_syntax(
     uid: &XmlDicomUid,
     ident_lookup: &mut phf_codegen::Map<String>,
@@ -323,11 +334,11 @@ fn process_transfer_syntax(
         return None;
     }
 
-    let var_uid: String = format!("&uids::{}", var_name);
-    let explicit_vr_val: String = if !var_name.contains("Implicit") {
-        "true"
-    } else {
+    let var_uid: String = format!("&uids::{var_name}");
+    let explicit_vr_val: String = if var_name.contains("Implicit") {
         "false"
+    } else {
+        "true"
     }
     .to_owned();
 
@@ -373,9 +384,9 @@ fn process_transfer_syntax(
         encapsulated_val
     );
     let var_name_key: String = var_name.to_lowercase();
-    ident_lookup.entry(var_name_key, &format!("&ts::{}", var_name));
+    ident_lookup.entry(var_name_key, &format!("&ts::{var_name}"));
     let id_val_lookup: String = uid.value.clone();
-    id_lookup.entry(id_val_lookup, &format!("&ts::{}", var_name));
+    id_lookup.entry(id_val_lookup, &format!("&ts::{var_name}"));
 
     Some(code)
 }
@@ -395,7 +406,7 @@ fn process_element(
     let tag_group: u32 = (element.tag >> 16) & 0x0000_FFFF;
     let tag_element: u32 = element.tag & 0x0000_FFFF;
 
-    let tag_display: String = format!("({:04X},{:04X})", tag_group, tag_element);
+    let tag_display: String = format!("({tag_group:04X},{tag_element:04X})");
 
     // VR will either be listed as a valid VR, a list of possible VR a la "US or SS or DS", or have
     // the text "See Note ..."
@@ -403,13 +414,13 @@ fn process_element(
     let vr_value: String = if vr == "See" {
         "None".to_owned()
     } else {
-        format!("Some(&vr::{})", vr)
+        format!("Some(&vr::{vr})")
     };
 
     let vm: String = if &element.vm == "1-n or 1" {
         "&VM::OneOrMore".to_owned()
     } else if let Ok(vm_val) = element.vm.parse::<u32>() {
-        format!("&VM::Distinct({})", vm_val)
+        format!("&VM::Distinct({vm_val})")
     } else {
         let parts: Vec<&str> = element.vm.split('-').collect::<Vec<&str>>();
         let start: u32 = parts[0]
@@ -418,11 +429,11 @@ fn process_element(
         let end: &str = parts[1];
 
         if end == "n" {
-            format!("&VM::AtLeast({})", start)
+            format!("&VM::AtLeast({start})")
         } else if let Ok(end_val) = end.parse::<u32>() {
-            format!("&VM::AtMost({})", end_val)
+            format!("&VM::AtMost({end_val})")
         } else {
-            format!("&VM::MultipleOf({})", start)
+            format!("&VM::MultipleOf({start})")
         }
     };
 
@@ -441,8 +452,8 @@ fn process_element(
     ); // field placeholders
 
     let var_name_key: String = var_name.to_lowercase();
-    ident_lookup.entry(var_name_key, &format!("&{}{}", dict, var_name));
-    tag_lookup.entry(element.tag, &format!("&{}{}", dict, var_name));
+    ident_lookup.entry(var_name_key, &format!("&{dict}{var_name}"));
+    tag_lookup.entry(element.tag, &format!("&{dict}{var_name}"));
 
     Some(code)
 }
@@ -503,7 +514,7 @@ fn sanitize_var_name(var_name: &str) -> String {
             || &sanitized == "ImageRotation"
             || &sanitized == "ReferencedImageBoxSequence")
     {
-        sanitized = format!("{}_Retired", sanitized);
+        sanitized = format!("{sanitized}_Retired");
     }
 
     // if is_trial
@@ -521,7 +532,7 @@ fn sanitize_var_name(var_name: &str) -> String {
 
     if let Some(first_char) = sanitized.chars().next() {
         if !first_char.is_ascii() || !first_char.is_alphabetic() {
-            return format!("Tag_{}", sanitized);
+            return format!("Tag_{sanitized}");
         }
         if !first_char.is_uppercase() {
             return format!("{}{}", first_char.to_uppercase(), &sanitized[1..]);

@@ -20,7 +20,7 @@ impl<'d, R: Read> Iterator for Parser<'d, R> {
         }
 
         match self.iterate() {
-            Err(ParseError::ExpectedEOF) => {
+            Ok(None) | Err(ParseError::ExpectedEOF) => {
                 self.iterator_ended = true;
                 None
             }
@@ -37,10 +37,6 @@ impl<'d, R: Read> Iterator for Parser<'d, R> {
                     source: Box::new(e),
                     detail,
                 }))
-            }
-            Ok(None) => {
-                self.iterator_ended = true;
-                None
             }
             Ok(Some(element)) => Some(Ok(element)),
         }

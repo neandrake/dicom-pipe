@@ -32,6 +32,7 @@ pub struct MultiDicomDictionary<'d> {
 }
 
 impl<'d> MultiDicomDictionary<'d> {
+    #[must_use]
     pub fn new(dicts: Vec<&'d dyn DicomDictionary>) -> Self {
         Self { dicts }
     }
@@ -39,38 +40,26 @@ impl<'d> MultiDicomDictionary<'d> {
 
 impl<'d> DicomDictionary for MultiDicomDictionary<'d> {
     fn get_ts_by_name(&self, name: &str) -> Option<TSRef> {
-        self.dicts
-            .iter()
-            .flat_map(|d| d.get_ts_by_name(name))
-            .next()
+        self.dicts.iter().find_map(|d| d.get_ts_by_name(name))
     }
 
     fn get_ts_by_uid(&self, uid: &str) -> Option<TSRef> {
-        self.dicts.iter().flat_map(|d| d.get_ts_by_uid(uid)).next()
+        self.dicts.iter().find_map(|d| d.get_ts_by_uid(uid))
     }
 
     fn get_tag_by_name(&self, name: &str) -> Option<TagRef> {
-        self.dicts
-            .iter()
-            .flat_map(|d| d.get_tag_by_name(name))
-            .next()
+        self.dicts.iter().find_map(|d| d.get_tag_by_name(name))
     }
 
     fn get_tag_by_number(&self, number: u32) -> Option<TagRef> {
-        self.dicts
-            .iter()
-            .flat_map(|d| d.get_tag_by_number(number))
-            .next()
+        self.dicts.iter().find_map(|d| d.get_tag_by_number(number))
     }
 
     fn get_uid_by_name(&self, name: &str) -> Option<UIDRef> {
-        self.dicts
-            .iter()
-            .flat_map(|d| d.get_uid_by_name(name))
-            .next()
+        self.dicts.iter().find_map(|d| d.get_uid_by_name(name))
     }
 
     fn get_uid_by_uid(&self, uid: &str) -> Option<UIDRef> {
-        self.dicts.iter().flat_map(|d| d.get_uid_by_uid(uid)).next()
+        self.dicts.iter().find_map(|d| d.get_uid_by_uid(uid))
     }
 }

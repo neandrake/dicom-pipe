@@ -44,6 +44,7 @@ pub struct SequenceElement {
 }
 
 impl SequenceElement {
+    #[must_use]
     pub fn new(
         seq_tag: u32,
         seq_end_pos: Option<u64>,
@@ -60,30 +61,37 @@ impl SequenceElement {
         }
     }
 
+    #[must_use]
     pub fn node(&self) -> &TagNode {
         &self.node
     }
 
+    #[must_use]
     pub fn seq_tag(&self) -> u32 {
         self.node.tag()
     }
 
+    #[must_use]
     pub fn item(&self) -> Option<usize> {
         self.node.item()
     }
 
+    #[must_use]
     pub fn seq_end_pos(&self) -> Option<u64> {
         self.seq_end_pos
     }
 
+    #[must_use]
     pub fn vr(&self) -> VRRef {
         self.vr
     }
 
+    #[must_use]
     pub fn vl(&self) -> ValueLength {
         self.vl
     }
 
+    #[must_use]
     pub fn cs(&self) -> CSRef {
         self.cs
     }

@@ -115,6 +115,17 @@ pub struct XmlDicomDefinitionIterator<R: BufRead> {
     uid_part: Option<String>,
 }
 
+fn parse_text_bytes(data: &BytesText<'_>) -> String {
+    data.unescape()
+        .unwrap_or_else(|err| panic!("Error parsing DICOM Entry Name: {data:?}\n\t{err:?}"))
+        .trim()
+        .replace('\u{200b}', "")
+}
+
+fn parse_text_bytes_as_u32(data: &BytesText<'_>) -> Option<u32> {
+    u32::from_str_radix(&parse_text_bytes(data).replace(['(', ')', ','], ""), 16).ok()
+}
+
 impl<R: BufRead> XmlDicomDefinitionIterator<R> {
     pub fn new(xml: R) -> XmlDicomDefinitionIterator<R> {
         let mut reader = Reader::from_reader(xml);
@@ -138,21 +149,6 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
             uid_type: None,
             uid_part: None,
         }
-    }
-
-    fn parse_text_bytes(&self, data: &BytesText<'_>) -> String {
-        data.unescape()
-            .unwrap_or_else(|err| panic!("Error parsing DICOM Entry Name: {:?}\n\t{:?}", data, err))
-            .trim()
-            .replace('\u{200b}', "")
-    }
-
-    fn parse_text_bytes_as_u32(&self, data: &BytesText<'_>) -> Option<u32> {
-        u32::from_str_radix(
-            &self.parse_text_bytes(data).replace(['(', ')', ','], ""),
-            16,
-        )
-        .ok()
     }
 
     /// Determine if all required cell fields for a Dicom Element have been read.
@@ -216,7 +212,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         !attr.is_err()
                                             && attr.as_ref().unwrap().key == QName(b"xml:id")
                                     })
-                                    .map(|attr| attr.unwrap())
+                                    .map(Result::unwrap)
                                 {
                                     // Flip state of the table we're entering so we expected to
                                     // encounter the cells for the expected structure.
@@ -486,32 +482,32 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                     XmlDicomReadingState::InDicomElementCell(element_cell) => match element_cell {
                         XmlDicomElementCell::Tag => {
                             if self.element_tag.is_none() {
-                                self.element_tag = self.parse_text_bytes_as_u32(&data)
+                                self.element_tag = parse_text_bytes_as_u32(&data);
                             }
                         }
                         XmlDicomElementCell::Name => {
                             if self.element_name.is_none() {
-                                self.element_name = Some(self.parse_text_bytes(&data))
+                                self.element_name = Some(parse_text_bytes(&data));
                             }
                         }
                         XmlDicomElementCell::Keyword => {
                             if self.element_keyword.is_none() {
-                                self.element_keyword = Some(self.parse_text_bytes(&data))
+                                self.element_keyword = Some(parse_text_bytes(&data));
                             }
                         }
                         XmlDicomElementCell::VR => {
                             if self.element_vr.is_none() {
-                                self.element_vr = Some(self.parse_text_bytes(&data))
+                                self.element_vr = Some(parse_text_bytes(&data));
                             }
                         }
                         XmlDicomElementCell::VM => {
                             if self.element_vm.is_none() {
-                                self.element_vm = Some(self.parse_text_bytes(&data))
+                                self.element_vm = Some(parse_text_bytes(&data));
                             }
                         }
                         XmlDicomElementCell::Obs => {
                             if self.element_obs.is_none() {
-                                self.element_obs = Some(self.parse_text_bytes(&data))
+                                self.element_obs = Some(parse_text_bytes(&data));
                             }
                         }
                         _ => {}
@@ -519,22 +515,22 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                     XmlDicomReadingState::InDicomUidCell(uid_cell) => match uid_cell {
                         XmlDicomUidCell::Value => {
                             if self.uid_value.is_none() {
-                                self.uid_value = Some(self.parse_text_bytes(&data))
+                                self.uid_value = Some(parse_text_bytes(&data));
                             }
                         }
                         XmlDicomUidCell::Name => {
                             if self.uid_name.is_none() {
-                                self.uid_name = Some(self.parse_text_bytes(&data))
+                                self.uid_name = Some(parse_text_bytes(&data));
                             }
                         }
                         XmlDicomUidCell::Type => {
                             if self.uid_type.is_none() {
-                                self.uid_type = Some(self.parse_text_bytes(&data))
+                                self.uid_type = Some(parse_text_bytes(&data));
                             }
                         }
                         XmlDicomUidCell::Part => {
                             if self.uid_part.is_none() {
-                                self.uid_part = Some(self.parse_text_bytes(&data))
+                                self.uid_part = Some(parse_text_bytes(&data));
                             }
                         }
                         _ => {}

@@ -29,6 +29,7 @@ pub struct WriterBuilder {
 
 impl WriterBuilder {
     /// Initialize a `WriterBuilder` destined to a file, using default file preamble.
+    #[must_use]
     pub fn for_file() -> Self {
         Self::default()
             .state(WriterState::Preamble)
@@ -36,24 +37,28 @@ impl WriterBuilder {
     }
 
     /// Sets the initial `WriterState` indicating how to start writing the dataset.
+    #[must_use]
     pub fn state(mut self, state: WriterState) -> Self {
         self.state = Some(state);
         self
     }
 
     /// Sets the transfer syntax to use for writing the dataset.
+    #[must_use]
     pub fn ts(mut self, ts: TSRef) -> Self {
         self.ts = Some(ts);
         self
     }
 
     /// Sets the character set to use for encoding string values to the dataset.
+    #[must_use]
     pub fn cs(mut self, cs: CSRef) -> Self {
         self.cs = Some(cs);
         self
     }
 
     /// Sets the file preamble to use if writing the dataset to a file.
+    #[must_use]
     pub fn file_preamble(mut self, file_preamble: [u8; FILE_PREAMBLE_LENGTH]) -> Self {
         self.file_preamble = Some(file_preamble);
         self

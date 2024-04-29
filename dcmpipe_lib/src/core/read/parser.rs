@@ -298,7 +298,7 @@ impl<'d, R: Read> Parser<'d, R> {
 
     /// Parses the value of the given element as the specific character set and sets the `cs` value
     /// on this iterator to affect the parsing of further text-type element values.
-    fn parse_specific_character_set(&mut self, element: &DicomElement) -> ParseResult<CSRef> {
+    fn parse_specific_character_set(element: &DicomElement) -> ParseResult<CSRef> {
         let new_cs: Option<String> = Vec::<String>::try_from(element)?
             .into_iter()
             .find(|cs_entry: &String| !cs_entry.is_empty());
@@ -341,7 +341,7 @@ impl<'d, R: Read> Parser<'d, R> {
         // Format the bytes_read as 64bit hex value in "0x0000_0000" format.
         let msb = self.bytes_read >> 16;
         let lsb = self.bytes_read & 0x0000_FFFF;
-        let byte_str = format!("{:#06X}_{:04X}", msb, lsb);
+        let byte_str = format!("{msb:#06X}_{lsb:04X}");
 
         // Display "dataset_ts" if it's the same as the dataset's, otherwise show the ident name.
         let ts_str = if self.dataset_ts == self.ts_last_used {

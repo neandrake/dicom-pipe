@@ -20,8 +20,6 @@ use crate::core::{
 #[cfg(feature = "stddicom")]
 use crate::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
-use super::defn::vr;
-
 /// Convenience for coordinating a tag's type display.
 pub enum FormattedTagType {
     Known(u32, String),
@@ -36,7 +34,7 @@ pub enum FormattedTagType {
 impl fmt::Display for FormattedTagType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FormattedTagType::Known(_, display) => write!(f, "{}", display),
+            FormattedTagType::Known(_, display) => write!(f, "{display}"),
             FormattedTagType::PrivateCreator(_) => write!(f, "<PrivateCreator>"),
             FormattedTagType::PrivateSequence(_) => write!(f, "<PrivateSequence>"),
             FormattedTagType::PrivateGroupLength(_) => write!(f, "<PrivateGroupLength>"),
@@ -59,15 +57,15 @@ impl fmt::Display for FormattedTagValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FormattedTagValue::Sequence => Ok(()),
-            FormattedTagValue::Error(error_str) => write!(f, "<Error {}>", error_str),
+            FormattedTagValue::Error(error_str) => write!(f, "<Error {error_str}>"),
             FormattedTagValue::Uid(uid, name) => {
                 if name.is_empty() {
-                    write!(f, "{}", uid)
+                    write!(f, "{uid}")
                 } else {
-                    write!(f, "{} => {}", uid, name)
+                    write!(f, "{uid} => {name}")
                 }
             }
-            FormattedTagValue::Stringified(value) => write!(f, "{}", value),
+            FormattedTagValue::Stringified(value) => write!(f, "{value}"),
         }
     }
 }
@@ -87,6 +85,7 @@ pub struct FormattedElement<'e> {
 }
 
 impl<'e> FormattedElement<'e> {
+    #[must_use]
     pub fn default(elem: &'e DicomElement) -> Self {
         Self {
             elem,
@@ -97,6 +96,7 @@ impl<'e> FormattedElement<'e> {
         }
     }
 
+    #[must_use]
     pub fn should_omit(&self) -> bool {
         (self.hide_delims
             && (self.elem.tag() == ITEM_DELIMITATION_ITEM
@@ -120,6 +120,7 @@ impl<'e> FormattedElement<'e> {
         (formatted.len() < vec_len, formatted)
     }
 
+    #[must_use]
     pub fn get_tag_type(&self) -> FormattedTagType {
         if let Some(tag) = MINIMAL_DICOM_DICTIONARY.get_tag_by_number(self.elem.tag()) {
             FormattedTagType::Known(tag.tag, tag.ident.to_string())
@@ -143,21 +144,25 @@ impl<'e> FormattedElement<'e> {
         }
     }
 
+    #[must_use]
     pub fn get_tag_value(&self) -> FormattedTagValue {
         if self.elem.is_sq_like() {
             return FormattedTagValue::Sequence;
         }
 
         let mut sep = if self.multiline { " " } else { "\\" };
-        let mut vr = self.elem.vr();
+
+        let vr = self.elem.vr();
         #[cfg(feature = "stddicom")]
-        if vr == &vr::UN {
-            if let Some(lookup_tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(self.elem.tag()) {
-                if let Some(implicit_vr) = lookup_tag.implicit_vr() {
-                    vr = implicit_vr;
-                }
-            }
-        }
+        let vr = if vr == &UN {
+            STANDARD_DICOM_DICTIONARY
+                .get_tag_by_number(self.elem.tag())
+                .and_then(Tag::implicit_vr)
+                .unwrap_or(vr)
+        } else {
+            vr
+        };
+
         let elem_value = match self.elem.parse_value_as(vr) {
             Err(e) => return FormattedTagValue::Error(e.to_string()),
             Ok(val) => val,
@@ -192,10 +197,10 @@ impl<'e> FormattedElement<'e> {
                     sep = "\n";
                 }
                 self.format_vec_to_strings(&strings, |val: &String| {
-                    if !self.multiline {
-                        val.replace("\r\n", " / ").replace('\n', " / ")
-                    } else {
+                    if self.multiline {
                         val.to_owned()
+                    } else {
+                        val.replace("\r\n", " / ").replace('\n', " / ")
                     }
                 })
             }
@@ -290,15 +295,16 @@ impl<'e> fmt::Display for FormattedElement<'e> {
         let tag_num: String = Tag::format_tag_to_display(self.elem.tag());
         let tag_name: FormattedTagType = self.get_tag_type();
 
-        let mut vr = self.elem.vr();
-        if vr == &vr::UN {
-            #[cfg(feature = "stddicom")]
-            if let Some(lookup_tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(self.elem.tag()) {
-                if let Some(lookup_vr) = lookup_tag.implicit_vr() {
-                    vr = lookup_vr;
-                }
-            }
-        }
+        let vr = self.elem.vr();
+        #[cfg(feature = "stddicom")]
+        let vr = if vr == &UN {
+            STANDARD_DICOM_DICTIONARY
+                .get_tag_by_number(self.elem.tag())
+                .and_then(Tag::implicit_vr)
+                .unwrap_or(vr)
+        } else {
+            vr
+        };
         let vr: &str = vr.ident;
 
         let vl: String = match self.elem.vl() {
@@ -333,15 +339,11 @@ impl<'e> fmt::Display for FormattedElement<'e> {
 
         if self.elem.tag() == ITEM {
             let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
-                format!(
-                    "{} {} {}",
-                    last_seq_elem
-                        .item()
-                        .map(|item_no: usize| format!("#{}", item_no))
-                        .unwrap_or_else(|| "#[NO ITEM NUMBER]".to_string()),
-                    vr,
-                    vl,
-                )
+                let item_no = last_seq_elem.item().map_or_else(
+                    || "#[NO ITEM NUMBER]".to_string(),
+                    |item_no: usize| format!("#{item_no}"),
+                );
+                format!("{item_no} {vr} {vl}")
             } else {
                 String::new()
             };
@@ -359,9 +361,9 @@ impl<'e> fmt::Display for FormattedElement<'e> {
         let mut tag_value: String = tag_value.to_string();
         if !tag_value.is_empty() {
             if self.elem.is_empty() {
-                tag_value = format!(" {}", tag_value);
+                tag_value = format!(" {tag_value}");
             } else {
-                tag_value = format!(" | {}", tag_value);
+                tag_value = format!(" | {tag_value}");
             }
         }
 

@@ -26,7 +26,7 @@ impl From<u32> for ValueLength {
 impl fmt::Debug for ValueLength {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            ValueLength::Explicit(value_length) => write!(f, "{}", value_length),
+            ValueLength::Explicit(value_length) => write!(f, "{value_length}"),
             ValueLength::UndefinedLength => write!(f, "UndefinedLength"),
         }
     }

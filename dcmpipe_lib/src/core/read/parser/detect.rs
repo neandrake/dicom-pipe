@@ -2,7 +2,7 @@
 //!
 //! This is designed to be the initial state of the parser when parsing files, as opposed to
 //! parsing DICOM datasets from DIMSE network traffic which requires the use of
-//! ExplicitVRLittleEndian. The is also designed so that if file preamble/prefix is detected
+//! `ExplicitVRLittleEndian`. The is also designed so that if file preamble/prefix is detected
 //! to keep the parser in the `DetectTransferSyntax` state, expecting this to be called one more
 //! time to start detection again.
 //!

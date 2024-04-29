@@ -43,6 +43,7 @@ impl Hash for TransferSyntax {
 }
 
 impl TransferSyntax {
+    #[must_use]
     pub fn new(
         uid: UIDRef,
         explicit_vr: bool,
@@ -60,31 +61,37 @@ impl TransferSyntax {
     }
 
     /// Get the transfer syntax's UID.
+    #[must_use]
     pub fn uid(&self) -> UIDRef {
         self.uid
     }
 
     /// Indicates whether this transfer syntax uses Explicit or Implicit VR.
+    #[must_use]
     pub fn explicit_vr(&self) -> bool {
         self.explicit_vr
     }
 
     /// Indicates whether this transfer syntax uses big or little endian.
+    #[must_use]
     pub fn big_endian(&self) -> bool {
         self.big_endian
     }
 
     /// Indicates whether this transfer syntax uses compression/deflation.
+    #[must_use]
     pub fn deflated(&self) -> bool {
         self.deflated
     }
 
     /// Indicates whether this transfer syntax uses encapsulation (?).
+    #[must_use]
     pub fn encapsulated(&self) -> bool {
         self.encapsulated
     }
 
     /// Indicates whether this transfer syntax uses standard uncompressed data encoding.
+    #[must_use]
     pub fn is_uncompressed(&self) -> bool {
         !self.deflated && !self.encapsulated
     }

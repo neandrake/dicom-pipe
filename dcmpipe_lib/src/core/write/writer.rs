@@ -66,6 +66,9 @@ impl<W: Write> Writer<W> {
     }
 
     /// Creates a new `DicomElement` with the given value encoded with the given VR.
+    ///
+    /// # Errors
+    /// Encoding the value may fail.
     pub fn create_element<T>(&self, tag: T, vr: VRRef, value: RawValue) -> WriteResult<DicomElement>
     where
         T: Into<u32>,
@@ -82,6 +85,9 @@ impl<W: Write> Writer<W> {
 
     /// Flattens the given `DicomRoot` elements into a stream of `DicomElement` and writes the
     /// resulting elements into the dataset.
+    ///
+    /// # Errors
+    /// Errors may occur writing to the dataset.
     pub fn write_dcmroot(&mut self, dcmroot: &DicomRoot) -> WriteResult<usize> {
         let elements = dcmroot.flatten();
         self.write_elements(elements.into_iter())
@@ -89,6 +95,9 @@ impl<W: Write> Writer<W> {
 
     /// Write the iterator of `DicomElement` to the dataset. If the `WriteState` is set to any
     /// valid state for file media, this will handle appropriate encoding for file meta group.
+    ///
+    /// # Errors
+    /// Errors may occur writing to the dataset.
     pub fn write_elements<'a, E>(&mut self, elements: E) -> WriteResult<usize>
     where
         E: Iterator<Item = &'a DicomElement>,

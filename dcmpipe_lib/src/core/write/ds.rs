@@ -53,7 +53,7 @@ pub(crate) mod dataset {
 
     #[derive(Debug)]
     pub(crate) struct Dataset<W: Write> {
-        dataset: BufWriter<W>,
+        dataset: W,
     }
 
     impl<W: Write> Dataset<W> {
@@ -62,7 +62,7 @@ pub(crate) mod dataset {
         }
 
         pub fn into_inner(self) -> W {
-            self.dataset.into_inner()
+            self.dataset
         }
     }
 

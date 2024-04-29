@@ -108,7 +108,7 @@ impl PartialEq for VR {
 
 impl Hash for VR {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.code.hash(state)
+        self.code.hash(state);
     }
 }
 
@@ -123,6 +123,7 @@ impl VR {
     ///
     /// Note that the code is effectively the ASCII encoding of the two letters making
     /// up the value representation identifier.
+    #[must_use]
     pub fn from_code(code: u16) -> Option<VRRef> {
         match code {
             0x4145 => Some(&AE),
@@ -165,6 +166,7 @@ impl VR {
 
     /// Determines the appropriate character set to decode the string value for this VR, with the
     /// given character set specified by the DICOM dataset.
+    #[must_use]
     pub fn get_proper_cs(&self, cs: CSRef) -> CSRef {
         if self.decode_text_with_replaced_cs {
             return cs;

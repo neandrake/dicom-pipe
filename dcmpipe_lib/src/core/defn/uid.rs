@@ -18,21 +18,25 @@ pub struct UID {
 }
 
 impl UID {
+    #[must_use]
     pub fn new(uid: &'static str, ident: &'static str, name: &'static str) -> UID {
         UID { ident, uid, name }
     }
 
     /// Get the identifier or name for this UID.
+    #[must_use]
     pub fn ident(&self) -> &'static str {
         self.ident
     }
 
     /// Get the string representation of the UID.
+    #[must_use]
     pub fn uid(&self) -> &'static str {
         self.uid
     }
 
     /// Get the longer name or description of this UID.
+    #[must_use]
     pub fn name(&self) -> &'static str {
         self.name
     }

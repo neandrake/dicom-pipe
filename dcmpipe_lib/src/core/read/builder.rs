@@ -29,12 +29,14 @@ pub struct ParserBuilder {
 
 impl ParserBuilder {
     /// Sets the initial `ParserState` indicating how to start parsing the dataset.
+    #[must_use]
     pub fn state(mut self, state: ParserState) -> Self {
         self.state = Some(state);
         self
     }
 
     /// Sets the `ParseStop` for when to stop parsing the dataset.
+    #[must_use]
     pub fn stop(mut self, stop: ParseStop) -> Self {
         self.behavior.set_stop(stop);
         self
@@ -42,12 +44,14 @@ impl ParserBuilder {
 
     /// Specify whether or not to return a partial `DicomObject` if the parser encounters an error
     /// in the dataset.
+    #[must_use]
     pub fn allow_partial_object(mut self, allow_partial_object: bool) -> Self {
         self.behavior.set_allow_partial_object(allow_partial_object);
         self
     }
 
     /// Sets the transfer syntax of the dataset, if known.
+    #[must_use]
     pub fn dataset_ts(mut self, dataset_ts: TSRef) -> Self {
         self.dataset_ts = Some(dataset_ts);
         self

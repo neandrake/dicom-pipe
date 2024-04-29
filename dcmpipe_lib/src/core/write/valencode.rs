@@ -10,8 +10,8 @@ use crate::core::{
     values::{Attribute, RawValue},
 };
 
-/// Encodes a RawValue into the binary data for the given element, based on the element's currently
-/// set Value Representation, Character Set, and Transfer Syntax.
+/// Encodes a `RawValue` into the binary data for the given element, based on the element's
+/// currently set Value Representation, Character Set, and Transfer Syntax.
 pub struct ElemAndRawValue<'e>(pub &'e DicomElement, pub RawValue<'e>);
 impl<'e> TryFrom<ElemAndRawValue<'e>> for Vec<u8> {
     type Error = ParseError;
@@ -22,7 +22,7 @@ impl<'e> TryFrom<ElemAndRawValue<'e>> for Vec<u8> {
 
         let mut bytes: Vec<u8> = match value {
             RawValue::Attributes(attrs) => ElemAndAttributes(elem, attrs).into(),
-            RawValue::Uid(uid) => ElemAndUid(elem, uid).try_into()?,
+            RawValue::Uid(uid) => ElemAndStrings(elem, vec![uid]).try_into()?,
             RawValue::Strings(strings) => ElemAndStrings(elem, strings).try_into()?,
             RawValue::Shorts(shorts) => ElemAndShorts(elem, shorts).into(),
             RawValue::UShorts(ushorts) => ElemAndUnsignedShorts(elem, ushorts).into(),
@@ -61,10 +61,11 @@ impl<'e> TryFrom<ElemAndRawValue<'e>> for Vec<u8> {
 struct ElemAndAttributes<'e>(&'e DicomElement, Vec<Attribute>);
 impl<'e> From<ElemAndAttributes<'e>> for Vec<u8> {
     fn from(value: ElemAndAttributes<'e>) -> Self {
+        const U32_SIZE: usize = size_of::<u32>();
+
         let elem = value.0;
         let attrs = value.1;
 
-        const U32_SIZE: usize = size_of::<u32>();
         let num_attrs = attrs.len();
         let mut bytes: Vec<u8> = vec![0u8; U32_SIZE * num_attrs];
         for (i, attr) in attrs.iter().enumerate() {
@@ -84,28 +85,16 @@ impl<'e> From<ElemAndAttributes<'e>> for Vec<u8> {
     }
 }
 
-struct ElemAndUid<'e>(&'e DicomElement, String);
-impl<'e> TryFrom<ElemAndUid<'e>> for Vec<u8> {
-    type Error = ParseError;
-
-    fn try_from(value: ElemAndUid<'e>) -> Result<Self, Self::Error> {
-        let elem = value.0;
-        let uid = value.1;
-        elem.cs()
-            .encode(&uid)
-            .map_err(|e| ParseError::CharsetError { source: e })
-    }
-}
-
 struct ElemAndStrings<'e>(&'e DicomElement, Vec<String>);
 impl<'e> TryFrom<ElemAndStrings<'e>> for Vec<u8> {
     type Error = ParseError;
 
     fn try_from(value: ElemAndStrings<'e>) -> Result<Self, Self::Error> {
+        type MaybeBytes = Vec<ParseResult<Vec<u8>>>;
+
         let elem = value.0;
         let strings = value.1;
 
-        type MaybeBytes = Vec<ParseResult<Vec<u8>>>;
         let (values, errs): (MaybeBytes, MaybeBytes) = strings
             .iter()
             .map(|s| {

@@ -41,29 +41,35 @@ pub struct Tag {
 
 impl Tag {
     /// Get the tag's identifier.
+    #[must_use]
     pub fn ident(&self) -> &'static str {
         self.ident
     }
 
     /// Get the tag's number.
+    #[must_use]
     pub fn tag(&self) -> u32 {
         self.tag
     }
 
     /// Get the tag's implicit value representation, if it has one.
+    #[must_use]
     pub fn implicit_vr(&self) -> Option<VRRef> {
         self.implicit_vr
     }
 
     /// Get the tag's value multiplicity.
+    #[must_use]
     pub fn vm(&self) -> VMRef {
         self.vm
     }
 
+    #[must_use]
     pub fn as_node(&self) -> TagNode {
         TagNode::from(self)
     }
 
+    #[must_use]
     pub fn as_item_node(&self, index: usize) -> TagNode {
         TagNode::from((self, index))
     }
@@ -75,11 +81,11 @@ impl Tag {
         u32: From<T>,
     {
         let tag: u32 = u32::from(tag);
-        if !Tag::is_private::<u32>(tag) {
-            false
-        } else {
+        if Tag::is_private::<u32>(tag) {
             let tag_elem: u32 = tag & 0x0000_FFFF;
             (0x0010..=0x00FF).contains(&tag_elem)
+        } else {
+            false
         }
     }
 
@@ -90,10 +96,10 @@ impl Tag {
         u32: From<T>,
     {
         let tag: u32 = u32::from(tag);
-        if !Tag::is_private::<u32>(tag) {
-            false
-        } else {
+        if Tag::is_private::<u32>(tag) {
             Tag::is_group_length::<u32>(tag)
+        } else {
+            false
         }
     }
 
@@ -103,7 +109,7 @@ impl Tag {
         u32: From<T>,
     {
         let tag: u32 = u32::from(tag);
-        (tag & 0x0000_FFFF) == 0
+        tag.trailing_zeros() >= 16
     }
 
     /// Detects if the given tag is a private tag. This is only a basic/rudimentary check and is
@@ -127,7 +133,7 @@ impl Tag {
         let tag: u32 = u32::from(tag);
         let tag_group: u32 = tag >> 16;
         let tag_elem: u32 = tag & 0x0000_FFFF;
-        format!("({:04X},{:04X})", tag_group, tag_elem)
+        format!("({tag_group:04X},{tag_elem:04X})")
     }
 
     /// Renders the tag number as `GGGGEEEE`.
@@ -138,7 +144,7 @@ impl Tag {
         let tag: u32 = u32::from(tag);
         let tag_group: u32 = tag >> 16;
         let tag_elem: u32 = tag & 0x0000_FFFF;
-        format!("{:04X}{:04X}", tag_group, tag_elem)
+        format!("({tag_group:04X},{tag_elem:04X})")
     }
 }
 
@@ -174,6 +180,7 @@ pub struct TagNode {
 
 impl TagNode {
     /// Create a new tag node.
+    #[must_use]
     pub fn new<T>(tag: T, item: Option<usize>) -> TagNode
     where
         u32: From<T>,
@@ -185,11 +192,13 @@ impl TagNode {
     }
 
     /// Get the tag number for this node.
+    #[must_use]
     pub fn tag(&self) -> u32 {
         self.tag
     }
 
     /// Get the 1-based item number this node references if this is a non-leaf node.
+    #[must_use]
     pub fn item(&self) -> Option<usize> {
         self.item
     }
@@ -216,6 +225,9 @@ impl TagNode {
     /// "ReferencedFrameOfReferenceSequence[1]" => (0x3006_0010, Some(1))
     /// "(3006,0010)[1]" => (0x3006_0010, Some(1))
     /// ```
+    ///
+    /// # Errors
+    /// `ParseError::InvalidTagPath` if the string is not a valid tag node representation.
     pub fn parse(value: &str, dict: Option<&dyn DicomDictionary>) -> Result<Self, ParseError> {
         let mut index = None;
         let mut tag_id = value.trim();
@@ -239,7 +251,7 @@ impl TagNode {
         let tag_id = tag_id.replace(['(', ')', ',', '_'], "");
         let full_tag: u32 =
             u32::from_str_radix(&tag_id, 16).map_err(|e| ParseError::InvalidTagPath {
-                string_path: tag_id.to_owned(),
+                string_path: tag_id.clone(),
                 details: e.to_string(),
             })?;
         Ok(TagNode::new(full_tag, index))
@@ -308,6 +320,7 @@ pub struct TagPath {
 
 impl TagPath {
     /// Creates a tag path with no nodes.
+    #[must_use]
     pub fn empty() -> TagPath {
         TagPath {
             nodes: Vec::with_capacity(0),
@@ -315,6 +328,7 @@ impl TagPath {
     }
 
     /// The nodes that make up this `TagPath`.
+    #[must_use]
     pub fn nodes(&self) -> &Vec<TagNode> {
         &self.nodes
     }
@@ -325,12 +339,14 @@ impl TagPath {
     }
 
     /// Return whether there are any nodes in this tag path.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
 
     /// Formats the tag path as readable text, optionally using the tag's display name where
     /// possible, otherwise tags will be displayed as `(gggg,eeee)`.
+    #[must_use]
     pub fn format_tagpath_to_display(
         tagpath: &TagPath,
         dict: Option<&dyn DicomDictionary>,
@@ -354,7 +370,7 @@ impl TagPath {
                     );
                 match node.item {
                     None => tag,
-                    Some(item_num) => format!("{}[{}]", tag, item_num),
+                    Some(item_num) => format!("{tag}[{item_num}]"),
                 }
             })
             .collect::<Vec<String>>()
@@ -381,6 +397,9 @@ impl TagPath {
     ///  (0x3006_0016, Some(11)),
     ///  (0x0004_1504, None)]
     /// ```
+    ///
+    /// # Errors
+    /// `ParseError::InvalidTagPath` if the string does not represent a valid tag path.
     pub fn parse(value: &str, dict: Option<&dyn DicomDictionary>) -> Result<TagPath, ParseError> {
         let tags = value.split('.').collect::<Vec<&str>>();
         let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
@@ -434,7 +453,7 @@ where
             nodes.push(TagNode {
                 tag: tag_node.tag(),
                 item,
-            })
+            });
         }
         TagPath { nodes }
     }
@@ -485,6 +504,7 @@ impl From<&[SequenceElement]> for TagPath {
 }
 
 #[cfg(test)]
+#[cfg(feature = "stddicom")]
 mod tests {
     use crate::dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,

@@ -21,18 +21,28 @@ pub struct CSRef {
 }
 
 impl CSRef {
+    #[must_use]
     pub const fn of(encoding: &'static Encoding) -> Self {
         CSRef { encoding }
     }
 
+    #[must_use]
     pub fn name(&self) -> &str {
         self.encoding.name()
     }
 
+    /// Encodes the given text using the encoding.
+    ///
+    /// # Errors
+    /// Errors during encoding.
     pub fn encode(&self, text: &str) -> Result<Vec<u8>, CSError> {
         Ok(self.encoding.encode(text).0.into_owned())
     }
 
+    /// Decodes the given text using the encoding.
+    ///
+    /// # Errors
+    /// Errors during decoding.
     pub fn decode(&self, data: &[u8]) -> Result<String, CSError> {
         self.encoding
             .decode_without_bom_handling_and_without_replacement(data)
@@ -61,12 +71,7 @@ pub(crate) fn lookup_charset(label: &str) -> Option<CSRef> {
         .chars()
         .map(|c| match c {
             'A'..='Z' => char::from(u8::try_from(c).unwrap_or_default() + 32),
-            ' ' => '-',
-            '_' => '-',
-            '\n' => '-',
-            '\r' => '-',
-            '\t' => '-',
-            '\x0C' => '-',
+            ' ' | '_' | '\n' | '\r' | '\t' | '\x0C' => '-',
             _ => c,
         })
         .collect::<String>()

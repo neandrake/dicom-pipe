@@ -70,7 +70,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 .parse_transfer_syntax(&element)?
                 .or(Some(&ImplicitVRLittleEndian));
         } else if element.tag() == SPECIFIC_CHARACTER_SET {
-            let cs: CSRef = self.parse_specific_character_set(&element)?;
+            let cs: CSRef = Parser::<'d, R>::parse_specific_character_set(&element)?;
             if element.sq_path().is_empty() {
                 self.cs = cs;
             } else if let Some(sq) = self.current_path.last_mut() {

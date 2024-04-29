@@ -36,7 +36,7 @@ impl<'a> From<ParseErrorInfo<'a>> for ParseError {
                 .data()
                 .iter()
                 .take(MAX_BYTES_IN_ERROR)
-                .cloned()
+                .copied()
                 .collect::<Vec<u8>>(),
         }
     }

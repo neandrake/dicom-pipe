@@ -26,6 +26,7 @@ impl ParseBehavior {
     /// Refer to documentation on `ParseStop`.
     ///
     /// Default: `ParseStop::EndOfDataset`.
+    #[must_use]
     pub fn stop(&self) -> &ParseStop {
         &self.stop
     }
@@ -36,6 +37,7 @@ impl ParseBehavior {
     /// If `true`, a partially-populated `DicomObject` will be returned instead of a `Result::Err`.
     ///
     /// Default: `false`.
+    #[must_use]
     pub fn allow_partial_object(&self) -> bool {
         self.allow_partial_object
     }

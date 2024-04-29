@@ -124,10 +124,10 @@ impl<'d, R: Read> Parser<'d, R> {
 
         let parse_as_seq: bool = is_non_standard_sq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
-            if !ts.big_endian() {
-                &ImplicitVRLittleEndian
-            } else {
+            if ts.big_endian() {
                 &ImplicitVRBigEndian
+            } else {
+                &ImplicitVRLittleEndian
             }
         } else {
             ts
@@ -245,7 +245,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 });
 
                 match result {
-                    Ok(_) => {
+                    Ok(()) => {
                         self.bytes_read += u64::try_from(value_length).unwrap_or_default();
                         Ok(buffer)
                     }

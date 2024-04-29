@@ -25,19 +25,17 @@ fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> ParseRe
             Err(e) => return Err(e.into()),
         }
     }
-    if !buf.is_empty() {
-        if bytes_read == 0 {
-            Err(ParseError::ExpectedEOF)
-        } else {
-            Err(ParseError::IOError {
-                source: std::io::Error::new(
-                    ErrorKind::UnexpectedEof,
-                    format!("failed to fill whole buffer, read {} bytes", bytes_read),
-                ),
-            })
-        }
-    } else {
+    if buf.is_empty() {
         Ok(())
+    } else if bytes_read == 0 {
+        Err(ParseError::ExpectedEOF)
+    } else {
+        Err(ParseError::IOError {
+            source: std::io::Error::new(
+                ErrorKind::UnexpectedEof,
+                format!("failed to fill whole buffer, read {bytes_read} bytes"),
+            ),
+        })
     }
 }
 

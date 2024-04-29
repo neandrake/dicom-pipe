@@ -14,12 +14,12 @@ use crate::core::{
         tag::{Tag, TagNode, TagPath},
         ts::TSRef,
         vl::ValueLength,
-        vr,
+        vr::{VRRef, UN},
     },
+    inspect::FormattedElement,
     read::{ParseError, Parser},
+    RawValue,
 };
-
-use super::{defn::vr::VRRef, inspect::FormattedElement, RawValue};
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
@@ -33,6 +33,7 @@ pub struct DicomRoot {
 }
 
 impl DicomRoot {
+    #[must_use]
     pub fn new(
         ts: TSRef,
         cs: CSRef,
@@ -44,6 +45,7 @@ impl DicomRoot {
         DicomRoot { ts, cs, sentinel }
     }
 
+    #[must_use]
     pub fn new_empty(ts: TSRef, cs: CSRef) -> DicomRoot {
         let sentinel_elem = DicomElement::new_sentinel();
         let sentinel =
@@ -54,26 +56,31 @@ impl DicomRoot {
     /// Returns a delegate object that holds all the root-level elements. Be cautious not to use
     /// the `DicomObject::as_element()` on the returned value as it does not represent an actual
     /// element within the dataset and does not hold valid data.
+    #[must_use]
     pub fn as_obj(&self) -> &DicomObject {
         &self.sentinel
     }
 
     /// Get the transfer syntax used to encode the dataset.
+    #[must_use]
     pub fn ts(&self) -> TSRef {
         self.ts
     }
 
     /// Get the character set used to encode string values.
+    #[must_use]
     pub fn cs(&self) -> CSRef {
         self.cs
     }
 
     /// The number of child nodes in this `DicomRoot`.
+    #[must_use]
     pub fn get_child_count(&self) -> usize {
         self.sentinel.child_count()
     }
 
     /// Gets a child node by tag number.
+    #[must_use]
     pub fn get_child_by_tag<T>(&self, tag: T) -> Option<&DicomObject>
     where
         u32: From<T>,
@@ -100,11 +107,13 @@ impl DicomRoot {
     }
 
     /// The number of item nodes in this `DicomRoot`.
+    #[must_use]
     pub fn item_count(&self) -> usize {
         self.sentinel.item_count()
     }
 
     /// Get an item node, by 1-based index.
+    #[must_use]
     pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
         self.sentinel.get_item_by_index(index)
     }
@@ -125,6 +134,7 @@ impl DicomRoot {
     }
 
     /// Get a child node with the given `TagNode`.
+    #[must_use]
     pub fn get_child_by_tagnode<T>(&self, tag_node: T) -> Option<&DicomObject>
     where
         TagNode: From<T>,
@@ -138,6 +148,7 @@ impl DicomRoot {
     }
 
     /// Get a child node with the given `TagPath`.
+    #[must_use]
     pub fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
         self.sentinel.get_child_by_tagpath(tagpath)
     }
@@ -148,6 +159,7 @@ impl DicomRoot {
     }
 
     /// Get a child element's value by element tag.
+    #[must_use]
     pub fn get_value_by_tag<T>(&self, tag: T) -> Option<RawValue>
     where
         u32: From<T>,
@@ -156,6 +168,7 @@ impl DicomRoot {
     }
 
     /// Get a child element's value by element tag, parsed as the given VR.
+    #[must_use]
     pub fn get_value_as_by_tag<T>(&self, tag: T, vr: VRRef) -> Option<RawValue>
     where
         u32: From<T>,
@@ -164,30 +177,35 @@ impl DicomRoot {
     }
 
     /// Get a descendant element's value by tagpath.
+    #[must_use]
     pub fn get_value_by_tagpath(&self, tagpath: &TagPath) -> Option<RawValue> {
         self.sentinel.get_value_by_tagpath(tagpath)
     }
 
     /// Get a descendant element's value by tagpath, parsed as the given VR.
+    #[must_use]
     pub fn get_value_as_by_tagpath(&self, tagpath: &TagPath, vr: VRRef) -> Option<RawValue> {
         self.sentinel.get_value_as_by_tagpath(tagpath, vr)
     }
 
     /// Gets the total number of bytes that will be needed to encode this `DicomRoot` and its
     /// child/index nodes into a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         self.sentinel.byte_size()
     }
 
     /// Flattens this object into an ordered list of elements as they would appear in a dataset.
+    #[must_use]
     pub fn flatten(&self) -> Vec<&DicomElement> {
         self.sentinel.flatten()
     }
 
     /// Creates a new `DicomElement` from the given `Tag`, using this `DicomRoot`'s transfer syntax
     /// and the tag's implicit VR if present, or `UN` if not.
+    #[must_use]
     pub fn create_element(&self, tag: &Tag) -> DicomElement {
-        DicomElement::new_empty(tag.tag(), tag.implicit_vr().unwrap_or(&vr::UN), self.ts)
+        DicomElement::new_empty(tag.tag(), tag.implicit_vr().unwrap_or(&UN), self.ts)
     }
 
     /// Add the given element as a child to this root object. Returns a reference to the newly
@@ -211,6 +229,9 @@ impl DicomRoot {
     }
 
     /// Prints out all dicom elements to standard out.
+    ///
+    /// # Errors
+    /// Any failures writing to stdout.
     pub fn dbg_dump(&self) -> Result<(), Error> {
         let elems = self
             .flatten()
@@ -227,6 +248,9 @@ impl DicomRoot {
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
     /// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
     /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
+    ///
+    /// # Errors
+    /// The parser over the dataset stream may fail parsing DICOM.
     pub fn parse<R: Read>(parser: &mut Parser<R>) -> Result<Option<DicomRoot>, ParseError> {
         let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
         let mut items: Vec<DicomObject> = Vec::new();
@@ -371,6 +395,7 @@ pub struct DicomObject {
 }
 
 impl DicomObject {
+    #[must_use]
     pub fn new(element: DicomElement) -> DicomObject {
         DicomObject {
             element,
@@ -379,6 +404,7 @@ impl DicomObject {
         }
     }
 
+    #[must_use]
     pub fn new_with_children(
         element: DicomElement,
         child_nodes: BTreeMap<u32, DicomObject>,
@@ -392,6 +418,7 @@ impl DicomObject {
     }
 
     /// A reference to the wrapped `DicomElement` of this `DicomObject`.
+    #[must_use]
     pub fn element(&self) -> &DicomElement {
         &self.element
     }
@@ -402,11 +429,13 @@ impl DicomObject {
     }
 
     /// The number of child nodes in this `DicomObject`.
+    #[must_use]
     pub fn child_count(&self) -> usize {
         self.child_nodes.len()
     }
 
     /// Gets a child node by tag number.
+    #[must_use]
     pub fn get_child_by_tag<T>(&self, tag: T) -> Option<&DicomObject>
     where
         u32: From<T>,
@@ -433,11 +462,13 @@ impl DicomObject {
     }
 
     /// The number of item nodes in this `DicomObject`.
+    #[must_use]
     pub fn item_count(&self) -> usize {
         self.items.len()
     }
 
     /// Get an item node, by 1-based index.
+    #[must_use]
     pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
         self.items.get(index - 1)
     }
@@ -458,6 +489,7 @@ impl DicomObject {
     }
 
     /// Get a child node with the given `TagNode`.
+    #[must_use]
     pub fn get_child_by_tagnode(&self, tag_node: &TagNode) -> Option<&DicomObject> {
         self.get_child_by_tag(tag_node.tag())
             .and_then(|o| match tag_node.item() {
@@ -476,6 +508,7 @@ impl DicomObject {
     }
 
     /// Get a child node with the given `TagPath`.
+    #[must_use]
     pub fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
         let mut target = tagpath
             .nodes()
@@ -500,6 +533,7 @@ impl DicomObject {
     }
 
     /// Get a child element's value by element tag.
+    #[must_use]
     pub fn get_value_by_tag<T>(&self, tag: T) -> Option<RawValue>
     where
         u32: From<T>,
@@ -510,6 +544,7 @@ impl DicomObject {
     }
 
     /// Get a child element's value by element tag, parsed as the given VR.
+    #[must_use]
     pub fn get_value_as_by_tag<T>(&self, tag: T, vr: VRRef) -> Option<RawValue>
     where
         u32: From<T>,
@@ -520,12 +555,14 @@ impl DicomObject {
     }
 
     /// Get a descendant element's value by tagpath.
+    #[must_use]
     pub fn get_value_by_tagpath(&self, tagpath: &TagPath) -> Option<RawValue> {
         self.get_child_by_tagpath(tagpath)
             .and_then(|o| o.element().parse_value().ok())
     }
 
     /// Get a descendant element's value by tagpath, parsed as a given VR.
+    #[must_use]
     pub fn get_value_as_by_tagpath(&self, tagpath: &TagPath, vr: VRRef) -> Option<RawValue> {
         self.get_child_by_tagpath(tagpath)
             .and_then(|o| o.element().parse_value_as(vr).ok())
@@ -533,6 +570,7 @@ impl DicomObject {
 
     /// Gets the total number of bytes that will be needed to encode this `DicomObject` and its
     /// child/index nodes into a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         let start = if self.element.is_sentinel() {
             0
@@ -543,6 +581,7 @@ impl DicomObject {
     }
 
     /// Flattens this object into an ordered list of elements as they would appear in a dataset.
+    #[must_use]
     pub fn flatten(&self) -> Vec<&DicomElement> {
         // TODO: Can this instead return an iterator?
 

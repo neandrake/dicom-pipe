@@ -1,6 +1,6 @@
 use crate::core::defn::tag::{TagNode, TagPath};
 
-/// ParseStop specifies the stopping point at which parsing of a DICOM dataset should end.
+/// `ParseStop` specifies the stopping point at which parsing of a DICOM dataset should end.
 #[derive(Clone, Debug)]
 pub enum ParseStop {
     /// The entire dataset should be parsed, until the dataset stream/end is encountered.
