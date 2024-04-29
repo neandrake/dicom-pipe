@@ -86,19 +86,20 @@ impl<DatasetType: Write> Writer<DatasetType> {
             .map_err(|err| WriteError::IOError { source: err })
     }
 
-    pub fn write_dataset<'a, E>(&mut self, elements: E) -> Result<usize>
+    pub fn write_elements<'a, E>(&mut self, elements: E) -> Result<usize>
     where
         E: Iterator<Item = &'a DicomElement>,
     {
         let mut bytes_written: usize = 0;
 
-        self.state = WriteState::Preamble;
-        if let Some(preamble) = self.file_preamble {
-            bytes_written += self.dataset.write(&preamble)?;
+        if self.state == WriteState::Preamble {
+            if let Some(preamble) = self.file_preamble {
+                bytes_written += self.dataset.write(&preamble)?;
+            }
+            bytes_written += self.dataset.write(DICOM_PREFIX)?;
+            self.state = WriteState::FileMeta;
         }
-        bytes_written += self.dataset.write(DICOM_PREFIX)?;
 
-        self.state = WriteState::FileMeta;
         let mut fm_elements: Vec<&DicomElement> = Vec::new();
         for element in elements {
             // Collect all the FileMeta elements to write them in one go, as their total byte
@@ -128,26 +129,30 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
+    /// Writes all the given FileMeta elements to an in-memory buffer, computes the length of the
+    /// resulting bytes, and generates a FileMetaInformationGroupLength element, writes it to the
+    /// dataset, then writes the in-memory buffer to the dataset as well.
+    ///
+    /// `fm_elements`: Slice of `&DicomElement`s which should all be elements with tag numbers in
+    /// the range for FileMeta, and SHOULD NOT include a FileMetaInformationGroupLength element.
     fn write_fm_elements(&mut self, fm_elements: &[&DicomElement]) -> Result<usize> {
         let mut bytes_written: usize = 0;
-        // Write the collected FileMetaElements to an in-memory dataset, count the total
-        // bytes and use that to create the FileMetaInformationGroupLength element.
-        let mut fme_dataset: Dataset<Vec<u8>> = Dataset::new(Vec::new(), 8 * 1024);
+        let mut fm_dataset: Dataset<Vec<u8>> = Dataset::new(Vec::new(), 8 * 1024);
         for fme in fm_elements {
-            Writer::write_element(&mut fme_dataset, fme)?;
+            Writer::write_element(&mut fm_dataset, fme)?;
         }
-        let fme_bytes: Vec<u8> = fme_dataset.into_inner()?;
+        let fm_bytes: Vec<u8> = fm_dataset.into_inner()?;
 
-        let fme_group_length = Writer::<DatasetType>::new_fme(
+        let fm_group_length = Writer::<DatasetType>::new_fme(
             tags::FILE_META_INFORMATION_GROUP_LENGTH,
             &vr::UL,
-            RawValue::UnsignedIntegers(vec![fme_bytes.len() as u32]),
+            RawValue::UnsignedIntegers(vec![fm_bytes.len() as u32]),
         )?;
 
-        bytes_written += Writer::write_element(&mut self.dataset, &fme_group_length)?;
+        bytes_written += Writer::write_element(&mut self.dataset, &fm_group_length)?;
         // The FileMeta elements have already been encoded, write the resulting bytes to
         // the Writer's dataset.
-        bytes_written += self.dataset.write(&fme_bytes)?;
+        bytes_written += self.dataset.write(&fm_bytes)?;
 
         Ok(bytes_written)
     }
