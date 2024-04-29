@@ -1,6 +1,7 @@
 # dcmpipe_dict_builder #
 
-This crate is a library which can be used for parsing the DICOM standard (in XML format) and producing Rust code
-definitions and lookup maps (using `phf` crate).
+This crate provides functionality for parsing the XML format of the DICOM
+standard to produce Rust code definitions of tags, transfer syntaxes, UIDs, etc.
+as well as lookup maps built with `phf`.
 
-The goal is to eventually be a general crate for managing tag libraries, include private tag libraries.
+Eventually this will generalize for managing private dictionaries as well.
