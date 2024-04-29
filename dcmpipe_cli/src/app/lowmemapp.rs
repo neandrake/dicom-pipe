@@ -1,4 +1,5 @@
 use crate::app::render_element;
+use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use std::fs::File;
@@ -25,7 +26,10 @@ impl LowMemApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: Parser<File> = ParserBuilder::new(file).build();
+        let mut dicom_iter: Parser<File> = ParserBuilder::new(file)
+            .tag_by_value(&TAG_BY_VALUE)
+            .ts_by_uid(&TS_BY_UID)
+            .build();
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
