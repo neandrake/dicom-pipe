@@ -223,7 +223,9 @@ impl<'model> DicomNodeModel<'model> {
 
         let cell = match elem_value {
             TagValue::Sequence => Cell::from(""),
-            TagValue::Error(err_str) => Cell::from(err_str).style(Style::default().bg(Color::Red)),
+            TagValue::Error(_err_str) => {
+                Cell::from("<InvalidValue>").style(Style::default().bg(Color::Red))
+            }
             TagValue::Uid(uid, name) => Cell::from(Line::from(vec![
                 Span::styled(uid, Style::default()),
                 Span::styled(

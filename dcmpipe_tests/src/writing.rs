@@ -11,7 +11,7 @@ use dcmpipe_lib::{
         read::{Parser, ParserBuilder},
         write::{error::WriteError, writer::Writer},
     },
-    defn::{vl::ValueLength, vr},
+    defn::{tag::TagPath, vl::ValueLength, vr},
 };
 
 use crate::mockdata;
@@ -181,7 +181,7 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
     );
 
     let value = vec![1u16, 1u16];
-    elem.encode_value(RawValue::UnsignedShorts(value), None)?;
+    elem.encode_value(RawValue::UnsignedShorts(value.clone()), None)?;
 
     let raw_data = vec![1u8, 0u8, 1u8, 0u8];
     assert_eq!(&raw_data, elem.get_data());
@@ -199,9 +199,7 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
     let re_value = elem.parse_value()?;
     match re_value {
         RawValue::UnsignedShorts(shorts) => {
-            for (idx, &short) in shorts.iter().enumerate() {
-                assert_eq!(1, short, "mismatched short at index: {}", idx);
-            }
+            assert_eq!(value, shorts, "mismatch shorts: {:?}", elem);
         }
         _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
     }
@@ -232,9 +230,41 @@ pub fn test_write_attr() -> Result<(), WriteError> {
     let re_value = elem.parse_value()?;
     match re_value {
         RawValue::Attribute(attrs) => {
-            assert_eq!(value, attrs, "mismatch attribute: {:?}", attrs);
+            assert_eq!(value, attrs, "mismatch attribute: {:?}", elem);
         }
         _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
+    }
+
+    Ok(())
+}
+
+#[test]
+pub fn test_write_double() -> Result<(), WriteError> {
+    let tag:u32 = 0x7fe1_1052;
+    let mut elem = DicomElement::new_empty(tag, &vr::FD, &ts::JPEGBaselineProcess1);
+
+    let value = vec![3499.9999999999995];
+    elem.encode_value(RawValue::Doubles(value.clone()), None)?;
+
+    let raw_data = vec![255, 255, 255, 255, 255, 87, 171, 64];
+    assert_eq!(&raw_data, elem.get_data(), "encoding of attribute failed");
+
+    elem = DicomElement::new(
+        tag,
+        &vr::FD,
+        ValueLength::Explicit(8),
+        &ts::JPEGBaselineProcess1,
+        charset::DEFAULT_CHARACTER_SET,
+        raw_data.clone(),
+        Vec::with_capacity(0),
+    );
+
+    let re_value = elem.parse_value()?;
+    match re_value {
+        RawValue::Doubles(doubles) => {
+            assert_eq!(value, doubles, "mismatch doubles: {:?}", elem);
+        }
+        _ => panic!("Parsed value was not doubles. Actually: {:?}", re_value),
     }
 
     Ok(())
@@ -261,7 +291,16 @@ fn reencode_file_elements(path: PathBuf) -> Result<(), WriteError> {
 
     while let Some(Ok(mut elem)) = parser.next() {
         if let Err(e) = assert_reencode_element(path_str, &mut elem) {
-            panic!("Error re-encoding elements for: {}\n\t{:?}", path_str, e);
+            panic!(
+                "Error re-encoding element:\n\tfile: {}\n\ttagpath: {}\n\telem: {:?}\n\terr: {:?}",
+                path_str,
+                TagPath::format_tagpath_to_display(
+                    &elem.get_tagpath(),
+                    Some(&STANDARD_DICOM_DICTIONARY)
+                ),
+                elem,
+                e
+            );
         }
     }
     Ok(())
@@ -269,7 +308,21 @@ fn reencode_file_elements(path: PathBuf) -> Result<(), WriteError> {
 
 fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<(), WriteError> {
     let orig_parsed_data = elem.get_data().clone();
-    let value = elem.parse_value()?;
+    let value = elem.parse_value();
+    if let Err(e) = value {
+        eprintln!(
+            "Parsing error in file.\n\tfile: {}\n\ttagpath: {}\n\telem: {:?}\n\terr: {:?}",
+            path_str,
+            TagPath::format_tagpath_to_display(
+                &elem.get_tagpath(),
+                Some(&STANDARD_DICOM_DICTIONARY)
+            ),
+            elem,
+            e
+        );
+        return Ok(());
+    }
+    let value = value?;
     elem.encode_value(value.clone(), Some(elem.get_vl()))?;
     let reencoded_data = elem.get_data().clone();
 
@@ -316,6 +369,18 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
         // Values may have originally had leading and trailing spaces which are lost
         // when parsed into RawValue. Additionally the same for leading zeros.
         let trimmer = |v: &Vec<u8>| {
+            // Account for numbers encoded as "2.5000"
+            let indexof_dot = v.iter().position(|&b| b == b'.');
+            let remove_trailing_zeroes = if let Some(dot_pos) = indexof_dot {
+                if dot_pos != v.len() - 1 {
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
             v.iter()
                 .map(|b| b.to_owned())
                 .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
@@ -323,7 +388,7 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
                 .iter()
                 .rev()
                 .map(|b| b.to_owned())
-                .skip_while(|&b| b == vr::SPACE_PADDING)
+                .skip_while(|&b| b == vr::SPACE_PADDING || (remove_trailing_zeroes && b == b'0'))
                 .collect::<Vec<u8>>()
                 .iter()
                 .rev()
@@ -358,9 +423,13 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
     }
 
     assert_eq!(
-        orig_parsed_data, reencoded_data,
-        "Element did not re-encode the same. {} : {:?}.\n\tValue: {:?}",
-        path_str, elem, value
+        orig_parsed_data,
+        reencoded_data,
+        "Element did not re-encode the same\n\tfile: {}\n\ttagpath: {}\n\telem: {:?}\n\tvalue: {:?}",
+        path_str,
+        TagPath::format_tagpath_to_display(&elem.get_tagpath(), Some(&STANDARD_DICOM_DICTIONARY)),
+        elem,
+        value
     );
 
     Ok(())

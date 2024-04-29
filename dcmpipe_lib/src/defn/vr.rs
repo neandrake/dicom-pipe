@@ -462,14 +462,14 @@ pub static DT: VR = VR {
 /// # Floating Point Double
 ///
 /// ## Definition
-/// Single precision binary floating point number represented in
+/// Double precision binary floating point number represented in
 /// IEEE 754:1985 32-bit Floating Point Number Format.
 ///
 /// ## Character Repertoire
 /// N/A
 ///
 /// ## Length of Value
-/// 4 bytes fixed
+/// 8 bytes fixed
 pub static FD: VR = VR {
     ident: "FD",
     name: "Floating Point Double",
@@ -486,14 +486,14 @@ pub static FD: VR = VR {
 /// # Floating Point Single
 ///
 /// ## Definition
-/// Double precision binary floating point number represented in
-/// IEEE 754:1985 64-bit Floating Point Number Format.
+/// Single precision binary floating point number represented in
+/// IEEE 754:1985 32-bit Floating Point Number Format.
 ///
 /// ## Character Repertoire
 /// N/A
 ///
 /// ## Length of Value
-/// 8 bytes fixed
+/// 4 bytes fixed
 pub static FL: VR = VR {
     ident: "FL",
     name: "Floating Point Single",

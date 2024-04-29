@@ -132,7 +132,9 @@ impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
         };
 
         let (add_ellipses, mut str_vals) = match elem_value {
-            RawValue::Attribute(attrs) => format_vec_to_strings(attrs, |attr| Tag::format_tag_to_display(attr.0)),
+            RawValue::Attribute(attrs) => {
+                format_vec_to_strings(attrs, |attr| Tag::format_tag_to_display(attr.0))
+            }
             RawValue::Uid(uid_str) => {
                 let uid_lookup = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
                 match uid_lookup {
@@ -160,12 +162,6 @@ impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
                     }
                 })
             }
-            RawValue::Floats(floats) => {
-                format_vec_to_strings(floats, |val: f32| format!("{:.2}", val))
-            }
-            RawValue::Doubles(doubles) => {
-                format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
-            }
             RawValue::Shorts(shorts) => {
                 format_vec_to_strings(shorts, |val: i16| format!("{}", val))
             }
@@ -176,18 +172,27 @@ impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
             RawValue::UnsignedIntegers(uints) => {
                 format_vec_to_strings(uints, |val: u32| format!("{}", val))
             }
+            RawValue::Longs(longs) => format_vec_to_strings(longs, |val: i64| format!("{}", val)),
             RawValue::UnsignedLongs(ulongs) => {
                 format_vec_to_strings(ulongs, |val: u64| format!("{}", val))
             }
-            RawValue::Longs(longs) => format_vec_to_strings(longs, |val: i64| format!("{}", val)),
+            RawValue::Floats(floats) => {
+                format_vec_to_strings(floats, |val: f32| format!("{:.2}", val))
+            }
+            RawValue::Doubles(doubles) => {
+                format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
+            }
+            RawValue::Bytes(bytes) => {
+                format_vec_to_strings(bytes, |val: u8| format!("{:02x}", val))
+            }
             RawValue::Words(words) => {
                 format_vec_to_strings(words, |val: u16| format!("{:04x}", val))
             }
             RawValue::DoubleWords(dwords) => {
-                format_vec_to_strings(dwords, |val: u32| format!("{:04x}", val))
+                format_vec_to_strings(dwords, |val: u32| format!("{:06x}", val))
             }
-            RawValue::Bytes(bytes) => {
-                format_vec_to_strings(bytes, |val: u8| format!("{:02x}", val))
+            RawValue::QuadWords(qwords) => {
+                format_vec_to_strings(qwords, |val: u64| format!("{:08x}", val))
             }
         };
 

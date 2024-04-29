@@ -55,6 +55,7 @@ pub enum RawValue {
     Bytes(Vec<u8>),
     Words(Vec<u16>),
     DoubleWords(Vec<u32>),
+    QuadWords(Vec<u64>),
 }
 
 fn error(message: &str, value: &DicomElement) -> ParseError {
@@ -263,80 +264,6 @@ impl DicomElement {
                 bytes.pop();
                 bytes
             }
-            RawValue::Floats(floats) => {
-                if self.vr.is_character_string {
-                    // This should only be the case for a VR of DS.
-                    let mut encoded = floats
-                        .into_iter()
-                        .filter(|float: &f32| float.is_finite())
-                        // In theory this should use the default character set, but this
-                        // relies on f32::to_string only using ascii which falls under that.
-                        .map(|float: f32| {
-                            // Force at least one digit of precision.
-                            if float.fract() == 0.0 {
-                                format!("{float:.1}").into_bytes()
-                            } else {
-                                float.to_string().into_bytes()
-                            }
-                        })
-                        .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
-                        .collect::<Vec<u8>>();
-                    if !encoded.is_empty() {
-                        encoded.remove(encoded.len() - 1);
-                    }
-                    encoded
-                } else {
-                    // This should only be the case for a VR of FL.
-                    floats
-                        .into_iter()
-                        .filter(|float: &f32| float.is_finite())
-                        .flat_map(|float: f32| {
-                            if self.ts.is_big_endian() {
-                                float.to_be_bytes()
-                            } else {
-                                float.to_le_bytes()
-                            }
-                        })
-                        .collect::<Vec<u8>>()
-                }
-            }
-            RawValue::Doubles(doubles) => {
-                if self.vr.is_character_string {
-                    // This should only be the case for a VR of DS.
-                    let mut encoded = doubles
-                        .into_iter()
-                        .filter(|double: &f64| double.is_finite())
-                        // In theory this should use the default character set, but this
-                        // relies on f64::to_string only using ascii which falls under that.
-                        .map(|double: f64| {
-                            // Force at least one digit of precision.
-                            if double.fract() == 0.0 {
-                                format!("{double:.1}").into_bytes()
-                            } else {
-                                double.to_string().into_bytes()
-                            }
-                        })
-                        .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
-                        .collect::<Vec<u8>>();
-                    if !encoded.is_empty() {
-                        encoded.remove(encoded.len() - 1);
-                    }
-                    encoded
-                } else {
-                    // This should only be the case for a VR of FL.
-                    doubles
-                        .into_iter()
-                        .filter(|double: &f64| double.is_finite())
-                        .flat_map(|double: f64| {
-                            if self.ts.is_big_endian() {
-                                double.to_be_bytes()
-                            } else {
-                                double.to_le_bytes()
-                            }
-                        })
-                        .collect::<Vec<u8>>()
-                }
-            }
             RawValue::Shorts(shorts) => {
                 if self.vr.is_character_string {
                     // This should only be the case for a VR of IS.
@@ -506,6 +433,81 @@ impl DicomElement {
                         .collect::<Vec<u8>>()
                 }
             }
+            RawValue::Floats(floats) => {
+                if self.vr.is_character_string {
+                    // This should only be the case for a VR of DS.
+                    let mut encoded = floats
+                        .into_iter()
+                        .filter(|float: &f32| float.is_finite())
+                        // In theory this should use the default character set, but this
+                        // relies on f32::to_string only using ascii which falls under that.
+                        .map(|float: f32| {
+                            // Force at least one digit of precision.
+                            if float.fract() == 0.0 {
+                                format!("{float:.1}").into_bytes()
+                            } else {
+                                float.to_string().into_bytes()
+                            }
+                        })
+                        .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
+                        .collect::<Vec<u8>>();
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
+                    encoded
+                } else {
+                    // This should only be the case for a VR of FL.
+                    floats
+                        .into_iter()
+                        .filter(|float: &f32| float.is_finite())
+                        .flat_map(|float: f32| {
+                            if self.ts.is_big_endian() {
+                                float.to_be_bytes()
+                            } else {
+                                float.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
+            }
+            RawValue::Doubles(doubles) => {
+                if self.vr.is_character_string {
+                    // This should only be the case for a VR of DS.
+                    let mut encoded = doubles
+                        .into_iter()
+                        .filter(|double: &f64| double.is_finite())
+                        // In theory this should use the default character set, but this
+                        // relies on f64::to_string only using ascii which falls under that.
+                        .map(|double: f64| {
+                            // Force at least one digit of precision.
+                            if double.fract() == 0.0 {
+                                format!("{double:.1}").into_bytes()
+                            } else {
+                                double.to_string().into_bytes()
+                            }
+                        })
+                        .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
+                        .collect::<Vec<u8>>();
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
+                    encoded
+                } else {
+                    // This should only be the case for a VR of FL.
+                    doubles
+                        .into_iter()
+                        .filter(|double: &f64| double.is_finite())
+                        .flat_map(|double: f64| {
+                            if self.ts.is_big_endian() {
+                                double.to_be_bytes()
+                            } else {
+                                double.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
+            }
+            RawValue::Bytes(bytes) => bytes,
             RawValue::Words(words) => words
                 .into_iter()
                 .map(|word| {
@@ -528,7 +530,17 @@ impl DicomElement {
                 })
                 .flatten()
                 .collect::<Vec<u8>>(),
-            RawValue::Bytes(bytes) => bytes,
+            RawValue::QuadWords(qwords) => qwords
+                .into_iter()
+                .map(|qword| {
+                    if self.ts.is_big_endian() {
+                        qword.to_be_bytes()
+                    } else {
+                        qword.to_le_bytes()
+                    }
+                })
+                .flatten()
+                .collect::<Vec<u8>>(),
         };
 
         // All fields are required to be of even length, with padding added as necessary. Note
@@ -576,8 +588,20 @@ impl TryFrom<&DicomElement> for RawValue {
             Ok(RawValue::Shorts(Vec::<i16>::try_from(value)?))
         } else if value.vr == &vr::US {
             Ok(RawValue::UnsignedShorts(Vec::<u16>::try_from(value)?))
+        } else if value.vr == &vr::SL {
+            Ok(RawValue::Integers(Vec::<i32>::try_from(value)?))
+        } else if value.vr == &vr::UL {
+            Ok(RawValue::UnsignedIntegers(Vec::<u32>::try_from(value)?))
+        } else if value.vr == &vr::SV {
+            Ok(RawValue::Longs(Vec::<i64>::try_from(value)?))
+        } else if value.vr == &vr::UV {
+            Ok(RawValue::UnsignedLongs(Vec::<u64>::try_from(value)?))
         } else if value.vr == &vr::OW {
             Ok(RawValue::Words(Vec::<u16>::try_from(value)?))
+        } else if value.vr == &vr::OL {
+            Ok(RawValue::DoubleWords(Vec::<u32>::try_from(value)?))
+        } else if value.vr == &vr::OV {
+            Ok(RawValue::QuadWords(Vec::<u64>::try_from(value)?))
         } else if value.vr == &vr::IS {
             let possible_i32s = Vec::<i32>::try_from(value);
             if let Ok(i32s) = possible_i32s {
@@ -586,28 +610,12 @@ impl TryFrom<&DicomElement> for RawValue {
                 // Sometimes decimal values are (incorrectly) encoded with VR of IS.
                 Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
             }
-        } else if value.vr == &vr::SL {
-            Ok(RawValue::Integers(Vec::<i32>::try_from(value)?))
-        } else if value.vr == &vr::UL {
-            Ok(RawValue::UnsignedIntegers(Vec::<u32>::try_from(value)?))
-        } else if value.vr == &vr::OL {
-            Ok(RawValue::DoubleWords(Vec::<u32>::try_from(value)?))
-        } else if value.vr == &vr::SV {
-            Ok(RawValue::Longs(Vec::<i64>::try_from(value)?))
-        } else if value.vr == &vr::UV {
-            Ok(RawValue::UnsignedLongs(Vec::<u64>::try_from(value)?))
-        } else if value.vr == &vr::FD || value.vr == &vr::OF {
+        } else if value.vr == &vr::OF || value.vr == &vr::FL {
             Ok(RawValue::Floats(Vec::<f32>::try_from(value)?))
         } else if value.vr == &vr::DS {
             Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
-        } else if value.vr == &vr::OD || value.vr == &vr::FL {
-            let possible_f64s = Vec::<f64>::try_from(value);
-            if let Ok(f64s) = possible_f64s {
-                Ok(RawValue::Doubles(f64s))
-            } else {
-                // Sometimes VR of FL (incorrectly) have value length in multiple of 4 and not 8.
-                Ok(RawValue::Floats(Vec::<f32>::try_from(value)?))
-            }
+        } else if value.vr == &vr::OD || value.vr == &vr::FD {
+            Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
         } else if value.vr.is_character_string {
             // Check is_character_string last, as that will be true for a number of VRs above which
             // whose try_from will attempt to parse stringified numeric values into native values.
@@ -616,7 +624,12 @@ impl TryFrom<&DicomElement> for RawValue {
             // See Part 5 Section 6.2.2
             // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
             // and in the case of Implicit VR the private tag will also not be known/lookup.
-            Ok(RawValue::Uid(String::try_from(value)?))
+            let possible_uid = String::try_from(value);
+            if let Ok(uid) = possible_uid {
+                Ok(RawValue::Uid(uid))
+            } else {
+                Ok(RawValue::Bytes(value.get_data().clone()))
+            }
         } else {
             Ok(RawValue::Bytes(value.get_data().clone()))
         }
