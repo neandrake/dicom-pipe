@@ -5,10 +5,14 @@
 
 use std::hash::{Hash, Hasher};
 
+/// Unique Identifiers
 #[derive(Debug, Eq)]
 pub struct UID {
+    /// Some identifier or name, useful for lookup (no spaces - matches definition/name in code)
     pub ident: &'static str,
+    /// The UID string code
     pub uid: &'static str,
+    /// Some descriptive name
     pub name: &'static str,
 }
 
