@@ -2,10 +2,6 @@ use std::convert::{TryFrom, TryInto};
 use std::fs::File;
 use std::io::{Cursor, ErrorKind};
 
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::dict::tags::{self};
-use dcmpipe_lib::dict::transfer_syntaxes as ts;
-use dcmpipe_lib::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
@@ -16,6 +12,10 @@ use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
+use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_lib::dict::tags::{self};
+use dcmpipe_lib::dict::transfer_syntaxes as ts;
+use dcmpipe_lib::dict::uids;
 
 use crate::mock::MockDicomDataset;
 use crate::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};

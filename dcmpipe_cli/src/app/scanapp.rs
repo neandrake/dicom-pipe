@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use walkdir::WalkDir;
 
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
+use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 use crate::{app::CommandApplication, args::ScanArgs};
 

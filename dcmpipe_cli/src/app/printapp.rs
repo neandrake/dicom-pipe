@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use dcmpipe_lib::dict::tags;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmsqelem::SequenceElement;
 use dcmpipe_lib::core::read::Parser;
@@ -16,6 +15,7 @@ use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::ts::TSRef;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
+use dcmpipe_lib::dict::tags;
 
 use crate::app::{parse_file, CommandApplication};
 use crate::args::PrintArgs;

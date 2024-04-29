@@ -18,11 +18,11 @@ use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::constants;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
+use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};

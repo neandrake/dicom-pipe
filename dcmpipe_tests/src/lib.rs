@@ -6,10 +6,10 @@ use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use walkdir::WalkDir;
 
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::{ParseResult, Parser, ParserBuilder};
 use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
+use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 
 #[cfg(test)]
 mod charsets;
