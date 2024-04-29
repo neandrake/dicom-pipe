@@ -152,9 +152,71 @@ pub enum SvcUserCommand {
 
     /// Issue a C-FIND command.
     Find {
+        /// The "level" of the query, one of PATIENT, STUDY, SERIES, or IMAGE.
         #[arg(short, long)]
         query_level: QueryLevel,
 
+        /// A query parameter for matching, in the form `key=val`, where `key` is a valid tag
+        /// signifier. This argument can be supplied multiple times, resulting in a logical AND
+        /// effect with all supplied query parameters.
+        ///
+        /// A valid tag signifier can take the format `GGGGEEEE`, with optional
+        /// surrounding parenthesis and optional comma separating the group number from the element
+        /// number. A tag signifier can also be a tag name/identifier such as `PatientID` or
+        /// `PatientsName`.
+        #[arg(short, long, value_parser = parse_key_val)]
+        query: Vec<(String, String)>,
+    },
+
+    /// Issue a C-STORE command.
+    Store {
+        /// A file to transfer using C-STORE.
+        #[arg(short, long)]
+        file: Vec<PathBuf>,
+    },
+
+    /// Issue a C-MOVE command.
+    ///
+    /// Optional arguments for a query may be supplied, which will result in issuing a C-FIND first
+    /// and then issuing C-MOVE on the results.
+    Move {
+        /// The destination AE Title for the C-MOVE command to transfer the to.
+        #[arg(short, long)]
+        dest_ae: String,
+
+        /// The "level" of the query, one of PATIENT, STUDY, SERIES, or IMAGE.
+        #[arg(short, long)]
+        query_level: Option<QueryLevel>,
+
+        /// A query parameter for matching, in the form `key=val`, where `key` is a valid tag
+        /// signifier. This argument can be supplied multiple times, resulting in a logical AND
+        /// effect with all supplied query parameters.
+        ///
+        /// A valid tag signifier can take the format `GGGGEEEE`, with optional
+        /// surrounding parenthesis and optional comma separating the group number from the element
+        /// number. A tag signifier can also be a tag name/identifier such as `PatientID` or
+        /// `PatientsName`.
+        #[arg(short, long, value_parser = parse_key_val)]
+        query: Vec<(String, String)>,
+    },
+
+    /// Issue a C-GET command.
+    ///
+    /// Optional arguments for a query may be supplied, which will result in issuing a C-FIND first
+    /// and then issuing C-GET on the results.
+    Get {
+        /// The "level" of the query, one of PATIENT, STUDY, SERIES, or IMAGE.
+        #[arg(short, long)]
+        query_level: Option<QueryLevel>,
+
+        /// A query parameter for matching, in the form `key=val`, where `key` is a valid tag
+        /// signifier. This argument can be supplied multiple times, resulting in a logical AND
+        /// effect with all supplied query parameters.
+        ///
+        /// A valid tag signifier can take the format `GGGGEEEE`, with optional
+        /// surrounding parenthesis and optional comma separating the group number from the element
+        /// number. A tag signifier can also be a tag name/identifier such as `PatientID` or
+        /// `PatientsName`.
         #[arg(short, long, value_parser = parse_key_val)]
         query: Vec<(String, String)>,
     },

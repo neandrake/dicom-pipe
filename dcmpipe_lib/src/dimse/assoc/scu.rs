@@ -321,7 +321,6 @@ impl UserAssoc {
             ))));
         }
 
-        self.release_association(&mut reader, &mut writer)?;
         Ok(None)
     }
 
@@ -339,7 +338,7 @@ impl UserAssoc {
         &mut self,
         reader: R,
         mut writer: W,
-        ql: &QueryLevel,
+        ql: QueryLevel,
         dcm_query: Vec<(&Tag, RawValue)>,
     ) -> Result<CommandIter<R>, AssocError> {
         let sop_class_uid = match ql {
