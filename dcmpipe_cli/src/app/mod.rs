@@ -1,6 +1,6 @@
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, UID_BY_UID};
-use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement, SequenceElement};
+use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vr;
 use std::io::Error;
@@ -10,6 +10,7 @@ mod fullobjapp;
 mod lowmemapp;
 
 pub use cursiveapp::CursiveApp;
+use dcmpipe_lib::core::dcmsqelem::SequenceElement;
 use dcmpipe_lib::defn::vl::ValueLength;
 pub use fullobjapp::FullObjApp;
 pub use lowmemapp::LowMemApp;
