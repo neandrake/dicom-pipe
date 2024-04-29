@@ -27,37 +27,37 @@ static HIDE_DELIMITATION_TAGS: bool = false;
 
 pub(crate) trait CommandApplication {
     fn run(&mut self) -> Result<(), Error>;
+}
 
-    fn parse_file(&self, path: &Path) -> Result<Parser<'_, File>, Error> {
-        if !path.is_file() {
-            return Err(Error::new(
-                ErrorKind::NotFound,
-                format!("invalid file: {}", path.display()),
-            ));
-        }
-
-        let file: File = File::open(path)?;
-        let mut parser: Parser<'_, File> = ParserBuilder::new(file)
-            .dictionary(&STANDARD_DICOM_DICTIONARY)
-            .build();
-
-        let mut peeker: Peekable<&mut Parser<'_, File>> = parser.by_ref().peekable();
-
-        let first: Option<&Result<DicomElement, Error>> = peeker.peek();
-        if let Some(Err(_)) = first {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("file is not dicom: {}", path.display()),
-            ));
-        } else if let None = first {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("file is empty: {}", path.display()),
-            ));
-        }
-
-        Ok(parser)
+fn parse_file(path: &Path) -> Result<Parser<'_, File>, Error> {
+    if !path.is_file() {
+        return Err(Error::new(
+            ErrorKind::NotFound,
+            format!("invalid file: {}", path.display()),
+        ));
     }
+
+    let file: File = File::open(path)?;
+    let mut parser: Parser<'_, File> = ParserBuilder::new(file)
+        .dictionary(&STANDARD_DICOM_DICTIONARY)
+        .build();
+
+    let mut peeker: Peekable<&mut Parser<'_, File>> = parser.by_ref().peekable();
+
+    let first: Option<&Result<DicomElement, Error>> = peeker.peek();
+    if let Some(Err(_)) = first {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("file is not dicom: {}", path.display()),
+        ));
+    } else if let None = first {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("file is empty: {}", path.display()),
+        ));
+    }
+
+    Ok(parser)
 }
 
 /// Renders an element on a single line, includes indentation based on depth in sequences
@@ -68,7 +68,7 @@ pub(crate) trait CommandApplication {
 /// ```
 /// (gggg,eeee) VR TagName <empty>
 /// ```
-/// Names for private tags will render as `<PrivateTag>`
+/// Names for unknown tags will render as `<UnknownTag>`
 fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     // Group Length tags are deprecated, see note on Part 5 Section 7.2
     if HIDE_GROUP_TAGS && element.tag.trailing_zeros() >= 16 {

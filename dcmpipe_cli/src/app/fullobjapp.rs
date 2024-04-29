@@ -1,4 +1,4 @@
-use crate::app::{CommandApplication, render_element};
+use crate::app::{CommandApplication, render_element, parse_file};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::Parser;
@@ -18,7 +18,7 @@ impl FullObjApp {
     }
 
     fn render_objects(
-        &self,
+        &mut self,
         dcmnode: &impl DicomNode,
         mut prev_was_file_meta: bool,
         ts: TSRef,
@@ -62,8 +62,9 @@ impl FullObjApp {
 
 impl CommandApplication for FullObjApp {
     fn run(&mut self) -> Result<(), Error> {
-        let path: &Path = self.openpath.as_path();
-        let mut parser: Parser<'_, File> = self.parse_file(path)?;
+        let path_buf: PathBuf = self.openpath.clone();
+        let path: &Path = path_buf.as_path();
+        let mut parser: Parser<'_, File> = parse_file(path)?;
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
