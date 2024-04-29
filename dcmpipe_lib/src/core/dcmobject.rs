@@ -7,77 +7,16 @@ use std::io::Read;
 use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
 use crate::defn::constants::tags;
+use crate::defn::constants::ts;
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
+use crate::defn::vr;
 
 use super::read::ParseError;
 use super::read::Parser;
 use super::write::error::WriteError;
-
-/// Trait for a dicom node which contains child elements.
-pub trait DicomNode {
-    /// Get the element for this node, if present. This will be `None` for `DicomRoot` but will
-    /// always be `Some()` for all `DicomObject`.
-    fn get_element(&self) -> Option<&DicomElement>;
-
-    /// Get the number of child node if this is a root or sequence-like node.
-    fn get_child_count(&self) -> usize;
-
-    /// Get a child node with the given tag.
-    fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject>;
-
-    /// Iterator over the child nodes, in tag-ascending order.
-    fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject>;
-
-    /// Get the number of item nodes if this is a sequence-like node.
-    fn get_item_count(&self) -> usize;
-
-    /// Get an item of the given index. Index is 1-based.
-    fn get_item_by_index(&self, index: usize) -> Option<&DicomObject>;
-
-    /// Iterator over the item nodes of this node, if it is sequence-like.
-    fn iter_items(&self) -> std::slice::Iter<DicomObject>;
-
-    /// Get a child node with the given `TagNode`.
-    fn get_child_by_tagnode(&self, node: &TagNode) -> Option<&DicomObject> {
-        self.get_child_by_tag(node.get_tag())
-            .and_then(|o| match node.get_item() {
-                None => Some(o),
-                Some(item_num) => o.get_item_by_index(item_num),
-            })
-    }
-
-    /// Get a child node with the given `TagPath`.
-    fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
-        let mut target = tagpath.nodes.first().map(|n| self.get_child_by_tagnode(n))?;
-        for node in tagpath.nodes.iter().skip(1) {
-            target = target.and_then(|parent| parent.get_child_by_tagnode(node));
-        }
-        target
-    }
-
-    /// Flattens this object into an ordered list of elements as they would appear in a dataset.
-    fn flatten(&self) -> Result<Vec<&DicomElement>, WriteError> {
-        // TODO: Can this instead return an iterator?
-
-        let mut elements: Vec<&DicomElement> = Vec::new();
-
-        // List items + contents first, as SQ objects will include both items for its contents as
-        // well as the sequence delimiter as a child node.
-        for dcmobj in self.iter_items() {
-            elements.push(dcmobj.as_element());
-            elements.append(&mut (dcmobj.flatten()?));
-        }
-        for (_tag, dcmobj) in self.iter_child_nodes() {
-            elements.push(dcmobj.as_element());
-            elements.append(&mut (dcmobj.flatten()?));
-        }
-
-        Ok(elements)
-    }
-}
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
@@ -85,8 +24,10 @@ pub struct DicomRoot<'dict> {
     ts: TSRef,
     cs: CSRef,
     dictionary: &'dict dyn DicomDictionary,
-    child_nodes: BTreeMap<u32, DicomObject>,
-    items: Vec<DicomObject>,
+
+    /// This is an object to be parent of all the root-level elements, but does not itself
+    /// represent an element.
+    facade: DicomObject,
 }
 
 impl<'dict> DicomRoot<'dict> {
@@ -97,13 +38,21 @@ impl<'dict> DicomRoot<'dict> {
         child_nodes: BTreeMap<u32, DicomObject>,
         items: Vec<DicomObject>,
     ) -> DicomRoot<'_> {
+        let facade_elem = DicomElement::new_empty(0u32, &vr::INVALID, &ts::ExplicitVRLittleEndian);
+        let facade = DicomObject::new_with_children(facade_elem, child_nodes, items);
         DicomRoot {
             ts,
             cs,
             dictionary,
-            child_nodes,
-            items,
+            facade,
         }
+    }
+
+    /// Returns a delegate object that holds all the root-level elements. Be cautious not to use
+    /// the `DicomObject::as_element()` on the returned value as it does not represent an actual
+    /// element within the dataset and does not hold valid data.
+    pub fn as_obj(&self) -> &DicomObject {
+        &self.facade
     }
 
     /// Get the transfer syntax used to encode the dataset.
@@ -119,6 +68,49 @@ impl<'dict> DicomRoot<'dict> {
     /// Get the dictionary used to encode the dataset.
     pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
         self.dictionary
+    }
+
+    pub fn get_element(&self) -> Option<&DicomElement> {
+        None
+    }
+
+    pub fn get_child_count(&self) -> usize {
+        self.facade.get_child_count()
+    }
+
+    pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
+        self.facade.get_child_by_tag(tag)
+    }
+
+    pub fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
+        self.facade.iter_child_nodes()
+    }
+
+    pub fn get_item_count(&self) -> usize {
+        self.facade.get_item_count()
+    }
+
+    pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
+        self.facade.get_item_by_index(index)
+    }
+
+    pub fn iter_items(&self) -> std::slice::Iter<DicomObject> {
+        self.facade.iter_items()
+    }
+
+    /// Get a child node with the given `TagNode`.
+    pub fn get_child_by_tagnode(&self, tag_node: &TagNode) -> Option<&DicomObject> {
+        self.facade.get_child_by_tagnode(tag_node)
+    }
+
+    /// Get a child node with the given `TagPath`.
+    pub fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
+        self.facade.get_child_by_tagpath(tagpath)
+    }
+
+    /// Flattens this object into an ordered list of elements as they would appear in a dataset.
+    pub fn flatten(&self) -> Result<Vec<&DicomElement>, WriteError> {
+        self.facade.flatten()
     }
 
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
@@ -252,38 +244,6 @@ impl<'dict> DicomRoot<'dict> {
     }
 }
 
-impl<'dict> DicomNode for DicomRoot<'dict> {
-    fn get_element(&self) -> Option<&DicomElement> {
-        None
-    }
-
-    fn get_child_count(&self) -> usize {
-        self.child_nodes.len()
-    }
-
-    fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
-        self.child_nodes.get(&tag)
-    }
-
-    fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
-        self.child_nodes.iter()
-    }
-
-    fn get_item_count(&self) -> usize {
-        self.items.len()
-    }
-
-    fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
-        // Index for items are provided 1-based, convert to 0-based for vec use.
-        let index = index - 1;
-        self.items.get(index)
-    }
-
-    fn iter_items(&self) -> std::slice::Iter<DicomObject> {
-        self.items.iter()
-    }
-}
-
 impl std::fmt::Debug for DicomRoot<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -327,39 +287,72 @@ impl DicomObject {
         }
     }
 
-    /// Convenience function to get this object's underlying element, to avoid the `Option`
-    /// wrapping of `get_element()`.
     pub fn as_element(&self) -> &DicomElement {
         &self.element
     }
-}
 
-impl DicomNode for DicomObject {
-    fn get_element(&self) -> Option<&DicomElement> {
-        Some(&self.element)
-    }
-
-    fn get_child_count(&self) -> usize {
+    pub fn get_child_count(&self) -> usize {
         self.child_nodes.len()
     }
 
-    fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
+    pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
         self.child_nodes.get(&tag)
     }
 
-    fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
+    pub fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
         self.child_nodes.iter()
     }
 
-    fn get_item_count(&self) -> usize {
+    pub fn get_item_count(&self) -> usize {
         self.items.len()
     }
 
-    fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
+    pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
         self.items.get(index - 1)
     }
 
-    fn iter_items(&self) -> std::slice::Iter<DicomObject> {
+    pub fn iter_items(&self) -> std::slice::Iter<DicomObject> {
         self.items.iter()
+    }
+
+    /// Get a child node with the given `TagNode`.
+    pub fn get_child_by_tagnode(&self, tag_node: &TagNode) -> Option<&DicomObject> {
+        self.get_child_by_tag(tag_node.get_tag())
+            .and_then(|o| match tag_node.get_item() {
+                None => Some(o),
+                Some(item_num) => o.get_item_by_index(item_num),
+            })
+    }
+
+    /// Get a child node with the given `TagPath`.
+    pub fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
+        let mut target = tagpath
+            .nodes
+            .first()
+            .map(|n| self.get_child_by_tagnode(n))?;
+        for node in tagpath.nodes.iter().skip(1) {
+            target = target.and_then(|parent| parent.get_child_by_tagnode(node));
+        }
+        target
+    }
+
+    /// Flattens this object into an ordered list of elements as they would appear in a dataset.
+    pub fn flatten(&self) -> Result<Vec<&DicomElement>, WriteError> {
+        // TODO: Can this instead return an iterator?
+
+        let mut elements: Vec<&DicomElement> = Vec::new();
+
+        // List items + contents first, as SQ objects will include both items for its contents as
+        // well as the sequence delimiter as a child node.
+        for dcmobj in self.iter_items() {
+            elements.push(dcmobj.as_element());
+            elements.append(&mut (dcmobj.flatten()?));
+        }
+        for (_tag, dcmobj) in self.iter_child_nodes() {
+            elements.push(dcmobj.as_element());
+            elements.append(&mut (dcmobj.flatten()?));
+        }
+
+        Ok(elements)
     }
 }

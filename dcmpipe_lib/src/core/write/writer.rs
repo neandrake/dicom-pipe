@@ -4,7 +4,7 @@ use crate::{
     core::{
         charset::{CSRef, DEFAULT_CHARACTER_SET},
         dcmelement::DicomElement,
-        dcmobject::{DicomNode, DicomRoot},
+        dcmobject::DicomRoot,
         read::ParseError,
         values::RawValue,
         write::{ds::dataset::Dataset, error::WriteError},

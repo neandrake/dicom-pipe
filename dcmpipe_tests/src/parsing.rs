@@ -7,7 +7,7 @@ use dcmpipe_dict::dict::tags::{self};
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
+use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::{ParseError, ParseResult, ParseState, Parser, ParserBuilder};
 use dcmpipe_lib::core::values::{ElementWithVr, RawValue};

@@ -19,7 +19,7 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
+use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::constants;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
@@ -132,8 +132,8 @@ impl CommandApplication for BrowseApp {
 }
 
 impl<'app> DicomDocumentModel<'app> {
-    fn parse<'dict>(path: &'app Path, dcmroot: &DicomRoot<'dict>) -> DicomDocumentModel<'app> {
-        let map = DicomNodeModel::parse(dcmroot);
+    fn parse<'dict>(path: &'app Path, dcmroot: &DicomRoot) -> DicomDocumentModel<'app> {
+        let map = DicomNodeModel::parse(dcmroot.as_obj());
         let count = map.len();
         DicomDocumentModel {
             file_path: path,
@@ -144,19 +144,19 @@ impl<'app> DicomDocumentModel<'app> {
 }
 
 impl<'model> DicomNodeModel<'model> {
-    fn parse<'dict>(dcmnode: &'dict dyn DicomNode) -> HashMap<TagPath, DicomNodeModel<'model>> {
-        let total_sub_items = dcmnode.get_item_count() + dcmnode.get_child_count();
+    fn parse(dcmobj: &DicomObject) -> HashMap<TagPath, DicomNodeModel<'model>> {
+        let total_sub_items = dcmobj.get_item_count() + dcmobj.get_child_count();
         let mut map: HashMap<TagPath, DicomNodeModel<'model>> =
             HashMap::with_capacity(total_sub_items);
         let mut rows: Vec<Row<'model>> = Vec::with_capacity(total_sub_items);
         let mut max_name_width: u16 = 0;
-        for item in dcmnode.iter_items() {
+        for item in dcmobj.iter_items() {
             let (row, child_map, name_len) = DicomNodeModel::parse_dcmobj(item);
             rows.push(row);
             map.extend(child_map);
             max_name_width = max_name_width.max(name_len);
         }
-        for (_child_tag, child) in dcmnode.iter_child_nodes() {
+        for (_child_tag, child) in dcmobj.iter_child_nodes() {
             let (row, child_map, name_len) = DicomNodeModel::parse_dcmobj(child);
             rows.push(row);
             map.extend(child_map);
@@ -168,7 +168,7 @@ impl<'model> DicomNodeModel<'model> {
             max_name_width,
         };
 
-        let tagpath = get_tagpath(dcmnode);
+        let tagpath = get_tagpath(dcmobj);
         map.insert(tagpath, elem_tbl);
 
         map
@@ -383,7 +383,7 @@ impl<'app> BrowseApp {
             UserAction::NavIntoLevel(sel_idx) => {
                 let sel_idx = *sel_idx;
                 let next_path = if current_tagpath.is_empty() {
-                    get_nth_child(dcmroot, sel_idx)
+                    get_nth_child(dcmroot.as_obj(), sel_idx)
                         .map(|o| o.as_element().get_tagpath())
                         .unwrap_or_else(|| current_tagpath.clone())
                 } else {
@@ -591,19 +591,16 @@ impl<'app> BrowseApp {
 
 /// Treates a DICOM element's children as an ordered list to get a child node based on index. This
 /// is only useful for mapping the view-index to the model-index.
-fn get_nth_child(node: &dyn DicomNode, index: usize) -> Option<&DicomObject> {
-    node.iter_child_nodes().skip(index).map(|e| e.1).next()
+fn get_nth_child(dcmobj: &DicomObject, index: usize) -> Option<&DicomObject> {
+    dcmobj.iter_child_nodes().skip(index).map(|e| e.1).next()
 }
 
 /// Computes the `TagPath` for a given node within a DICOM document. This uses
 /// `DicomElement::get_tagpath()` with two modifications:
 /// - For elements at the root of the document this returns `TagPath::empty()`.
 /// - For items within a sequence the trailing `constants::tags::ITEM` node is removed.
-fn get_tagpath(dcmnode: &dyn DicomNode) -> TagPath {
-    let tagpath = dcmnode
-        .get_element()
-        .map(|o| o.get_tagpath())
-        .unwrap_or_else(TagPath::empty);
+fn get_tagpath(dcmobj: &DicomObject) -> TagPath {
+    let tagpath = dcmobj.as_element().get_tagpath();
     strip_last_item(tagpath)
 }
 
