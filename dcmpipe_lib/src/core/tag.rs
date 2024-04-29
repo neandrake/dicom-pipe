@@ -2,7 +2,6 @@
 
 use crate::core::vm::VMRef;
 use crate::core::vr::VRRef;
-use std::fmt::{Formatter, LowerHex, Result as FmtResult, UpperHex};
 use std::hash::{Hash, Hasher};
 
 pub type TagRef = &'static Tag;
@@ -40,10 +39,18 @@ impl Tag {
         self.vm
     }
 
+    /// Renders the tag number as `(gggg,eeee)`
     pub fn format_tag_to_display(tag: u32) -> String {
         let tag_upper: u32 = tag >> 16;
         let tag_lower: u32 = tag & 0x0000FFFF;
         format!("({:04X},{:04X})", tag_upper, tag_lower)
+    }
+
+    /// Renders the tag number as `ggggeeee`
+    pub fn format_tag_to_path_display(tag: u32) -> String {
+        let tag_upper: u32 = tag >> 16;
+        let tag_lower: u32 = tag & 0x0000FFFF;
+        format!("{:04X}{:04X}", tag_upper, tag_lower)
     }
 }
 
@@ -56,28 +63,5 @@ impl PartialEq for Tag {
 impl Hash for Tag {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tag.hash(state);
-    }
-}
-
-pub enum ElementTag<'et> {
-    Undefined(u32),
-    Defined(&'et Tag),
-}
-
-impl<'et> UpperHex for ElementTag<'et> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        match *self {
-            ElementTag::Undefined(num) => write!(f, "0x{:08X}", num),
-            ElementTag::Defined(tag) => write!(f, "0x{:08X}", tag.tag),
-        }
-    }
-}
-
-impl<'et> LowerHex for ElementTag<'et> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        match *self {
-            ElementTag::Undefined(num) => write!(f, "0x{:08x}", num),
-            ElementTag::Defined(tag) => write!(f, "0x{:08x}", tag.tag),
-        }
     }
 }
