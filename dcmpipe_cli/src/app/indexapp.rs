@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
@@ -22,19 +22,25 @@ use dcmpipe_lib::defn::tag::Tag;
 use crate::app::args::IndexCommand;
 use crate::app::CommandApplication;
 
+
+static SERIES_UID_KEY: &str = "0020000E";
+static SOP_UID_KEY: &str = "00080018";
+
 /// Tracks a dicom document scanned from disk or from the database. I was originally going to make
 /// this an enum with variants `FromDisk` and `FromDb` and then try to merge so that the same
 /// record is updated from disk contents rather than creating new records, however it was easier
 /// for the moment to just make an optional `id` field -- which if filled in means that it will
 /// correspond to an existing record otherwise it represents a brand new document.
 struct DicomDoc {
+    key: String,
     doc: Document,
     id: Option<ObjectId>,
 }
 
 impl DicomDoc {
-    pub fn new() -> DicomDoc {
+    pub fn new(key: String) -> DicomDoc {
         DicomDoc {
+            key,
             doc: Document::new(),
             id: None,
         }
@@ -44,7 +50,6 @@ impl DicomDoc {
 pub struct IndexApp {
     db: String,
     cmd: IndexCommand,
-    uid_to_doc: HashMap<String, DicomDoc>,
 }
 
 impl CommandApplication for IndexApp {
@@ -52,10 +57,12 @@ impl CommandApplication for IndexApp {
         match &self.cmd {
             IndexCommand::Scan { folder } => {
                 let folder = folder.clone();
-                self.scan_dir(folder)?;
-                self.update_mongo()?;
+                let uid_to_doc: HashMap<String, DicomDoc> = self.scan_dir(folder)?;
+                self.upsert_records(uid_to_doc)?;
             }
-            IndexCommand::Verify {} => {}
+            IndexCommand::Verify {} => {
+                self.verify_records()?;
+            }
         }
         Ok(())
     }
@@ -66,12 +73,20 @@ impl IndexApp {
         IndexApp {
             db,
             cmd,
-            uid_to_doc: HashMap::new(),
         }
     }
 
-    /// Scans a directory and builds `DicomDoc` to be inserted into `self.uid_to_doc`
-    fn scan_dir(&mut self, folder: PathBuf) -> Result<()> {
+    fn get_dicom_coll(&self) -> Result<Collection> {
+        let client: Client = Client::with_uri_str(&self.db)
+            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
+        let metabase_db: Database = client.database("metabase_rs");
+        Ok(metabase_db.collection("dicom"))
+    }
+
+    /// Scans a directory and returns the map of all scanned documents
+    fn scan_dir(&mut self, folder: PathBuf) -> Result<HashMap<String, DicomDoc>> {
+        let mut uid_to_doc: HashMap<String, DicomDoc> = HashMap::new();
+
         let walkdir = WalkDir::new(&folder).into_iter().filter_map(|e| e.ok());
 
         let parser_builder: ParserBuilder<'_> = ParserBuilder::default()
@@ -101,8 +116,10 @@ impl IndexApp {
                     )
                 })?;
             let uid_key: String = uid_obj.as_element().try_into()?;
-            let dicom_doc: &mut DicomDoc =
-                self.uid_to_doc.entry(uid_key).or_insert_with(DicomDoc::new);
+            let entry_key: String = uid_key.clone();
+            let dicom_doc: &mut DicomDoc = uid_to_doc
+                .entry(entry_key)
+                .or_insert_with(|| DicomDoc::new(uid_key.clone()));
 
             let metadata_doc: &mut Document = dicom_doc
                 .doc
@@ -116,6 +133,7 @@ impl IndexApp {
                 .as_array_mut()
                 .ok_or_else(|| anyhow!("Field failure: metadata.files"))?;
             files_field.push(format!("{}", entry.path().display()).into());
+            metadata_doc.insert("serieskey", uid_key);
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
                 let child_elem: &DicomElement = child_obj.as_element();
@@ -127,73 +145,117 @@ impl IndexApp {
             }
         }
 
-        Ok(())
+        Ok(uid_to_doc)
     }
 
     /// Queries mongo for existing documents and updates `self.uid_to_doc` with a related id field
     /// if appropriate, or marks the document as missing on-disk and then deletes it.
     /// Performs all updates to mongo based on the scan results.
-    fn update_mongo(&mut self) -> Result<()> {
-        let client: Client = Client::with_uri_str(&self.db)
-            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
-        let metabase_db: Database = client.database("metabase_rs");
-        let dicom_coll: Collection = metabase_db.collection("dicom");
+    fn upsert_records(&mut self, mut uid_to_doc: HashMap<String, DicomDoc>) -> Result<()> {
+        let dicom_coll: Collection = self.get_dicom_coll()?;
 
-        let series_uid_key: String = Tag::format_tag_to_path_display(tags::SeriesInstanceUID.tag);
-        let sop_uid_key: String = Tag::format_tag_to_path_display(tags::SOPInstanceUID.tag);
-        let all_dicom_docs: Cursor = dicom_coll
-            .find(None, None)
-            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
+        let mut serieskeys: Vec<Bson> = Vec::new();
+        for key in uid_to_doc.keys() {
+            serieskeys.push(Bson::String(key.clone()));
+        }
+        let query: Document = doc!{
+            "metadata.serieskey" : {
+                "$in" : serieskeys
+            }
+        };
 
-        let mut missing_records: Vec<Document> = Vec::new();
-        for doc in all_dicom_docs {
-            if let Err(_e) = doc {
-                // TODO: log
-                continue;
-            }
-            let doc: Document = doc.unwrap();
-            let doc_id = doc.get_object_id("_id");
-            if let Err(_e) = doc_id {
-                // TODO: log
-                continue;
-            }
-            let doc_id: ObjectId = doc_id.unwrap().clone();
-
-            let doc_key = doc
-                .get_str(&series_uid_key)
-                .or_else(|_| doc.get_str(&sop_uid_key));
-            if let Err(_e) = doc_key {
-                // TODO: log
-                continue;
-            }
-            let doc_key: &str = doc_key.unwrap();
-            match self.uid_to_doc.get_mut(doc_key) {
-                Some(dicom_doc) => dicom_doc.id = Some(doc_id),
-                None => missing_records.push(doc),
+        for dicom_doc in self.query_docs(&dicom_coll, Some(query))? {
+            match uid_to_doc.get_mut(&dicom_doc.key) {
+                Some(existing) => existing.id = dicom_doc.id,
+                None => {},
             }
         }
 
-        // There's api for insert_many or update_many but there doesn't appear to be a way to do
-        // something like upsert_many. The update_many does take an option to specify upsert
-        // behavior but it's unclear how that should be used, as the query for which documents
-        // to update would need to match all existing? For now just do individual updates.
-        let keys: Vec<String> = self.uid_to_doc.keys().cloned().collect();
+        let mut inserts: Vec<Document> = Vec::new();
+        let mut updates: Vec<(ObjectId, Document)> = Vec::new();
+        let keys: Vec<String> = uid_to_doc.keys().cloned().collect();
         for key in keys {
-            if let Some(mut dicom_doc) = self.uid_to_doc.remove(&key) {
+            if let Some(mut dicom_doc) = uid_to_doc.remove(&key) {
                 match dicom_doc.id {
-                    None => {
-                        dicom_coll.insert_one(dicom_doc.doc, None)?;
-                    }
-                    Some(doc_id) => {
-                        dicom_doc.doc.insert("_id", doc_id.clone());
-                        let mut query: Document = Document::new();
-                        query.insert("_id", doc_id);
-                        dicom_coll.update_one(query, dicom_doc.doc, None)?;
-                    }
+                    None => inserts.push(dicom_doc.doc),
+                    Some(id) => {
+                        dicom_doc.doc.insert("_id", id.clone());
+                        updates.push((id, dicom_doc.doc));
+                    },
                 }
             }
         }
 
+        println!("Inserting {} records", inserts.len());
+        if !inserts.is_empty() {
+            dicom_coll.insert_many(inserts, None)?;
+        }
+
+        // There's no API for mass replacing documents, so do one-by-one.
+        println!("Updating {} records", updates.len());
+        for (id, doc) in updates.into_iter() {
+            let query: Document = doc! { "_id": id };
+            dicom_coll.update_one(query, doc, None)?;
+        }
+
+        Ok(())
+    }
+
+    fn verify_records(&mut self) -> Result<()> {
+        let dicom_coll: Collection = self.get_dicom_coll()?;
+
+        let mut record_count: usize = 0;
+        let mut updated_records: Vec<Document> = Vec::new();
+        let mut missing_records: Vec<Document> = Vec::new();
+        for mut dicom_doc in self.query_docs(&dicom_coll, None)? {
+            record_count += 1;
+            let md_doc_opt = dicom_doc.doc
+                .get_mut("metadata")
+                .and_then(|md_doc| md_doc.as_document_mut());
+            let metadata_doc: &mut Document;
+            match md_doc_opt {
+                Some(md) => metadata_doc = md,
+                None => {
+                    missing_records.push(dicom_doc.doc);
+                    continue;
+                }
+            }
+
+            let fd_doc_opt = metadata_doc
+                .get_mut("files")
+                .and_then(|fd_doc| fd_doc.as_array_mut());
+            let files_array: &mut Array;
+            match fd_doc_opt {
+                Some(fd) => files_array = fd,
+                None => {
+                    missing_records.push(dicom_doc.doc);
+                    continue;
+                }
+            }
+
+            let num_files: usize = files_array.len();
+            files_array.retain(|bson| {
+                match bson.as_str() {
+                    None => false,
+                    Some(path) => Path::new(path).is_file(),
+                }
+            });
+
+            match files_array.len() {
+                0 => missing_records.push(dicom_doc.doc),
+                x if x != num_files => updated_records.push(dicom_doc.doc),
+                _ => {},
+            }
+        }
+
+        println!("Verified {} records", record_count);
+
+        println!("Updating {} records", updated_records.len());
+        if !updated_records.is_empty() {
+            dicom_coll.insert_many(updated_records, None)?;
+        }
+
+        println!("Removing {} records", missing_records.len());
         if !missing_records.is_empty() {
             let ids: Vec<Bson> = missing_records
                 .iter()
@@ -210,6 +272,47 @@ impl IndexApp {
         }
 
         Ok(())
+    }
+
+    /// Query for all dicom records in the given collection and returns an iterator over `DicomDoc`
+    fn query_docs(&mut self, dicom_coll: &Collection, query: Option<Document>) -> Result<impl Iterator<Item = DicomDoc>> {
+        let all_dicom_docs: Cursor = dicom_coll
+            .find(query, None)
+            .with_context(|| format!("Invalid mongo: {}", &self.db))?;
+
+        let doc_iter = all_dicom_docs
+            .into_iter()
+            .filter_map(|doc_res| {
+                let doc: Document;
+                match doc_res {
+                    Err(_e) => return None,
+                    Ok(d) => doc = d,
+                }
+
+                let doc_id_res = doc.get_object_id("_id");
+                let doc_id: ObjectId;
+                match doc_id_res {
+                    Err(_e) => return None,
+                    Ok(d) => doc_id = d.clone(),
+                }
+
+                let doc_key_res = doc
+                    .get_str(SERIES_UID_KEY)
+                    .or_else(|_| doc.get_str(SOP_UID_KEY));
+                let doc_key: String;
+                match doc_key_res {
+                    Err(_e) => return None,
+                    Ok(d) => doc_key = d.to_owned(),
+                }
+
+                Some(DicomDoc {
+                    key: doc_key,
+                    doc,
+                    id: Some(doc_id),
+                })
+            });
+
+        Ok(doc_iter)
     }
 }
 
