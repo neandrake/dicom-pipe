@@ -20,9 +20,10 @@ use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vr;
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Constraint, Layout};
+use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
+use ratatui::widgets::block::Title;
 use ratatui::widgets::{Block, Borders, Cell, Row, Table, TableState};
 use ratatui::{Frame, Terminal};
 
@@ -37,6 +38,7 @@ pub struct BrowseApp {
 
 struct BrowseAppState<'app> {
     is_running: bool,
+    path: &'app Path,
     dcmroot: DicomRoot<'app>,
     table_state: TableState,
 }
@@ -57,6 +59,7 @@ impl CommandApplication for BrowseApp {
         table_state.select(Some(0));
         let state = BrowseAppState {
             is_running: true,
+            path,
             dcmroot,
             table_state,
         };
@@ -271,7 +274,20 @@ impl BrowseApp {
             )
             .block(
                 Block::default()
-                    .title("DICOM Browser")
+                    .title(
+                        Title::from(Line::from(Span::styled(
+                            format!("[DICOM Browser]"),
+                            Style::default().add_modifier(Modifier::BOLD),
+                        )))
+                        .alignment(Alignment::Left),
+                    )
+                    .title(
+                        Title::from(Line::from(Span::styled(
+                            format!("[{}]", state.path.display()),
+                            Style::default().fg(Color::LightBlue)
+                        )))
+                        .alignment(Alignment::Right),
+                    )
                     .borders(Borders::all()),
             )
             .widths(&column_widths)
@@ -279,13 +295,9 @@ impl BrowseApp {
 
         let sections = Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Min(1),
-                Constraint::Length(1),
-            ])
+            .constraints([Constraint::Min(1), Constraint::Length(1)])
             .split(frame.size());
 
-        frame.render_stateful_widget(table, sections[1], &mut state.table_state);
+        frame.render_stateful_widget(table, sections[0], &mut state.table_state);
     }
 }
