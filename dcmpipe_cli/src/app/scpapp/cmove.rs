@@ -18,35 +18,33 @@ use std::io::{Read, Write};
 
 use dcmpipe_lib::{
     core::dcmobject::DicomRoot,
-    dict::tags::{AffectedSOPClassUID, MessageID},
+    dict::tags::{AffectedSOPClassUID, MessageID, MoveDestination},
     dimse::{
-        assoc::Association,
-        commands::{messages::CommandMessage, CommandStatus},
-        error::AssocError,
+        commands::messages::CommandMessage,
+        error::{AssocError, DimseError},
     },
 };
 
-use crate::app::scpapp::AssociationDevice;
+use super::AssociationDevice;
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_store_req(
+    pub(crate) fn handle_c_move_req(
         &mut self,
         cmd: &CommandMessage,
-        _dcm: &DicomRoot,
+        dcm: &DicomRoot,
     ) -> Result<(), AssocError> {
         let ctx_id = cmd.ctx_id();
         let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
         let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
+        let dest = cmd
+            .get_string(&MoveDestination)
+            .map_err(AssocError::ab_failure)?;
 
-        let end_rsp = Association::create_cstore_end(
-            ctx_id,
-            msg_id,
-            &aff_sop_class,
-            &CommandStatus::success(),
-        )?;
-        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
+        cmd.message()
+            .dbg_dump()
+            .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
 
         Ok(())
     }

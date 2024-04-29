@@ -30,9 +30,11 @@ use dcmpipe_lib::{
         uids::{
             CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
             NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
-            PositronEmissionTomographyImageStorage, RTDoseStorage, RTPlanStorage,
-            RTStructureSetStorage, SecondaryCaptureImageStorage,
-            StudyRootQueryRetrieveInformationModelFIND, VerificationSOPClass,
+            PatientRootQueryRetrieveInformationModelGET,
+            PatientRootQueryRetrieveInformationModelMOVE, PositronEmissionTomographyImageStorage,
+            RTDoseStorage, RTPlanStorage, RTStructureSetStorage, SecondaryCaptureImageStorage,
+            StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
+            StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
         },
     },
     dimse::{
@@ -51,6 +53,8 @@ use std::{
 
 mod cecho;
 mod cfind;
+mod cget;
+mod cmove;
 mod cstore;
 
 pub struct SvcProviderApp {
@@ -85,6 +89,10 @@ impl CommandApplication for SvcProviderApp {
             &PatientRootQueryRetrieveInformationModelFIND,
             &StudyRootQueryRetrieveInformationModelFIND,
             &ModalityWorklistInformationModelFIND,
+            &PatientRootQueryRetrieveInformationModelMOVE,
+            &StudyRootQueryRetrieveInformationModelMOVE,
+            &PatientRootQueryRetrieveInformationModelGET,
+            &StudyRootQueryRetrieveInformationModelGET,
             &CTImageStorage,
             &MRImageStorage,
             &PositronEmissionTomographyImageStorage,
@@ -198,6 +206,8 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 continue;
             }
 
+            // XXX: For C-STORE this will result in loading the entire received dataset into memory
+            // at once.
             let mut buffer = Cursor::new(Vec::<u8>::new());
             self.read_dataset(&mut buffer)?;
             buffer.set_position(0);
@@ -221,6 +231,12 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             } else if cmd.cmd_type() == &CommandType::CStoreReq {
                 self.handle_c_store_req(&cmd, &dcm)?;
                 println!("[info ->]: {:?}", CommandType::CStoreRsp);
+            } else if cmd.cmd_type() == &CommandType::CMoveReq {
+                self.handle_c_move_req(&cmd, &dcm)?;
+                println!("[info ->]: {:?}", CommandType::CMoveRsp);
+            } else if cmd.cmd_type() == &CommandType::CGetReq {
+                self.handle_c_get_req(&cmd, &dcm)?;
+                println!("[info ->]: {:?}", CommandType::CGetRsp);
             }
         }
     }

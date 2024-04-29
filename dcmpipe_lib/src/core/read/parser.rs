@@ -186,6 +186,7 @@ pub struct Parser<'d, R: Read> {
 }
 
 impl<'d, R: Read> Parser<'d, R> {
+    /// Get the configurable behavior for this parser.
     pub(crate) fn behavior(&self) -> &ParseBehavior {
         &self.behavior
     }
