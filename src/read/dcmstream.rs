@@ -96,11 +96,10 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", tag)))
     }
 
-    pub fn get_encoder(&self, element: &DicomElement) -> EncodingRef {
-        if element.vr.decode_text_with_replaced_cs() {
-            self.cs
-        } else {
-            DEFAULT_CHARACTER_SET
+    pub fn get_text_codec(&self, element: &DicomElement) -> EncodingRef {
+        match element.vr.decode_text_with_replaced_cs() {
+            true => self.cs,
+            false => DEFAULT_CHARACTER_SET,
         }
     }
 
@@ -288,7 +287,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
                 let element: &DicomElement = self.get_element(element_tag)?;
 
                 if element.tag == tags::SpecificCharacterSet.tag {
-                    let decoder: EncodingRef = self.get_encoder(element);
+                    let decoder: EncodingRef = self.get_text_codec(element);
                     let new_cs_str: String = decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
                         .map_err(|e| Error::new(ErrorKind::InvalidData, e.into_owned()))?;
                     new_cs = Some(new_cs_str);
