@@ -294,7 +294,11 @@ mod tests {
             elem_iter.next(),
         );
 
-        bytes += assert_eq_elem(&MessageID, RawValue::of_ushort(exp_msg_id), elem_iter.next());
+        bytes += assert_eq_elem(
+            &MessageID,
+            RawValue::of_ushort(exp_msg_id),
+            elem_iter.next(),
+        );
 
         bytes += assert_eq_elem(
             &CommandDataSetType,

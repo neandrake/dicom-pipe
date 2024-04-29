@@ -60,16 +60,6 @@ pub enum PduType {
     TransferSyntaxItem,
     UserInformationItem,
 
-    MaxLengthItem,
-    ImplementationClassUIDItem,
-    AsyncOperationsWindowItem,
-    RoleSelectionItem,
-    ImplementationVersionNameItem,
-    SOPClassExtendedNegotiationItem,
-    SOPClassCommonExtendedNegotiationItem,
-    UserIdentityItem,
-    UserIdentityNegotiationItem,
-
     INVALID(u8),
 }
 
@@ -90,19 +80,6 @@ impl std::fmt::Debug for PduType {
             PduType::AbstractSyntaxItem => write!(f, "AbstractSyntaxItem"),
             PduType::TransferSyntaxItem => write!(f, "TransferSyntaxItem"),
             PduType::UserInformationItem => write!(f, "UserInformationItem"),
-            PduType::MaxLengthItem => write!(f, "MaxLengthItem"),
-            PduType::ImplementationClassUIDItem => write!(f, "ImplementationClassUIDItem"),
-            PduType::AsyncOperationsWindowItem => write!(f, "AsyncOperationsWindowItem"),
-            PduType::RoleSelectionItem => write!(f, "RoleSelectionItem"),
-            PduType::ImplementationVersionNameItem => write!(f, "ImplementationVersionNameItem"),
-            PduType::SOPClassExtendedNegotiationItem => {
-                write!(f, "SOPClassExtendedNegotiationItem")
-            }
-            PduType::SOPClassCommonExtendedNegotiationItem => {
-                write!(f, "SOPClassCommonExtendedNegotiationItem")
-            }
-            PduType::UserIdentityItem => write!(f, "UserIdentityItem"),
-            PduType::UserIdentityNegotiationItem => write!(f, "UserIdentityNegotiationItem"),
             PduType::INVALID(c) => write!(f, "INVALID {c:04x}"),
         }
     }
@@ -130,16 +107,6 @@ impl From<&PduType> for u8 {
             PduType::AbstractSyntaxItem => 0x30,
             PduType::TransferSyntaxItem => 0x40,
             PduType::UserInformationItem => 0x50,
-
-            PduType::MaxLengthItem => 0x51,
-            PduType::ImplementationClassUIDItem => 0x52,
-            PduType::AsyncOperationsWindowItem => 0x53,
-            PduType::RoleSelectionItem => 0x54,
-            PduType::ImplementationVersionNameItem => 0x55,
-            PduType::SOPClassExtendedNegotiationItem => 0x56,
-            PduType::SOPClassCommonExtendedNegotiationItem => 0x57,
-            PduType::UserIdentityItem => 0x58,
-            PduType::UserIdentityNegotiationItem => 0x59,
 
             PduType::INVALID(c) => *c,
         }
@@ -169,17 +136,58 @@ impl From<u8> for PduType {
             0x40 => PduType::TransferSyntaxItem,
             0x50 => PduType::UserInformationItem,
 
-            0x51 => PduType::MaxLengthItem,
-            0x52 => PduType::ImplementationClassUIDItem,
-            0x53 => PduType::AsyncOperationsWindowItem,
-            0x54 => PduType::RoleSelectionItem,
-            0x55 => PduType::ImplementationVersionNameItem,
-            0x56 => PduType::SOPClassExtendedNegotiationItem,
-            0x57 => PduType::SOPClassCommonExtendedNegotiationItem,
-            0x58 => PduType::UserIdentityItem,
-            0x59 => PduType::UserIdentityNegotiationItem,
-
             c => PduType::INVALID(c),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UserPduType {
+    MaxLengthItem,
+    ImplementationClassUIDItem,
+    AsyncOperationsWindowItem,
+    RoleSelectionItem,
+    ImplementationVersionNameItem,
+    SOPClassExtendedNegotiationItem,
+    SOPClassCommonExtendedNegotiationItem,
+    UserIdentityItem,
+    UserIdentityNegotiationItem,
+
+    INVALID(u8),
+}
+
+impl From<&UserPduType> for u8 {
+    fn from(value: &UserPduType) -> Self {
+        match value {
+            UserPduType::MaxLengthItem => 0x51,
+            UserPduType::ImplementationClassUIDItem => 0x52,
+            UserPduType::AsyncOperationsWindowItem => 0x53,
+            UserPduType::RoleSelectionItem => 0x54,
+            UserPduType::ImplementationVersionNameItem => 0x55,
+            UserPduType::SOPClassExtendedNegotiationItem => 0x56,
+            UserPduType::SOPClassCommonExtendedNegotiationItem => 0x57,
+            UserPduType::UserIdentityItem => 0x58,
+            UserPduType::UserIdentityNegotiationItem => 0x59,
+
+            UserPduType::INVALID(c) => *c,
+        }
+    }
+}
+
+impl From<u8> for UserPduType {
+    fn from(value: u8) -> Self {
+        match value {
+            0x51 => UserPduType::MaxLengthItem,
+            0x52 => UserPduType::ImplementationClassUIDItem,
+            0x53 => UserPduType::AsyncOperationsWindowItem,
+            0x54 => UserPduType::RoleSelectionItem,
+            0x55 => UserPduType::ImplementationVersionNameItem,
+            0x56 => UserPduType::SOPClassExtendedNegotiationItem,
+            0x57 => UserPduType::SOPClassCommonExtendedNegotiationItem,
+            0x58 => UserPduType::UserIdentityItem,
+            0x59 => UserPduType::UserIdentityNegotiationItem,
+
+            c => UserPduType::INVALID(c),
         }
     }
 }
@@ -200,15 +208,6 @@ pub enum Pdu {
     AbstractSyntaxItem(AbstractSyntaxItem),
     TransferSyntaxItem(TransferSyntaxItem),
     UserInformationItem(UserInformationItem),
-    MaxLengthItem(MaxLengthItem),
-    ImplementationClassUIDItem(ImplementationClassUIDItem),
-    AsyncOperationsWindowItem(AsyncOperationsWindowItem),
-    RoleSelectionItem(RoleSelectionItem),
-    ImplementationVersionNameItem(ImplementationVersionNameItem),
-    SOPClassExtendedNegotiationItem(SOPClassExtendedNegotiationItem),
-    SOPClassCommonExtendedNegotiationItem(SOPClassCommonExtendedNegotiationItem),
-    UserIdentityItem(UserIdentityItem),
-    UserIdentityNegotiationItem(UserIdentityNegotiationItem),
 }
 
 impl Pdu {
@@ -228,15 +227,6 @@ impl Pdu {
             Pdu::AbstractSyntaxItem(pdu) => pdu.pdu_type(),
             Pdu::TransferSyntaxItem(pdu) => pdu.pdu_type(),
             Pdu::UserInformationItem(pdu) => pdu.pdu_type(),
-            Pdu::MaxLengthItem(pdu) => pdu.pdu_type(),
-            Pdu::ImplementationClassUIDItem(pdu) => pdu.pdu_type(),
-            Pdu::AsyncOperationsWindowItem(pdu) => pdu.pdu_type(),
-            Pdu::RoleSelectionItem(pdu) => pdu.pdu_type(),
-            Pdu::ImplementationVersionNameItem(pdu) => pdu.pdu_type(),
-            Pdu::SOPClassExtendedNegotiationItem(pdu) => pdu.pdu_type(),
-            Pdu::SOPClassCommonExtendedNegotiationItem(pdu) => pdu.pdu_type(),
-            Pdu::UserIdentityItem(pdu) => pdu.pdu_type(),
-            Pdu::UserIdentityNegotiationItem(pdu) => pdu.pdu_type(),
         }
     }
 
@@ -256,19 +246,10 @@ impl Pdu {
             Pdu::AbstractSyntaxItem(pdu) => pdu.byte_size(),
             Pdu::TransferSyntaxItem(pdu) => pdu.byte_size(),
             Pdu::UserInformationItem(pdu) => pdu.byte_size(),
-            Pdu::MaxLengthItem(pdu) => pdu.byte_size(),
-            Pdu::ImplementationClassUIDItem(pdu) => pdu.byte_size(),
-            Pdu::AsyncOperationsWindowItem(pdu) => pdu.byte_size(),
-            Pdu::RoleSelectionItem(pdu) => pdu.byte_size(),
-            Pdu::ImplementationVersionNameItem(pdu) => pdu.byte_size(),
-            Pdu::SOPClassExtendedNegotiationItem(pdu) => pdu.byte_size(),
-            Pdu::SOPClassCommonExtendedNegotiationItem(pdu) => pdu.byte_size(),
-            Pdu::UserIdentityItem(pdu) => pdu.byte_size(),
-            Pdu::UserIdentityNegotiationItem(pdu) => pdu.byte_size(),
         }
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, dataset: W) -> Result<(), DimseError> {
         match self {
             Pdu::AssocRQ(pdu) => pdu.write(dataset),
             Pdu::AssocAC(pdu) => pdu.write(dataset),
@@ -284,19 +265,10 @@ impl Pdu {
             Pdu::AbstractSyntaxItem(pdu) => pdu.write(dataset),
             Pdu::TransferSyntaxItem(pdu) => pdu.write(dataset),
             Pdu::UserInformationItem(pdu) => pdu.write(dataset),
-            Pdu::MaxLengthItem(pdu) => pdu.write(dataset),
-            Pdu::ImplementationClassUIDItem(pdu) => pdu.write(dataset),
-            Pdu::AsyncOperationsWindowItem(pdu) => pdu.write(dataset),
-            Pdu::RoleSelectionItem(pdu) => pdu.write(dataset),
-            Pdu::ImplementationVersionNameItem(pdu) => pdu.write(dataset),
-            Pdu::SOPClassExtendedNegotiationItem(pdu) => pdu.write(dataset),
-            Pdu::SOPClassCommonExtendedNegotiationItem(pdu) => pdu.write(dataset),
-            Pdu::UserIdentityItem(pdu) => pdu.write(dataset),
-            Pdu::UserIdentityNegotiationItem(pdu) => pdu.write(dataset),
         }
     }
 
-    pub fn read_pdu(dataset: &mut dyn Read) -> Result<Pdu, DimseError> {
+    pub fn read<R: Read>(mut dataset: R) -> Result<Pdu, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset
             .read_exact(&mut buf)
@@ -337,35 +309,114 @@ impl Pdu {
             PduType::UserInformationItem => {
                 Pdu::UserInformationItem(UserInformationItem::read(dataset, byte1)?)
             }
-            PduType::MaxLengthItem => Pdu::MaxLengthItem(MaxLengthItem::read(dataset, byte1)?),
-            PduType::ImplementationClassUIDItem => {
-                Pdu::ImplementationClassUIDItem(ImplementationClassUIDItem::read(dataset, byte1)?)
+
+            PduType::INVALID(c) => return Err(DimseError::InvalidPduType(c)),
+        };
+
+        Ok(pdu)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UserPdu {
+    MaxLengthItem(MaxLengthItem),
+    ImplementationClassUIDItem(ImplementationClassUIDItem),
+    AsyncOperationsWindowItem(AsyncOperationsWindowItem),
+    RoleSelectionItem(RoleSelectionItem),
+    ImplementationVersionNameItem(ImplementationVersionNameItem),
+    SOPClassExtendedNegotiationItem(SOPClassExtendedNegotiationItem),
+    SOPClassCommonExtendedNegotiationItem(SOPClassCommonExtendedNegotiationItem),
+    UserIdentityItem(UserIdentityItem),
+    UserIdentityNegotiationItem(UserIdentityNegotiationItem),
+}
+
+impl UserPdu {
+    pub fn pdu_type(&self) -> UserPduType {
+        match self {
+            UserPdu::MaxLengthItem(pdu) => pdu.pdu_type(),
+            UserPdu::ImplementationClassUIDItem(pdu) => pdu.pdu_type(),
+            UserPdu::AsyncOperationsWindowItem(pdu) => pdu.pdu_type(),
+            UserPdu::RoleSelectionItem(pdu) => pdu.pdu_type(),
+            UserPdu::ImplementationVersionNameItem(pdu) => pdu.pdu_type(),
+            UserPdu::SOPClassExtendedNegotiationItem(pdu) => pdu.pdu_type(),
+            UserPdu::SOPClassCommonExtendedNegotiationItem(pdu) => pdu.pdu_type(),
+            UserPdu::UserIdentityItem(pdu) => pdu.pdu_type(),
+            UserPdu::UserIdentityNegotiationItem(pdu) => pdu.pdu_type(),
+        }
+    }
+
+    pub fn byte_size(&self) -> usize {
+        match self {
+            UserPdu::MaxLengthItem(pdu) => pdu.byte_size(),
+            UserPdu::ImplementationClassUIDItem(pdu) => pdu.byte_size(),
+            UserPdu::AsyncOperationsWindowItem(pdu) => pdu.byte_size(),
+            UserPdu::RoleSelectionItem(pdu) => pdu.byte_size(),
+            UserPdu::ImplementationVersionNameItem(pdu) => pdu.byte_size(),
+            UserPdu::SOPClassExtendedNegotiationItem(pdu) => pdu.byte_size(),
+            UserPdu::SOPClassCommonExtendedNegotiationItem(pdu) => pdu.byte_size(),
+            UserPdu::UserIdentityItem(pdu) => pdu.byte_size(),
+            UserPdu::UserIdentityNegotiationItem(pdu) => pdu.byte_size(),
+        }
+    }
+
+    pub fn write<W: Write>(&self, dataset: W) -> Result<(), DimseError> {
+        match self {
+            UserPdu::MaxLengthItem(pdu) => pdu.write(dataset),
+            UserPdu::ImplementationClassUIDItem(pdu) => pdu.write(dataset),
+            UserPdu::AsyncOperationsWindowItem(pdu) => pdu.write(dataset),
+            UserPdu::RoleSelectionItem(pdu) => pdu.write(dataset),
+            UserPdu::ImplementationVersionNameItem(pdu) => pdu.write(dataset),
+            UserPdu::SOPClassExtendedNegotiationItem(pdu) => pdu.write(dataset),
+            UserPdu::SOPClassCommonExtendedNegotiationItem(pdu) => pdu.write(dataset),
+            UserPdu::UserIdentityItem(pdu) => pdu.write(dataset),
+            UserPdu::UserIdentityNegotiationItem(pdu) => pdu.write(dataset),
+        }
+    }
+
+    pub fn read<R: Read>(mut dataset: R) -> Result<UserPdu, DimseError> {
+        let mut buf: [u8; 2] = [0u8; 2];
+        dataset
+            .read_exact(&mut buf)
+            .map_err(|e| DimseError::IOError { source: e })?;
+
+        let pdu_type: UserPduType = UserPduType::from(buf[0]);
+
+        let byte1 = buf[1];
+
+        let pdu = match pdu_type {
+            UserPduType::MaxLengthItem => {
+                UserPdu::MaxLengthItem(MaxLengthItem::read(dataset, byte1)?)
             }
-            PduType::AsyncOperationsWindowItem => {
-                Pdu::AsyncOperationsWindowItem(AsyncOperationsWindowItem::read(dataset, byte1)?)
+            UserPduType::ImplementationClassUIDItem => UserPdu::ImplementationClassUIDItem(
+                ImplementationClassUIDItem::read(dataset, byte1)?,
+            ),
+            UserPduType::AsyncOperationsWindowItem => {
+                UserPdu::AsyncOperationsWindowItem(AsyncOperationsWindowItem::read(dataset, byte1)?)
             }
-            PduType::RoleSelectionItem => {
-                Pdu::RoleSelectionItem(RoleSelectionItem::read(dataset, byte1)?)
+            UserPduType::RoleSelectionItem => {
+                UserPdu::RoleSelectionItem(RoleSelectionItem::read(dataset, byte1)?)
             }
-            PduType::ImplementationVersionNameItem => Pdu::ImplementationVersionNameItem(
+            UserPduType::ImplementationVersionNameItem => UserPdu::ImplementationVersionNameItem(
                 ImplementationVersionNameItem::read(dataset, byte1)?,
             ),
-            PduType::SOPClassExtendedNegotiationItem => Pdu::SOPClassExtendedNegotiationItem(
-                SOPClassExtendedNegotiationItem::read(dataset, byte1)?,
-            ),
-            PduType::SOPClassCommonExtendedNegotiationItem => {
-                Pdu::SOPClassCommonExtendedNegotiationItem(
+            UserPduType::SOPClassExtendedNegotiationItem => {
+                UserPdu::SOPClassExtendedNegotiationItem(SOPClassExtendedNegotiationItem::read(
+                    dataset, byte1,
+                )?)
+            }
+            UserPduType::SOPClassCommonExtendedNegotiationItem => {
+                UserPdu::SOPClassCommonExtendedNegotiationItem(
                     SOPClassCommonExtendedNegotiationItem::read(dataset, byte1)?,
                 )
             }
-            PduType::UserIdentityItem => {
-                Pdu::UserIdentityItem(UserIdentityItem::read(dataset, byte1)?)
+            UserPduType::UserIdentityItem => {
+                UserPdu::UserIdentityItem(UserIdentityItem::read(dataset, byte1)?)
             }
-            PduType::UserIdentityNegotiationItem => {
-                Pdu::UserIdentityNegotiationItem(UserIdentityNegotiationItem::read(dataset, byte1)?)
-            }
+            UserPduType::UserIdentityNegotiationItem => UserPdu::UserIdentityNegotiationItem(
+                UserIdentityNegotiationItem::read(dataset, byte1)?,
+            ),
 
-            PduType::INVALID(c) => return Err(DimseError::InvalidPduType(c)),
+            UserPduType::INVALID(c) => return Err(DimseError::InvalidPduType(c)),
         };
 
         Ok(pdu)
@@ -484,7 +535,7 @@ impl AssocRQ {
             + self.user_info.byte_size()
     }
 
-    pub fn write(&self, mut dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -504,7 +555,7 @@ impl AssocRQ {
         Ok(())
     }
 
-    pub fn read(mut dataset: &mut dyn Read, reserved: u8) -> Result<AssocRQ, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<AssocRQ, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -527,7 +578,7 @@ impl AssocRQ {
 
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
-        let app_ctx = ApplicationContextItem::read(dataset, buf[1])?;
+        let app_ctx = ApplicationContextItem::read(&mut dataset, buf[1])?;
 
         let mut pres_ctxs: Vec<AssocRQPresentationContext> = Vec::new();
         dataset.read_exact(&mut buf)?;
@@ -666,7 +717,7 @@ impl AssocAC {
             + self.user_info.byte_size()
     }
 
-    pub fn write(&self, mut dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -686,7 +737,7 @@ impl AssocAC {
         Ok(())
     }
 
-    pub fn read(mut dataset: &mut dyn Read, reserved: u8) -> Result<AssocAC, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<AssocAC, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -709,7 +760,7 @@ impl AssocAC {
 
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
-        let app_ctx = ApplicationContextItem::read(dataset, buf[1])?;
+        let app_ctx = ApplicationContextItem::read(&mut dataset, buf[1])?;
 
         let mut pres_ctxs: Vec<AssocACPresentationContext> = Vec::new();
         dataset.read_exact(&mut buf)?;
@@ -880,7 +931,7 @@ impl AssocRJ {
             + size_of::<u8>() // reason
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -892,7 +943,7 @@ impl AssocRJ {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<AssocRJ, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<AssocRJ, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -952,7 +1003,7 @@ impl ReleaseRQ {
             + self.reserved_2.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -962,7 +1013,7 @@ impl ReleaseRQ {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<ReleaseRQ, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<ReleaseRQ, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -1021,7 +1072,7 @@ impl ReleaseRP {
             + self.reserved_2.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -1031,7 +1082,7 @@ impl ReleaseRP {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<ReleaseRP, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<ReleaseRP, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -1157,7 +1208,7 @@ impl Abort {
             + size_of::<u8>() // reason
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -1169,7 +1220,7 @@ impl Abort {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<Abort, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<Abort, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -1233,7 +1284,7 @@ impl PresentationDataItem {
             + self.pres_data.iter().map(|p| p.byte_size()).sum::<usize>()
     }
 
-    pub fn write(&self, mut dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -1245,10 +1296,7 @@ impl PresentationDataItem {
         Ok(())
     }
 
-    pub fn read(
-        mut dataset: &mut dyn Read,
-        reserved: u8,
-    ) -> Result<PresentationDataItem, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<PresentationDataItem, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -1333,7 +1381,7 @@ impl PresentationDataValue {
             + self.data.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         dataset.write_all(&self.length.to_be_bytes())?;
 
         let buf: [u8; 2] = [self.ctx_id, self.msg_header];
@@ -1344,7 +1392,7 @@ impl PresentationDataValue {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read) -> Result<PresentationDataValue, DimseError> {
+    pub fn read<R: Read>(mut dataset: R) -> Result<PresentationDataValue, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -1393,15 +1441,15 @@ impl PresentationDataItemPartial {
             + usize::try_from(self.length).unwrap_or_default()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
         dataset.write_all(&self.length.to_be_bytes())?;
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<PresentationDataItemPartial, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
@@ -1476,7 +1524,7 @@ impl PresentationDataValueHeader {
             + usize::try_from(self.length).unwrap_or_default()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         dataset.write_all(&self.length.to_be_bytes())?;
 
         let buf: [u8; 2] = [self.ctx_id, self.msg_header];
@@ -1485,7 +1533,7 @@ impl PresentationDataValueHeader {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read) -> Result<PresentationDataValueHeader, DimseError> {
+    pub fn read<R: Read>(mut dataset: R) -> Result<PresentationDataValueHeader, DimseError> {
         let mut buf: [u8; 4] = [0u8; 4];
         dataset.read_exact(&mut buf)?;
         let length = u32::from_be_bytes(buf);
@@ -1545,7 +1593,7 @@ impl ApplicationContextItem {
             + self.app_context_name.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -1555,8 +1603,8 @@ impl ApplicationContextItem {
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<ApplicationContextItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -1653,7 +1701,7 @@ impl AssocRQPresentationContext {
             + self.transfer_syntaxes.iter().map(|t| t.byte_size()).sum::<usize>()
     }
 
-    pub fn write(&self, mut dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let mut buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -1676,8 +1724,8 @@ impl AssocRQPresentationContext {
         Ok(())
     }
 
-    pub fn read(
-        mut dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<AssocRQPresentationContext, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -1696,7 +1744,7 @@ impl AssocRQPresentationContext {
         bytes_read += buf.len();
 
         dataset.read_exact(&mut buf)?;
-        let abstract_syntax = AbstractSyntaxItem::read(dataset, buf[1])?;
+        let abstract_syntax = AbstractSyntaxItem::read(&mut dataset, buf[1])?;
         // The total bytes read for AbstractSyntaxItem, 2 bytes for the type and reserved, plus an
         // additional 2 for the length field, and the value of the length field being the size of
         // the last variable-length field.
@@ -1813,7 +1861,7 @@ impl AssocACPresentationContext {
             + self.transfer_syntax.byte_size()
     }
 
-    pub fn write(&self, mut dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let mut buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved_1];
         dataset.write_all(&buf)?;
 
@@ -1832,8 +1880,8 @@ impl AssocACPresentationContext {
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<AssocACPresentationContext, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -1903,7 +1951,7 @@ impl AbstractSyntaxItem {
             + self.abstract_syntax.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -1913,7 +1961,7 @@ impl AbstractSyntaxItem {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<AbstractSyntaxItem, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<AbstractSyntaxItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
@@ -1975,7 +2023,7 @@ impl TransferSyntaxItem {
             + self.transfer_syntaxes.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -1985,7 +2033,7 @@ impl TransferSyntaxItem {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<TransferSyntaxItem, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<TransferSyntaxItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
@@ -2012,7 +2060,7 @@ pub struct UserInformationItem {
     /// Reserved, should be zero.
     reserved: u8,
     length: u16,
-    user_data: Vec<Pdu>,
+    user_data: Vec<UserPdu>,
 }
 
 impl UserInformationItem {
@@ -2021,9 +2069,9 @@ impl UserInformationItem {
         PduType::UserInformationItem
     }
 
-    pub fn new(user_data: Vec<Pdu>) -> UserInformationItem {
-        let length =
-            u16::try_from(user_data.iter().map(Pdu::byte_size).sum::<usize>()).unwrap_or_default();
+    pub fn new(user_data: Vec<UserPdu>) -> UserInformationItem {
+        let length = u16::try_from(user_data.iter().map(UserPdu::byte_size).sum::<usize>())
+            .unwrap_or_default();
         UserInformationItem {
             reserved: 0u8,
             length,
@@ -2038,7 +2086,7 @@ impl UserInformationItem {
     }
 
     /// User-data sub-items.
-    pub fn user_data(&self) -> &Vec<Pdu> {
+    pub fn user_data(&self) -> &Vec<UserPdu> {
         &self.user_data
     }
 
@@ -2046,30 +2094,30 @@ impl UserInformationItem {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
             + size_of::<u16>() // length
-            + self.user_data.iter().map(Pdu::byte_size).sum::<usize>()
+            + self.user_data.iter().map(UserPdu::byte_size).sum::<usize>()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
         dataset.write_all(&self.length.to_be_bytes())?;
         for pdu in &self.user_data {
-            pdu.write(dataset)?;
+            pdu.write(&mut dataset)?;
         }
 
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<UserInformationItem, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<UserInformationItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
 
-        let mut user_data: Vec<Pdu> = Vec::new();
+        let mut user_data: Vec<UserPdu> = Vec::new();
         let mut bytes_left = length as usize;
         while bytes_left > 0 {
-            let pdu = Pdu::read_pdu(dataset)?;
+            let pdu = UserPdu::read(&mut dataset)?;
             bytes_left -= pdu.byte_size();
             user_data.push(pdu);
         }
@@ -2091,9 +2139,9 @@ pub struct MaxLengthItem {
 }
 
 impl MaxLengthItem {
-    /// The type of this PDU, `PduType::MaxLengthItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::MaxLengthItem
+    /// The type of this PDU, `UserSubPduType::MaxLengthItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::MaxLengthItem
     }
 
     pub fn new(max_length: u32) -> MaxLengthItem {
@@ -2124,7 +2172,7 @@ impl MaxLengthItem {
             + size_of::<u32>() // max_length
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -2134,7 +2182,7 @@ impl MaxLengthItem {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<MaxLengthItem, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<MaxLengthItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
@@ -2160,9 +2208,9 @@ pub struct ImplementationClassUIDItem {
 }
 
 impl ImplementationClassUIDItem {
-    /// The type of this PDU, `PduType::ImplementationClassUIDItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::ImplementationClassUIDItem
+    /// The type of this PDU, `UserSubPduType::ImplementationClassUIDItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::ImplementationClassUIDItem
     }
 
     pub fn new(impl_class_uid: Vec<u8>) -> ImplementationClassUIDItem {
@@ -2190,7 +2238,7 @@ impl ImplementationClassUIDItem {
             + self.impl_class_uid.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -2200,8 +2248,8 @@ impl ImplementationClassUIDItem {
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<ImplementationClassUIDItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -2229,9 +2277,9 @@ pub struct AsyncOperationsWindowItem {
 }
 
 impl AsyncOperationsWindowItem {
-    /// The type of this PDU, `PduType::AsyncOperationsWindowItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::AsyncOperationsWindowItem
+    /// The type of this PDU, `UserSubPduType::AsyncOperationsWindowItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::AsyncOperationsWindowItem
     }
 
     pub fn new(max_ops_invoked: u16, max_ops_performed: u16) -> AsyncOperationsWindowItem {
@@ -2270,7 +2318,7 @@ impl AsyncOperationsWindowItem {
             + size_of::<u16>() // max_ops_performed
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -2281,8 +2329,8 @@ impl AsyncOperationsWindowItem {
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<AsyncOperationsWindowItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -2316,9 +2364,9 @@ pub struct RoleSelectionItem {
 }
 
 impl RoleSelectionItem {
-    /// The type of this PDU, `PduType::RoleSelectionItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::RoleSelectionItem
+    /// The type of this PDU, `UserSubPduType::RoleSelectionItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::RoleSelectionItem
     }
 
     pub fn new(sop_class_uid: Vec<u8>, scu_role: u8, scp_role: u8) -> RoleSelectionItem {
@@ -2379,7 +2427,7 @@ impl RoleSelectionItem {
             + size_of::<u8>() // scp_role
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let mut buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -2394,7 +2442,7 @@ impl RoleSelectionItem {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<RoleSelectionItem, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<RoleSelectionItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
@@ -2428,9 +2476,9 @@ pub struct ImplementationVersionNameItem {
 }
 
 impl ImplementationVersionNameItem {
-    /// The type of this PDU, `PduType::ImplementationVersionNameItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::ImplementationVersionNameItem
+    /// The type of this PDU, `UserSubPduType::ImplementationVersionNameItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::ImplementationVersionNameItem
     }
 
     pub fn new(impl_ver_name: Vec<u8>) -> ImplementationVersionNameItem {
@@ -2458,7 +2506,7 @@ impl ImplementationVersionNameItem {
             + self.impl_ver_name.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -2468,8 +2516,8 @@ impl ImplementationVersionNameItem {
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<ImplementationVersionNameItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -2498,9 +2546,9 @@ pub struct SOPClassExtendedNegotiationItem {
 }
 
 impl SOPClassExtendedNegotiationItem {
-    /// The type of this PDU, `PduType::SOPClassExtendedNegotiationItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::SOPClassExtendedNegotiationItem
+    /// The type of this PDU, `UserSubPduType::SOPClassExtendedNegotiationItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::SOPClassExtendedNegotiationItem
     }
 
     pub fn new(
@@ -2550,7 +2598,7 @@ impl SOPClassExtendedNegotiationItem {
             + self.service_class_app_info.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -2562,8 +2610,8 @@ impl SOPClassExtendedNegotiationItem {
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<SOPClassExtendedNegotiationItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -2604,9 +2652,9 @@ pub struct SOPClassCommonExtendedNegotiationItem {
 }
 
 impl SOPClassCommonExtendedNegotiationItem {
-    /// The type of this PDU, `PduType::SOPClassCommonExtendedNegotiationItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::SOPClassCommonExtendedNegotiationItem
+    /// The type of this PDU, `UserSubPduType::SOPClassCommonExtendedNegotiationItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::SOPClassCommonExtendedNegotiationItem
     }
 
     pub fn new(
@@ -2697,7 +2745,7 @@ impl SOPClassCommonExtendedNegotiationItem {
             + self.reserved.len()
     }
 
-    pub fn write(&self, mut dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.version];
         dataset.write_all(&buf)?;
 
@@ -2718,8 +2766,8 @@ impl SOPClassCommonExtendedNegotiationItem {
         Ok(())
     }
 
-    pub fn read(
-        mut dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         version: u8,
     ) -> Result<SOPClassCommonExtendedNegotiationItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -2808,13 +2856,13 @@ impl RelatedGeneralSOPClassUID {
             + self.rel_gen_sop_class.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         dataset.write_all(&self.length.to_be_bytes())?;
         dataset.write_all(&self.rel_gen_sop_class)?;
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read) -> Result<RelatedGeneralSOPClassUID, DimseError> {
+    pub fn read<R: Read>(mut dataset: R) -> Result<RelatedGeneralSOPClassUID, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
@@ -2843,9 +2891,9 @@ pub struct UserIdentityItem {
 }
 
 impl UserIdentityItem {
-    /// The type of this PDU, `PduType::UserIdentityItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::UserIdentityItem
+    /// The type of this PDU, `UserSubPduType::UserIdentityItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::UserIdentityItem
     }
 
     pub fn new(
@@ -2931,7 +2979,7 @@ impl UserIdentityItem {
             + self.sec_value.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
 
@@ -2948,7 +2996,7 @@ impl UserIdentityItem {
         Ok(())
     }
 
-    pub fn read(dataset: &mut dyn Read, reserved: u8) -> Result<UserIdentityItem, DimseError> {
+    pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<UserIdentityItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
         let length = u16::from_be_bytes(buf);
@@ -2990,9 +3038,9 @@ pub struct UserIdentityNegotiationItem {
 }
 
 impl UserIdentityNegotiationItem {
-    /// The type of this PDU, `PduType::UserIdentityNegotiationItem`.
-    pub fn pdu_type(&self) -> PduType {
-        PduType::UserIdentityNegotiationItem
+    /// The type of this PDU, `UserSubPduType::UserIdentityNegotiationItem`.
+    pub fn pdu_type(&self) -> UserPduType {
+        UserPduType::UserIdentityNegotiationItem
     }
 
     pub fn new(server_rsp: Vec<u8>) -> UserIdentityNegotiationItem {
@@ -3033,7 +3081,7 @@ impl UserIdentityNegotiationItem {
             + self.server_rsp.len()
     }
 
-    pub fn write(&self, dataset: &mut dyn Write) -> Result<(), DimseError> {
+    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
         let buf: [u8; 2] = [u8::from(&self.pdu_type()), self.reserved];
         dataset.write_all(&buf)?;
         dataset.write_all(&self.length.to_be_bytes())?;
@@ -3042,8 +3090,8 @@ impl UserIdentityNegotiationItem {
         Ok(())
     }
 
-    pub fn read(
-        dataset: &mut dyn Read,
+    pub fn read<R: Read>(
+        mut dataset: R,
         reserved: u8,
     ) -> Result<UserIdentityNegotiationItem, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
@@ -3068,7 +3116,7 @@ impl UserIdentityNegotiationItem {
 mod tests {
     use std::io::Cursor;
 
-    use crate::dimse::AeTitle;
+    use crate::dimse::{pdus::UserPduType, AeTitle};
 
     use super::{
         Abort, AbstractSyntaxItem, ApplicationContextItem, AssocAC, AssocACPresentationContext,
@@ -3077,7 +3125,7 @@ mod tests {
         PresentationDataItem, PresentationDataValue, RelatedGeneralSOPClassUID, ReleaseRP,
         ReleaseRQ, RoleSelectionItem, SOPClassCommonExtendedNegotiationItem,
         SOPClassExtendedNegotiationItem, TransferSyntaxItem, UserIdentityItem,
-        UserIdentityNegotiationItem, UserInformationItem,
+        UserIdentityNegotiationItem, UserInformationItem, UserPdu,
     };
 
     /// Creates a dummy AssocRQ populated
@@ -3103,9 +3151,9 @@ mod tests {
                 ],
             ),
         ];
-        let user_data: Vec<Pdu> = vec![
-            Pdu::MaxLengthItem(MaxLengthItem::new(101)),
-            Pdu::UserIdentityItem(UserIdentityItem::new(1, 2, vec![3, 4, 5], vec![6, 7, 8, 9])),
+        let user_data: Vec<UserPdu> = vec![
+            UserPdu::MaxLengthItem(MaxLengthItem::new(101)),
+            UserPdu::UserIdentityItem(UserIdentityItem::new(1, 2, vec![3, 4, 5], vec![6, 7, 8, 9])),
         ];
         let user_info = UserInformationItem::new(user_data);
 
@@ -3129,7 +3177,21 @@ mod tests {
         // reset the position so reading from it starts at the beginning
         cursor.set_position(0);
 
-        let roundtrip_pdu = Pdu::read_pdu(&mut cursor).expect("unable to read pdu");
+        let roundtrip_pdu = Pdu::read(&mut cursor).expect("unable to read pdu");
+        assert_eq!(roundtrip_pdu, pdu);
+    }
+
+    /// Writes a PDU to an in-memory buffer, reads that buffer into a PDU, and asserts the result
+    /// is equal to the input.
+    fn assert_user_pdu_roundtrip(pdu: UserPdu) {
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        pdu.write(&mut cursor).expect("unable to write pdu");
+
+        // reset the position so reading from it starts at the beginning
+        cursor.set_position(0);
+
+        let roundtrip_pdu = UserPdu::read(&mut cursor).expect("unable to read pdu");
         assert_eq!(roundtrip_pdu, pdu);
     }
 
@@ -3212,37 +3274,37 @@ mod tests {
     #[test]
     fn test_max_length_roundtrip() {
         let pdu = MaxLengthItem::new(100);
-        assert_pdu_roundtrip(Pdu::MaxLengthItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::MaxLengthItem(pdu));
     }
 
     #[test]
     fn test_impl_class_uid_roundtrip() {
         let pdu = ImplementationClassUIDItem::new(vec![3, 2, 1, 5, 4]);
-        assert_pdu_roundtrip(Pdu::ImplementationClassUIDItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::ImplementationClassUIDItem(pdu));
     }
 
     #[test]
     fn test_async_win_item_roundtrip() {
         let pdu = AsyncOperationsWindowItem::new(65535, 256);
-        assert_pdu_roundtrip(Pdu::AsyncOperationsWindowItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::AsyncOperationsWindowItem(pdu));
     }
 
     #[test]
     fn test_role_item_roundtrip() {
         let pdu = RoleSelectionItem::new("2.3.4.5".into(), 4, 5);
-        assert_pdu_roundtrip(Pdu::RoleSelectionItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::RoleSelectionItem(pdu));
     }
 
     #[test]
     fn test_impl_ver_name_roundtrip() {
         let pdu = ImplementationVersionNameItem::new(vec![3, 2, 1, 5, 4]);
-        assert_pdu_roundtrip(Pdu::ImplementationVersionNameItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::ImplementationVersionNameItem(pdu));
     }
 
     #[test]
     fn test_sop_class_extended_negotiation_roundtrip() {
         let pdu = SOPClassExtendedNegotiationItem::new("1.2.3.4".into(), "2.3.4.5.6".into());
-        assert_pdu_roundtrip(Pdu::SOPClassExtendedNegotiationItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::SOPClassExtendedNegotiationItem(pdu));
     }
 
     #[test]
@@ -3255,19 +3317,19 @@ mod tests {
                 RelatedGeneralSOPClassUID::new("2.3.4.5.6".into()),
             ],
         );
-        assert_pdu_roundtrip(Pdu::SOPClassCommonExtendedNegotiationItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::SOPClassCommonExtendedNegotiationItem(pdu));
     }
 
     #[test]
     fn test_user_id() {
         let pdu = UserIdentityItem::new(2, 5, vec![3, 1, 4, 2, 5], vec![5, 3, 4, 2, 1]);
-        assert_pdu_roundtrip(Pdu::UserIdentityItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::UserIdentityItem(pdu));
     }
 
     #[test]
     fn test_user_negotiation() {
         let pdu = UserIdentityNegotiationItem::new(vec![4, 5, 3, 2, 1]);
-        assert_pdu_roundtrip(Pdu::UserIdentityNegotiationItem(pdu));
+        assert_user_pdu_roundtrip(UserPdu::UserIdentityNegotiationItem(pdu));
     }
 
     #[test]
@@ -3341,51 +3403,55 @@ mod tests {
         );
 
         assert_eq!(
-            PduType::MaxLengthItem,
-            (u8::from(&PduType::MaxLengthItem)).try_into().unwrap()
+            UserPduType::MaxLengthItem,
+            (u8::from(&UserPduType::MaxLengthItem)).try_into().unwrap()
         );
 
         assert_eq!(
-            PduType::ImplementationClassUIDItem,
-            (u8::from(&PduType::ImplementationClassUIDItem))
+            UserPduType::ImplementationClassUIDItem,
+            (u8::from(&UserPduType::ImplementationClassUIDItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
-            PduType::AsyncOperationsWindowItem,
-            (u8::from(&PduType::AsyncOperationsWindowItem))
+            UserPduType::AsyncOperationsWindowItem,
+            (u8::from(&UserPduType::AsyncOperationsWindowItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
-            PduType::RoleSelectionItem,
-            (u8::from(&PduType::RoleSelectionItem)).try_into().unwrap()
-        );
-        assert_eq!(
-            PduType::ImplementationVersionNameItem,
-            (u8::from(&PduType::ImplementationVersionNameItem))
+            UserPduType::RoleSelectionItem,
+            (u8::from(&UserPduType::RoleSelectionItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
-            PduType::SOPClassExtendedNegotiationItem,
-            (u8::from(&PduType::SOPClassExtendedNegotiationItem))
+            UserPduType::ImplementationVersionNameItem,
+            (u8::from(&UserPduType::ImplementationVersionNameItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
-            PduType::SOPClassCommonExtendedNegotiationItem,
-            (u8::from(&PduType::SOPClassCommonExtendedNegotiationItem))
+            UserPduType::SOPClassExtendedNegotiationItem,
+            (u8::from(&UserPduType::SOPClassExtendedNegotiationItem))
                 .try_into()
                 .unwrap()
         );
         assert_eq!(
-            PduType::UserIdentityItem,
-            (u8::from(&PduType::UserIdentityItem)).try_into().unwrap()
+            UserPduType::SOPClassCommonExtendedNegotiationItem,
+            (u8::from(&UserPduType::SOPClassCommonExtendedNegotiationItem))
+                .try_into()
+                .unwrap()
         );
         assert_eq!(
-            PduType::UserIdentityNegotiationItem,
-            (u8::from(&PduType::UserIdentityNegotiationItem))
+            UserPduType::UserIdentityItem,
+            (u8::from(&UserPduType::UserIdentityItem))
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
+            UserPduType::UserIdentityNegotiationItem,
+            (u8::from(&UserPduType::UserIdentityNegotiationItem))
                 .try_into()
                 .unwrap()
         );

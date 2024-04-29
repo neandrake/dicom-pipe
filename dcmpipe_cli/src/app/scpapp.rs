@@ -199,7 +199,7 @@ impl Association {
         let mut bufwrite = BufWriter::new(&self.stream);
         let remote_ip = self.stream.peer_addr()?.ip().to_string();
 
-        let rq = Pdu::read_pdu(&mut bufread)
+        let rq = Pdu::read(&mut bufread)
             .map_err(|e| AssocError {
                 rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
                 err: Error::new(e).context("failed reading initial PDU"),
@@ -483,11 +483,8 @@ impl Association {
                 });
             };
 
-            match cmd_type {
-                CommandType::CFindReq => {
-                    self.handle_c_find(source, ts, &cmd, &cmd_pdvh, &dcm_pdvh, bufread, bufwrite)?
-                }
-                _ => {}
+            if cmd_type == CommandType::CFindReq {
+                self.handle_c_find(source, ts, &cmd, &cmd_pdvh, &dcm_pdvh, bufread, bufwrite)?
             }
         }
     }
@@ -536,7 +533,7 @@ impl Association {
         cmd: &CommandMessage,
         cmd_pdvh: &PresentationDataValueHeader,
         dcm_pdvh: &PresentationDataValueHeader,
-        mut bufread: &mut BufReader<&TcpStream>,
+        bufread: &mut BufReader<&TcpStream>,
         bufwrite: &mut BufWriter<&TcpStream>,
     ) -> Result<(), AssocError> {
         let mut parser = ParserBuilder::default()
@@ -545,7 +542,7 @@ impl Association {
             .stop(ParseStop::AfterBytesRead(u64::from(
                 dcm_pdvh.length_of_data(),
             )))
-            .build(&mut bufread, &STANDARD_DICOM_DICTIONARY);
+            .build(bufread, &STANDARD_DICOM_DICTIONARY);
         let query = DicomRoot::parse(&mut parser).map_err(|e| AssocError {
             rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
             err: Error::from(e).context("parsing dicom pdv"),
@@ -568,7 +565,7 @@ impl Association {
         }
 
         for result in results {
-            match self.create_c_find_cmd(ts, cmd_pdvh, cmd, &CommandStatus::Pending(0xFF00)) {
+            match self.create_c_find_cmd(cmd_pdvh, cmd, &CommandStatus::Pending(0xFF00)) {
                 Ok(rsp) => {
                     println!("[info ->]: {:?} COMMAND", rsp.pdu_type());
                     self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
@@ -593,7 +590,7 @@ impl Association {
             }
         }
 
-        match self.create_c_find_cmd(ts, cmd_pdvh, cmd, &CommandStatus::Success(0)) {
+        match self.create_c_find_cmd(cmd_pdvh, cmd, &CommandStatus::Success(0)) {
             Ok(rsp) => {
                 println!("[info ->]: {:?} COMMAND", rsp.pdu_type());
                 self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)
@@ -607,7 +604,6 @@ impl Association {
 
     fn create_c_find_cmd(
         &self,
-        _ts: TSRef,
         pdvh: &PresentationDataValueHeader,
         cmd: &CommandMessage,
         status: &CommandStatus,

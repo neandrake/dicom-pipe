@@ -53,7 +53,7 @@ impl<R: Read> Iterator for PduIter<R> {
         loop {
             match self.state {
                 PduIterState::ReadPdu => {
-                    let pdu = Pdu::read_pdu(&mut self.stream);
+                    let pdu = Pdu::read(&mut self.stream);
                     if let Ok(Pdu::PresentationDataItemPartial(pdi)) = pdu {
                         self.pdi = Some(pdi);
                         self.state = PduIterState::ReadPdiVal;
