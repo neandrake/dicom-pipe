@@ -8768,71 +8768,6 @@ pub static KVP: Tag = Tag {
     desc: "KVP",
 };
 
-/// Acquisition Termination Condition
-///
-/// - **Tag:** (0018,0071)
-/// - **VR:** CS
-/// - **VM:** 1
-pub static AcquisitionTerminationCondition: Tag = Tag {
-    ident: "AcquisitionTerminationCondition",
-    tag: 0x0018_0071,
-    implicit_vr: Some(&vr::CS),
-    vm: &VM::Distinct(1),
-    desc: "Acquisition Termination Condition",
-};
-
-/// Effective Duration
-///
-/// - **Tag:** (0018,0072)
-/// - **VR:** DS
-/// - **VM:** 1
-pub static EffectiveDuration: Tag = Tag {
-    ident: "EffectiveDuration",
-    tag: 0x0018_0072,
-    implicit_vr: Some(&vr::DS),
-    vm: &VM::Distinct(1),
-    desc: "Effective Duration",
-};
-
-/// Acquisition Start Condition
-///
-/// - **Tag:** (0018,0073)
-/// - **VR:** CS
-/// - **VM:** 1
-pub static AcquisitionStartCondition: Tag = Tag {
-    ident: "AcquisitionStartCondition",
-    tag: 0x0018_0073,
-    implicit_vr: Some(&vr::CS),
-    vm: &VM::Distinct(1),
-    desc: "Acquisition Start Condition",
-};
-
-/// Acquisition Start Condition Data
-///
-/// - **Tag:** (0018,0074)
-/// - **VR:** IS
-/// - **VM:** 1
-pub static AcquisitionStartConditionData: Tag = Tag {
-    ident: "AcquisitionStartConditionData",
-    tag: 0x0018_0074,
-    implicit_vr: Some(&vr::IS),
-    vm: &VM::Distinct(1),
-    desc: "Acquisition Start Condition Data",
-};
-
-/// Acquisition Termination Condition Data
-///
-/// - **Tag:** (0018,0075)
-/// - **VR:** IS
-/// - **VM:** 1
-pub static AcquisitionTerminationConditionData: Tag = Tag {
-    ident: "AcquisitionTerminationConditionData",
-    tag: 0x0018_0075,
-    implicit_vr: Some(&vr::IS),
-    vm: &VM::Distinct(1),
-    desc: "Acquisition Termination Condition Data",
-};
-
 /// Repetition Time
 ///
 /// - **Tag:** (0018,0080)
@@ -16776,45 +16711,6 @@ pub static VerticesofthePolygonalExposureControlSensingRegion: Tag = Tag {
     desc: "Vertices of the Polygonal Exposure Control Sensing Region",
 };
 
-/// Calculated Anatomy Thickness
-///
-/// - **Tag:** (0018,9452)
-/// - **VR:** FL
-/// - **VM:** 1
-pub static CalculatedAnatomyThickness: Tag = Tag {
-    ident: "CalculatedAnatomyThickness",
-    tag: 0x0018_9452,
-    implicit_vr: Some(&vr::FL),
-    vm: &VM::Distinct(1),
-    desc: "Calculated Anatomy Thickness",
-};
-
-/// Calibration Sequence
-///
-/// - **Tag:** (0018,9455)
-/// - **VR:** SQ
-/// - **VM:** 1
-pub static CalibrationSequence: Tag = Tag {
-    ident: "CalibrationSequence",
-    tag: 0x0018_9455,
-    implicit_vr: Some(&vr::SQ),
-    vm: &VM::Distinct(1),
-    desc: "Calibration Sequence",
-};
-
-/// Object Thickness Sequence
-///
-/// - **Tag:** (0018,9456)
-/// - **VR:** SQ
-/// - **VM:** 1
-pub static ObjectThicknessSequence: Tag = Tag {
-    ident: "ObjectThicknessSequence",
-    tag: 0x0018_9456,
-    implicit_vr: Some(&vr::SQ),
-    vm: &VM::Distinct(1),
-    desc: "Object Thickness Sequence",
-};
-
 /// Plane Identification
 ///
 /// - **Tag:** (0018,9457)
@@ -24548,45 +24444,6 @@ pub static UltrasoundColorDataPresent: Tag = Tag {
     implicit_vr: Some(&vr::US),
     vm: &VM::Distinct(1),
     desc: "Ultrasound Color Data Present",
-};
-
-/// Pixel Aspect Ratio
-///
-/// - **Tag:** (0028,0034)
-/// - **VR:** IS
-/// - **VM:** 2
-pub static PixelAspectRatio: Tag = Tag {
-    ident: "PixelAspectRatio",
-    tag: 0x0028_0034,
-    implicit_vr: Some(&vr::IS),
-    vm: &VM::Distinct(2),
-    desc: "Pixel Aspect Ratio",
-};
-
-/// Image Format
-///
-/// - **Tag:** (0028,0040)
-/// - **VR:** CS
-/// - **VM:** 1
-pub static ImageFormat: Tag = Tag {
-    ident: "ImageFormat",
-    tag: 0x0028_0040,
-    implicit_vr: Some(&vr::CS),
-    vm: &VM::Distinct(1),
-    desc: "Image Format",
-};
-
-/// Manipulated Image
-///
-/// - **Tag:** (0028,0050)
-/// - **VR:** LO
-/// - **VM:** 1-n
-pub static ManipulatedImage: Tag = Tag {
-    ident: "ManipulatedImage",
-    tag: 0x0028_0050,
-    implicit_vr: Some(&vr::LO),
-    vm: &VM::AtLeast(1),
-    desc: "Manipulated Image",
 };
 
 /// Corrected Image
@@ -44997,71 +44854,6 @@ pub static CertifiedTimestamp: Tag = Tag {
     implicit_vr: Some(&vr::OB),
     vm: &VM::Distinct(1),
     desc: "Certified Timestamp",
-};
-
-/// Referenced Digital Signature Sequence
-///
-/// - **Tag:** (0400,0402)
-/// - **VR:** SQ
-/// - **VM:** 1
-pub static ReferencedDigitalSignatureSequence: Tag = Tag {
-    ident: "ReferencedDigitalSignatureSequence",
-    tag: 0x0400_0402,
-    implicit_vr: Some(&vr::SQ),
-    vm: &VM::Distinct(1),
-    desc: "Referenced Digital Signature Sequence",
-};
-
-/// Referenced SOP Instance MAC Sequence
-///
-/// - **Tag:** (0400,0403)
-/// - **VR:** SQ
-/// - **VM:** 1
-pub static ReferencedSOPInstanceMACSequence: Tag = Tag {
-    ident: "ReferencedSOPInstanceMACSequence",
-    tag: 0x0400_0403,
-    implicit_vr: Some(&vr::SQ),
-    vm: &VM::Distinct(1),
-    desc: "Referenced SOP Instance MAC Sequence",
-};
-
-/// MAC
-///
-/// - **Tag:** (0400,0404)
-/// - **VR:** OB
-/// - **VM:** 1
-pub static MAC: Tag = Tag {
-    ident: "MAC",
-    tag: 0x0400_0404,
-    implicit_vr: Some(&vr::OB),
-    vm: &VM::Distinct(1),
-    desc: "MAC",
-};
-
-/// Encrypted Attributes Sequence
-///
-/// - **Tag:** (0400,0500)
-/// - **VR:** SQ
-/// - **VM:** 1
-pub static EncryptedAttributesSequence: Tag = Tag {
-    ident: "EncryptedAttributesSequence",
-    tag: 0x0400_0500,
-    implicit_vr: Some(&vr::SQ),
-    vm: &VM::Distinct(1),
-    desc: "Encrypted Attributes Sequence",
-};
-
-/// Encrypted Content Transfer Syntax UID
-///
-/// - **Tag:** (0400,0510)
-/// - **VR:** UI
-/// - **VM:** 1
-pub static EncryptedContentTransferSyntaxUID: Tag = Tag {
-    ident: "EncryptedContentTransferSyntaxUID",
-    tag: 0x0400_0510,
-    implicit_vr: Some(&vr::UI),
-    vm: &VM::Distinct(1),
-    desc: "Encrypted Content Transfer Syntax UID",
 };
 
 /// Encrypted Content

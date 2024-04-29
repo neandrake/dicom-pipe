@@ -382,6 +382,8 @@ fn process_element(
 
     let tag_display: String = format!("({:04X},{:04X})", tag_group, tag_element);
 
+    // VR will either be listed as a valid VR, a list of possible VR a la "US or SS or DS", or have
+    // the text "See Note ..."
     let vr: &str = element.vr.split_whitespace().next().unwrap();
     let vr_value: String = if vr == "See" {
         "None".to_owned()
