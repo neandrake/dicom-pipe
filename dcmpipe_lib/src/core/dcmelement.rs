@@ -33,9 +33,11 @@ struct BytesWithoutPadding<'me>(&'me [u8]);
 pub struct ElementWithVr<'me>(pub &'me DicomElement, pub VRRef);
 
 /// Wrapper around `u32` for parsing DICOM Attributes
+#[derive(Debug)]
 pub struct Attribute(pub u32);
 
 /// Wrapper around an element's value parsed into a native/raw type
+#[derive(Debug)]
 pub enum RawValue {
     Attribute(Attribute),
     Uid(String),
@@ -50,9 +52,10 @@ pub enum RawValue {
 }
 
 fn error(message: &str, value: &DicomElement) -> ParseError {
+    let tagstring = TagPath::format_tagpath_to_display(&value.get_tagpath(), None);
     ParseError::ValueParseError {
         message: message.to_owned(),
-        tag: value.tag,
+        tagstring,
         vr: value.vr,
         cs: value.cs,
         bytes: value

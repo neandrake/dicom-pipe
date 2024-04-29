@@ -8,6 +8,7 @@ use crate::defn::vm::VMRef;
 use crate::defn::vr::VRRef;
 
 use super::constants::tags;
+use super::dcmdict::DicomDictionary;
 
 pub type TagRef = &'static Tag;
 
@@ -160,7 +161,12 @@ impl From<&SequenceElement> for TagNode {
 pub struct TagPath(pub Vec<TagNode>);
 
 impl TagPath {
-    pub fn format_tagpath_to_display(tagpath: &TagPath) -> String {
+    /// Formats the tag path as readable text, optionally using the tag's display name where
+    /// possible, otherwise tags will be displayed as `(gggg,eeee)`.
+    pub fn format_tagpath_to_display(
+        tagpath: &TagPath,
+        dict: Option<&dyn DicomDictionary>,
+    ) -> String {
         tagpath
             .0
             .iter()
@@ -172,7 +178,12 @@ impl TagPath {
                     && node.tag != tags::SEQUENCE_DELIMITATION_ITEM
             })
             .map(|node| {
-                let tag = Tag::format_tag_to_display(node.tag);
+                let tag: String = dict
+                    .and_then(|d| d.get_tag_by_number(node.tag))
+                    .map_or_else(
+                        || Tag::format_tag_to_display(node.tag),
+                        |t| t.ident.to_string(),
+                    );
                 match node.item {
                     None => tag,
                     Some(item_num) => format!("{}[{}]", tag, item_num),
@@ -185,7 +196,7 @@ impl TagPath {
 
 impl Display for TagPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &TagPath::format_tagpath_to_display(self))
+        write!(f, "{}", &TagPath::format_tagpath_to_display(self, None))
     }
 }
 

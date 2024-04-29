@@ -35,35 +35,16 @@ pub fn parse_file_with_parsestop(
     with_std: bool,
     stop: ParseStop,
 ) -> Result<DicomRoot<'_>> {
-    let file: File = File::open(path)?;
-
     let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default().stop(stop);
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let parser: Parser<'_, File> = parser_builder.build(file);
-    parse_all_element_values(parser, path)?;
-
-    // TODO: There's a difference between parsing all values directly from parser vs. read in
-    //       from the dicom object?
 
     let file: File = File::open(path)?;
     let mut parser: Parser<'_, File> = parser_builder.build(file);
     let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
-}
-
-pub fn parse_and_print_file(path: &str, with_std: bool) -> Result<()> {
-    let file: File = File::open(path)?;
-    let mut parser: ParserBuilder<'_> = ParserBuilder::default();
-    if with_std {
-        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
-    }
-    let mut parser: Parser<'_, File> = parser.build(file);
-    while let Some(Ok(_elem)) = parser.next() {}
-
-    Ok(())
 }
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies

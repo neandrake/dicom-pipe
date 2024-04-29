@@ -2,7 +2,6 @@
 
 use crate::core::charset::{CSError, CSRef};
 use crate::core::DICOM_PREFIX_LENGTH;
-use crate::defn::tag::Tag;
 use crate::defn::vr::VRRef;
 use thiserror::Error;
 
@@ -46,10 +45,10 @@ pub enum ParseError {
     },
 
     /// An error occurs while parsing the value of a DICOM element.
-    #[error("error parsing element value: {} [{vr:?}] [{cs:?}], {message} {bytes:?}", Tag::format_tag_to_display(* tag))]
+    #[error("error parsing element value: {tagstring} [{vr:?}] [{cs:?}], {message} {bytes:?}")]
     ValueParseError {
         message: String,
-        tag: u32,
+        tagstring: String,
         vr: VRRef,
         cs: CSRef,
         bytes: Vec<u8>,

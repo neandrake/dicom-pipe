@@ -347,7 +347,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let bytes: Vec<u8> = if skip_bytes {
             Vec::new()
         } else {
-            self.read_value_field(tag, vl)?
+            self.read_value_field(tag, vl, vr)?
         };
 
         let ancestors: Vec<SequenceElement> = self.current_path.clone();
@@ -429,7 +429,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads the value field of the dicom element into a byte array. If the `ValueLength` is
     /// undefined then this returns an empty array as elements with undefined length should have
     /// their contents parsed as dicom elements.
-    fn read_value_field(&mut self, tag: u32, vl: ValueLength) -> Result<Vec<u8>> {
+    fn read_value_field(&mut self, tag: u32, vl: ValueLength, vr: VRRef) -> Result<Vec<u8>> {
         match vl {
             // Undefined length means that the contents of the element are other dicom elements to
             // be parsed. Don't read data from the dataset in this case.
@@ -460,11 +460,18 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     } else {
                         let mut full_path: TagPath = (&self.current_path).into();
                         full_path.0.push(tag.into());
+                        let tagpath_display: String =
+                            TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));
+                        let vr_display = if &vr::INVALID == vr {
+                            vr.name
+                        } else {
+                            vr.ident
+                        };
                         ParseError::DetailedIOError {
                             source: e,
                             detail: format!(
-                                "reading tag at byte {:#04X}, {}, vl: {}",
-                                self.bytes_read, full_path, value_length
+                                "reading tag at byte {:#06X}, {}, vr: {}, vl: {}",
+                                self.bytes_read, tagpath_display, vr_display, value_length
                             ),
                         }
                     }

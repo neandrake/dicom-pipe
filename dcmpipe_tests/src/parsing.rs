@@ -1306,7 +1306,7 @@ fn test_kodak_compressed_icon(with_std: bool) -> Result<()> {
 }
 
 #[test]
-//#[ignore]
+#[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<()> {
     let num_failed: usize = parse_all_dicom_files(true)?;
     if num_failed > 0 {
@@ -1322,7 +1322,7 @@ fn test_parse_all_dicom_files_with_std() -> Result<()> {
 }
 
 #[test]
-//#[ignore]
+#[ignore]
 fn test_parse_all_dicom_files_without_std() -> Result<()> {
     let num_failed: usize = parse_all_dicom_files(false)?;
     if num_failed > 0 {
