@@ -3,6 +3,9 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 /// Errors that can occur during writing of a DICOM dataset.
 pub enum WriteError {
+    #[error("value length of undefined cannot be used with implicit VR")]
+    InvalidUndefinedValueLengthError,
+
     /// Wrapper around `std::io::Error`.
     #[error("i/o error writing to stream")]
     IOError {
