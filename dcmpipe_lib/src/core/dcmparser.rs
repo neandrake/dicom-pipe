@@ -1,11 +1,12 @@
 use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, SequenceElement};
+use crate::core::dcmparser_util;
 use crate::core::tagstop::TagStop;
 use crate::defn::constants::{lookup, tags, ts};
 use crate::defn::tag::{Tag, TagRef};
 use crate::defn::ts::TSRef;
-use crate::defn::vl::{self, ValueLength};
-use crate::defn::vr::{self, VRRef, VR};
+use crate::defn::vl::ValueLength;
+use crate::defn::vr::{self, VRRef};
 use std::io::{Cursor, Error, ErrorKind, Read};
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -17,14 +18,6 @@ pub static DICOM_PREFIX: &[u8; DICOM_PREFIX_LENGTH] = b"DICM";
 pub type TagByValueLookup = &'static phf::Map<u32, TagRef>;
 
 pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
-
-/// If the tag isn't Item and VR isn't SQ but ValueLength is Undefined then element should be
-/// considered a private-tag sequence whose contents are encoded as IVRLE.
-pub fn should_parse_as_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
-    tag != tags::ITEM
-        && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OW)
-        && vl == ValueLength::UndefinedLength
-}
 
 /// The different parsing behaviors of the stream
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -209,77 +202,6 @@ pub struct Parser<StreamType: Read> {
     iterator_ended: bool,
 }
 
-/// Reads a tag attribute from a given stream
-fn read_tag_from_stream(stream: &mut impl Read, ts: TSRef) -> Result<u32, Error> {
-    let mut buf: [u8; 2] = [0; 2];
-
-    stream.read_exact(&mut buf)?;
-    let group_number: u32 = if ts.is_big_endian() {
-        u32::from(u16::from_be_bytes(buf)) << 16
-    } else {
-        u32::from(u16::from_le_bytes(buf)) << 16
-    };
-
-    stream.read_exact(&mut buf)?;
-    let element_number: u32 = if ts.is_big_endian() {
-        u32::from(u16::from_be_bytes(buf))
-    } else {
-        u32::from(u16::from_le_bytes(buf))
-    };
-
-    let tag: u32 = group_number + element_number;
-    Ok(tag)
-}
-
-/// Reads a VR from a given stream
-fn read_vr_from_stream(stream: &mut impl Read) -> Result<Option<VRRef>, Error> {
-    let mut buf: [u8; 2] = [0; 2];
-    stream.read_exact(&mut buf)?;
-    let first_char: u8 = buf[0];
-    let second_char: u8 = buf[1];
-
-    let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
-    let vr: VRRef = match VR::from_code(code) {
-        Some(found_vr) => {
-            if found_vr.has_explicit_2byte_pad {
-                stream.read_exact(&mut buf)?;
-            }
-            found_vr
-        }
-        None => return Ok(None),
-    };
-
-    Ok(Some(vr))
-}
-
-/// Reads a Value Length from a given stream
-fn read_value_length_from_stream(
-    stream: &mut impl Read,
-    read_4bytes: bool,
-    big_endian: bool,
-) -> Result<ValueLength, Error> {
-    let value_length: u32 = if read_4bytes {
-        let mut buf: [u8; 4] = [0; 4];
-        stream.read_exact(&mut buf)?;
-
-        if big_endian {
-            u32::from_be_bytes(buf)
-        } else {
-            u32::from_le_bytes(buf)
-        }
-    } else {
-        let mut buf: [u8; 2] = [0; 2];
-        stream.read_exact(&mut buf)?;
-
-        if big_endian {
-            u32::from(u16::from_be_bytes(buf))
-        } else {
-            u32::from(u16::from_le_bytes(buf))
-        }
-    };
-    Ok(vl::from_value_length(value_length))
-}
-
 impl<StreamType: Read> Parser<StreamType> {
     pub fn get_bytes_read(&self) -> u64 {
         self.bytes_read
@@ -329,7 +251,7 @@ impl<StreamType: Read> Parser<StreamType> {
 
     /// Reads a tag attribute from the stream
     fn read_tag(&mut self, ts: TSRef) -> Result<u32, Error> {
-        let result: Result<u32, Error> = read_tag_from_stream(&mut self.stream, ts);
+        let result: Result<u32, Error> = dcmparser_util::read_tag_from_stream(&mut self.stream, ts);
         if result.is_ok() {
             self.bytes_read += 4;
         }
@@ -373,7 +295,7 @@ impl<StreamType: Read> Parser<StreamType> {
             self.read_value_length(vr, ts)?
         };
 
-        let parse_as_seq: bool = should_parse_as_seq(tag, vr, vl);
+        let parse_as_seq: bool = dcmparser_util::should_parse_as_seq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
             &ts::ImplicitVRLittleEndian
         } else {
@@ -406,7 +328,8 @@ impl<StreamType: Read> Parser<StreamType> {
             return Ok((self.lookup_vr(tag)?, ts));
         }
 
-        let result: Result<Option<VRRef>, Error> = read_vr_from_stream(&mut self.stream);
+        let result: Result<Option<VRRef>, Error> =
+            dcmparser_util::read_vr_from_stream(&mut self.stream);
         if let Ok(Some(vr)) = result {
             self.bytes_read += 2;
             if vr.has_explicit_2byte_pad {
@@ -445,8 +368,11 @@ impl<StreamType: Read> Parser<StreamType> {
     /// Reads a Value Length attribute from the stream using the given transfer syntax.
     fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
         let read_4bytes: bool = !ts.explicit_vr || vr.has_explicit_2byte_pad;
-        let result: Result<ValueLength, Error> =
-            read_value_length_from_stream(&mut self.stream, read_4bytes, ts.big_endian);
+        let result: Result<ValueLength, Error> = dcmparser_util::read_value_length_from_stream(
+            &mut self.stream,
+            read_4bytes,
+            ts.big_endian,
+        );
         if result.is_ok() {
             if !ts.explicit_vr || vr.has_explicit_2byte_pad {
                 self.bytes_read += 4;
@@ -611,7 +537,7 @@ impl<StreamType: Read> Parser<StreamType> {
         bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
-        let mut tag: u32 = read_tag_from_stream(&mut cursor, ts)?;
+        let mut tag: u32 = dcmparser_util::read_tag_from_stream(&mut cursor, ts)?;
 
         // quick check for common case of being zeroed-out data
         if tag == 0 {
@@ -641,7 +567,7 @@ impl<StreamType: Read> Parser<StreamType> {
         if tag > tags::SOP_INSTANCE_UID {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
-            tag = read_tag_from_stream(&mut cursor, ts)?;
+            tag = dcmparser_util::read_tag_from_stream(&mut cursor, ts)?;
         }
 
         // doesn't appear to be a valid tag in either big or little endian, assume it's preamble
@@ -665,7 +591,8 @@ impl<StreamType: Read> Parser<StreamType> {
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
         // read value length and if it has a reasonably low number assume implicit VR
-        let vl: ValueLength = read_value_length_from_stream(&mut cursor, true, ts.big_endian)?;
+        let vl: ValueLength =
+            dcmparser_util::read_value_length_from_stream(&mut cursor, true, ts.big_endian)?;
         if let ValueLength::Explicit(len) = vl {
             if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.ts = ts;
@@ -680,7 +607,7 @@ impl<StreamType: Read> Parser<StreamType> {
 
         // otherwise backtrack and try to parse a vr and then vl
         cursor.set_position(0);
-        let vr: VRRef = match read_vr_from_stream(&mut cursor)? {
+        let vr: VRRef = match dcmparser_util::read_vr_from_stream(&mut cursor)? {
             Some(vr) => vr,
             None => {
                 // garbage data so likely in preamble, finish reading preamble and jump to prefix
@@ -694,7 +621,8 @@ impl<StreamType: Read> Parser<StreamType> {
         };
 
         // read value length and if it has a reasonably low number assume explicit VR
-        let vl: ValueLength = read_value_length_from_stream(&mut cursor, false, ts.big_endian)?;
+        let vl: ValueLength =
+            dcmparser_util::read_value_length_from_stream(&mut cursor, false, ts.big_endian)?;
         if let ValueLength::Explicit(len) = vl {
             if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.ts = if ts.big_endian {
