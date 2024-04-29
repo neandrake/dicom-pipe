@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::io::{ErrorKind, Read};
 
+use super::parser::{Parser, Result};
 use crate::core::dcmelement::DicomElement;
 use crate::core::dcmobject::{DicomObject, DicomRoot};
-use crate::core::dcmparser::{ParseError, Parser, Result};
+use crate::core::read::error::ParseError;
 use crate::defn::constants::tags;
 use crate::defn::vl;
 use crate::defn::vl::ValueLength;

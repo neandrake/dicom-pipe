@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
-use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::core::read::{Parser, ParserBuilder};
 use dcmpipe_lib::core::tagstop::TagStop;
 
 pub struct MockDicomDataset {
