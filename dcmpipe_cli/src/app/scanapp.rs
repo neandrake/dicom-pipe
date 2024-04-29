@@ -25,14 +25,14 @@ impl ScanApp {
         ScanApp { args }
     }
 
-    fn get_files(&self) -> impl Iterator<Item = PathBuf> {
-        WalkDir::new(&self.args.folder)
+    fn get_files(folder: &PathBuf) -> impl Iterator<Item = PathBuf> {
+        WalkDir::new(folder)
             .into_iter()
             .map(|entry_res| entry_res.expect("walkdir entry").path().to_path_buf())
             .filter(|path: &PathBuf| path.is_file())
     }
 
-    fn parse_all_element_values(&self, parser: Parser<'_, BufReader<File>>) -> ScanResult {
+    fn parse_all_element_values(parser: Parser<'_, BufReader<File>>) -> ScanResult {
         let mut is_first_elem: bool = true;
         for elem_result in parser {
             match elem_result {
@@ -60,7 +60,7 @@ impl CommandApplication for ScanApp {
     fn run(&mut self) -> Result<()> {
         let parser_builder: ParserBuilder = ParserBuilder::default();
 
-        for path in self.get_files() {
+        for path in Self::get_files(&self.args.folder) {
             let file = File::open(path.clone())?;
             let dataset = BufReader::new(file);
             let parser = parser_builder.build(dataset, &STANDARD_DICOM_DICTIONARY);
@@ -70,12 +70,9 @@ impl CommandApplication for ScanApp {
                 .to_str()
                 .expect("relative path");
 
-            match self.parse_all_element_values(parser) {
-                ScanResult::Success => {}  /*println!("Valid DICOM: {}", path_str),*/
-                ScanResult::NotDicom => {} /*println!("Not DICOM: {}", relative_path),*/
-                ScanResult::InvalidData(e) => {
-                    println!("Failure Parsing: {}\n\t{}", relative_path, e)
-                }
+            match Self::parse_all_element_values(parser) {
+                ScanResult::Success | ScanResult::NotDicom => {}
+                ScanResult::InvalidData(e) => println!("Failure Parsing: {relative_path}\n\t{e}"),
             };
         }
 

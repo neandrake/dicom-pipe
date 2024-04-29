@@ -83,19 +83,19 @@ impl CommandApplication for SvcProviderApp {
                 .accept_ts(accept_ts.clone())
                 .handler(
                     CommandType::CEchoReq,
-                    |_ts: TSRef, msg: DimseMsg, _reader: &mut dyn Read, writer: &mut dyn Write| {
+                    |_ts: TSRef, msg: &DimseMsg, _reader: &mut dyn Read, writer: &mut dyn Write| {
                         AssociationDevice::handle_c_echo(msg, writer)
                     },
                 )
                 .handler(
                     CommandType::CFindReq,
-                    |ts: TSRef, msg: DimseMsg, reader: &mut dyn Read, writer: &mut dyn Write| {
+                    |ts: TSRef, msg: &DimseMsg, reader: &mut dyn Read, writer: &mut dyn Write| {
                         AssociationDevice::handle_c_find(ts, msg, reader, writer)
                     },
                 )
                 .build();
             pool.execute(move || {
-                if let Err(e) = AssociationDevice::process(stream, assoc) {
+                if let Err(e) = AssociationDevice::process(&stream, &assoc) {
                     eprintln!("[ err ><]: {e}");
                 }
             })?;
@@ -107,20 +107,20 @@ impl CommandApplication for SvcProviderApp {
 struct AssociationDevice;
 
 impl AssociationDevice {
-    pub fn process(stream: TcpStream, assoc: Association) -> Result<(), AssocError> {
-        let bufread = BufReader::new(&stream);
-        let bufwrite = BufWriter::new(&stream);
+    pub fn process(stream: &TcpStream, assoc: &Association) -> Result<(), AssocError> {
+        let bufread = BufReader::new(stream);
+        let bufwrite = BufWriter::new(stream);
         assoc.start(bufread, bufwrite)
     }
 
-    fn write_pdu(pdu: Pdu, mut writer: &mut dyn Write) -> Result<(), AssocError> {
+    fn write_pdu(pdu: &Pdu, mut writer: &mut dyn Write) -> Result<(), AssocError> {
         pdu.write(&mut writer).map_err(AssocError::ab_failure)?;
         writer
             .flush()
             .map_err(|err| AssocError::ab_failure(DimseError::IOError(err)))
     }
 
-    fn handle_c_echo(msg: DimseMsg, writer: &mut dyn Write) -> Result<(), AssocError> {
+    fn handle_c_echo(msg: &DimseMsg, writer: &mut dyn Write) -> Result<(), AssocError> {
         let rsp = CommandMessage::c_echo_rsp_from_req(
             &ImplicitVRLittleEndian,
             msg.cmd(),
@@ -135,12 +135,12 @@ impl AssociationDevice {
             data,
         )]);
 
-        AssociationDevice::write_pdu(Pdu::PresentationDataItem(rsp), writer)
+        AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)
     }
 
     fn handle_c_find(
         ts: TSRef,
-        msg: DimseMsg,
+        msg: &DimseMsg,
         reader: &mut dyn Read,
         writer: &mut dyn Write,
     ) -> Result<(), AssocError> {
@@ -191,23 +191,23 @@ impl AssociationDevice {
         }
 
         for result in results {
-            match AssociationDevice::create_c_find_cmd(&msg, &CommandStatus::Pending(0xFF00)) {
+            match AssociationDevice::create_c_find_cmd(msg, &CommandStatus::Pending(0xFF00)) {
                 Ok(rsp) => {
-                    AssociationDevice::write_pdu(Pdu::PresentationDataItem(rsp), writer)?;
+                    AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)?;
                 }
                 Err(e) => return Err(e),
             }
 
-            match AssociationDevice::create_c_find_result(&msg, &result) {
+            match AssociationDevice::create_c_find_result(msg, &result) {
                 Ok(rsp) => {
-                    AssociationDevice::write_pdu(Pdu::PresentationDataItem(rsp), writer)?;
+                    AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)?;
                 }
                 Err(e) => return Err(e),
             }
         }
 
-        match AssociationDevice::create_c_find_cmd(&msg, &CommandStatus::Success(0)) {
-            Ok(rsp) => AssociationDevice::write_pdu(Pdu::PresentationDataItem(rsp), writer)
+        match AssociationDevice::create_c_find_cmd(msg, &CommandStatus::Success(0)) {
+            Ok(rsp) => AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)
                 .map_err(AssocError::from),
             Err(e) => Err(e),
         }

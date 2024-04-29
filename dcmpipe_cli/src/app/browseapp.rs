@@ -160,15 +160,290 @@ impl CommandApplication for BrowseApp {
 
         let doc_model = DicomDocumentModel::parse(path, &dcmroot, &display_opts);
 
-        let mut terminal = self.init()?;
+        let mut terminal = Self::init()?;
 
-        let app_result = self.run_loop(&mut terminal, &dcmroot, doc_model, &display_opts);
+        let app_result = Self::run_loop(&mut terminal, &dcmroot, doc_model, &display_opts);
 
-        self.close(terminal)?;
+        Self::close(terminal)?;
 
         app_result?;
 
         Ok(())
+    }
+}
+
+impl<'app> BrowseApp {
+    pub fn new(args: BrowseArgs) -> BrowseApp {
+        BrowseApp { args }
+    }
+
+    fn init() -> Result<Terminal<CrosstermBackend<Stdout>>> {
+        execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+        enable_raw_mode()?;
+        let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+        terminal.clear()?;
+        Ok(terminal)
+    }
+
+    fn close(mut terminal: Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
+        terminal.clear()?;
+        execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+        disable_raw_mode()?;
+        terminal.show_cursor()?;
+        Ok(())
+    }
+
+    fn run_loop<'d>(
+        terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+        dcmroot: &'d DicomRoot,
+        mut doc_model: DicomDocumentModel<'app>,
+        display_opts: &DisplayOpts,
+    ) -> Result<()> {
+        let root_path = TagPath::empty();
+        let default_table_state = TableState::new().with_selected(Some(0));
+        let filename = doc_model
+            .file_path
+            .file_name()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap_or_default()
+            .to_string();
+
+        let mut current_tagpath = root_path.clone();
+        let mut user_action = UserAction::None;
+
+        loop {
+            if let UserAction::Quit = user_action {
+                break;
+            }
+
+            let Some(table_model) = doc_model.node_models.get(&current_tagpath) else {
+                return Err(BrowseError::InvalidTagPath(current_tagpath).into());
+            };
+
+            let mut view_state = doc_model
+                .node_views
+                .remove(&current_tagpath)
+                .unwrap_or_else(|| DicomNodeViewState {
+                    num_rows: table_model.rows.len(),
+                    max_name_width: table_model.max_name_width,
+                    table_state: default_table_state.clone(),
+                    dataset_title: if current_tagpath.is_empty() {
+                        filename.clone()
+                    } else {
+                        TagPath::format_tagpath_to_display(
+                            &current_tagpath,
+                            Some(&STANDARD_DICOM_DICTIONARY),
+                        )
+                    },
+                });
+
+            // Ratatui's Table requires an iterator over owned Rows, so the model must be cloned
+            // every render, apparently. The render_stateful_widget() function requires moving a
+            // Table into it, so even if the Table was lifted up into view_state or similar, some
+            // sort of clone would have to be passed into rendering.
+            let render_model = table_model.clone();
+            // The view_state is small and intended to be cloned every iteration.
+            let render_view_state = view_state.clone();
+
+            terminal.draw(|frame| Self::render(render_model, render_view_state, frame))?;
+
+            // Check for user event. If the user event would modify the ViewState it will also be
+            // updated (table offset/selection).
+            user_action = Self::process_user_input(&mut view_state)?;
+
+            // Update the table state after updating offset/selection from user input, but prior to
+            // updating/modifying the path if the user navigated away from the current node.
+            doc_model
+                .node_views
+                .insert(current_tagpath.clone(), view_state);
+
+            current_tagpath = get_tagpath_from_user_action(
+                dcmroot,
+                &doc_model,
+                &user_action,
+                current_tagpath,
+                display_opts,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Polls for user input events and updates `ViewState` based on the user's interaction.
+    fn process_user_input(view_state: &mut DicomNodeViewState) -> Result<UserAction> {
+        let user_action = if event::poll(Duration::from_millis(200))? {
+            match event::read()? {
+                Key(key) => match key.kind {
+                    KeyEventKind::Press => Self::event_keypress(view_state, key),
+                    KeyEventKind::Release => Self::event_keyrelease(view_state, key),
+                    KeyEventKind::Repeat => UserAction::None,
+                },
+                Mouse(mouse) => match mouse.kind {
+                    MouseEventKind::Down(button) | MouseEventKind::Drag(button) => {
+                        Self::event_mouse_down(view_state, mouse, button)
+                    }
+                    MouseEventKind::ScrollDown => Self::event_mouse_scroll_down(view_state, mouse),
+                    MouseEventKind::ScrollUp => Self::event_mouse_scroll_up(view_state, mouse),
+                    _ => UserAction::None,
+                },
+                _ => UserAction::None,
+            }
+        } else {
+            UserAction::None
+        };
+
+        Ok(user_action)
+    }
+
+    fn event_keyrelease(_view_state: &mut DicomNodeViewState, _event: KeyEvent) -> UserAction {
+        UserAction::None
+    }
+
+    fn event_keypress(view_state: &'app mut DicomNodeViewState, event: KeyEvent) -> UserAction {
+        match event.code {
+            Char('q') | KeyCode::Esc => UserAction::Quit,
+
+            Char('l') | KeyCode::Right | KeyCode::Enter => {
+                if let Some(selected) = view_state.table_state.selected() {
+                    UserAction::NavIntoLevel(selected)
+                } else {
+                    UserAction::None
+                }
+            }
+            Char('h') | KeyCode::Left | KeyCode::Backspace => UserAction::NavUpLevel,
+            Char('j') | KeyCode::Down => {
+                Self::table_select_next(view_state, 1);
+                UserAction::None
+            }
+            Char('k') | KeyCode::Up => {
+                Self::table_select_next(view_state, -1);
+                UserAction::None
+            }
+            Char('d') => {
+                if event.modifiers.contains(KeyModifiers::CONTROL) {
+                    Self::table_select_next(view_state, 15);
+                }
+                UserAction::None
+            }
+            Char('u') => {
+                if event.modifiers.contains(KeyModifiers::CONTROL) {
+                    Self::table_select_next(view_state, -15);
+                }
+                UserAction::None
+            }
+            _ => UserAction::None,
+        }
+    }
+
+    fn event_mouse_down(
+        view_state: &'app mut DicomNodeViewState,
+        event: MouseEvent,
+        button: MouseButton,
+    ) -> UserAction {
+        if button != MouseButton::Left {
+            return UserAction::None;
+        }
+
+        // Convert the event row (all widgets on screen) into the table row.
+        // Subtract 2, 1 for the table border, 1 for the table header row.
+        let row_index = usize::from(event.row.saturating_sub(2));
+
+        let index = Some(view_state.table_state.offset().saturating_add(row_index));
+        // Only toggle the selection on click, not drag.
+        if view_state.table_state.selected() == index
+            && event.kind == MouseEventKind::Down(MouseButton::Left)
+        {
+            view_state.table_state.select(None);
+        } else {
+            view_state.table_state.select(index);
+        }
+
+        UserAction::None
+    }
+
+    fn event_mouse_scroll_up(
+        view_state: &'app mut DicomNodeViewState,
+        _event: MouseEvent,
+    ) -> UserAction {
+        Self::table_scroll_next(view_state, -1);
+        UserAction::None
+    }
+
+    fn event_mouse_scroll_down(
+        view_state: &'app mut DicomNodeViewState,
+        _event: MouseEvent,
+    ) -> UserAction {
+        Self::table_scroll_next(view_state, 1);
+        UserAction::None
+    }
+
+    fn table_scroll_next(view_state: &'app mut DicomNodeViewState, modifier: isize) {
+        let i = view_state
+            .table_state
+            .offset()
+            .saturating_add_signed(modifier)
+            .min(view_state.num_rows)
+            .max(0);
+        *view_state.table_state.offset_mut() = i;
+    }
+
+    fn table_select_next(view_state: &'app mut DicomNodeViewState, modifier: isize) {
+        let i = match view_state.table_state.selected() {
+            None => 0,
+            Some(i) => view_state
+                .num_rows
+                .sub(1)
+                .min(i.saturating_add_signed(modifier))
+                .max(0),
+        };
+        view_state.table_state.select(Some(i));
+    }
+
+    fn render(model: DicomNodeModel, mut view_state: DicomNodeViewState, frame: &mut Frame) {
+        let column_widths = [
+            Constraint::Length(1),
+            Constraint::Length(11),
+            Constraint::Length(view_state.max_name_width),
+            Constraint::Length(2),
+            Constraint::Max(1024),
+        ];
+
+        let table = Table::new(model.rows, column_widths)
+            .header(
+                Row::new(vec!["+", "Tag", "Name", "VR", "Value"]).style(
+                    Style::default()
+                        .fg(Color::LightYellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            )
+            .block(
+                Block::default()
+                    .title(
+                        Title::from(Line::from(Span::styled(
+                            "[DICOM Browser]".to_string(),
+                            Style::default().add_modifier(Modifier::BOLD),
+                        )))
+                        .alignment(Alignment::Left),
+                    )
+                    .title(
+                        Title::from(Line::from(Span::styled(
+                            format!("[{}]", &view_state.dataset_title),
+                            Style::default()
+                                .fg(Color::LightBlue)
+                                .add_modifier(Modifier::BOLD),
+                        )))
+                        .alignment(Alignment::Right),
+                    )
+                    .borders(Borders::all()),
+            )
+            .highlight_style(Style::default().bg(Color::Rgb(64, 64, 64)));
+
+        let sections = Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Length(1)])
+            .split(frame.size());
+
+        frame.render_stateful_widget(table, sections[0], &mut view_state.table_state);
     }
 }
 
@@ -297,10 +572,7 @@ impl<'m> DicomNodeModel<'m> {
             }
             FormattedTagValue::Uid(uid, name) => Cell::from(Line::from(vec![
                 Span::styled(uid, Style::default()),
-                Span::styled(
-                    format!(" {}", name),
-                    Style::default().fg(Color::LightYellow),
-                ),
+                Span::styled(format!(" {name}"), Style::default().fg(Color::LightYellow)),
             ])),
             FormattedTagValue::Stringified(str_val) => Cell::from(str_val),
         };
@@ -310,350 +582,59 @@ impl<'m> DicomNodeModel<'m> {
     }
 }
 
-impl<'app> BrowseApp {
-    pub fn new(args: BrowseArgs) -> BrowseApp {
-        BrowseApp { args }
-    }
-
-    fn init(&self) -> Result<Terminal<CrosstermBackend<Stdout>>> {
-        execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
-        enable_raw_mode()?;
-        let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-        terminal.clear()?;
-        Ok(terminal)
-    }
-
-    fn close(&self, mut terminal: Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
-        terminal.clear()?;
-        execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
-        disable_raw_mode()?;
-        terminal.show_cursor()?;
-        Ok(())
-    }
-
-    fn run_loop<'d>(
-        &self,
-        terminal: &mut Terminal<CrosstermBackend<Stdout>>,
-        dcmroot: &'d DicomRoot,
-        mut doc_model: DicomDocumentModel<'app>,
-        display_opts: &DisplayOpts,
-    ) -> Result<()> {
-        let root_path = TagPath::empty();
-        let default_table_state = TableState::new().with_selected(Some(0));
-        let filename = doc_model
-            .file_path
-            .file_name()
-            .unwrap_or_default()
-            .to_str()
-            .unwrap_or_default()
-            .to_string();
-
-        let mut current_tagpath = root_path.clone();
-        let mut user_action = UserAction::None;
-
-        loop {
-            if let UserAction::Quit = user_action {
-                break;
-            }
-
-            let Some(table_model) = doc_model.node_models.get(&current_tagpath) else {
-                return Err(BrowseError::InvalidTagPath(current_tagpath).into());
-            };
-
-            let mut view_state = doc_model
-                .node_views
-                .remove(&current_tagpath)
-                .unwrap_or_else(|| DicomNodeViewState {
-                    num_rows: table_model.rows.len(),
-                    max_name_width: table_model.max_name_width,
-                    table_state: default_table_state.clone(),
-                    dataset_title: if current_tagpath.is_empty() {
-                        filename.clone()
-                    } else {
-                        TagPath::format_tagpath_to_display(
-                            &current_tagpath,
-                            Some(&STANDARD_DICOM_DICTIONARY),
-                        )
-                    },
-                });
-
-            // Ratatui's Table requires an iterator over owned Rows, so the model must be cloned
-            // every render, apparently. The render_stateful_widget() function requires moving a
-            // Table into it, so even if the Table was lifted up into view_state or similar, some
-            // sort of clone would have to be passed into rendering.
-            let render_model = table_model.clone();
-            // The view_state is small and intended to be cloned every iteration.
-            let render_view_state = view_state.clone();
-
-            terminal.draw(|frame| self.render(render_model, render_view_state, frame))?;
-
-            // Check for user event. If the user event would modify the ViewState it will also be
-            // updated (table offset/selection).
-            user_action = self.process_user_input(&mut view_state)?;
-
-            // Update the table state after updating offset/selection from user input, but prior to
-            // updating/modifying the path if the user navigated away from the current node.
-            doc_model
-                .node_views
-                .insert(current_tagpath.clone(), view_state);
-
-            current_tagpath = self.get_tagpath_from_user_action(
-                dcmroot,
-                &doc_model,
-                &user_action,
-                current_tagpath,
-                display_opts,
-            )?;
-        }
-        Ok(())
-    }
-
-    /// Polls for user input events and updates `ViewState` based on the user's interaction.
-    fn process_user_input(&self, view_state: &mut DicomNodeViewState) -> Result<UserAction> {
-        let user_action = if event::poll(Duration::from_millis(200))? {
-            match event::read()? {
-                Key(key) => match key.kind {
-                    KeyEventKind::Press => self.event_keypress(view_state, key),
-                    KeyEventKind::Release => self.event_keyrelease(view_state, key),
-                    _ => UserAction::None,
-                },
-                Mouse(mouse) => match mouse.kind {
-                    MouseEventKind::Down(button) | MouseEventKind::Drag(button) => {
-                        self.event_mouse_down(view_state, mouse, button)
-                    }
-                    MouseEventKind::ScrollDown => self.event_mouse_scroll_down(view_state, mouse),
-                    MouseEventKind::ScrollUp => self.event_mouse_scroll_up(view_state, mouse),
-                    _ => UserAction::None,
-                },
-                _ => UserAction::None,
-            }
-        } else {
-            UserAction::None
-        };
-
-        Ok(user_action)
-    }
-
-    /// Returns the path the user has navigated to based on `ViewState::user_nav`.
-    fn get_tagpath_from_user_action(
-        &self,
-        dcmroot: &DicomRoot,
-        doc_model: &'app DicomDocumentModel<'app>,
-        user_action: &'app UserAction,
-        current_tagpath: TagPath,
-        display_opts: &DisplayOpts,
-    ) -> Result<TagPath> {
-        // Handle user navigation
-        match user_action {
-            UserAction::None => {}
-            UserAction::Quit => {}
-            UserAction::NavIntoLevel(sel_idx) => {
-                let sel_idx = *sel_idx;
-                let next_path = if current_tagpath.is_empty() {
-                    get_nth_child(dcmroot.as_obj(), sel_idx, display_opts)
-                        .map(|o| o.element().create_tagpath())
-                        .unwrap_or_else(|| current_tagpath.clone())
-                } else {
-                    if dcmroot.get_child_by_tagpath(&current_tagpath).is_none() {
-                        return Err(BrowseError::InvalidTagPath(current_tagpath).into());
-                    }
-                    dcmroot
-                        .get_child_by_tagpath(&current_tagpath)
-                        .and_then(|c| {
-                            // Check items first and children second. Sequences will have a
-                            // single child which is the delimiter at the end.
-                            if c.item_count() > 0 {
-                                if sel_idx < c.item_count() {
-                                    get_nth_item(c, sel_idx + 1, display_opts)
-                                } else if c.child_count() > 0 {
-                                    // Subtract the # items because children appear after items
-                                    // when both are present.
-                                    get_nth_child(c, sel_idx - c.item_count(), display_opts)
-                                } else {
-                                    None
-                                }
+/// Returns the path the user has navigated to based on `ViewState::user_nav`.
+fn get_tagpath_from_user_action<'app>(
+    dcmroot: &DicomRoot,
+    doc_model: &'app DicomDocumentModel<'app>,
+    user_action: &'app UserAction,
+    current_tagpath: TagPath,
+    display_opts: &DisplayOpts,
+) -> Result<TagPath> {
+    // Handle user navigation
+    match user_action {
+        UserAction::None | UserAction::Quit => {}
+        UserAction::NavIntoLevel(sel_idx) => {
+            let sel_idx = *sel_idx;
+            let next_path = if current_tagpath.is_empty() {
+                get_nth_child(dcmroot.as_obj(), sel_idx, display_opts)
+                    .map_or_else(|| current_tagpath.clone(), |o| o.element().create_tagpath())
+            } else {
+                if dcmroot.get_child_by_tagpath(&current_tagpath).is_none() {
+                    return Err(BrowseError::InvalidTagPath(current_tagpath).into());
+                }
+                dcmroot
+                    .get_child_by_tagpath(&current_tagpath)
+                    .and_then(|c| {
+                        // Check items first and children second. Sequences will have a
+                        // single child which is the delimiter at the end.
+                        if c.item_count() > 0 {
+                            if sel_idx < c.item_count() {
+                                get_nth_item(c, sel_idx + 1, display_opts)
                             } else if c.child_count() > 0 {
-                                get_nth_child(c, sel_idx, display_opts)
+                                // Subtract the # items because children appear after items
+                                // when both are present.
+                                get_nth_child(c, sel_idx - c.item_count(), display_opts)
                             } else {
                                 None
                             }
-                        })
-                        .map(get_tagpath)
-                        .unwrap_or_else(|| current_tagpath.clone())
-                };
+                        } else if c.child_count() > 0 {
+                            get_nth_child(c, sel_idx, display_opts)
+                        } else {
+                            None
+                        }
+                    })
+                    .map_or_else(|| current_tagpath.clone(), get_tagpath)
+            };
 
-                if doc_model.node_models.contains_key(&next_path) {
-                    return Ok(next_path);
-                }
-            }
-            UserAction::NavUpLevel => {
-                return Ok(get_prev_path(current_tagpath));
+            if doc_model.node_models.contains_key(&next_path) {
+                return Ok(next_path);
             }
         }
-        Ok(current_tagpath)
-    }
-
-    fn event_keyrelease(
-        &self,
-        _view_state: &mut DicomNodeViewState,
-        _event: KeyEvent,
-    ) -> UserAction {
-        UserAction::None
-    }
-
-    fn event_keypress(
-        &self,
-        view_state: &'app mut DicomNodeViewState,
-        event: KeyEvent,
-    ) -> UserAction {
-        match event.code {
-            Char('q') | KeyCode::Esc => UserAction::Quit,
-
-            Char('l') | KeyCode::Right | KeyCode::Enter => {
-                if let Some(selected) = view_state.table_state.selected() {
-                    UserAction::NavIntoLevel(selected)
-                } else {
-                    UserAction::None
-                }
-            }
-            Char('h') | KeyCode::Left | KeyCode::Backspace => UserAction::NavUpLevel,
-            Char('j') | KeyCode::Down => {
-                self.table_select_next(view_state, 1);
-                UserAction::None
-            }
-            Char('k') | KeyCode::Up => {
-                self.table_select_next(view_state, -1);
-                UserAction::None
-            }
-            Char('d') => {
-                if event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.table_select_next(view_state, 15);
-                }
-                UserAction::None
-            }
-            Char('u') => {
-                if event.modifiers.contains(KeyModifiers::CONTROL) {
-                    self.table_select_next(view_state, -15);
-                }
-                UserAction::None
-            }
-            _ => UserAction::None,
+        UserAction::NavUpLevel => {
+            return Ok(get_prev_path(current_tagpath));
         }
     }
-
-    fn event_mouse_down(
-        &self,
-        view_state: &'app mut DicomNodeViewState,
-        event: MouseEvent,
-        button: MouseButton,
-    ) -> UserAction {
-        if button != MouseButton::Left {
-            return UserAction::None;
-        }
-
-        // Convert the event row (all widgets on screen) into the table row.
-        // Subtract 2, 1 for the table border, 1 for the table header row.
-        let row_index = usize::from(event.row.saturating_sub(2));
-
-        let index = Some(view_state.table_state.offset().saturating_add(row_index));
-        // Only toggle the selection on click, not drag.
-        if view_state.table_state.selected() == index
-            && event.kind == MouseEventKind::Down(MouseButton::Left)
-        {
-            view_state.table_state.select(None)
-        } else {
-            view_state.table_state.select(index);
-        }
-
-        UserAction::None
-    }
-
-    fn event_mouse_scroll_up(
-        &self,
-        view_state: &'app mut DicomNodeViewState,
-        _event: MouseEvent,
-    ) -> UserAction {
-        self.table_scroll_next(view_state, -1);
-        UserAction::None
-    }
-
-    fn event_mouse_scroll_down(
-        &self,
-        view_state: &'app mut DicomNodeViewState,
-        _event: MouseEvent,
-    ) -> UserAction {
-        self.table_scroll_next(view_state, 1);
-        UserAction::None
-    }
-
-    fn table_scroll_next(&self, view_state: &'app mut DicomNodeViewState, modifier: isize) {
-        let i = view_state
-            .table_state
-            .offset()
-            .saturating_add_signed(modifier)
-            .min(view_state.num_rows)
-            .max(0);
-        *view_state.table_state.offset_mut() = i;
-    }
-
-    fn table_select_next(&self, view_state: &'app mut DicomNodeViewState, modifier: isize) {
-        let i = match view_state.table_state.selected() {
-            None => 0,
-            Some(i) => view_state
-                .num_rows
-                .sub(1)
-                .min(i.saturating_add_signed(modifier))
-                .max(0),
-        };
-        view_state.table_state.select(Some(i));
-    }
-
-    fn render(&self, model: DicomNodeModel, mut view_state: DicomNodeViewState, frame: &mut Frame) {
-        let column_widths = [
-            Constraint::Length(1),
-            Constraint::Length(11),
-            Constraint::Length(view_state.max_name_width),
-            Constraint::Length(2),
-            Constraint::Max(1024),
-        ];
-
-        let table = Table::new(model.rows, column_widths)
-            .header(
-                Row::new(vec!["+", "Tag", "Name", "VR", "Value"]).style(
-                    Style::default()
-                        .fg(Color::LightYellow)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            )
-            .block(
-                Block::default()
-                    .title(
-                        Title::from(Line::from(Span::styled(
-                            "[DICOM Browser]".to_string(),
-                            Style::default().add_modifier(Modifier::BOLD),
-                        )))
-                        .alignment(Alignment::Left),
-                    )
-                    .title(
-                        Title::from(Line::from(Span::styled(
-                            format!("[{}]", &view_state.dataset_title),
-                            Style::default()
-                                .fg(Color::LightBlue)
-                                .add_modifier(Modifier::BOLD),
-                        )))
-                        .alignment(Alignment::Right),
-                    )
-                    .borders(Borders::all()),
-            )
-            .highlight_style(Style::default().bg(Color::Rgb(64, 64, 64)));
-
-        let sections = Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Length(1)])
-            .split(frame.size());
-
-        frame.render_stateful_widget(table, sections[0], &mut view_state.table_state);
-    }
+    Ok(current_tagpath)
 }
 
 /// Creates a DICOM element's children as an ordered list to get a child node based on index. This

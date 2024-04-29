@@ -66,11 +66,11 @@ impl CommandApplication for IndexApp {
         match &self.args.cmd {
             IndexCommand::Scan { folder } => {
                 let folder = folder.clone();
-                let uid_to_doc: HashMap<String, DicomDoc> = self.scan_dir(folder)?;
-                self.upsert_records(uid_to_doc)?;
+                let uid_to_doc: HashMap<String, DicomDoc> = Self::scan_dir(folder)?;
+                Self::upsert_records(&self.args.db, uid_to_doc)?;
             }
             IndexCommand::Verify {} => {
-                self.verify_records()?;
+                Self::verify_records(&self.args.db)?;
             }
         }
         Ok(())
@@ -82,15 +82,15 @@ impl IndexApp {
         IndexApp { args }
     }
 
-    fn get_dicom_coll(&self) -> Result<Collection<Document>> {
-        let client: Client = Client::with_uri_str(&self.args.db)
-            .with_context(|| format!("Invalid database URI: {}", &self.args.db))?;
+    fn get_dicom_coll(db: &String) -> Result<Collection<Document>> {
+        let client: Client =
+            Client::with_uri_str(db).with_context(|| format!("Invalid database URI: {db}"))?;
         let database: Database = client.database(DATABASE_NAME);
         Ok(database.collection(COLLECTION_NAME))
     }
 
     /// Scans a directory and returns the map of all scanned documents
-    fn scan_dir(&mut self, folder: PathBuf) -> Result<HashMap<String, DicomDoc>> {
+    fn scan_dir(folder: PathBuf) -> Result<HashMap<String, DicomDoc>> {
         let mut uid_to_doc: HashMap<String, DicomDoc> = HashMap::new();
 
         let walkdir = WalkDir::new(folder).into_iter().filter_map(Result::ok);
@@ -140,7 +140,7 @@ impl IndexApp {
                 if child_elem.is_sq_like() {
                     // TODO: handle sequences
                 } else {
-                    insert_elem_entry(child_elem, &mut dicom_doc.doc)?;
+                    Self::insert_elem_entry(child_elem, &mut dicom_doc.doc)?;
                 }
             }
         }
@@ -151,8 +151,8 @@ impl IndexApp {
     /// Queries mongo for existing documents and updates `self.uid_to_doc` with a related id field
     /// if appropriate, or marks the document as missing on-disk and then deletes it.
     /// Performs all updates to mongo based on the scan results.
-    fn upsert_records(&mut self, mut uid_to_doc: HashMap<String, DicomDoc>) -> Result<()> {
-        let dicom_coll: Collection<Document> = self.get_dicom_coll()?;
+    fn upsert_records(db: &String, mut uid_to_doc: HashMap<String, DicomDoc>) -> Result<()> {
+        let dicom_coll: Collection<Document> = Self::get_dicom_coll(db)?;
 
         let mut serieskeys: Vec<Bson> = Vec::new();
         for key in uid_to_doc.keys() {
@@ -164,7 +164,7 @@ impl IndexApp {
             }
         };
 
-        for dicom_doc in self.query_docs(&dicom_coll, Some(query))? {
+        for dicom_doc in Self::query_docs(db, &dicom_coll, Some(query))? {
             if let Some(existing) = uid_to_doc.get_mut(&dicom_doc.key) {
                 existing.id = dicom_doc.id;
             }
@@ -192,7 +192,7 @@ impl IndexApp {
 
         // There's no API for mass replacing documents, so do one-by-one.
         println!("Updating {} records", updates.len());
-        for (id, doc) in updates.into_iter() {
+        for (id, doc) in updates {
             let query: Document = doc! { MONGO_ID_KEY: id };
             dicom_coll.update_one(query, doc, None)?;
         }
@@ -200,35 +200,29 @@ impl IndexApp {
         Ok(())
     }
 
-    fn verify_records(&mut self) -> Result<()> {
-        let dicom_coll: Collection<Document> = self.get_dicom_coll()?;
+    fn verify_records(db: &String) -> Result<()> {
+        let dicom_coll: Collection<Document> = Self::get_dicom_coll(db)?;
 
         let mut record_count: usize = 0;
         let mut updated_records: Vec<Document> = Vec::new();
         let mut missing_records: Vec<Document> = Vec::new();
-        for mut dicom_doc in self.query_docs(&dicom_coll, None)? {
+        for mut dicom_doc in Self::query_docs(db, &dicom_coll, None)? {
             record_count += 1;
-            let md_doc_opt = dicom_doc
+            let metadata_doc = dicom_doc
                 .doc
                 .get_mut("metadata")
                 .and_then(|md_doc| md_doc.as_document_mut());
-            let metadata_doc: &mut Document = match md_doc_opt {
-                Some(md) => md,
-                None => {
-                    missing_records.push(dicom_doc.doc);
-                    continue;
-                }
+            let Some(metadata_doc) = metadata_doc else {
+                missing_records.push(dicom_doc.doc);
+                continue;
             };
 
-            let fd_doc_opt = metadata_doc
+            let files_array = metadata_doc
                 .get_mut("files")
                 .and_then(|fd_doc| fd_doc.as_array_mut());
-            let files_array: &mut Array = match fd_doc_opt {
-                Some(fd) => fd,
-                None => {
-                    missing_records.push(dicom_doc.doc);
-                    continue;
-                }
+            let Some(files_array) = files_array else {
+                missing_records.push(dicom_doc.doc);
+                continue;
             };
 
             let num_files: usize = files_array.len();
@@ -244,7 +238,7 @@ impl IndexApp {
             }
         }
 
-        println!("Verified {} records", record_count);
+        println!("Verified {record_count} records");
 
         println!("Updating {} records", updated_records.len());
         if !updated_records.is_empty() {
@@ -273,16 +267,17 @@ impl IndexApp {
     /// Query for dicom records in the given collection and returns an iterator over `DicomDoc`.
     ///
     /// # Params
+    /// `db` The database connection string, used for logging only.
     /// `dicom_coll` The collection to query.
     /// `query` The query to use. If `None`, then a blank query is issued, resulting in all records.
     fn query_docs(
-        &mut self,
+        db: &String,
         dicom_coll: &Collection<Document>,
         query: Option<Document>,
     ) -> Result<impl Iterator<Item = DicomDoc>> {
         let all_dicom_docs: Cursor<Document> = dicom_coll
             .find(query, None)
-            .with_context(|| format!("Invalid database: {}", &self.args.db))?;
+            .with_context(|| format!("Invalid database: {db}"))?;
 
         let doc_iter = all_dicom_docs.filter_map(|doc_res| {
             let doc: Document = match doc_res {
@@ -313,144 +308,145 @@ impl IndexApp {
 
         Ok(doc_iter)
     }
-}
 
-/// Builds a bson value from the given `DicomElement` and inserts it into the bson document
-fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()> {
-    let key: String = Tag::format_tag_to_path_display(elem.tag());
-    let raw_value: RawValue = elem.parse_value()?;
-    match raw_value {
-        RawValue::Attributes(attrs) => {
-            if attrs.len() == 1 {
-                dicom_doc.insert(key, attrs[0].0);
-            } else if !attrs.is_empty() {
-                let attrs = attrs.into_iter().map(|a| a.0).collect::<Vec<u32>>();
-                dicom_doc.insert(key, attrs);
+    /// Builds a bson value from the given `DicomElement` and inserts it into the bson document
+    #[allow(clippy::too_many_lines)]
+    fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()> {
+        let key: String = Tag::format_tag_to_path_display(elem.tag());
+        let raw_value: RawValue = elem.parse_value()?;
+        match raw_value {
+            RawValue::Attributes(attrs) => {
+                if attrs.len() == 1 {
+                    dicom_doc.insert(key, attrs[0].0);
+                } else if !attrs.is_empty() {
+                    let attrs = attrs.into_iter().map(|a| a.0).collect::<Vec<u32>>();
+                    dicom_doc.insert(key, attrs);
+                }
             }
-        }
-        RawValue::Uid(uid) => {
-            dicom_doc.insert(key, uid);
-        }
-        RawValue::Floats(floats) => {
-            if floats.len() == 1 {
-                dicom_doc.insert(key, floats[0]);
-            } else if !floats.is_empty() {
-                dicom_doc.insert(key, floats);
+            RawValue::Uid(uid) => {
+                dicom_doc.insert(key, uid);
             }
-        }
-        RawValue::Doubles(doubles) => {
-            if doubles.len() == 1 {
-                dicom_doc.insert(key, doubles[0]);
-            } else if !doubles.is_empty() {
-                dicom_doc.insert(key, doubles);
+            RawValue::Floats(floats) => {
+                if floats.len() == 1 {
+                    dicom_doc.insert(key, floats[0]);
+                } else if !floats.is_empty() {
+                    dicom_doc.insert(key, floats);
+                }
             }
-        }
-        RawValue::Shorts(shorts) => {
-            // convert to i32 because Bson doesn't support i16
-            let shorts: Vec<i32> = shorts.into_iter().map(i32::from).collect::<Vec<i32>>();
-            if shorts.len() == 1 {
-                dicom_doc.insert(key, shorts[0]);
-            } else if !shorts.is_empty() {
-                dicom_doc.insert(key, shorts);
+            RawValue::Doubles(doubles) => {
+                if doubles.len() == 1 {
+                    dicom_doc.insert(key, doubles[0]);
+                } else if !doubles.is_empty() {
+                    dicom_doc.insert(key, doubles);
+                }
             }
-        }
-        RawValue::UShorts(ushorts) => {
-            if ushorts.len() == 1 {
-                dicom_doc.insert(key, u32::from(ushorts[0]));
-            } else if !ushorts.is_empty() {
-                let uints = ushorts
+            RawValue::Shorts(shorts) => {
+                // convert to i32 because Bson doesn't support i16
+                let shorts: Vec<i32> = shorts.into_iter().map(i32::from).collect::<Vec<i32>>();
+                if shorts.len() == 1 {
+                    dicom_doc.insert(key, shorts[0]);
+                } else if !shorts.is_empty() {
+                    dicom_doc.insert(key, shorts);
+                }
+            }
+            RawValue::UShorts(ushorts) => {
+                if ushorts.len() == 1 {
+                    dicom_doc.insert(key, u32::from(ushorts[0]));
+                } else if !ushorts.is_empty() {
+                    let uints = ushorts
+                        .into_iter()
+                        .map(|ushort: u16| u32::from(ushort))
+                        .collect::<Vec<u32>>();
+                    dicom_doc.insert(key, uints);
+                }
+            }
+            RawValue::Ints(ints) => {
+                if ints.len() == 1 {
+                    dicom_doc.insert(key, ints[0]);
+                } else if !ints.is_empty() {
+                    dicom_doc.insert(key, ints);
+                }
+            }
+            RawValue::UInts(uints) => {
+                if uints.len() == 1 {
+                    dicom_doc.insert(key, uints[0]);
+                } else if !uints.is_empty() {
+                    dicom_doc.insert(key, uints);
+                }
+            }
+            RawValue::Strings(strings) => {
+                if strings.len() == 1 {
+                    dicom_doc.insert(key, strings[0].clone());
+                } else if !strings.is_empty() {
+                    dicom_doc.insert(key, strings);
+                }
+            }
+            RawValue::Bytes(bytes) => {
+                if !bytes.is_empty() {
+                    let bytes: Vec<u8> = bytes.into_iter().take(16).collect::<Vec<u8>>();
+                    let binary = Bson::Binary(Binary {
+                        subtype: BinarySubtype::Generic,
+                        bytes,
+                    });
+                    dicom_doc.insert(key, binary);
+                }
+            }
+            RawValue::Longs(longs) => {
+                if longs.len() == 1 {
+                    dicom_doc.insert(key, longs[0]);
+                } else if !longs.is_empty() {
+                    dicom_doc.insert(key, longs);
+                }
+            }
+            RawValue::ULongs(ulongs) => {
+                let mut ulongs = ulongs
                     .into_iter()
-                    .map(|ushort: u16| u32::from(ushort))
-                    .collect::<Vec<u32>>();
-                dicom_doc.insert(key, uints);
+                    .map(|u| u.to_string())
+                    .collect::<Vec<String>>();
+                if ulongs.len() == 1 {
+                    dicom_doc.insert(key, ulongs.remove(0));
+                } else if !ulongs.is_empty() {
+                    dicom_doc.insert(key, ulongs);
+                }
+            }
+            RawValue::Words(words) => {
+                if words.len() == 1 {
+                    dicom_doc.insert(key, u32::from(words[0]));
+                } else if !words.is_empty() {
+                    let words: Vec<u32> = words.into_iter().map(u32::from).collect::<Vec<u32>>();
+                    dicom_doc.insert(key, words);
+                }
+            }
+            RawValue::DWords(dwords) => {
+                if dwords.len() == 1 {
+                    dicom_doc.insert(key, dwords[0]);
+                } else if !dwords.is_empty() {
+                    dicom_doc.insert(key, dwords);
+                }
+            }
+            RawValue::QWords(qwords) => {
+                let mut qwords = qwords
+                    .into_iter()
+                    .map(|u| u.to_string())
+                    .collect::<Vec<String>>();
+                if qwords.len() == 1 {
+                    dicom_doc.insert(key, qwords.remove(0));
+                } else if !qwords.is_empty() {
+                    dicom_doc.insert(key, qwords);
+                }
+            }
+            RawValue::BytesView(bytes) => {
+                if !bytes.is_empty() {
+                    let bytes: Vec<u8> = bytes.iter().copied().take(16).collect::<Vec<u8>>();
+                    let binary = Bson::Binary(Binary {
+                        subtype: BinarySubtype::Generic,
+                        bytes,
+                    });
+                    dicom_doc.insert(key, binary);
+                }
             }
         }
-        RawValue::Ints(ints) => {
-            if ints.len() == 1 {
-                dicom_doc.insert(key, ints[0]);
-            } else if !ints.is_empty() {
-                dicom_doc.insert(key, ints);
-            }
-        }
-        RawValue::UInts(uints) => {
-            if uints.len() == 1 {
-                dicom_doc.insert(key, uints[0]);
-            } else if !uints.is_empty() {
-                dicom_doc.insert(key, uints);
-            }
-        }
-        RawValue::Strings(strings) => {
-            if strings.len() == 1 {
-                dicom_doc.insert(key, strings[0].clone());
-            } else if !strings.is_empty() {
-                dicom_doc.insert(key, strings);
-            }
-        }
-        RawValue::Bytes(bytes) => {
-            if !bytes.is_empty() {
-                let bytes: Vec<u8> = bytes.into_iter().take(16).collect::<Vec<u8>>();
-                let binary = Bson::Binary(Binary {
-                    subtype: BinarySubtype::Generic,
-                    bytes,
-                });
-                dicom_doc.insert(key, binary);
-            }
-        }
-        RawValue::Longs(longs) => {
-            if longs.len() == 1 {
-                dicom_doc.insert(key, longs[0]);
-            } else if !longs.is_empty() {
-                dicom_doc.insert(key, longs);
-            }
-        }
-        RawValue::ULongs(ulongs) => {
-            let mut ulongs = ulongs
-                .into_iter()
-                .map(|u| u.to_string())
-                .collect::<Vec<String>>();
-            if ulongs.len() == 1 {
-                dicom_doc.insert(key, ulongs.remove(0));
-            } else if !ulongs.is_empty() {
-                dicom_doc.insert(key, ulongs);
-            }
-        }
-        RawValue::Words(words) => {
-            if words.len() == 1 {
-                dicom_doc.insert(key, u32::from(words[0]));
-            } else if !words.is_empty() {
-                let words: Vec<u32> = words.into_iter().map(u32::from).collect::<Vec<u32>>();
-                dicom_doc.insert(key, words);
-            }
-        }
-        RawValue::DWords(dwords) => {
-            if dwords.len() == 1 {
-                dicom_doc.insert(key, dwords[0]);
-            } else if !dwords.is_empty() {
-                dicom_doc.insert(key, dwords);
-            }
-        }
-        RawValue::QWords(qwords) => {
-            let mut qwords = qwords
-                .into_iter()
-                .map(|u| u.to_string())
-                .collect::<Vec<String>>();
-            if qwords.len() == 1 {
-                dicom_doc.insert(key, qwords.remove(0));
-            } else if !qwords.is_empty() {
-                dicom_doc.insert(key, qwords);
-            }
-        }
-        RawValue::BytesView(bytes) => {
-            if !bytes.is_empty() {
-                let bytes: Vec<u8> = bytes.iter().copied().take(16).collect::<Vec<u8>>();
-                let binary = Bson::Binary(Binary {
-                    subtype: BinarySubtype::Generic,
-                    bytes,
-                });
-                dicom_doc.insert(key, binary);
-            }
-        }
-    }
 
-    Ok(())
+        Ok(())
+    }
 }

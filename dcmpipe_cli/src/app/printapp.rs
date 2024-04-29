@@ -57,7 +57,7 @@ impl CommandApplication for PrintApp {
             }
 
             let printed: String = FormattedElement::default(&elem).to_string();
-            stdout.write_all(format!("{}\n", printed).as_ref())?;
+            stdout.write_all(format!("{printed}\n").as_ref())?;
         }
 
         Ok(())
