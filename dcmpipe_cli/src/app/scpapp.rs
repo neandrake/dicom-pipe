@@ -140,6 +140,13 @@ impl Association {
         let mut bufwrite = BufWriter::new(&self.stream);
         let remote_ip = self.stream.peer_addr()?.ip().to_string();
 
+        let write_err = |e: AssocError, bufwrite: &mut BufWriter<&TcpStream>| {
+            if let Some(rsp) = e.rsp() {
+                println!("[info ->]: {:?}", rsp.pdu_type());
+            }
+            return e.write(bufwrite);
+        };
+
         let rq = Pdu::read(&mut bufread)
             .map_err(AssocError::ab_failure)
             .and_then(|rq| match rq {
@@ -151,12 +158,7 @@ impl Association {
 
         let rq = match rq {
             Ok(rq) => rq,
-            Err(e) => {
-                if let Some(rsp) = e.rsp() {
-                    println!("[info ->]: {:?}", rsp.pdu_type());
-                }
-                return e.write(&mut bufwrite);
-            }
+            Err(e) => return write_err(e, &mut bufwrite),
         };
 
         // Gracefully decode the calling AE title for logging purposes. If the calling AE can't
@@ -173,7 +175,7 @@ impl Association {
             Ok(rq) => rq,
             Err(e) => {
                 println!("[info <-]: {:?} {source}", rq.pdu_type());
-                return e.write(&mut bufwrite);
+                return write_err(e, &mut bufwrite);
             }
         };
         let (ab, ts) = (assoc_ac.ab, assoc_ac.ts);
@@ -184,10 +186,7 @@ impl Association {
             .map_err(|e| e.into_err())?;
 
         if let Err(e) = self.pdu_loop(ab, ts, &mut bufread, &mut bufwrite) {
-            if let Some(rsp) = e.rsp() {
-                println!("[info ->]: {:?}", rsp.pdu_type());
-            }
-            e.write(&mut bufwrite)
+            write_err(e, &mut bufwrite)
         } else {
             Ok(())
         }
@@ -352,21 +351,9 @@ impl Association {
 
             let Some(cmd_pdvh) = last_cmd_pdvh else {
                 continue;
-                /*
-                return Err(AssocError {
-                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
-                    err: anyhow!("No COMMAND PDVH after receiving DICOM dataset"),
-                });
-                */
             };
             let Some(cmd) = last_cmd else {
                 continue;
-                /*
-                return Err(AssocError {
-                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
-                    err: anyhow!("No COMMAND after receiving DICOM dataset"),
-                });
-                */
             };
 
             if cmd_type == CommandType::CEchoReq {
@@ -464,7 +451,7 @@ impl Association {
         for result in results {
             match self.create_c_find_cmd(cmd_pdvh, cmd, &CommandStatus::Pending(0xFF00)) {
                 Ok(rsp) => {
-                    println!("[info ->]: {:?} COMMAND", rsp.pdu_type());
+                    println!("[info ->]: {:?} COMMAND RSP", rsp.pdu_type());
                     self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
                 }
                 Err(e) => return Err(e),
@@ -472,7 +459,7 @@ impl Association {
 
             match self.create_c_find_result(dcm_pdvh, &result) {
                 Ok(rsp) => {
-                    println!("[info ->]: {:?} DICOM", rsp.pdu_type());
+                    println!("[info ->]: {:?} DICOM RSP", rsp.pdu_type());
                     self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
                 }
                 Err(e) => return Err(e),
@@ -481,7 +468,7 @@ impl Association {
 
         match self.create_c_find_cmd(cmd_pdvh, cmd, &CommandStatus::Success(0)) {
             Ok(rsp) => {
-                println!("[info ->]: {:?} COMMAND", rsp.pdu_type());
+                println!("[info ->]: {:?} COMMAND RSP", rsp.pdu_type());
                 self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)
                     .map_err(AssocError::from)
             }
