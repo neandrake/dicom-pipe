@@ -57,5 +57,5 @@ fn parse_stream_recurse<StreamType: Read>(
         next_element = parser.next();
     }
 
-    None
+    next_element
 }

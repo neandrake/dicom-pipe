@@ -45,19 +45,28 @@ fn test_nonzero_preamble() {
 }
 
 #[test]
-#[should_panic(expected = "This should fail: Invalid dicom prefix")]
-fn test_bad_dicom_prefix() {
+#[should_panic(expected = "Invalid DICOM Prefix")]
+fn test_bad_dicom_prefix_parser() {
     let mut parser: Parser<MockDicomStream> = MockDicomStream::invalid_dicom_prefix();
 
     // reads the preamble, prefix, and first element
     let _ = parser
         .next()
         .expect("Should have returned Some(Err)")
-        .expect("This should fail: Invalid dicom prefix");
+        // This should fail: Invalid dicom prefix
+        .unwrap();
+}
+
+/// Test that reading the parser into a DICOM object properly propagates errors
+#[test]
+#[should_panic(expected = "Invalid DICOM Prefix")]
+fn test_bad_dicom_prefix_reader() {
+    let mut parser: Parser<MockDicomStream> = MockDicomStream::invalid_dicom_prefix();
+    parse_stream(&mut parser).unwrap();
 }
 
 #[test]
-#[should_panic(expected = "This should fail: Failure to read preamble due to not enough data")]
+#[should_panic(expected = "failed to fill whole buffer")]
 fn test_failure_to_read_preamble() {
     let mut parser: Parser<MockDicomStream> =
         MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
@@ -66,7 +75,8 @@ fn test_failure_to_read_preamble() {
     let _first_elem = parser
         .next()
         .expect("Should have returned Some(Err)")
-        .expect("This should fail: Failure to read preamble due to not enough data");
+        // This should fail: Failure to read preamble due to not enough data
+        .unwrap();
 
     // should record zero bytes read since the first attempt to read into buffer should fail to fill
     let start_pos: u64 = parser.get_bytes_read();
@@ -245,7 +255,16 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
         .get_child(tags::SOPClassUID.tag)
         .expect("Should have SOPClassUID child element")
         .as_element();
-    assert_eq!(sopuid.parse_string()?, uids::MRImageStorage.uid);
+    // The MR Image Storage UID is odd-length which means the value is padded with a null byte.
+    // Only if we detect the VR as UI (when using standard dictionary) then the value should
+    // match exactly when parsed as a string otherwise we have to check it with the null byte.
+    if with_std {
+        assert_eq!(sopuid.parse_string()?, uids::MRImageStorage.uid);
+    } else {
+        assert_eq!(sopuid.parse_string()?, format!("{}\u{0}", uids::MRImageStorage.uid));
+        // force parsing as UI should match exactly
+        assert_eq!(sopuid.parse_string_with_vr(&vr::UI)?, uids::MRImageStorage.uid);
+    }
 
     Ok(())
 }
