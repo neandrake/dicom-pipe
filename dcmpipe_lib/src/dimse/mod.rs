@@ -1,11 +1,11 @@
-use crate::dimse::error::DimseError;
+use crate::{core::charset::DEFAULT_CHARACTER_SET, dimse::error::DimseError};
 
 pub mod commands;
 pub mod error;
 pub mod pduiter;
 pub mod pdus;
 
-pub struct AeTitle([u8; 16]);
+pub struct AeTitle(pub [u8; 16]);
 
 impl From<[u8; 16]> for AeTitle {
     fn from(value: [u8; 16]) -> Self {
@@ -32,5 +32,18 @@ impl TryFrom<&[u8]> for AeTitle {
 impl From<AeTitle> for [u8; 16] {
     fn from(value: AeTitle) -> Self {
         value.0
+    }
+}
+
+pub struct Syntax<'s>(pub &'s [u8]);
+
+impl<'s> TryFrom<&'s Syntax<'s>> for String {
+    type Error = DimseError;
+
+    fn try_from(value: &'s Syntax) -> Result<Self, Self::Error> {
+        DEFAULT_CHARACTER_SET
+            .decode(value.0)
+            .map(|s| s.trim_end_matches('\0').to_owned())
+            .map_err(DimseError::CharsetError)
     }
 }

@@ -270,9 +270,7 @@ impl Pdu {
 
     pub fn read<R: Read>(mut dataset: R) -> Result<Pdu, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
-        dataset
-            .read_exact(&mut buf)
-            .map_err(DimseError::IOError)?;
+        dataset.read_exact(&mut buf).map_err(DimseError::IOError)?;
 
         let pdu_type: PduType = PduType::from(buf[0]);
 
@@ -375,9 +373,7 @@ impl UserPdu {
 
     pub fn read<R: Read>(mut dataset: R) -> Result<UserPdu, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
-        dataset
-            .read_exact(&mut buf)
-            .map_err(DimseError::IOError)?;
+        dataset.read_exact(&mut buf).map_err(DimseError::IOError)?;
 
         let pdu_type: UserPduType = UserPduType::from(buf[0]);
 

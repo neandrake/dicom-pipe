@@ -5,8 +5,15 @@ use crate::{core::dcmelement::DicomElement, core::defn::vr::VRRef};
 pub(crate) struct BytesWithoutPadding<'b>(pub &'b [u8]);
 
 /// For parsing an element value as a string with a specific VR.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ElementWithVr<'e>(pub &'e DicomElement, pub VRRef);
+
+impl<'e> ElementWithVr<'e> {
+    #[must_use]
+    pub fn of(elem: &'e DicomElement) -> Self {
+        ElementWithVr(elem, elem.vr())
+    }
+}
 
 /// Wrapper around `u32` for parsing DICOM Attributes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +52,15 @@ impl<'e> RawValue<'e> {
     #[must_use]
     pub fn of_attr(attr: Attribute) -> RawValue<'e> {
         RawValue::Attributes(vec![attr])
+    }
+
+    /// Convenience for `RawValue::Uid(String)`
+    #[must_use]
+    pub fn of_uid<S>(string: S) -> RawValue<'e>
+    where
+        String: From<S>,
+    {
+        RawValue::Uid(String::from(string))
     }
 
     /// Convenience for `RawValue::Strings(vec![string])`

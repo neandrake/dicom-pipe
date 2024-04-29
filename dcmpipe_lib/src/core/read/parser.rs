@@ -13,6 +13,7 @@ use crate::core::{
         vr::VRRef,
     },
     read::{behavior::ParseBehavior, ds::dataset::Dataset, error::ParseError, stop::ParseStop},
+    values::ElementWithVr,
     DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 
@@ -292,7 +293,7 @@ impl<'d, R: Read> Parser<'d, R> {
     /// Parses the value of the given element as the transfer syntax return. If the transfer syntax
     /// cannot be resolved then this sets it to the default DICOM transfer syntax which is IVRLE.
     fn parse_transfer_syntax(&mut self, element: &DicomElement) -> ParseResult<Option<TSRef>> {
-        let ts_uid: String = String::try_from(element)?;
+        let ts_uid: String = String::try_from(ElementWithVr::of(element))?;
         Ok(self.dictionary.get_ts_by_uid(ts_uid.as_ref()))
     }
 

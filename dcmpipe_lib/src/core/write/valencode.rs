@@ -469,3 +469,41 @@ impl<'e> From<ElemAndQuadWords<'e>> for Vec<u8> {
             .collect::<Vec<u8>>()
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "stddicom")]
+mod tests {
+    use crate::{
+        core::{dcmelement::DicomElement, defn::vr::UI, RawValue},
+        dict::{tags::AffectedSOPClassUID, transfer_syntaxes::ExplicitVRLittleEndian},
+    };
+
+    #[test]
+    fn test_odd_length_string() {
+        let odd_len_uid = String::from("1.2.840.10008.1.1");
+        assert!(odd_len_uid.len() % 2 == 1, "uid should be odd length");
+
+        let mut elem = DicomElement::new_empty(&AffectedSOPClassUID, &UI, &ExplicitVRLittleEndian);
+        elem.encode_val(crate::core::RawValue::of_uid(&odd_len_uid))
+            .expect("encode odd-length uid");
+
+        let data = elem.data();
+        assert!(data.len() % 2 == 0, "encoded value should be even");
+        assert_eq!(
+            0,
+            data[data.len() - 1],
+            "encoded value should be padded with a null byte"
+        );
+
+        let parsed = elem.parse_value().expect("parse encoded value");
+        let RawValue::Uid(parsed) = parsed else {
+            panic!("resulting value was not a UID: {parsed:?}");
+        };
+
+        assert!(parsed.len() % 2 == 1, "parsed value should be odd length");
+        assert_eq!(
+            odd_len_uid, parsed,
+            "parsed value should match the original"
+        );
+    }
+}

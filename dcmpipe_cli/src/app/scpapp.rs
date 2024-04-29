@@ -33,6 +33,7 @@ use dcmpipe_lib::{
             PresentationDataValue, PresentationDataValueHeader, ReleaseRP, TransferSyntaxItem,
             P_DATA_CMD_LAST, P_DATA_DCM_DATASET_LAST,
         },
+        Syntax,
     },
 };
 use std::{
@@ -216,15 +217,14 @@ impl Association {
         }
 
         let pres_ctx = rq.pres_ctxs().first().ok_or_else(|| {
-            AssocError::rj_failure(DimseError::GeneralError(format!(
-                "No presentation context items defined"
-            )))
+            AssocError::rj_failure(DimseError::GeneralError(
+                "No presentation context items defined".to_string(),
+            ))
         })?;
 
-        let ab = CS
-            .decode(pres_ctx.abstract_syntax().abstract_syntax())
+        let ab = String::try_from(&Syntax(pres_ctx.abstract_syntax().abstract_syntax()))
             .ok()
-            .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(ab.trim()));
+            .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&ab));
 
         let Some(ab) = ab else {
             let ab = pres_ctx.abstract_syntax().abstract_syntax().clone();
@@ -244,8 +244,8 @@ impl Association {
         let ts = pres_ctx
             .transfer_syntaxes()
             .iter()
-            .find_map(|ts| CS.decode(ts.transfer_syntaxes()).ok())
-            .and_then(|ts| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(ts.trim()))
+            .find_map(|ts| String::try_from(&Syntax(ts.transfer_syntaxes())).ok())
+            .and_then(|ts| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&ts))
             .filter(|ts| self.accept_ts.contains(ts))
             .ok_or_else(|| {
                 AssocError::rj_unsupported(DimseError::GeneralError(format!(
@@ -286,11 +286,7 @@ impl Association {
                 Ok(())
             }
             Pdu::Abort(ab) => {
-                println!(
-                    "[info <-]: {:?}: {}",
-                    ab.pdu_type(),
-                    ab.get_reason_desc()
-                );
+                println!("[info <-]: {:?}: {}", ab.pdu_type(), ab.get_reason_desc());
                 Ok(())
             }
             pdu => {
@@ -330,9 +326,9 @@ impl Association {
                                 .get_value_as_by_tag(&CommandField, &US)
                                 .and_then(|v| v.ushort())
                                 .ok_or_else(|| {
-                                    AssocError::rj_unsupported(DimseError::GeneralError(format!(
-                                        "failed to parse CommandField"
-                                    )))
+                                    AssocError::rj_unsupported(DimseError::GeneralError(
+                                        "failed to parse CommandField".to_string(),
+                                    ))
                                 })?,
                         );
                         last_cmd_pdvh = Some(pdvh);
@@ -383,9 +379,9 @@ impl Association {
             // All services aside from C-ECHO require having received a DICOM dataset after the
             // command.
             let Some(dcm_pdvh) = last_dcm_pdvh else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "No DICOM after receiving DICOM dataset"
-                ))));
+                return Err(AssocError::ab_failure(DimseError::GeneralError(
+                    "No DICOM after receiving DICOM dataset".to_string(),
+                )));
             };
 
             if cmd_type == CommandType::CFindReq {
@@ -443,9 +439,9 @@ impl Association {
         let query = DicomRoot::parse(&mut parser)
             .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
         let Some(query) = query else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "No DICOM query after parsing query"
-            ))));
+            return Err(AssocError::ab_failure(DimseError::GeneralError(
+                "No DICOM query after parsing query".to_string(),
+            )));
         };
 
         let _ = query.dbg_dump();

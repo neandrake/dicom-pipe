@@ -175,16 +175,15 @@ impl AssocError {
     ///
     /// # Errors
     /// I/O errors may occur writing the PDU to the writer, or flushing the writer.
-    #[must_use]
     pub fn write<W: Write>(self, mut writer: W) -> Result<(), DimseError> {
         match self.rsp {
             Some(AssocRsp::RJ(rj)) => {
                 rj.write(&mut writer)?;
-                writer.flush().map_err(|e| DimseError::IOError(e))?;
+                writer.flush().map_err(DimseError::IOError)?;
             }
             Some(AssocRsp::AB(ab)) => {
                 ab.write(&mut writer)?;
-                writer.flush().map_err(|e| DimseError::IOError(e))?;
+                writer.flush().map_err(DimseError::IOError)?;
             }
             _ => {}
         }
