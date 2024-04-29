@@ -28,6 +28,9 @@ pub trait DicomNode {
     /// Get a child node with the given tag.
     fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject>;
 
+    /// Get a child by index.
+    fn get_child_by_index(&self, index: usize) -> Option<&DicomObject>;
+
     /// Iterator over the child nodes, in tag-ascending order.
     fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject>;
 
@@ -265,6 +268,10 @@ impl<'dict> DicomNode for DicomRoot<'dict> {
         self.child_nodes.get(&tag)
     }
 
+    fn get_child_by_index(&self, index: usize) -> Option<&DicomObject> {
+        self.child_nodes.iter().skip(index).map(|e| e.1).next()
+    }
+
     fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
         self.child_nodes.iter()
     }
@@ -345,6 +352,10 @@ impl DicomNode for DicomObject {
 
     fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
         self.child_nodes.get(&tag)
+    }
+
+    fn get_child_by_index(&self, index: usize) -> Option<&DicomObject> {
+        self.child_nodes.iter().skip(index).map(|e| e.1).next()
     }
 
     fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {

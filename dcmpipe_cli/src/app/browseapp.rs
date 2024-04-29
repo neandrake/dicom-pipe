@@ -18,7 +18,7 @@ use crossterm::terminal::{
 };
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
-use dcmpipe_lib::defn::tag::{Tag, TagPath};
+use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
@@ -64,7 +64,7 @@ struct DicomElementModel<'model> {
 /// data model), as it will be cloned every frame render. This contains both view-level information
 /// about the current model being displayed as well as view state from user input.
 #[derive(Clone)]
-struct DicomElementViewState {
+struct ViewState {
     /// The number of rows of the current model.
     num_rows: usize,
     /// The maximum width of all DICOM tag names of the current model.
@@ -73,8 +73,18 @@ struct DicomElementViewState {
     table_state: TableState,
     /// Whether the user has requested to quit/close.
     user_quit: bool,
+    /// The user selected a row to dive deeper into.
+    user_selected: UserNav,
     /// The current path of elements to display.
     current_root_element: TagPath,
+}
+
+/// Actions the user can take to navigate the DICOM document.
+#[derive(Clone)]
+enum UserNav {
+    None,
+    IntoLevel(usize),
+    UpLevel,
 }
 
 impl<'app> CommandApplication for BrowseApp {
@@ -89,11 +99,11 @@ impl<'app> CommandApplication for BrowseApp {
             Err(err) => return Err(anyhow!(err)),
         };
 
-        let mut doc_model = DicomDocumentModel::parse(path, dcmroot);
+        let mut doc_model = DicomDocumentModel::parse(path, &dcmroot);
 
         let mut terminal = self.init()?;
 
-        let app_result = self.run_loop(&mut terminal, &mut doc_model);
+        let app_result = self.run_loop(&mut terminal, &dcmroot, &mut doc_model);
 
         self.close(terminal)?;
 
@@ -104,17 +114,17 @@ impl<'app> CommandApplication for BrowseApp {
 }
 
 impl<'app> DicomDocumentModel<'app> {
-    fn parse<'dict>(path: &'app Path, dcmroot: DicomRoot<'dict>) -> DicomDocumentModel<'app> {
-        let map = DicomElementModel::parse(&dcmroot);
+    fn parse<'dict>(path: &'app Path, dcmroot: &DicomRoot<'dict>) -> DicomDocumentModel<'app> {
+        let map = DicomElementModel::parse(dcmroot);
         DicomDocumentModel { path, map }
     }
 }
 
-impl<'m> DicomElementModel<'m> {
-    fn parse<'t>(dcmnode: &'m dyn DicomNode) -> HashMap<TagPath, DicomElementModel<'t>> {
-        let mut map: HashMap<TagPath, DicomElementModel<'t>> = HashMap::new();
+impl<'model> DicomElementModel<'model> {
+    fn parse<'dict>(dcmnode: &'dict dyn DicomNode) -> HashMap<TagPath, DicomElementModel<'model>> {
+        let mut map: HashMap<TagPath, DicomElementModel<'model>> = HashMap::new();
 
-        let mut rows: Vec<Row<'t>> = Vec::with_capacity(dcmnode.get_child_count());
+        let mut rows: Vec<Row<'model>> = Vec::with_capacity(dcmnode.get_child_count());
         let mut max_name_width: u16 = 0;
         for (child_tag, child) in dcmnode.iter_child_nodes() {
             if child.get_item_count() > 0 || child.get_child_count() > 0 {
@@ -180,7 +190,10 @@ impl<'m> DicomElementModel<'m> {
         let mut table_state = TableState::default();
         table_state.select(Some(0));
 
-        let elem_tbl = DicomElementModel {  rows, max_name_width };
+        let elem_tbl = DicomElementModel {
+            rows,
+            max_name_width,
+        };
 
         let tagpath = dcmnode.get_element().map_or_else(
             || TagPath {
@@ -215,16 +228,18 @@ impl<'app> BrowseApp {
         Ok(())
     }
 
-    fn run_loop(
+    fn run_loop<'dict>(
         &self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+        dcmroot: &'dict DicomRoot,
         doc_model: &'app mut DicomDocumentModel<'app>,
     ) -> Result<()> {
-        let mut view_state = DicomElementViewState {
+        let mut view_state = ViewState {
             num_rows: 0,
             max_name_width: 0,
             table_state: TableState::new(),
             user_quit: false,
+            user_selected: UserNav::None,
             current_root_element: TagPath {
                 nodes: Vec::with_capacity(0),
             },
@@ -236,8 +251,13 @@ impl<'app> BrowseApp {
             let Some(table_model) = doc_model.map.get(&view_state.current_root_element) else {
                 return Ok(());
             };
+
+            // Apply state from current model.
             view_state.num_rows = table_model.rows.len();
             view_state.max_name_width = table_model.max_name_width;
+            // Reset user-input state.
+            view_state.user_quit = false;
+            view_state.user_selected = UserNav::None;
 
             // Ratatui's Table requires an iterator over owned Rows, so the model must be cloned
             // every render, apparently. The render_stateful_widget() function requires moving a
@@ -247,20 +267,59 @@ impl<'app> BrowseApp {
             // The view_state is small and intended to be cloned every iteration.
             let render_view_state = view_state.clone();
 
-            terminal.draw(move |frame| self.render(dataset_title, render_model, render_view_state, frame))?;
+            terminal.draw(move |frame| {
+                self.render(dataset_title, render_model, render_view_state, frame)
+            })?;
 
             view_state = self.update_state_from_user_input(view_state)?;
+
+            // Enact user-input state.
             if view_state.user_quit {
                 break;
+            }
+            match view_state.user_selected {
+                UserNav::None => {}
+                UserNav::IntoLevel(selected) => {
+                    let next_path = if view_state.current_root_element.nodes.is_empty() {
+                        dcmroot
+                            .get_child_by_index(selected)
+                            .map(|o| o.as_element().get_tagpath())
+                            .unwrap_or_else(|| view_state.current_root_element.clone())
+                    } else {
+                        dcmroot
+                            .get_child_by_tagpath(&view_state.current_root_element)
+                            .and_then(|c| {
+                                if c.get_child_count() > 0 {
+                                    c.get_child_by_index(selected)
+                                } else if c.get_item_count() > 0 {
+                                    c.get_item_by_index(selected + 1)
+                                } else {
+                                    None
+                                }
+                            })
+                            .map(|o| o.as_element().get_tagpath())
+                            .unwrap_or_else(|| view_state.current_root_element.clone())
+                    };
+
+                    if doc_model.map.contains_key(&next_path) {
+                        view_state.current_root_element = next_path;
+                    }
+                }
+                UserNav::UpLevel => {
+                    if !view_state.current_root_element.nodes.is_empty() {
+                        view_state.current_root_element = TagPath::from(view_state
+                            .current_root_element
+                            .nodes
+                            .drain(..view_state.current_root_element.nodes.len() - 1)
+                            .collect::<Vec<TagNode>>());
+                    }
+                }
             }
         }
         Ok(())
     }
 
-    fn update_state_from_user_input(
-        &self,
-        mut view_state: DicomElementViewState,
-    ) -> Result<DicomElementViewState> {
+    fn update_state_from_user_input(&self, mut view_state: ViewState) -> Result<ViewState> {
         if event::poll(Duration::from_millis(50))? {
             match event::read()? {
                 Key(key) => match key.kind {
@@ -284,21 +343,29 @@ impl<'app> BrowseApp {
         Ok(view_state)
     }
 
-    fn event_keypress(&self, view_state: &'app mut DicomElementViewState, event: KeyEvent) {
+    fn event_keyrelease(&self, _view_state: &mut ViewState, _event: KeyEvent) {}
+
+    fn event_keypress(&self, view_state: &'app mut ViewState, event: KeyEvent) {
         match event.code {
             Char('q') => view_state.user_quit = true,
             KeyCode::Esc => view_state.user_quit = true,
+            KeyCode::Enter => {
+                if let Some(selected) = view_state.table_state.selected() {
+                    view_state.user_selected = UserNav::IntoLevel(selected);
+                }
+            }
+            Char('h') | KeyCode::Left | KeyCode::Backspace => {
+                view_state.user_selected = UserNav::UpLevel
+            }
             Char('j') | KeyCode::Down => self.table_select_next(view_state, 1),
             Char('k') | KeyCode::Up => self.table_select_next(view_state, -1),
             _ => {}
         }
     }
 
-    fn event_keyrelease(&self, _view_state: &mut DicomElementViewState, _event: KeyEvent) {}
-
     fn event_mouse_down(
         &self,
-        view_state: &'app mut DicomElementViewState,
+        view_state: &'app mut ViewState,
         event: MouseEvent,
         button: MouseButton,
     ) {
@@ -321,23 +388,15 @@ impl<'app> BrowseApp {
         }
     }
 
-    fn event_mouse_scroll_up(
-        &self,
-        view_state: &'app mut DicomElementViewState,
-        _event: MouseEvent,
-    ) {
+    fn event_mouse_scroll_up(&self, view_state: &'app mut ViewState, _event: MouseEvent) {
         self.table_scroll_next(view_state, -1);
     }
 
-    fn event_mouse_scroll_down(
-        &self,
-        view_state: &'app mut DicomElementViewState,
-        _event: MouseEvent,
-    ) {
+    fn event_mouse_scroll_down(&self, view_state: &'app mut ViewState, _event: MouseEvent) {
         self.table_scroll_next(view_state, 1);
     }
 
-    fn table_scroll_next(&self, view_state: &'app mut DicomElementViewState, modifier: isize) {
+    fn table_scroll_next(&self, view_state: &'app mut ViewState, modifier: isize) {
         let i = view_state
             .table_state
             .offset()
@@ -347,7 +406,7 @@ impl<'app> BrowseApp {
         *view_state.table_state.offset_mut() = i;
     }
 
-    fn table_select_next(&self, view_state: &'app mut DicomElementViewState, modifier: isize) {
+    fn table_select_next(&self, view_state: &'app mut ViewState, modifier: isize) {
         let i = match view_state.table_state.selected() {
             None => 0,
             Some(i) => view_state
@@ -363,7 +422,7 @@ impl<'app> BrowseApp {
         &self,
         title: &str,
         model: DicomElementModel,
-        view_state: DicomElementViewState,
+        view_state: ViewState,
         frame: &mut Frame,
     ) {
         let column_widths = [
