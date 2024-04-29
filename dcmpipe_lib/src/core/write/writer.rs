@@ -157,7 +157,7 @@ impl<W: Write> Writer<W> {
         let fm_group_length = Writer::<W>::new_fme(
             tags::FILE_META_INFORMATION_GROUP_LENGTH,
             &vr::UL,
-            RawValue::uint(u32::try_from(fm_bytes.len()).unwrap_or_default()),
+            RawValue::of_uint(u32::try_from(fm_bytes.len()).unwrap_or_default()),
         )?;
 
         bytes_written += Writer::write_element(&mut self.dataset, &fm_group_length)?;

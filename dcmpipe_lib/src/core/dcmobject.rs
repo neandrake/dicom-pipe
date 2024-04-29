@@ -19,7 +19,7 @@ use crate::core::{
     read::{ParseError, Parser},
 };
 
-use super::{inspect::FormattedElement, RawValue};
+use super::{defn::vr::VRRef, inspect::FormattedElement, RawValue};
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
@@ -147,6 +147,32 @@ impl DicomRoot {
         self.sentinel.get_child_by_tagpath_mut(tagpath)
     }
 
+    /// Get a child element's value by element tag.
+    pub fn get_value_by_tag<T>(&self, tag: T) -> Option<RawValue>
+    where
+        u32: From<T>,
+    {
+        self.sentinel.get_value_by_tag(tag)
+    }
+
+    /// Get a child element's value by element tag, parsed as the given VR.
+    pub fn get_value_as_by_tag<T>(&self, tag: T, vr: VRRef) -> Option<RawValue>
+    where
+        u32: From<T>,
+    {
+        self.sentinel.get_value_as_by_tag(tag, vr)
+    }
+
+    /// Get a descendant element's value by tagpath.
+    pub fn get_value_by_tagpath(&self, tagpath: &TagPath) -> Option<RawValue> {
+        self.sentinel.get_value_by_tagpath(tagpath)
+    }
+
+    /// Get a descendant element's value by tagpath, parsed as the given VR.
+    pub fn get_value_as_by_tagpath(&self, tagpath: &TagPath, vr: VRRef) -> Option<RawValue> {
+        self.sentinel.get_value_as_by_tagpath(tagpath, vr)
+    }
+
     /// Gets the total number of bytes that will be needed to encode this `DicomRoot` and its
     /// child/index nodes into a dataset.
     pub fn byte_size(&self) -> usize {
@@ -184,6 +210,7 @@ impl DicomRoot {
         self.add_element(elem)
     }
 
+    /// Prints out all dicom elements to standard out.
     pub fn dbg_dump(&self) -> Result<(), Error> {
         let elems = self
             .flatten()
@@ -470,6 +497,38 @@ impl DicomObject {
             target = target.and_then(|parent| parent.get_child_by_tagnode_mut(node));
         }
         target
+    }
+
+    /// Get a child element's value by element tag.
+    pub fn get_value_by_tag<T>(&self, tag: T) -> Option<RawValue>
+    where
+        u32: From<T>,
+    {
+        self.child_nodes
+            .get(&u32::from(tag))
+            .and_then(|o| o.element().parse_value().ok())
+    }
+
+    /// Get a child element's value by element tag, parsed as the given VR.
+    pub fn get_value_as_by_tag<T>(&self, tag: T, vr: VRRef) -> Option<RawValue>
+    where
+        u32: From<T>,
+    {
+        self.child_nodes
+            .get(&u32::from(tag))
+            .and_then(|o| o.element().parse_value_as(vr).ok())
+    }
+
+    /// Get a descendant element's value by tagpath.
+    pub fn get_value_by_tagpath(&self, tagpath: &TagPath) -> Option<RawValue> {
+        self.get_child_by_tagpath(tagpath)
+            .and_then(|o| o.element().parse_value().ok())
+    }
+
+    /// Get a descendant element's value by tagpath, parsed as a given VR.
+    pub fn get_value_as_by_tagpath(&self, tagpath: &TagPath, vr: VRRef) -> Option<RawValue> {
+        self.get_child_by_tagpath(tagpath)
+            .and_then(|o| o.element().parse_value_as(vr).ok())
     }
 
     /// Gets the total number of bytes that will be needed to encode this `DicomObject` and its

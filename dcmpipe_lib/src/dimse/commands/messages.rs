@@ -53,7 +53,7 @@ impl CommandMessage {
         // the fact that CommandGroupLength will be the first element in the dataset but is not yet
         // added to the `DicomRoot`.
         let cmd_grp_len_val: u32 = u32::try_from(message.byte_size()).unwrap_or_default();
-        message.add_child_with_val(&CommandGroupLength, RawValue::uint(cmd_grp_len_val));
+        message.add_child_with_val(&CommandGroupLength, RawValue::of_uint(cmd_grp_len_val));
 
         Self { message }
     }
@@ -68,12 +68,12 @@ impl CommandMessage {
                 ),
                 (
                     &CommandField,
-                    RawValue::ushort(u16::from(&CommandType::CEchoReq)),
+                    RawValue::of_ushort(u16::from(&CommandType::CEchoReq)),
                 ),
-                (&MessageID, RawValue::ushort(msg_id)),
+                (&MessageID, RawValue::of_ushort(msg_id)),
                 (
                     &CommandDataSetType,
-                    RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
                 ),
             ],
         )
@@ -104,12 +104,12 @@ impl CommandMessage {
                 (&AffectedSOPClassUID, aff_sop_uid),
                 (
                     &CommandField,
-                    RawValue::ushort(u16::from(&CommandType::CEchoRsp)),
+                    RawValue::of_ushort(u16::from(&CommandType::CEchoRsp)),
                 ),
                 (&MessageIDBeingRespondedTo, msg_id),
                 (
                     &CommandDataSetType,
-                    RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
                 ),
                 (&Status, RawValue::from(status)),
             ],
@@ -126,13 +126,13 @@ impl CommandMessage {
                 ),
                 (
                     &CommandField,
-                    RawValue::ushort(u16::from(&CommandType::CFindReq)),
+                    RawValue::of_ushort(u16::from(&CommandType::CFindReq)),
                 ),
-                (&MessageID, RawValue::ushort(msg_id)),
+                (&MessageID, RawValue::of_ushort(msg_id)),
                 (&Priority, RawValue::from(&CommandPriority::Medium)),
                 (
                     &CommandDataSetType,
-                    RawValue::ushort(COMMAND_DATASET_TYPE_SOME),
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_SOME),
                 ),
             ],
         )
@@ -168,10 +168,10 @@ impl CommandMessage {
                 (&AffectedSOPClassUID, aff_sop_uid),
                 (
                     &CommandField,
-                    RawValue::ushort(u16::from(&CommandType::CFindRsp)),
+                    RawValue::of_ushort(u16::from(&CommandType::CFindRsp)),
                 ),
                 (&MessageIDBeingRespondedTo, msg_id),
-                (&CommandDataSetType, RawValue::ushort(dataset_type)),
+                (&CommandDataSetType, RawValue::of_ushort(dataset_type)),
                 (&Status, RawValue::from(status)),
             ],
         ))
@@ -229,7 +229,7 @@ mod tests {
 
         assert_eq_elem(
             &CommandGroupLength,
-            RawValue::uint(u32::try_from(exp_bytes).expect("exp_bytes as u32")),
+            RawValue::of_uint(u32::try_from(exp_bytes).expect("exp_bytes as u32")),
             elem_iter.next(),
         );
 
@@ -243,19 +243,19 @@ mod tests {
 
         bytes += assert_eq_elem(
             &CommandField,
-            RawValue::ushort(u16::from(&CommandType::CEchoRsp)),
+            RawValue::of_ushort(u16::from(&CommandType::CEchoRsp)),
             elem_iter.next(),
         );
 
         bytes += assert_eq_elem(
             &MessageIDBeingRespondedTo,
-            RawValue::ushort(exp_msg_id),
+            RawValue::of_ushort(exp_msg_id),
             elem_iter.next(),
         );
 
         bytes += assert_eq_elem(
             &CommandDataSetType,
-            RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+            RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
             elem_iter.next(),
         );
 
@@ -276,7 +276,7 @@ mod tests {
 
         assert_eq_elem(
             &CommandGroupLength,
-            RawValue::uint(u32::try_from(exp_bytes).expect("exp_bytes as u32")),
+            RawValue::of_uint(u32::try_from(exp_bytes).expect("exp_bytes as u32")),
             elem_iter.next(),
         );
 
@@ -290,15 +290,15 @@ mod tests {
 
         bytes += assert_eq_elem(
             &CommandField,
-            RawValue::ushort(u16::from(&CommandType::CEchoReq)),
+            RawValue::of_ushort(u16::from(&CommandType::CEchoReq)),
             elem_iter.next(),
         );
 
-        bytes += assert_eq_elem(&MessageID, RawValue::ushort(exp_msg_id), elem_iter.next());
+        bytes += assert_eq_elem(&MessageID, RawValue::of_ushort(exp_msg_id), elem_iter.next());
 
         bytes += assert_eq_elem(
             &CommandDataSetType,
-            RawValue::ushort(COMMAND_DATASET_TYPE_NONE),
+            RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
             elem_iter.next(),
         );
 

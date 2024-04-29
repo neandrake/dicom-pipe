@@ -21,7 +21,7 @@ impl<'e> TryFrom<ElemAndRawValue<'e>> for Vec<u8> {
         let value = value.1;
 
         let mut bytes: Vec<u8> = match value {
-            RawValue::Attribute(attrs) => ElemAndAttributes(elem, attrs).into(),
+            RawValue::Attributes(attrs) => ElemAndAttributes(elem, attrs).into(),
             RawValue::Uid(uid) => ElemAndUid(elem, uid).try_into()?,
             RawValue::Strings(strings) => ElemAndStrings(elem, strings).try_into()?,
             RawValue::Shorts(shorts) => ElemAndShorts(elem, shorts).into(),

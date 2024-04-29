@@ -1,19 +1,6 @@
 //! Constants for DIMSE, DICOM Message Exchangy
 
-use crate::{
-    core::{defn::uid::UIDRef, RawValue},
-    dict::uids::{
-        CompositeInstanceRetrieveWithoutBulkDataGET, CompositeInstanceRootRetrieveGET,
-        CompositeInstanceRootRetrieveMOVE, ModalityWorklistInformationModelFIND,
-        PatientRootQueryRetrieveInformationModelFIND, PatientRootQueryRetrieveInformationModelGET,
-        PatientRootQueryRetrieveInformationModelMOVE,
-        PatientStudyOnlyQueryRetrieveInformationModelFIND,
-        PatientStudyOnlyQueryRetrieveInformationModelGET,
-        PatientStudyOnlyQueryRetrieveInformationModelMOVE, StorageServiceClass,
-        StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
-        StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
-    },
-};
+use crate::core::RawValue;
 
 pub mod messages;
 
@@ -153,37 +140,6 @@ impl From<u16> for CommandType {
     }
 }
 
-impl From<UIDRef> for Option<CommandType> {
-    fn from(value: UIDRef) -> Self {
-        if value == &VerificationSOPClass {
-            Some(CommandType::CEchoReq)
-        } else if value == &ModalityWorklistInformationModelFIND
-            || value == &PatientStudyOnlyQueryRetrieveInformationModelFIND
-            || value == &PatientRootQueryRetrieveInformationModelFIND
-            || value == &StudyRootQueryRetrieveInformationModelFIND
-        {
-            Some(CommandType::CFindReq)
-        } else if value == &PatientStudyOnlyQueryRetrieveInformationModelGET
-            || value == &PatientRootQueryRetrieveInformationModelGET
-            || value == &StudyRootQueryRetrieveInformationModelGET
-            || value == &CompositeInstanceRootRetrieveGET
-            || value == &CompositeInstanceRetrieveWithoutBulkDataGET
-        {
-            Some(CommandType::CGetReq)
-        } else if value == &PatientStudyOnlyQueryRetrieveInformationModelMOVE
-            || value == &PatientRootQueryRetrieveInformationModelMOVE
-            || value == &StudyRootQueryRetrieveInformationModelMOVE
-            || value == &CompositeInstanceRootRetrieveMOVE
-        {
-            Some(CommandType::CMoveReq)
-        } else if value == &StorageServiceClass {
-            Some(CommandType::CStoreReq)
-        } else {
-            None
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     CStoreReq,
@@ -237,7 +193,7 @@ impl From<&CommandPriority> for u16 {
 
 impl<'e> From<&CommandPriority> for RawValue<'e> {
     fn from(value: &CommandPriority) -> Self {
-        RawValue::ushort(u16::from(value))
+        RawValue::of_ushort(u16::from(value))
     }
 }
 
@@ -268,12 +224,12 @@ pub enum CommandStatus {
 impl<'e> From<&CommandStatus> for RawValue<'e> {
     fn from(value: &CommandStatus) -> Self {
         match value {
-            CommandStatus::Success(c) => RawValue::ushort(*c),
-            CommandStatus::Warning(c) => RawValue::ushort(*c),
-            CommandStatus::Failure(c) => RawValue::ushort(*c),
-            CommandStatus::Cancel(c) => RawValue::ushort(*c),
-            CommandStatus::Pending(c) => RawValue::ushort(*c),
-            CommandStatus::INVALID(c) => RawValue::ushort(*c),
+            CommandStatus::Success(c) => RawValue::of_ushort(*c),
+            CommandStatus::Warning(c) => RawValue::of_ushort(*c),
+            CommandStatus::Failure(c) => RawValue::of_ushort(*c),
+            CommandStatus::Cancel(c) => RawValue::of_ushort(*c),
+            CommandStatus::Pending(c) => RawValue::of_ushort(*c),
+            CommandStatus::INVALID(c) => RawValue::of_ushort(*c),
         }
     }
 }

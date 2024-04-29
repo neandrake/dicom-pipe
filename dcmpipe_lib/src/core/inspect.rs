@@ -164,7 +164,7 @@ impl<'e> FormattedElement<'e> {
         };
 
         let (add_ellipses, mut str_vals) = match elem_value {
-            RawValue::Attribute(attrs) => {
+            RawValue::Attributes(attrs) => {
                 self.format_vec_to_strings(&attrs, |attr| Tag::format_tag_to_display(attr.0))
             }
             RawValue::Uid(uid_str) => {

@@ -319,7 +319,7 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
     let key: String = Tag::format_tag_to_path_display(elem.tag());
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {
-        RawValue::Attribute(attrs) => {
+        RawValue::Attributes(attrs) => {
             if !attrs.is_empty() {
                 if attrs.len() == 1 {
                     dicom_doc.insert(key, attrs[0].0);

@@ -27,7 +27,7 @@ impl<'e> TryFrom<ElementWithVr<'e>> for RawValue<'e> {
         if elem.data().is_empty() {
             Ok(RawValue::Bytes(Vec::with_capacity(0)))
         } else if vr == &AT {
-            Ok(RawValue::Attribute(Vec::<Attribute>::try_from(elem)?))
+            Ok(RawValue::Attributes(Vec::<Attribute>::try_from(elem)?))
         } else if vr == &UI {
             Ok(RawValue::Uid(String::try_from(elem)?))
         } else if vr == &SS {

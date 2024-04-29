@@ -60,19 +60,19 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
     elements.push(writer.create_element(
         &tags::ImplementationVersionName,
         &vr::SH,
-        RawValue::string("GDCM 2.1.0".to_string()),
+        RawValue::of_string("GDCM 2.1.0".to_string()),
     )?);
 
     elements.push(writer.create_element(
         &tags::SourceApplicationEntityTitle,
         &vr::AE,
-        RawValue::string("gdcmconv".to_string()),
+        RawValue::of_string("gdcmconv".to_string()),
     )?);
 
     elements.push(writer.create_element(
         &tags::SpecificCharacterSet,
         &vr::CS,
-        RawValue::string("ISO_IR 100".to_string()),
+        RawValue::of_string("ISO_IR 100".to_string()),
     )?);
 
     writer.write_elements(elements.iter())?;
@@ -215,7 +215,7 @@ pub fn test_write_attr() -> Result<(), WriteError> {
     let mut elem = DicomElement::new_empty(&tags::FrameIncrementPointer, &vr::AT, &ts::RLELossless);
 
     let value = vec![Attribute(0x0018_1063)];
-    elem.encode_val(RawValue::Attribute(value.clone()))?;
+    elem.encode_val(RawValue::Attributes(value.clone()))?;
 
     let raw_data = vec![0x18u8, 0u8, 0x63u8, 0x10u8];
     assert_eq!(&raw_data, elem.data(), "encoding of attribute failed");
@@ -232,7 +232,7 @@ pub fn test_write_attr() -> Result<(), WriteError> {
 
     let re_value = elem.parse_value()?;
     match re_value {
-        RawValue::Attribute(attrs) => {
+        RawValue::Attributes(attrs) => {
             assert_eq!(value, attrs, "mismatch attribute: {:?}", elem);
         }
         _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),

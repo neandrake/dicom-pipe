@@ -9,6 +9,7 @@ use dcmpipe_lib::{
             dcmdict::DicomDictionary,
             ts::TSRef,
             uid::UIDRef,
+            vr::US,
         },
         read::{stop::ParseStop, ParserBuilder, ParserState},
         write::{builder::WriterBuilder, writer::WriterState},
@@ -16,10 +17,11 @@ use dcmpipe_lib::{
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::PatientID,
+        tags::{CommandField, PatientID},
         uids::{
-            ModalityWorklistInformationModelFIND,
-            PatientStudyOnlyQueryRetrieveInformationModelFIND, VerificationSOPClass,
+            ModalityWorklistInformationModelFIND, PatientRootQueryRetrieveInformationModelFIND,
+            PatientStudyOnlyQueryRetrieveInformationModelFIND,
+            StudyRootQueryRetrieveInformationModelFIND, VerificationSOPClass,
         },
     },
     dimse::{
@@ -70,6 +72,8 @@ impl CommandApplication for SvcProviderApp {
 
         let accept_abs = HashSet::from([
             &VerificationSOPClass,
+            &PatientRootQueryRetrieveInformationModelFIND,
+            &StudyRootQueryRetrieveInformationModelFIND,
             &ModalityWorklistInformationModelFIND,
             &PatientStudyOnlyQueryRetrieveInformationModelFIND,
         ]);
@@ -176,6 +180,7 @@ impl Association {
         source: &str,
         bufwrite: &mut BufWriter<&TcpStream>,
     ) -> Result<()> {
+        eprintln!("[ err ><]: {:?}", err.err);
         match err.rsp {
             AssocErrorRsp::RJ(rj) => {
                 println!("[info ->]: {:?} {source}", rj.pdu_type());
@@ -230,12 +235,7 @@ impl Association {
             }
         };
         let (ab, ts) = (assoc_ac.ab, assoc_ac.ts);
-        let ab_type = if let Some(ab_type) = Option::<CommandType>::from(ab) {
-            format!("{ab_type:?}")
-        } else {
-            "".to_owned()
-        };
-        println!("[info <-]: {:?} {ab_type} {source}", rq.pdu_type());
+        println!("[info <-]: {} {:?} {source}", ab.ident(), rq.pdu_type());
 
         println!("[info ->]: {:?} {source}", assoc_ac.ac.pdu_type());
         self.write_pdu(Pdu::AssocAC(assoc_ac.ac), &mut bufwrite)?;
@@ -290,16 +290,23 @@ impl Association {
         let ab = CS
             .decode(pres_ctx.abstract_syntax().abstract_syntax())
             .ok()
-            .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(ab.trim()))
-            .into_iter()
-            .find(|ab| self.accept_abs.contains(ab))
-            .ok_or_else(|| AssocError {
+            .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(ab.trim()));
+
+        let Some(ab) = ab else {
+            let ab = pres_ctx.abstract_syntax().abstract_syntax().clone();
+            let ab = String::from_utf8(ab.clone()).unwrap_or_else(|_e| format!("{:?}", ab));
+            return Err(AssocError {
                 rsp: AssocErrorRsp::RJ(AssocRJ::new(2u8, 1u8, 1u8)),
-                err: anyhow!(
-                    "Unsupported abstract syntax: {:?}",
-                    pres_ctx.abstract_syntax().abstract_syntax()
-                ),
-            })?;
+                err: anyhow!("Unsupported abstract syntax: {ab:?}"),
+            });
+        };
+
+        if !self.accept_abs.contains(ab) {
+            return Err(AssocError {
+                rsp: AssocErrorRsp::RJ(AssocRJ::new(2u8, 1u8, 1u8)),
+                err: anyhow!("Unsupported abstract syntax: {}", ab.uid()),
+            });
+        }
 
         let ts = pres_ctx
             .transfer_syntaxes()
@@ -381,19 +388,13 @@ impl Association {
     fn pdu_loop(
         &self,
         source: &str,
-        ab: UIDRef,
+        _ab: UIDRef,
         ts: TSRef,
         mut bufread: &mut BufReader<&TcpStream>,
         bufwrite: &mut BufWriter<&TcpStream>,
     ) -> Result<(), AssocError> {
-        let Some(cmd_type) = Option::<CommandType>::from(ab) else {
-            return Err(AssocError {
-                rsp: AssocErrorRsp::RJ(AssocRJ::new(1u8, 1u8, 2u8)),
-                err: anyhow!("Unrecognized abstract_syntax: {ab:?}"),
-            });
-        };
-
         loop {
+            let mut cmd_type = CommandType::INVALID(0);
             let mut last_dcm_pdvh: Option<PresentationDataValueHeader> = None;
             let mut last_cmd_pdvh: Option<PresentationDataValueHeader> = None;
             let mut last_cmd: Option<CommandMessage> = None;
@@ -406,6 +407,17 @@ impl Association {
                     }
                     Ok(PduIterItem::CmdMessage(pdvh, cmd)) => {
                         println!("[info <-]: P-DATA COMMAND");
+                        let _ = cmd.message().dbg_dump();
+
+                        cmd_type = CommandType::from(
+                            cmd.message()
+                                .get_value_as_by_tag(&CommandField, &US)
+                                .and_then(|v| v.ushort())
+                                .ok_or_else(|| AssocError {
+                                    rsp: AssocErrorRsp::RJ(AssocRJ::new(1u8, 1u8, 2u8)),
+                                    err: anyhow!("failed to parse CommandField"),
+                                })?,
+                        );
                         last_cmd_pdvh = Some(pdvh);
                         last_cmd = Some(cmd);
 
@@ -538,18 +550,20 @@ impl Association {
             rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
             err: Error::from(e).context("parsing dicom pdv"),
         })?;
-        let Some(_query) = query else {
+        let Some(query) = query else {
             return Err(AssocError {
                 rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
                 err: anyhow!("No DICOM query after parsing query"),
             });
         };
 
+        let _ = query.dbg_dump();
+
         /* TODO: Execute Search on Query */
         let mut results = Vec::<DicomRoot>::new();
         for name in ["SNOW^JON", "STARK^ROB", "MARTELL^OBERYN"] {
             let mut result = DicomRoot::new_empty(ts, CS);
-            result.add_child_with_val(&PatientID, RawValue::string(name));
+            result.add_child_with_val(&PatientID, RawValue::of_string(name));
             results.push(result);
         }
 
