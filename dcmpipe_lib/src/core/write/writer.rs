@@ -27,8 +27,8 @@ pub enum WriterState {
 }
 
 #[derive(Debug)]
-pub struct Writer<DatasetType: Write> {
-    pub(crate) dataset: Dataset<DatasetType>,
+pub struct Writer<W: Write> {
+    pub(crate) dataset: Dataset<W>,
 
     pub(crate) state: WriterState,
 
@@ -44,7 +44,7 @@ pub struct Writer<DatasetType: Write> {
     pub(crate) file_preamble: Option<[u8; FILE_PREAMBLE_LENGTH]>,
 }
 
-impl<DatasetType: Write> Writer<DatasetType> {
+impl<W: Write> Writer<W> {
     /// Get the number of bytes read from the dataset.
     pub fn bytes_written(&self) -> u64 {
         self.bytes_written
@@ -76,7 +76,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(e)
     }
 
-    pub fn into_dataset(self) -> WriteResult<DatasetType> {
+    pub fn into_dataset(self) -> WriteResult<W> {
         self.dataset
             .into_inner()
             .map_err(|err| WriteError::IOError { source: err })
@@ -154,7 +154,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         }
         let fm_bytes: Vec<u8> = fm_dataset.into_inner()?;
 
-        let fm_group_length = Writer::<DatasetType>::new_fme(
+        let fm_group_length = Writer::<W>::new_fme(
             tags::FILE_META_INFORMATION_GROUP_LENGTH,
             &vr::UL,
             RawValue::UnsignedIntegers(vec![fm_bytes.len() as u32]),
@@ -178,10 +178,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(element)
     }
 
-    fn write_element(
-        dataset: &mut Dataset<DatasetType>,
-        element: &DicomElement,
-    ) -> WriteResult<usize> {
+    fn write_element(dataset: &mut Dataset<W>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         bytes_written += Writer::write_tag(dataset, element)?;
@@ -192,7 +189,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_tag(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
+    fn write_tag(dataset: &mut Dataset<W>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         if element.ts().big_endian() {
@@ -214,7 +211,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
     /// Writes the VR to the dataset, if the transfer syntax requires explicit VR. If the transfer
     /// syntax requires implicit VR then nothing is written to the dataset.
-    fn write_vr(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
+    fn write_vr(dataset: &mut Dataset<W>, element: &DicomElement) -> WriteResult<usize> {
         if !element.ts().explicit_vr() {
             return Ok(0);
         }
@@ -231,7 +228,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_vl(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
+    fn write_vl(dataset: &mut Dataset<W>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         let write_as_u32: bool = !element.ts().explicit_vr() || element.vr().has_explicit_2byte_pad;
@@ -271,10 +268,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_data(
-        dataset: &mut Dataset<DatasetType>,
-        element: &DicomElement,
-    ) -> WriteResult<usize> {
+    fn write_data(dataset: &mut Dataset<W>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         #[cfg(feature = "compress")]

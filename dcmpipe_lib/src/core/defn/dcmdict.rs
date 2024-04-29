@@ -27,17 +27,17 @@ impl core::fmt::Debug for dyn DicomDictionary + '_ {
 
 /// Wraps a list of DICOM dictionaries to be used a single dictionary. The order of the
 /// dictionaries affects the resulting lookup if the search key exists in multiple dictionaries.
-pub struct MultiDicomDictionary<'dict> {
-    dicts: Vec<&'dict dyn DicomDictionary>,
+pub struct MultiDicomDictionary<'d> {
+    dicts: Vec<&'d dyn DicomDictionary>,
 }
 
-impl<'dict> MultiDicomDictionary<'dict> {
-    pub fn new(dicts: Vec<&'dict dyn DicomDictionary>) -> Self {
+impl<'d> MultiDicomDictionary<'d> {
+    pub fn new(dicts: Vec<&'d dyn DicomDictionary>) -> Self {
         Self { dicts }
     }
 }
 
-impl<'dict> DicomDictionary for MultiDicomDictionary<'dict> {
+impl<'d> DicomDictionary for MultiDicomDictionary<'d> {
     fn get_ts_by_name(&self, name: &str) -> Option<TSRef> {
         self.dicts
             .iter()

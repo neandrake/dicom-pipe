@@ -6,13 +6,13 @@ pub(crate) mod dataset {
     use std::io::{BufReader, Read, Result};
 
     #[derive(Debug)]
-    pub(crate) struct Dataset<DatasetType: Read> {
-        decoder: Decoder<BufReader<DatasetType>>,
+    pub(crate) struct Dataset<R: Read> {
+        decoder: Decoder<BufReader<R>>,
         read_deflated: bool,
     }
 
-    impl<DatasetType: Read> Dataset<DatasetType> {
-        pub fn new(dataset: DatasetType, buffsize: usize) -> Dataset<DatasetType> {
+    impl<R: Read> Dataset<R> {
+        pub fn new(dataset: R, buffsize: usize) -> Dataset<R> {
             Dataset {
                 decoder: Decoder::new(BufReader::with_capacity(buffsize, dataset)),
                 read_deflated: false,
@@ -24,7 +24,7 @@ pub(crate) mod dataset {
         }
     }
 
-    impl<DatasetType: Read> Read for Dataset<DatasetType> {
+    impl<R: Read> Read for Dataset<R> {
         fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
             if self.read_deflated {
                 self.decoder.read(buf)
@@ -40,19 +40,19 @@ pub(crate) mod dataset {
     use std::io::{BufReader, Read, Result};
 
     #[derive(Debug)]
-    pub(crate) struct Dataset<DatasetType: Read> {
-        dataset: BufReader<DatasetType>,
+    pub(crate) struct Dataset<R: Read> {
+        dataset: BufReader<R>,
     }
 
-    impl<DatasetType: Read> Dataset<DatasetType> {
-        pub fn new(dataset: DatasetType, buffsize: usize) -> Dataset<DatasetType> {
+    impl<R: Read> Dataset<R> {
+        pub fn new(dataset: R, buffsize: usize) -> Dataset<R> {
             Dataset {
                 dataset: BufReader::with_capacity(buffsize, dataset),
             }
         }
     }
 
-    impl<DatasetType: Read> Read for Dataset<DatasetType> {
+    impl<R: Read> Read for Dataset<R> {
         fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
             self.dataset.read(buf)
         }

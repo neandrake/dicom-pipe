@@ -15,7 +15,7 @@ use crate::core::{
     },
 };
 
-impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
+impl<'d, R: Read> Parser<'d, R> {
     /// Performs the `ParserState::Preamble` iteration
     pub(super) fn iterate_preamble(&mut self) -> ParseResult<()> {
         let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
