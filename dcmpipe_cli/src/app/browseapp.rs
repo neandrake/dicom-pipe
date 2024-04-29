@@ -87,7 +87,7 @@ enum UserNav {
     UpLevel,
 }
 
-impl<'app> CommandApplication for BrowseApp {
+impl CommandApplication for BrowseApp {
     fn run(&mut self) -> Result<()> {
         let path: &Path = self.args.file.as_path();
         let mut parser: Parser<'_, File> = super::parse_file(path, true)?;
@@ -307,11 +307,13 @@ impl<'app> BrowseApp {
                 }
                 UserNav::UpLevel => {
                     if !view_state.current_root_element.nodes.is_empty() {
-                        view_state.current_root_element = TagPath::from(view_state
-                            .current_root_element
-                            .nodes
-                            .drain(..view_state.current_root_element.nodes.len() - 1)
-                            .collect::<Vec<TagNode>>());
+                        view_state.current_root_element = TagPath::from(
+                            view_state
+                                .current_root_element
+                                .nodes
+                                .drain(..view_state.current_root_element.nodes.len() - 1)
+                                .collect::<Vec<TagNode>>(),
+                        );
                     }
                 }
             }
