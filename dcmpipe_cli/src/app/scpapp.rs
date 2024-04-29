@@ -9,7 +9,6 @@ use dcmpipe_lib::{
             dcmdict::DicomDictionary,
             ts::TSRef,
             uid::UIDRef,
-            vr::US,
         },
         read::{stop::ParseStop, ParserBuilder, ParserState},
         write::{builder::WriterBuilder, writer::WriterState},
@@ -17,7 +16,7 @@ use dcmpipe_lib::{
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{CommandField, PatientID, PatientsName},
+        tags::{PatientID, PatientsName},
         uids::{
             ModalityWorklistInformationModelFIND, PatientRootQueryRetrieveInformationModelFIND,
             PatientStudyOnlyQueryRetrieveInformationModelFIND,
@@ -144,7 +143,7 @@ impl Association {
             if let Some(rsp) = e.rsp() {
                 println!("[info ->]: {:?}", rsp.pdu_type());
             }
-            return e.write(bufwrite);
+            e.write(bufwrite)
         };
 
         let rq = Pdu::read(&mut bufread)
@@ -305,7 +304,6 @@ impl Association {
         bufwrite: &mut BufWriter<&TcpStream>,
     ) -> Result<(), AssocError> {
         loop {
-            let mut cmd_type = CommandType::INVALID(0);
             let mut last_dcm_pdvh: Option<PresentationDataValueHeader> = None;
             let mut last_cmd_pdvh: Option<PresentationDataValueHeader> = None;
             let mut last_cmd: Option<CommandMessage> = None;
@@ -320,21 +318,14 @@ impl Association {
                         println!("[info <-]: P-DATA COMMAND");
                         let _ = cmd.message().dbg_dump();
 
-                        cmd_type = CommandType::from(
-                            cmd.message()
-                                .get_value_as_by_tag(&CommandField, &US)
-                                .and_then(|v| v.ushort())
-                                .ok_or_else(|| {
-                                    AssocError::rj_unsupported(DimseError::GeneralError(
-                                        "failed to parse CommandField".to_string(),
-                                    ))
-                                })?,
-                        );
+                        let has_dataset = cmd.has_dataset();
+
                         last_cmd_pdvh = Some(pdvh);
                         last_cmd = Some(cmd);
 
-                        // C-ECHO only requires a P-DATA command, and no DICOM dataset.
-                        if cmd_type == CommandType::CEchoReq {
+                        // Continuing the loop here will read further data values, which should end
+                        // up being datasets.
+                        if !has_dataset {
                             break;
                         }
                     }
@@ -356,7 +347,7 @@ impl Association {
                 continue;
             };
 
-            if cmd_type == CommandType::CEchoReq {
+            if cmd.cmd_type() == &CommandType::CEchoReq {
                 let rsp = self.handle_c_echo(ts, cmd_pdvh, cmd)?;
                 println!("[info ->]: {:?} COMMAND RSP", rsp.pdu_type());
                 self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
@@ -367,11 +358,11 @@ impl Association {
             // command.
             let Some(dcm_pdvh) = last_dcm_pdvh else {
                 return Err(AssocError::ab_failure(DimseError::GeneralError(
-                    "No DICOM after receiving DICOM dataset".to_string(),
+                    "No DICOM dataset after receiving command indicating dataset".to_string(),
                 )));
             };
 
-            if cmd_type == CommandType::CFindReq {
+            if cmd.cmd_type() == &CommandType::CFindReq {
                 self.handle_c_find(ts, &cmd, &cmd_pdvh, &dcm_pdvh, bufread, bufwrite)?
             }
         }

@@ -10,7 +10,7 @@ mod tests;
 /// Values of the `CommandField` (0000,0100) field of messages.
 ///
 /// See Part 7, Appendix E.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum CommandType {
     CStoreReq,
     CStoreRsp,
@@ -172,7 +172,7 @@ pub enum Command {
 /// Values of the `Priority` (0000,0700) field of messages.
 ///
 /// See Part 7, Appendix E.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum CommandPriority {
     Low,
     Medium,
@@ -211,7 +211,7 @@ impl From<u16> for CommandPriority {
 /// Values of the `Status` (0000,0900) field of messages.
 ///
 /// See Part 7, Appendix C.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum CommandStatus {
     Success(u16),
     Warning(u16),

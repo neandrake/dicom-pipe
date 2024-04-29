@@ -22,7 +22,7 @@ use super::CommandPriority;
 /// in the message.
 ///
 /// See Part 7, Appendix E.
-const COMMAND_DATASET_TYPE_NONE: u16 = 0x0101;
+pub const COMMAND_DATASET_TYPE_NONE: u16 = 0x0101;
 
 /// Sentinel value of `CommandDataSetType` (0000,0800) to indicate that there is some Data Set
 /// present in the message. This value is arbitrary, as long as it's not
@@ -31,16 +31,83 @@ const COMMAND_DATASET_TYPE_SOME: u16 = 0x1010;
 
 #[derive(Debug)]
 pub struct CommandMessage {
+    msg_id: u16,
+    cmd_type: CommandType,
+    priority: CommandPriority,
+    has_dataset: bool,
+    status: CommandStatus,
     message: DicomRoot,
 }
 
 impl CommandMessage {
     pub fn new(message: DicomRoot) -> Self {
-        Self { message }
+        let msg_id = message
+            .get_value_by_tag(&MessageID)
+            .or_else(|| message.get_value_by_tag(&MessageIDBeingRespondedTo))
+            .and_then(|v| v.ushort())
+            .unwrap_or_default();
+        let cmd_type = CommandType::from(
+            message
+                .get_value_by_tag(&CommandField)
+                .and_then(|v| v.ushort())
+                .unwrap_or_default(),
+        );
+        let priority = CommandPriority::from(
+            message
+                .get_value_by_tag(&Priority)
+                .and_then(|v| v.ushort())
+                .unwrap_or_default(),
+        );
+        let has_dataset = message
+            .get_value_by_tag(&CommandDataSetType)
+            .and_then(|v| v.ushort())
+            .unwrap_or_default()
+            != COMMAND_DATASET_TYPE_NONE;
+        let status = CommandStatus::from(
+            message
+                .get_value_by_tag(&Status)
+                .and_then(|v| v.ushort())
+                .unwrap_or_default(),
+        );
+
+        Self {
+            msg_id,
+            cmd_type,
+            priority,
+            has_dataset,
+            status,
+            message,
+        }
     }
 
+    #[must_use]
+    pub fn msg_id(&self) -> u16 {
+        self.msg_id
+    }
+
+    #[must_use]
+    pub fn cmd_type(&self) -> &CommandType {
+        &self.cmd_type
+    }
+
+    #[must_use]
+    pub fn priority(&self) -> &CommandPriority {
+        &self.priority
+    }
+
+    #[must_use]
     pub fn message(&self) -> &DicomRoot {
         &self.message
+    }
+
+    #[must_use]
+    pub fn has_dataset(&self) -> bool {
+        self.has_dataset
+    }
+
+    #[must_use]
+    pub fn status(&self) -> &CommandStatus {
+        &self.status
     }
 
     fn create(ts: TSRef, elements: Vec<(&Tag, RawValue)>) -> Self {
@@ -55,7 +122,7 @@ impl CommandMessage {
         let cmd_grp_len_val: u32 = u32::try_from(message.byte_size()).unwrap_or_default();
         message.add_child_with_val(&CommandGroupLength, RawValue::of_uint(cmd_grp_len_val));
 
-        Self { message }
+        Self::new(message)
     }
 
     pub fn c_echo_req(ts: TSRef, msg_id: u16, sop_class_uid: &str) -> Self {

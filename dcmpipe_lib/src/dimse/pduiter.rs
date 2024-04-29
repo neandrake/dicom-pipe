@@ -3,9 +3,10 @@ use std::io::Read;
 use crate::{
     core::{
         dcmobject::DicomRoot,
-        defn::constants::{lookup::MINIMAL_DICOM_DICTIONARY, ts::ImplicitVRLittleEndian},
+        defn::constants::ts::ImplicitVRLittleEndian,
         read::{stop::ParseStop, ParserBuilder, ParserState},
     },
+    dict::stdlookup::STANDARD_DICOM_DICTIONARY,
     dimse::{
         commands::messages::CommandMessage,
         pdus::{Pdu, PresentationDataItemPartial, PresentationDataValueHeader},
@@ -91,12 +92,15 @@ impl<R: Read> Iterator for PduIter<R> {
                             self.state
                         ))));
                     };
-                    // Command P-DATA always uses IVRLE.
+                    // Command P-DATA always uses IVRLE. Use the standard dicom dictinoary for
+                    // parsing, otherwise anything pulling values from the command dataset will
+                    // have to explicitly specify the VR to parse values as since they would
+                    // otherwise all be `UN`.
                     let mut parser = ParserBuilder::default()
                         .state(ParserState::ReadElement)
                         .dataset_ts(&ImplicitVRLittleEndian)
                         .stop(ParseStop::AfterBytesRead(u64::from(pdvh.length_of_data())))
-                        .build(&mut self.stream, &MINIMAL_DICOM_DICTIONARY);
+                        .build(&mut self.stream, &STANDARD_DICOM_DICTIONARY);
                     match DicomRoot::parse(&mut parser) {
                         Ok(Some(cmd_root)) => {
                             if pdvh.is_last_fragment() {
