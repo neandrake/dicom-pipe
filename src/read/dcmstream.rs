@@ -14,8 +14,8 @@ use core::vr::{VR, VRRef};
 use encoding::types::EncodingRef;
 use encoding::label::encoding_from_whatwg_label;
 
+use read::dcmdataset::{DicomDataSet, DicomDataSetContainer};
 use read::dcmelement::DicomElement;
-use read::elementcontainer::{ElementCache, ElementContainer};
 use read::tagstop::TagStop;
 
 use std::ascii::AsciiExt;
@@ -36,7 +36,7 @@ pub struct DicomStream<StreamType: ReadBytesExt> {
     file_preamble: [u8;FILE_PREAMBLE_LENGTH],
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
-    elements: ElementCache,
+    root_dataset: DicomDataSet,
     ts: TSRef,
     cs: EncodingRef,
 
@@ -63,7 +63,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             bytes_read: 0usize,
             file_preamble: [0u8;FILE_PREAMBLE_LENGTH],
             dicom_prefix: [0u8;DICOM_PREFIX_LENGTH],
-            elements: ElementCache::new(),
+            root_dataset: DicomDataSet::new(),
             ts: &ts::ExplicitVRLittleEndian,
             cs: vr::DEFAULT_CHARACTER_SET,
             tag_peek: None,
@@ -111,9 +111,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     /// is stored in `self.tag_peek`. Calls to this method will repeatedly
     /// return the previously peek'd value until `self.tag_peek` is cleared.
     pub fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        if self.tag_peek != None {
-            return self.tag_peek
-                .ok_or(Error::new(ErrorKind::InvalidData, format!("Unable to read next tag")));
+        if let Some(last_tag) = self.tag_peek {
+            return Ok(last_tag);
         }
         let first: u32 = (self.stream.read_u16::<Endian>()? as u32) << 16;
         self.bytes_read += 2;
@@ -205,19 +204,18 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             Some(read_tag) => read_tag,
             None => self.read_tag::<Endian>()?,
         };
-        // Clear `self.tag_peek` so subsequent calls will read the next tag value
-        self.tag_peek = None;
         
-        //println!("Read Tag: {}", tag);
         let vr: VRRef = self.read_vr(tag)?;
-        //println!("Read VR: {:?}", vr);
         let vl: ValueLength = self.read_value_length::<Endian>(vr)?;
-        //println!("Read VL: {:?}", vl);
         let bytes: Vec<u8> = self.read_value_field(&vl)?;
+
+        // clear `self.tag_peek` as we've now read the entire element and the next
+        // read should advance to the next tag
+        self.tag_peek = None;
 
         let element: DicomElement = DicomElement::new(tag, vr, vl, bytes);
 
-        self.elements.set_element(tag, element);
+        self.root_dataset.put_element(tag, element);
 
         if tag == tags::SpecificCharacterSet.tag {
             self.cs = self.parse_specific_character_set()?;
@@ -226,8 +224,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         Ok(tag)
     }
 
-    pub fn parse_transfer_syntax(&self) -> Result<TSRef, Error> {
-        let element: &DicomElement = self.get_element(fme::TransferSyntaxUID.tag)?;
+    pub fn parse_transfer_syntax(&mut self) -> Result<TSRef, Error> {
+        let element: &mut DicomElement = self.get_element_mut(fme::TransferSyntaxUID.tag)?;
         
         let mut ts_uid: String = element.parse_string(vr::DEFAULT_CHARACTER_SET)?;
 
@@ -244,8 +242,8 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             .ok_or(Error::new(ErrorKind::InvalidData, format!("Unknown TransferSyntax: {}", ts_uid_str)))
     }
 
-    pub fn parse_specific_character_set(&self) -> Result<EncodingRef, Error> {
-        if let Ok(element) = self.get_element(tags::SpecificCharacterSet.tag) {
+    pub fn parse_specific_character_set(&mut self) -> Result<EncodingRef, Error> {
+        if let Ok(ref mut element) = self.get_element_mut(tags::SpecificCharacterSet.tag) {
             let decoder: EncodingRef = element.vr.get_proper_cs(self.cs);
             // Change the lookup key into format that the encoding package and recognize
             let new_cs: String = element.parse_string(decoder)
@@ -366,65 +364,65 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 }
 
-impl<StreamType: ReadBytesExt> ElementContainer for DicomStream<StreamType> {
+impl<StreamType: ReadBytesExt> DicomDataSetContainer for DicomStream<StreamType> {
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
-        self.elements.get_element(tag)
+        self.root_dataset.get_element(tag)
     }
 
     fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error> {
-        self.elements.get_element_mut(tag)
+        self.root_dataset.get_element_mut(tag)
     }
 
     fn get_string(&mut self, tag: u32, cs: EncodingRef) -> Result<&String, Error> {
-        self.elements.get_string(tag, cs)
+        self.root_dataset.get_string(tag, cs)
     }
 
     fn get_strings(&mut self, tag: u32, cs: EncodingRef) -> Result<&Vec<String>, Error> {
-        self.elements.get_strings(tag, cs)
+        self.root_dataset.get_strings(tag, cs)
     }
 
     fn get_f32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f32, Error> {
-        self.elements.get_f32::<Endian>(tag)
+        self.root_dataset.get_f32::<Endian>(tag)
     }
 
     fn get_f32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f32>, Error> {
-        self.elements.get_f32s::<Endian>(tag)
+        self.root_dataset.get_f32s::<Endian>(tag)
     }
 
     fn get_f64<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f64, Error> {
-        self.elements.get_f64::<Endian>(tag)
+        self.root_dataset.get_f64::<Endian>(tag)
     }
 
     fn get_f64s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f64>, Error> {
-        self.elements.get_f64s::<Endian>(tag)
+        self.root_dataset.get_f64s::<Endian>(tag)
     }
 
     fn get_i16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i16, Error> {
-        self.elements.get_i16::<Endian>(tag)
+        self.root_dataset.get_i16::<Endian>(tag)
     }
 
     fn get_i16s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i16>, Error> {
-        self.elements.get_i16s::<Endian>(tag)
+        self.root_dataset.get_i16s::<Endian>(tag)
     }
 
     fn get_i32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i32, Error> {
-        self.elements.get_i32::<Endian>(tag)
+        self.root_dataset.get_i32::<Endian>(tag)
     }
 
     fn get_i32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i32>, Error> {
-        self.elements.get_i32s::<Endian>(tag)
+        self.root_dataset.get_i32s::<Endian>(tag)
     }
 
     fn get_u16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u16, Error> {
-        self.elements.get_u16::<Endian>(tag)
+        self.root_dataset.get_u16::<Endian>(tag)
     }
 
     fn get_u32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u32, Error> {
-        self.elements.get_u32::<Endian>(tag)
+        self.root_dataset.get_u32::<Endian>(tag)
     }
 
 
-    fn set_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement> {
-        self.elements.set_element(tag, element)
+    fn put_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement> {
+        self.root_dataset.put_element(tag, element)
     }
 }

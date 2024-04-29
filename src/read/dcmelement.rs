@@ -1,24 +1,72 @@
 use byteorder::{ByteOrder, ReadBytesExt};
 
+use core::dict::dicom_elements as tags;
 use core::dict::lookup::TAG_BY_VALUE;
 use core::tag::Tag;
+use core::vl;
 use core::vl::ValueLength;
 use core::vr;
 use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 
 use encoding::types::{DecoderTrap, EncodingRef};
 
+use read::dcmdataset::DicomDataSet;
+
 use std::borrow::Cow;
 use std::fmt;
-use std::io::{Cursor, Error, ErrorKind};
+use std::io::{Cursor, Error, ErrorKind, Read};
 
 static MAX_BYTES_DISPLAY: usize = 16;
+
+
+pub struct DicomItem {
+    pub tag: u32,
+    pub vl: ValueLength,
+    value: Cursor<Vec<u8>>,
+
+    dataset: DicomDataSet,
+}
+
+impl DicomItem {
+    pub fn new(tag: u32, vl: ValueLength, value: Vec<u8>) -> DicomItem {
+        DicomItem {
+            tag: tag,
+            vl: vl,
+            value: Cursor::new(value),
+
+            dataset: DicomDataSet::new(),
+        }
+    }
+
+    pub fn get_value(&self) -> &Cursor<Vec<u8>> {
+        &self.value
+    }
+
+    pub fn get_value_mut(&mut self) -> &mut Cursor<Vec<u8>> {
+        &mut self.value
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.value.get_ref().len() == 0
+    }
+
+    pub fn get_dataset(&self) -> &DicomDataSet {
+        &self.dataset
+    }
+
+    pub fn get_dataset_mut(&mut self) -> &mut DicomDataSet {
+        &mut self.dataset
+    }
+}
 
 pub struct DicomElement {
     pub tag: u32,
     pub vr: VRRef,
     pub vl: ValueLength,
     value: Cursor<Vec<u8>>,
+
+    bytes_read: usize,
+    tag_peek: Option<u32>,
 }
 
 impl fmt::Debug for DicomElement {
@@ -42,6 +90,9 @@ impl DicomElement {
             vr: vr,
             vl: vl,
             value: Cursor::new(value),
+
+            bytes_read: 0usize,
+            tag_peek: None,
         }
     }
 
@@ -59,7 +110,7 @@ impl DicomElement {
 
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    pub fn parse_string(&self, cs: EncodingRef) -> Result<String, Error> {
+    pub fn parse_string(&mut self, cs: EncodingRef) -> Result<String, Error> {
         let data: &[u8] = self.get_string_bytes_without_padding();
         cs.decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
@@ -67,7 +118,7 @@ impl DicomElement {
 
     /// All character string AE's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    pub fn parse_strings(&self, cs: EncodingRef) -> Result<Vec<String>, Error> {
+    pub fn parse_strings(&mut self, cs: EncodingRef) -> Result<Vec<String>, Error> {
         let data: &[u8] = self.get_string_bytes_without_padding();
         cs.decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
@@ -82,7 +133,12 @@ impl DicomElement {
     /// Gets the bytes for the string removing the last padding character if necessary.
     /// Whether or not a padding character has been used is dependent on the VR type,
     /// specifically whether the VR states if trailing padding is significant
-    fn get_string_bytes_without_padding(&self) -> &[u8] {
+    fn get_string_bytes_without_padding(&mut self) -> &[u8] {
+        // mutable borrow -- needs proper scoping
+        {
+            self.bytes_read += self.get_value().get_ref().len();
+        }
+
         let data: &[u8] = self.get_value().get_ref();
 
         let mut rindex: usize = data.len() - 1;
@@ -111,16 +167,17 @@ impl DicomElement {
     /// AT
     pub fn parse_attribute<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         let first: u32 = (self.value.read_u16::<Endian>()? as u32) << 16;
+        self.bytes_read += 4;
         let second: u32 = self.value.read_u16::<Endian>()? as u32;
+        self.bytes_read += 4;
         let result: u32 = first + second;
-        self.value.set_position(0);
         Ok(result)
     }
 
     /// FL
     pub fn parse_f32<Endian: ByteOrder>(&mut self) -> Result<f32, Error> {
         let result: f32 = self.value.read_f32::<Endian>()?;
-        self.value.set_position(0);
+        self.bytes_read += 4;
         Ok(result)
     }
 
@@ -131,16 +188,16 @@ impl DicomElement {
         let mut result: Vec<f32> = Vec::with_capacity(num_floats);
         for _ in 0..num_floats {
             let val: f32 = self.value.read_f32::<Endian>()?;
+            self.bytes_read += 4;
             result.push(val);
         }
-        self.value.set_position(0);
         Ok(result)
     }
 
     /// FD
     pub fn parse_f64<Endian: ByteOrder>(&mut self) -> Result<f64, Error> {
         let result: f64 = self.value.read_f64::<Endian>()?;
-        self.value.set_position(0);
+        self.bytes_read += 8;
         Ok(result)
     }
 
@@ -151,9 +208,9 @@ impl DicomElement {
         let mut result: Vec<f64> = Vec::with_capacity(num_doubles);
         for _ in 0..num_doubles {
             let val: f64 = self.value.read_f64::<Endian>()?;
+            self.bytes_read += 8;
             result.push(val);
         }
-        self.value.set_position(0);
         Ok(result)
     }
 
@@ -161,7 +218,7 @@ impl DicomElement {
     pub fn parse_i16<Endian: ByteOrder>(&mut self) -> Result<i16, Error> {
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
         let result: i16 = self.value.read_i16::<Endian>()?;
-        self.value.set_position(0);
+        self.bytes_read += 2;
         Ok(result)
     }
 
@@ -172,9 +229,9 @@ impl DicomElement {
         let mut result: Vec<i16> = Vec::with_capacity(num_words);
         for _ in 0..num_words {
             let val: i16 = self.value.read_i16::<Endian>()?;
+            self.bytes_read += 2;
             result.push(val);
         }
-        self.value.set_position(0);
         Ok(result)
     }
 
@@ -182,7 +239,7 @@ impl DicomElement {
     pub fn parse_i32<Endian: ByteOrder>(&mut self) -> Result<i32, Error> {
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
         let result: i32 = self.value.read_i32::<Endian>()?;
-        self.value.set_position(0);
+        self.bytes_read += 4;
         Ok(result)
     }
 
@@ -193,24 +250,81 @@ impl DicomElement {
         let mut result: Vec<i32> = Vec::with_capacity(num_longs);
         for _ in 0..num_longs {
             let val: i32 = self.value.read_i32::<Endian>()?;
+            self.bytes_read += 4;
             result.push(val);
         }
-        self.value.set_position(0);
         Ok(result)
     }
 
     /// UL
     pub fn parse_u32<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         let result: u32 = self.value.read_u32::<Endian>()?;
-        self.value.set_position(0);
+        self.bytes_read += 4;
         Ok(result)
     }
 
     /// US
     pub fn parse_u16<Endian: ByteOrder>(&mut self) -> Result<u16, Error> {
         let result: u16 = self.value.read_u16::<Endian>()?;
-        self.value.set_position(0);
+        self.bytes_read += 2;
         Ok(result)
+    }
+
+    /// SQ
+    pub fn parse_sequence<Endian: ByteOrder>(&mut self) -> Result<Vec<DicomItem>, Error> {
+        let mut items: Vec<DicomItem> = Vec::new();
+        loop {
+            let tag: u32 = match self.tag_peek {
+                Some(read_tag) => read_tag,
+                None => self.read_tag::<Endian>()?,
+            };
+
+            let vl: ValueLength = self.read_item_value_length::<Endian>()?;
+            let bytes: Vec<u8> = self.read_item_value_field(&vl)?;
+
+            // clear `self.tag_peek` as we've now read the entire element and the next
+            // read should advance to the next tag
+            self.tag_peek = None;
+
+            items.push(DicomItem::new(tag, vl, bytes));
+
+            if tag == tags::SequenceDelimitationItem.tag || tag == tags::ItemDelimitationItem.tag {
+                break;
+            }
+        }
+        Ok(items)
+    }
+
+    fn read_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
+        if let Some(last_tag) = self.tag_peek {
+            return Ok(last_tag);
+        }
+        let value: u32 = self.parse_attribute::<Endian>()?;
+        self.tag_peek = Some(value);
+        Ok(value)
+    }
+
+    fn read_item_value_length<Endian: ByteOrder>(&mut self) -> Result<ValueLength, Error> {
+        let value_length: u32 = self.value.read_u32::<Endian>()?;
+        self.bytes_read += 4;
+        Ok(vl::from_value_length(value_length))
+    }
+
+    fn read_item_value_field(&mut self, vl: &ValueLength) -> Result<Vec<u8>, Error> {
+        match *vl {
+            ValueLength::Explicit(value_length) => {
+                let mut bytes: Vec<u8> = vec![0;value_length as usize];
+                self.value.read_exact(bytes.as_mut_slice())?;
+                self.bytes_read += value_length as usize;
+                Ok(bytes)
+            },
+            ValueLength::UndefinedLength => {
+                // TODO: Read until Sequence Delimitation Item
+                // Part 5 Ch. 7.1.3
+                // The Value Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value Field.
+                Err(Error::new(ErrorKind::Other, format!("Reading values of undefined length not yet supported")))
+            },
+        }
     }
 
     pub fn fmt_string_value<Endian: ByteOrder>(&mut self, cs: EncodingRef) -> Result<String, Error> {
