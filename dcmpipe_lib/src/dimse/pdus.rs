@@ -20,7 +20,7 @@ pub(crate) static SOP_CLASS_COMMON_EXTENDED_NEGOTIATION_VERSION: u8 = 0b0000_000
 
 /// This is the sole/single application context name for the current version of the DICOM standard.
 /// See Part 7, Annex A.2.1
-pub static STD_APP_CONTEXT_NAME: &'static str = "1.2.840.10008.3.1.1.1";
+pub static STD_APP_CONTEXT_NAME: &str = "1.2.840.10008.3.1.1.1";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PduType {

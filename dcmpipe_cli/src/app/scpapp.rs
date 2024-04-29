@@ -12,7 +12,8 @@ use dcmpipe_lib::{
     dimse::{
         commands::{messages::CommandMessage, CommandStatus},
         pdus::{
-            AssocAC, AssocACPresentationContext, AssocRQ, Pdu, PresentationDataItem, PresentationDataValue, ReleaseRP, ReleaseRQ, TransferSyntaxItem
+            AssocAC, AssocACPresentationContext, AssocRQ, Pdu, PresentationDataItem,
+            PresentationDataValue, ReleaseRP, ReleaseRQ, TransferSyntaxItem,
         },
     },
 };
@@ -37,7 +38,10 @@ impl CommandApplication for SvcProviderApp {
         //      indicating that max assocations has been reached.
         let pool = ThreadPool::new(self.args.max_assoc);
         let listener = TcpListener::bind(&self.args.host)?;
-        println!("[info <>]: Listening for associations on {}", self.args.host);
+        println!(
+            "[info <>]: Listening for associations on {}",
+            self.args.host
+        );
 
         for stream in listener.incoming() {
             let stream = stream?;
@@ -115,8 +119,7 @@ impl Association {
             .transfer_syntaxes()
             .iter()
             .filter_map(|ts| cs.decode(ts.transfer_syntaxes()).ok())
-            .filter(|ts| ts == ImplicitVRLittleEndian.uid().uid())
-            .next();
+            .find(|ts| ts == ImplicitVRLittleEndian.uid().uid());
 
         let Some(ts) = ts else {
             return Err(anyhow!(
@@ -185,7 +188,11 @@ impl Association {
         Ok(())
     }
 
-    fn handle_release_rq(&self, bufwrite: &mut BufWriter<&TcpStream>, _rq: ReleaseRQ) -> Result<()> {
+    fn handle_release_rq(
+        &self,
+        bufwrite: &mut BufWriter<&TcpStream>,
+        _rq: ReleaseRQ,
+    ) -> Result<()> {
         println!("[info <-]: A-RELEASE-RQ");
 
         let rsp = ReleaseRP::new();
