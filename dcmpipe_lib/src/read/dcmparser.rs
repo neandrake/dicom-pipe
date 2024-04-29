@@ -301,26 +301,27 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
 
     /// Parses the value of the given element as the specific character set and sets the `cs` value
     /// on this iterator to affect the parsing of further text-type element values.
-    /// Character sets not yet supported (not exhaustive, found by testing dclunie's test set)
-    /// - `\\\\iso-2022-ir-87`
-    /// - `iso-2022-ir-13\\\\iso-2022-ir-87`
-    /// - `\\\\iso-2022-ir-149`
-    /// - `iso-ir-192`
     fn parse_specific_character_set(&mut self, element: &mut DicomElement) -> Result<(), Error> {
         if let Some(ref vr) = tags::SpecificCharacterSet.implicit_vr {
             let decoder: CSRef = vr.get_proper_cs(self.cs);
-            let new_cs: String = element.parse_string(decoder)?;
+            let new_cs: Option<String> = element
+                .parse_strings(decoder)?
+                .into_iter()
+                .filter(|cs_entry: &String| !cs_entry.is_empty())
+                .next();
 
             // TODO: There are options for what to do if we can't support the character repertoire
             // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
-            self.cs = charset::lookup_charset(&new_cs)?;
 
-            return Ok(());
+            if let Some(new_cs) = new_cs {
+                self.cs = charset::lookup_charset(&new_cs)?;
+                return Ok(());
+            }
         }
 
         Err(Error::new(
             ErrorKind::InvalidData,
-            format!("No VR associated with SpecificCharacterSet"),
+            format!("Invalid SpecificCharacterSet"),
         ))
     }
 }
