@@ -109,11 +109,23 @@ static STUDY_LEVEL_META_TAGS: [TagRef; 4] = [
     &SOPClassesinStudy,
 ];
 
+pub(crate) struct MongoQuery {
+    pub query_level: String,
+    pub query: Document,
+    pub include_keys: Vec<u32>,
+    pub meta_keys: Vec<u32>,
+}
+
+pub(crate) struct QueryResults {
+    pub query: MongoQuery,
+    pub group_map: HashMap<String, Vec<DicomDoc>>,
+}
+
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_find_req(
         &mut self,
         cmd: &CommandMessage,
-        query: &DicomRoot,
+        dcm_query: &DicomRoot,
     ) -> Result<(), AssocError> {
         let ctx_id = cmd.ctx_id();
         let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
@@ -121,9 +133,14 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
-        let (_query_level, include_keys, meta_keys, group_map) = &self.query_database(query)?;
+        let query_results = &self.query_database(dcm_query)?;
 
-        let dcm_results = Self::create_results(query, &include_keys, &meta_keys, &group_map)?;
+        let dcm_results = Self::create_results(
+            dcm_query,
+            &query_results.query.include_keys,
+            &query_results.query.meta_keys,
+            &query_results.group_map,
+        )?;
 
         for result in dcm_results {
             let res_rsp =
@@ -138,10 +155,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         Ok(())
     }
 
-    pub(crate) fn query_database(
-        &self,
-        query: &DicomRoot,
-    ) -> Result<(String, Vec<u32>, Vec<u32>, HashMap<String, Vec<DicomDoc>>), AssocError> {
+    pub(crate) fn query_database(&self, dcm_query: &DicomRoot) -> Result<QueryResults, AssocError> {
         let Some(db) = &self.db else {
             return Err(AssocError::ab_failure(DimseError::GeneralError(
                 "Failed connecting to databse".to_owned(),
@@ -150,20 +164,22 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
 
         let coll = IndexApp::get_dicom_coll(db)
             .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
-        let (query_level, mongo_query, include_keys, meta_keys) =
-            Self::convert_dcm_query_to_mongo_query(query)?;
+        let mongo_query = Self::convert_dcm_query_to_mongo_query(dcm_query)?;
 
-        let query_results = IndexApp::query_docs(&coll, Some(mongo_query))
+        let query_results = IndexApp::query_docs(&coll, Some(mongo_query.query.clone()))
             .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
 
-        let group_map = Self::group_results(&query_level, query_results);
+        let group_map = Self::group_results(&mongo_query.query_level, query_results);
 
-        Ok((query_level, include_keys, meta_keys, group_map))
+        Ok(QueryResults {
+            query: mongo_query,
+            group_map,
+        })
     }
 
     pub(crate) fn convert_dcm_query_to_mongo_query(
         dcm: &DicomRoot,
-    ) -> Result<(String, Document, Vec<u32>, Vec<u32>), AssocError> {
+    ) -> Result<MongoQuery, AssocError> {
         let mut query = Document::new();
         let mut include_keys: Vec<u32> = Vec::new();
         let mut meta_keys: Vec<u32> = Vec::new();
@@ -224,7 +240,12 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             }
         }
 
-        Ok((query_level, query, include_keys, meta_keys))
+        Ok(MongoQuery {
+            query_level,
+            query,
+            include_keys,
+            meta_keys,
+        })
     }
 
     pub(crate) fn group_results(
@@ -248,7 +269,11 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     group_map.entry(key.to_owned()).or_default().push(result);
                 }
             } else if query_level == "IMAGE" {
-                if let Ok(sops) = result.doc().get_array("metadata.sops") {
+                let sops_doc = result
+                    .doc()
+                    .get_document("metadata")
+                    .and_then(|m| m.get_array("sops"));
+                if let Ok(sops) = sops_doc {
                     for sop in sops {
                         let Some(sop) = sop.as_str() else {
                             continue;
@@ -290,7 +315,11 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     if let Ok(study_uid) = other.doc().get_str(STUDY_UID_KEY) {
                         study_uids.insert(study_uid.to_owned());
                     }
-                    if let Ok(sops) = other.doc().get_array("metadata.sops") {
+                    let sops_doc = other
+                        .doc()
+                        .get_document("metadata")
+                        .and_then(|m| m.get_array("sops"));
+                    if let Ok(sops) = sops_doc {
                         for sop in sops {
                             if let Some(sop) = sop.as_str() {
                                 sop_instances.insert(sop.to_owned());

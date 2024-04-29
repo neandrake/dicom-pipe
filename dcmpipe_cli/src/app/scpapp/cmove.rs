@@ -14,7 +14,11 @@
    limitations under the License.
 */
 
-use std::io::{Read, Write};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use dcmpipe_lib::{
     core::dcmobject::DicomRoot,
@@ -22,9 +26,10 @@ use dcmpipe_lib::{
     dimse::{commands::messages::CommandMessage, error::AssocError},
 };
 
-use crate::app::scpapp::AssociationDevice;
+use crate::app::{indexapp::DicomDoc, scpapp::AssociationDevice};
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
+    #[allow(unused_variables)] // This is in development
     pub(crate) fn handle_c_move_req(
         &mut self,
         cmd: &CommandMessage,
@@ -39,8 +44,32 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&MoveDestination)
             .map_err(AssocError::ab_failure)?;
 
-        let (query_level, include_keys, meta_keys, group_map) = self.query_database(&query)?;
+        let query_results = self.query_database(query)?;
+
+        let path_map = Self::resolve_to_files(query_results.group_map);
 
         Ok(())
+    }
+
+    fn resolve_to_files(
+        group_map: HashMap<String, Vec<DicomDoc>>,
+    ) -> HashMap<String, Vec<PathBuf>> {
+        let mut path_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
+        for (group_id, docs) in group_map {
+            let paths = docs
+                .iter()
+                .filter_map(|d| {
+                    d.doc()
+                        .get_document("metadata")
+                        .and_then(|m| m.get_array("files"))
+                        .ok()
+                })
+                .flatten()
+                .filter_map(|b| b.as_str())
+                .map(PathBuf::from)
+                .collect::<Vec<PathBuf>>();
+            path_map.insert(group_id, paths);
+        }
+        path_map
     }
 }

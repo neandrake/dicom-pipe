@@ -28,6 +28,7 @@ use dcmpipe_lib::{
 use crate::app::scpapp::AssociationDevice;
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
+    #[allow(unused_variables, clippy::unused_self)] // This is in development
     pub(crate) fn handle_c_get_req(
         &mut self,
         cmd: &CommandMessage,
