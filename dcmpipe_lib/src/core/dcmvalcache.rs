@@ -166,7 +166,7 @@ impl DicomValueCache {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 let value: u16 = element.parse_u16()?;
-                return Ok(vac_entry.insert(value));
+                Ok(vac_entry.insert(value));
             }
         }
     }
@@ -177,7 +177,7 @@ impl DicomValueCache {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 let value: u32 = element.parse_u32()?;
-                return Ok(vac_entry.insert(value));
+                Ok(vac_entry.insert(value));
             }
         }
     }
