@@ -11,13 +11,14 @@ use anyhow::{anyhow, Result};
 
 use crossterm::event::{self, Event::Key, Event::Mouse, KeyCode::Char};
 use crossterm::event::{
-    DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyEventKind, MouseButton,
-    MouseEvent, MouseEventKind,
+    DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
+    MouseButton, MouseEvent, MouseEventKind,
 };
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::constants;
@@ -47,7 +48,11 @@ enum BrowseError {
 impl std::fmt::Display for BrowseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BrowseError::InvalidTagPath(tagpath) => write!(f, "No model for path {tagpath:?}"),
+            BrowseError::InvalidTagPath(tagpath) => {
+                let rendered =
+                    TagPath::format_tagpath_to_display(tagpath, Some(&STANDARD_DICOM_DICTIONARY));
+                write!(f, "No model for path {rendered}")
+            }
         }
     }
 }
@@ -339,7 +344,7 @@ impl<'app> BrowseApp {
 
     /// Polls for user input events and updates `ViewState` based on the user's interaction.
     fn process_user_input(&self, view_state: &mut DicomNodeViewState) -> Result<UserAction> {
-        let user_action = if event::poll(Duration::from_millis(50))? {
+        let user_action = if event::poll(Duration::from_millis(200))? {
             match event::read()? {
                 Key(key) => match key.kind {
                     KeyEventKind::Press => self.event_keypress(view_state, key),
@@ -453,6 +458,18 @@ impl<'app> BrowseApp {
                 self.table_select_next(view_state, -1);
                 UserAction::None
             }
+            Char('d') => {
+                if event.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.table_select_next(view_state, 15);
+                }
+                UserAction::None
+            }
+            Char('u') => {
+                if event.modifiers.contains(KeyModifiers::CONTROL) {
+                    self.table_select_next(view_state, -15);
+                }
+                UserAction::None
+            }
             _ => UserAction::None,
         }
     }
@@ -535,8 +552,11 @@ impl<'app> BrowseApp {
 
         let table = Table::new(model.rows, column_widths)
             .header(
-                Row::new(vec!["+", "Tag", "Name", "VR", "Value"])
-                    .style(Style::default().fg(Color::LightYellow)),
+                Row::new(vec!["+", "Tag", "Name", "VR", "Value"]).style(
+                    Style::default()
+                        .fg(Color::LightYellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
             )
             .block(
                 Block::default()
@@ -550,13 +570,15 @@ impl<'app> BrowseApp {
                     .title(
                         Title::from(Line::from(Span::styled(
                             format!("[{}]", &view_state.dataset_title),
-                            Style::default().fg(Color::LightBlue),
+                            Style::default()
+                                .fg(Color::LightBlue)
+                                .add_modifier(Modifier::BOLD),
                         )))
                         .alignment(Alignment::Right),
                     )
                     .borders(Borders::all()),
             )
-            .highlight_style(Style::default().bg(Color::LightBlue));
+            .highlight_style(Style::default().bg(Color::Rgb(64, 64, 64)));
 
         let sections = Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
