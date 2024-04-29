@@ -48,7 +48,6 @@ fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
         match dstream_res {
             Ok(mut dstream) => {
                 try!(dstream.read_file_meta());
-                println!("[DEBUG] File is DICOM: {:?}", path);
             }
             Err(err) => {
                 writeln!(&mut std::io::stderr(),
