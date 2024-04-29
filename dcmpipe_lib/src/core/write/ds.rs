@@ -65,9 +65,7 @@ pub(crate) mod dataset {
         }
 
         pub fn into_inner(self) -> Result<DatasetType> {
-            self.dataset
-                .into_inner()
-                .map_err(|err| err.into())
+            self.dataset.into_inner().map_err(|err| err.into())
         }
     }
 
