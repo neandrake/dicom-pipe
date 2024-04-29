@@ -158,8 +158,7 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
                     Err(e) => {
                         eprintln!(
                             "Error parsing DICOM Element:\n\tfile: {}\n\terr: {}",
-                            path_str,
-                            e
+                            path_str, e
                         );
                         Err(e)
                     }

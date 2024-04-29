@@ -133,7 +133,7 @@ impl<'dict> DicomRoot<'dict> {
         let parse_result: Option<Result<DicomElement, ParseError>> =
             DicomRoot::parse_recurse(parser, &mut child_nodes, &mut items, true);
 
-        if !parser.behavior.allow_partial_object {
+        if !parser.get_behavior().allow_partial_object {
             if let Some(Err(e)) = parse_result {
                 return Err(e);
             }

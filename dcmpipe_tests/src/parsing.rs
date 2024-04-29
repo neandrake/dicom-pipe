@@ -59,11 +59,9 @@ fn test_bad_dicom_prefix_parser() {
 
     let parse_error: ParseError = result.err().unwrap();
     match parse_error {
-        ParseError::DetailedError { source, detail } => {
-            match *source {
-                ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {},
-                _ => panic!("{:?}", detail),
-            }
+        ParseError::DetailedError { source, detail } => match *source {
+            ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {}
+            _ => panic!("{:?}", detail),
         },
         ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {}
         other => panic!("{:?}", other),
