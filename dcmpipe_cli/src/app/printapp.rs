@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use dcmpipe_dict::dict::tags;
+use dcmpipe_lib::dict::tags;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmsqelem::SequenceElement;
 use dcmpipe_lib::core::read::Parser;

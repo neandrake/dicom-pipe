@@ -4,7 +4,7 @@ use std::iter::Peekable;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::read::{ParseError, Parser, ParserBuilder};
 use dcmpipe_lib::core::RawValue;

@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read, path::PathBuf};
 
-use dcmpipe_dict::dict::{
+use dcmpipe_lib::dict::{
     stdlookup::STANDARD_DICOM_DICTIONARY, tags, transfer_syntaxes as ts, uids,
 };
 use dcmpipe_lib::{

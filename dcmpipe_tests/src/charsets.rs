@@ -1,8 +1,8 @@
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
 
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_dict::dict::tags;
+use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_lib::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};

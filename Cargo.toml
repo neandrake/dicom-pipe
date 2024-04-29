@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "dcmpipe_cli",
-    "dcmpipe_dict",
     "dcmpipe_dict_builder",
     "dcmpipe_lib",
     "dcmpipe_tests",

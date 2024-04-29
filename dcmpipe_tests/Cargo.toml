@@ -5,8 +5,7 @@ authors = ["neandrake <die.drachen@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
-dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["compress"] }
+dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["stddicom", "compress"] }
 encoding_rs = "0.8"
 walkdir = "2.4"
 
