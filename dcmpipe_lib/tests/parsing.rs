@@ -756,15 +756,18 @@ mod parsing_tests {
     }
 
     #[test]
+    #[cfg(feature = "compress")]
     fn test_deflated_evrle_with_std() -> ParseResult<()> {
         test_deflated_evrle(true)
     }
 
     #[test]
+    #[cfg(feature = "compress")]
     fn test_deflated_evrle_without_std() -> ParseResult<()> {
         test_deflated_evrle(false)
     }
 
+    #[cfg(feature = "compress")]
     fn test_deflated_evrle(with_std: bool) -> ParseResult<()> {
         let _dcmroot: DicomRoot = parse_file(
         "gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm",
@@ -1234,15 +1237,18 @@ mod parsing_tests {
     }
 
     #[test]
+    #[cfg(feature = "compress")]
     fn test_sq_with_undefined_length_converted_to_defined_length_with_std() -> ParseResult<()> {
         test_sq_with_undefined_length_converted_to_defined_length(true)
     }
 
     #[test]
+    #[cfg(feature = "compress")]
     fn test_sq_with_undefined_length_converted_to_defined_length_without_std() -> ParseResult<()> {
         test_sq_with_undefined_length_converted_to_defined_length(false)
     }
 
+    #[cfg(feature = "compress")]
     fn test_sq_with_undefined_length_converted_to_defined_length(
         with_std: bool,
     ) -> ParseResult<()> {
@@ -1255,17 +1261,20 @@ mod parsing_tests {
     }
 
     #[test]
+    #[cfg(feature = "compress")]
     fn test_sq_with_undefined_length_unconvertable_to_defined_length_with_std() -> ParseResult<()> {
         test_sq_with_undefined_length_unconvertable_to_defined_length(true)
     }
 
     #[test]
+    #[cfg(feature = "compress")]
     fn test_sq_with_undefined_length_unconvertable_to_defined_length_without_std() -> ParseResult<()>
     {
         test_sq_with_undefined_length_unconvertable_to_defined_length(false)
     }
 
     /// This is a deflated dataset
+    #[cfg(feature = "compress")]
     fn test_sq_with_undefined_length_unconvertable_to_defined_length(
         with_std: bool,
     ) -> ParseResult<()> {
