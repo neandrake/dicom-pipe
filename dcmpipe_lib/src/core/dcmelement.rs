@@ -3,10 +3,9 @@ use crate::core::tagpath::{TagPath, TagPathElement};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use encoding::types::DecoderTrap;
 use std::borrow::Cow;
-use std::io::{Cursor, Error, ErrorKind};
+use std::io::{Error, ErrorKind};
 
 /// Represents the sequence/item position of an element.
 /// For elements to track which sequence they are a part of. When an SQ element is parsed the parser
@@ -252,16 +251,23 @@ impl DicomElement {
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
     pub fn parse_attribute(&self) -> Result<u32, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        if self.data.len() < 4 {
+            return Err(Error::new(ErrorKind::InvalidData, "Unable to parse attribute"));
+        }
+
+        let mut buf: [u8; 2] = [0; 2];
+        buf.copy_from_slice(&self.data[0..2]);
         let first: u32 = if self.ts.is_big_endian() {
-            u32::from(cursor.read_u16::<BigEndian>()?) << 16
+            u32::from(u16::from_be_bytes(buf)) << 16
         } else {
-            u32::from(cursor.read_u16::<LittleEndian>()?) << 16
+            u32::from(u16::from_le_bytes(buf)) << 16
         };
+
+        buf.copy_from_slice(&self.data[2..4]);
         let second: u32 = if self.ts.is_big_endian() {
-            u32::from(cursor.read_u16::<BigEndian>()?)
+            u32::from(u16::from_be_bytes(buf))
         } else {
-            u32::from(cursor.read_u16::<LittleEndian>()?)
+            u32::from(u16::from_le_bytes(buf))
         };
         let result: u32 = first + second;
         Ok(result)
@@ -270,27 +276,27 @@ impl DicomElement {
     /// Parses the value for this element as a 32bit floating point
     /// Associated VRs: FL
     pub fn parse_f32(&self) -> Result<f32, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
-        let result: f32 = if self.ts.is_big_endian() {
-            cursor.read_f32::<BigEndian>()?
-        } else {
-            cursor.read_f32::<LittleEndian>()?
-        };
-        Ok(result)
+        self.parse_f32s()?
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse f32"))
     }
 
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: OF
     pub fn parse_f32s(&self) -> Result<Vec<f32>, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let mut buf: [u8; 4] = [0; 4];
         let num_bytes: usize = self.data.len();
-        let num_floats: usize = num_bytes / 4;
-        let mut result: Vec<f32> = Vec::with_capacity(num_floats);
-        for _ in 0..num_floats {
+        let num_f32s: usize = num_bytes / 4;
+        let mut result: Vec<f32> = Vec::with_capacity(num_f32s);
+        // TODO: Change to f32::from_xx_bytes() once it stabilizes
+        //       see https://github.com/rust-lang/rust/issues/60446
+        for i in 0..num_f32s {
+            buf.copy_from_slice(&self.data[i..(i + 4)]);
             let val: f32 = if self.ts.is_big_endian() {
-                cursor.read_f32::<BigEndian>()?
+                f32::from_bits(u32::from_be_bytes(buf))
             } else {
-                cursor.read_f32::<LittleEndian>()?
+                f32::from_bits(u32::from_le_bytes(buf))
             };
             result.push(val);
         }
@@ -300,27 +306,27 @@ impl DicomElement {
     /// Parses the value for this element as a 64bit floating point
     /// Associated VRs: FD
     pub fn parse_f64(&self) -> Result<f64, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
-        let result: f64 = if self.ts.is_big_endian() {
-            cursor.read_f64::<BigEndian>()?
-        } else {
-            cursor.read_f64::<LittleEndian>()?
-        };
-        Ok(result)
+        self.parse_f64s()?
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse f64"))
     }
 
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: OD
     pub fn parse_f64s(&self) -> Result<Vec<f64>, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let mut buf: [u8; 8] = [0; 8];
         let num_bytes: usize = self.data.len();
-        let num_doubles: usize = num_bytes / 8;
-        let mut result: Vec<f64> = Vec::with_capacity(num_doubles);
-        for _ in 0..num_doubles {
+        let num_f64s: usize = num_bytes / 8;
+        let mut result: Vec<f64> = Vec::with_capacity(num_f64s);
+        // TODO: Change to f64::from_xx_bytes() once it stabilizes
+        //       see https://github.com/rust-lang/rust/issues/60446
+        for i in 0..num_f64s {
+            buf.copy_from_slice(&self.data[i..(i + 8)]);
             let val: f64 = if self.ts.is_big_endian() {
-                cursor.read_f64::<BigEndian>()?
+                f64::from_bits(u64::from_be_bytes(buf))
             } else {
-                cursor.read_f64::<LittleEndian>()?
+                f64::from_bits(u64::from_le_bytes(buf))
             };
             result.push(val);
         }
@@ -330,28 +336,26 @@ impl DicomElement {
     /// Parses the value for this element as a signed 16bit integer
     /// Associated VRs: SS
     pub fn parse_i16(&self) -> Result<i16, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
-        // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
-        let result: i16 = if self.ts.is_big_endian() {
-            cursor.read_i16::<BigEndian>()?
-        } else {
-            cursor.read_i16::<LittleEndian>()?
-        };
-        Ok(result)
+        self.parse_i16s()?
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse i16"))
     }
 
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: OW
     pub fn parse_i16s(&self) -> Result<Vec<i16>, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let mut buf: [u8; 2] = [0; 2];
         let num_bytes: usize = self.data.len();
-        let num_words: usize = num_bytes / 4;
-        let mut result: Vec<i16> = Vec::with_capacity(num_words);
-        for _ in 0..num_words {
+        let num_i16s: usize = num_bytes / 2;
+        let mut result: Vec<i16> = Vec::with_capacity(num_i16s);
+        // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
+        for i in 0..num_i16s {
+            buf.copy_from_slice(&self.data[i..(i + 2)]);
             let val: i16 = if self.ts.is_big_endian() {
-                cursor.read_i16::<BigEndian>()?
+                i16::from_be_bytes(buf)
             } else {
-                cursor.read_i16::<LittleEndian>()?
+                i16::from_le_bytes(buf)
             };
             result.push(val);
         }
@@ -361,28 +365,25 @@ impl DicomElement {
     /// Parses the value for this element as a signed 32bit integer
     /// Associated VRs: SL
     pub fn parse_i32(&self) -> Result<i32, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
-        // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
-        let result: i32 = if self.ts.is_big_endian() {
-            cursor.read_i32::<BigEndian>()?
-        } else {
-            cursor.read_i32::<LittleEndian>()?
-        };
-        Ok(result)
+        self.parse_i32s()?
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse i32"))
     }
 
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: OL
     pub fn parse_i32s(&self) -> Result<Vec<i32>, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        let mut buf: [u8; 4] = [0; 4];
         let num_bytes: usize = self.data.len();
-        let num_longs: usize = num_bytes / 4;
-        let mut result: Vec<i32> = Vec::with_capacity(num_longs);
-        for _ in 0..num_longs {
+        let num_i32s: usize = num_bytes / 4;
+        let mut result: Vec<i32> = Vec::with_capacity(num_i32s);
+        for i in 0..num_i32s {
+            buf.copy_from_slice(&self.data[i..(i + 4)]);
             let val: i32 = if self.ts.is_big_endian() {
-                cursor.read_i32::<BigEndian>()?
+                i32::from_be_bytes(buf)
             } else {
-                cursor.read_i32::<LittleEndian>()?
+                i32::from_le_bytes(buf)
             };
             result.push(val);
         }
@@ -392,11 +393,16 @@ impl DicomElement {
     /// Parses the value for this element as an unsigned 32bit integer
     /// Associated VRs: UL
     pub fn parse_u32(&self) -> Result<u32, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        if self.data.len() < 4 {
+            return Err(Error::new(ErrorKind::InvalidData, "Unable to parse u32"));
+        }
+
+        let mut buf: [u8; 4] = [0; 4];
+        buf.copy_from_slice(&self.data[0..4]);
         let result: u32 = if self.ts.is_big_endian() {
-            cursor.read_u32::<BigEndian>()?
+            u32::from_be_bytes(buf)
         } else {
-            cursor.read_u32::<LittleEndian>()?
+            u32::from_le_bytes(buf)
         };
         Ok(result)
     }
@@ -404,11 +410,16 @@ impl DicomElement {
     /// Parses the value for this element as an unsigned 16bit integer
     /// Associated VRs: US
     pub fn parse_u16(&self) -> Result<u16, Error> {
-        let mut cursor: Cursor<&[u8]> = Cursor::new(self.data.as_slice());
+        if self.data.len() < 2 {
+            return Err(Error::new(ErrorKind::InvalidData, "Unable to parse u16"));
+        }
+
+        let mut buf: [u8; 2] = [0; 2];
+        buf.copy_from_slice(&self.data[0..2]);
         let result: u16 = if self.ts.is_big_endian() {
-            cursor.read_u16::<BigEndian>()?
+            u16::from_be_bytes(buf)
         } else {
-            cursor.read_u16::<LittleEndian>()?
+            u16::from_le_bytes(buf)
         };
         Ok(result)
     }
