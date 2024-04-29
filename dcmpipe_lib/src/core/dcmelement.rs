@@ -35,7 +35,7 @@ struct BytesWithoutPadding<'bytes>(&'bytes [u8]);
 pub struct ElementWithVr<'elem>(pub &'elem DicomElement, pub VRRef);
 
 /// Wrapper around `u32` for parsing DICOM Attributes
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Attribute(pub u32);
 
 /// Wrapper around an element's value parsed into a native/raw type
@@ -212,9 +212,9 @@ impl DicomElement {
     pub fn encode_value(&mut self, value: RawValue, vl: Option<ValueLength>) -> Result<()> {
         let mut bytes: Vec<u8> = match value {
             RawValue::Attribute(Attribute(attr)) => {
-                let mut bytes: Vec<u8> = Vec::with_capacity(4);
-                let group_number: u16 = ((attr >> 16) & 0xFF) as u16;
-                let elem_number: u16 = (attr & 0xFF) as u16;
+                let mut bytes: Vec<u8> = vec![0u8; 4];
+                let group_number: u16 = ((attr >> 16) & 0xFFFF) as u16;
+                let elem_number: u16 = (attr & 0xFFFF) as u16;
                 if self.ts.is_big_endian() {
                     bytes[0..2].copy_from_slice(&group_number.to_be_bytes());
                     bytes[2..4].copy_from_slice(&elem_number.to_be_bytes());

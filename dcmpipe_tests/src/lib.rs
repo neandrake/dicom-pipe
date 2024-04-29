@@ -11,8 +11,6 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::{Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 
-use dcmpipe_lib::defn::tag::Tag;
-
 #[cfg(test)]
 mod charsets;
 #[cfg(test)]
@@ -158,17 +156,9 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
                 match elem.parse_value() {
                     Ok(_) => Ok(()),
                     Err(e) => {
-                        let sq_path: String = elem
-                            .get_sequence_path()
-                            .iter()
-                            .map(|sq| sq.get_seq_tag())
-                            .chain(vec![elem.get_tag()])
-                            .map(Tag::format_tag_to_display)
-                            .collect::<Vec<String>>()
-                            .join(".");
                         eprintln!(
-                            "Error parsing DICOM Element:\n\tfile: {}\n\tseq: {}\n\terr: {}",
-                            path_str, sq_path, e
+                            "Error parsing DICOM Element:\n\telem:{:?}\n\tfile: {}\n\terr: {}",
+                            elem, path_str, e
                         );
                         Err(e)
                     }

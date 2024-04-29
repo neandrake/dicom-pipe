@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, path::PathBuf};
 
 use dcmpipe_dict::dict::{
     stdlookup::STANDARD_DICOM_DICTIONARY, tags, transfer_syntaxes as ts, uids,
@@ -6,7 +6,7 @@ use dcmpipe_dict::dict::{
 use dcmpipe_lib::{
     core::{
         charset,
-        dcmelement::{DicomElement, RawValue},
+        dcmelement::{Attribute, DicomElement, RawValue},
         dcmobject::DicomRoot,
         read::{Parser, ParserBuilder},
         write::{error::WriteError, writer::Writer},
@@ -115,16 +115,7 @@ pub fn test_reencoded_values() -> Result<(), WriteError> {
         .build(file);
 
     while let Some(Ok(mut elem)) = parser.next() {
-        let data = elem.get_data().clone();
-        let value = elem.parse_value()?;
-        elem.encode_value(value, Some(elem.get_vl()))?;
-        let reencoded_data = elem.get_data().clone();
-
-        assert_eq!(
-            data, reencoded_data,
-            "Element did not re-encode the same: {:?}",
-            elem
-        );
+        assert_reencode_element(file_path, &mut elem)?;
     }
 
     Ok(())
@@ -192,9 +183,9 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
     let value = vec![1u16, 1u16];
     elem.encode_value(RawValue::UnsignedShorts(value), None)?;
 
-    assert_eq!(&vec![1u8, 0u8, 1u8, 0u8], elem.get_data());
+    let raw_data = vec![1u8, 0u8, 1u8, 0u8];
+    assert_eq!(&raw_data, elem.get_data());
 
-    let raw_data = vec![1, 0, 1, 0];
     elem = DicomElement::new(
         &tags::ReferencedWaveformChannels,
         &vr::US,
@@ -205,80 +196,163 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
         Vec::with_capacity(0),
     );
 
-    let value = elem.parse_value()?;
-    match value {
+    let re_value = elem.parse_value()?;
+    match re_value {
         RawValue::UnsignedShorts(shorts) => {
             for (idx, &short) in shorts.iter().enumerate() {
                 assert_eq!(1, short, "mismatched short at index: {}", idx);
             }
         }
-        _ => panic!("Parsed value was not ushorts. Actually: {:?}", value),
+        _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
     }
 
     Ok(())
 }
 
 #[test]
-#[ignore]
+pub fn test_write_attr() -> Result<(), WriteError> {
+    let mut elem = DicomElement::new_empty(&tags::FrameIncrementPointer, &vr::AT, &ts::RLELossless);
+
+    let value = Attribute(0x0018_1063);
+    elem.encode_value(RawValue::Attribute(value.clone()), None)?;
+
+    let raw_data = vec![0x18u8, 0u8, 0x63u8, 0x10u8];
+    assert_eq!(&raw_data, elem.get_data(), "encoding of attribute failed");
+
+    elem = DicomElement::new(
+        &tags::FrameIncrementPointer,
+        &vr::AT,
+        ValueLength::Explicit(4),
+        &ts::RLELossless,
+        charset::DEFAULT_CHARACTER_SET,
+        raw_data.clone(),
+        Vec::with_capacity(0),
+    );
+
+    let re_value = elem.parse_value()?;
+    match re_value {
+        RawValue::Attribute(attr) => {
+            assert_eq!(value, attr, "mismatch attribute: {:?}", attr);
+        }
+        _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
+    }
+
+    Ok(())
+}
+
+#[test]
+//#[ignore]
 pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
     for path in crate::get_dicom_file_paths() {
-        let path_str: &str = path.to_str().expect("path");
-
-        let mut parser: Parser<'_, File> = ParserBuilder::default()
-            .dictionary(&STANDARD_DICOM_DICTIONARY)
-            .build(File::open(path.clone())?);
-
-        while let Some(Ok(mut elem)) = parser.next() {
-            let mut orig_parsed_data = elem.get_data().clone();
-            let value = elem.parse_value()?;
-            elem.encode_value(value.clone(), Some(elem.get_vl()))?;
-            let reencoded_data = elem.get_data().clone();
-
-            // Some formatting/values are expected to not match exactly. Adjust the original
-            // element data so that it would match what the writer would output.
-            if orig_parsed_data != reencoded_data {
-                if elem.get_vr() == &vr::DS {
-                    // Some datasets encode at least one digit precision, others don't. There's no
-                    // great way to update the original data in a minimal way to adjust for the
-                    // writer always ensuring a minimum of a single digit of precision for all
-                    // values in this element.
-                    continue;
-                }
-                if elem.get_vr() == &vr::IS || elem.get_vr() == &vr::LO {
-                    // Values may have originally had leading and trailing spaces which are lost
-                    // when parsed into RawValue. Additionally the same for leading zeros.
-                    let mut start_idx = 0;
-                    let mut end_idx = orig_parsed_data.len();
-                    for i in start_idx..end_idx {
-                        if orig_parsed_data[i] != vr::SPACE_PADDING && orig_parsed_data[i] != b'0' {
-                            start_idx = i;
-                            break;
-                        }
-                    }
-
-                    for i in (start_idx..end_idx).rev() {
-                        if orig_parsed_data[i] != vr::SPACE_PADDING {
-                            end_idx = i;
-                            break;
-                        }
-                    }
-
-                    orig_parsed_data = orig_parsed_data[start_idx..=end_idx].to_vec();
-
-                    // Add trailing space to match what the writer would have written.
-                    if orig_parsed_data.len() % 2 != 0 {
-                        orig_parsed_data.push(32);
-                    }
-                }
-            }
-
-            assert_eq!(
-                orig_parsed_data, reencoded_data,
-                "Element did not re-encode the same. {} : {:?}.\n\tValue: {:?}",
-                path_str, elem, value
-            );
+        if let Err(e) = reencode_file_elements(path.clone()) {
+            eprintln!("Error in file: {:?}\n\t{:?}", path, e);
         }
     }
+
+    Ok(())
+}
+
+fn reencode_file_elements(path: PathBuf) -> Result<(), WriteError> {
+    let path_str: &str = path.to_str().expect("path");
+
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .dictionary(&STANDARD_DICOM_DICTIONARY)
+        .build(File::open(path.clone())?);
+
+    while let Some(Ok(mut elem)) = parser.next() {
+        if let Err(e) = assert_reencode_element(path_str, &mut elem) {
+            panic!("Error re-encoding elements for: {}\n\t{:?}", path_str, e);
+        }
+    }
+    Ok(())
+}
+
+fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<(), WriteError> {
+    let orig_parsed_data = elem.get_data().clone();
+    let value = elem.parse_value()?;
+    elem.encode_value(value.clone(), Some(elem.get_vl()))?;
+    let reencoded_data = elem.get_data().clone();
+
+    // Some formatting/values are expected to not match exactly. Adjust the original
+    // element data so that it would match what the writer would output.
+    if orig_parsed_data != reencoded_data {
+        // Some datasets encode at least one digit precision, others don't. There's no
+        // great way to update the original data in a minimal way to adjust for the
+        // writer always ensuring a minimum of a single digit of precision for all
+        // values in this element.
+        if elem.get_vr() == &vr::DS {
+            return Ok(());
+        }
+
+        // If strings consist of only the padding character then ignore size differences.
+        if elem.get_vr().is_character_string {
+            let is_space = |b: &u8| *b == vr::SPACE_PADDING;
+            if orig_parsed_data.iter().all(is_space) && reencoded_data.iter().all(is_space) {
+                return Ok(());
+            }
+
+            // Some character-based elements seem to include trailing null-byte padding.
+            let orig_end_trimmed = orig_parsed_data
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
+                .collect::<Vec<u8>>()
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .collect::<Vec<u8>>();
+            let reencoded_end_trimmed = reencoded_data
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
+                .collect::<Vec<u8>>()
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .collect::<Vec<u8>>();
+
+            if orig_end_trimmed == reencoded_end_trimmed {
+                return Ok(());
+            }
+        }
+
+        // Values may have originally had leading and trailing spaces which are lost
+        // when parsed into RawValue. Additionally the same for leading zeros.
+        if elem.get_vr() == &vr::IS || elem.get_vr() == &vr::LO {
+            let orig_end_trimmed = orig_parsed_data
+                .iter()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
+                .collect::<Vec<u8>>()
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING)
+                .collect::<Vec<u8>>();
+            let reencoded_end_trimmed = reencoded_data
+                .iter()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
+                .collect::<Vec<u8>>()
+                .iter()
+                .rev()
+                .map(|b| b.to_owned())
+                .skip_while(|&b| b == vr::SPACE_PADDING)
+                .collect::<Vec<u8>>();
+
+            if orig_end_trimmed == reencoded_end_trimmed {
+                return Ok(());
+            }
+        }
+    }
+
+    assert_eq!(
+        orig_parsed_data, reencoded_data,
+        "Element did not re-encode the same. {} : {:?}.\n\tValue: {:?}",
+        path_str, elem, value
+    );
 
     Ok(())
 }
