@@ -1,7 +1,0 @@
-{
-  "project.name"          :  "DCM Pipe",
-  "phabricator.uri"       :  "https://speck.phacility.com/",
-  "repository.callsign"   :  "DCMPIPE",
-  "history.immutable"     :  false,
-  "arc.land.onto.default" :  "master"
-}
