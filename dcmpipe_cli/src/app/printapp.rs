@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, StdoutLock, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
@@ -15,27 +15,28 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 
 use crate::app::{parse_file, CommandApplication};
+use crate::args::PrintArgs;
 
 static HIDE_GROUP_TAGS: bool = false;
 static HIDE_DELIMITATION_TAGS: bool = false;
 
 pub struct PrintApp {
-    file: PathBuf,
+    args: PrintArgs,
 }
 
 impl PrintApp {
-    pub fn new(file: PathBuf) -> PrintApp {
-        PrintApp { file }
+    pub fn new(args: PrintArgs) -> PrintApp {
+        PrintApp { args }
     }
 }
 
-impl PrintApp {
-    fn render_stream(
-        &mut self,
-        path: &Path,
-        mut parser: Parser<'_, File>,
-        stdout: &mut StdoutLock<'_>,
-    ) -> Result<()> {
+impl CommandApplication for PrintApp {
+    fn run(&mut self) -> Result<()> {
+        let path_buf: PathBuf = self.args.file.clone();
+        let path: &Path = path_buf.as_path();
+        let mut parser: Parser<'_, File> = parse_file(path, true)?;
+
+        let mut stdout = io::stdout().lock();
         stdout.write_all(format!(
             "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
             path,
@@ -64,18 +65,6 @@ impl PrintApp {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
             }
         }
-        Ok(())
-    }
-}
-
-impl CommandApplication for PrintApp {
-    fn run(&mut self) -> Result<()> {
-        let path_buf: PathBuf = self.file.clone();
-        let path: &Path = path_buf.as_path();
-        let parser: Parser<'_, File> = parse_file(path)?;
-
-        let mut stdout = io::stdout().lock();
-        self.render_stream(path, parser, &mut stdout)?;
 
         Ok(())
     }

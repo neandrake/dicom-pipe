@@ -25,13 +25,10 @@ fn make_app() -> Box<dyn CommandApplication> {
     let args: Arguments = Arguments::parse();
 
     match args.command {
-        Command::Print { file } => Box::new(PrintApp::new(file)),
-        Command::Edit { file } => Box::new(EditApp::new(file)),
-        Command::Parse { folder } => Box::new(ScanApp::new(folder)),
-        Command::Index { db, cmd } => Box::new(IndexApp::new(db, cmd)),
-        Command::Archive {
-            source,
-            destination,
-        } => Box::new(ArchiveApp::new(source, destination)),
+        Command::Print(args) => Box::new(PrintApp::new(args)),
+        Command::Edit(args) => Box::new(EditApp::new(args)),
+        Command::Scan(args) => Box::new(ScanApp::new(args)),
+        Command::Index(args) => Box::new(IndexApp::new(args)),
+        Command::Archive(args) => Box::new(ArchiveApp::new(args)),
     }
 }

@@ -6,7 +6,6 @@ use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder, Result};
 
 use crate::parse_file;
@@ -21,7 +20,7 @@ fn test_parse_nested_charset_values() -> Result<()> {
         .build(file);
 
     let dcmroot: DicomRoot<'_> =
-        parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
+        DicomRoot::parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
 
     test_nested_charset(
         &dcmroot,

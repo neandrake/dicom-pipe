@@ -7,7 +7,7 @@ use walkdir::WalkDir;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
 
-use crate::app::CommandApplication;
+use crate::{app::CommandApplication, args::ScanArgs};
 
 enum ScanResult {
     Success,
@@ -16,16 +16,16 @@ enum ScanResult {
 }
 
 pub struct ScanApp {
-    folder: PathBuf,
+    args: ScanArgs,
 }
 
 impl ScanApp {
-    pub fn new(folder: PathBuf) -> ScanApp {
-        ScanApp { folder }
+    pub fn new(args: ScanArgs) -> ScanApp {
+        ScanApp { args }
     }
 
     fn get_files(&self) -> impl Iterator<Item = PathBuf> {
-        WalkDir::new(&self.folder)
+        WalkDir::new(&self.args.folder)
             .into_iter()
             .map(|entry_res| entry_res.expect("walkdir entry").path().to_path_buf())
             .filter(|path: &PathBuf| path.is_file())
@@ -65,7 +65,7 @@ impl CommandApplication for ScanApp {
             let parser: Parser<'_, File> = parser_builder.build(file);
 
             let relative_path: &str = path
-                .strip_prefix(&self.folder)?
+                .strip_prefix(&self.args.folder)?
                 .to_str()
                 .expect("relative path");
 

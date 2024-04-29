@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::Result;
 use cursive::view::{Nameable, Resizable};
@@ -13,9 +13,10 @@ use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::tag::Tag;
 
 use crate::app::CommandApplication;
+use crate::args::EditArgs;
 
 pub struct EditApp {
-    openpath: PathBuf,
+    args: EditArgs,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -100,15 +101,15 @@ impl TableViewItem<DicomElementColumn> for DicomElementValue {
 }
 
 impl EditApp {
-    pub fn new(openpath: PathBuf) -> EditApp {
-        EditApp { openpath }
+    pub fn new(args: EditArgs) -> EditApp {
+        EditApp { args }
     }
 }
 
 impl CommandApplication for EditApp {
     fn run(&mut self) -> Result<()> {
-        let path: &Path = self.openpath.as_path();
-        let parser: Parser<'_, File> = super::parse_file(path)?;
+        let path: &Path = self.args.file.as_path();
+        let parser: Parser<'_, File> = super::parse_file(path, true)?;
 
         let mut items: Vec<DicomElementValue> = Vec::new();
         let mut total_name_size: usize = 0;

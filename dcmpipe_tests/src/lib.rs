@@ -11,7 +11,6 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::{Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 
-use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::defn::tag::Tag;
 
 #[cfg(test)]
@@ -36,7 +35,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
         .build(File::open(path)?);
-    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?.unwrap();
+    let dcmroot: DicomRoot<'_> = DicomRoot::parse_into_object(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
 }

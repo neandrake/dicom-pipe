@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 /// Explore DICOM
@@ -9,50 +9,60 @@ pub struct Arguments {
     pub command: Command,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Subcommand, Debug)]
 pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
-    Print {
-        /// The file to process as a DICOM dataset.
-        file: PathBuf,
-    },
+    Print(PrintArgs),
+
     /// Opens a DICOM dataset in a TUI for browsing and editing.
-    Edit {
-        /// The file to process as a DICOM dataset.
-        file: PathBuf,
-    },
-    /// Recursively parses a folder of DICOM datasets and prints results of parsing.
+    Edit(EditArgs),
+
+    /// Recursively scans a folder of DICOM datasets and prints results of parsing.
     ///
     /// This is primarily useful for locating DICOM files which fail to parse.
-    Parse {
-        /// The folder to recursively scan for DICOM datasets.
-        folder: PathBuf,
-    },
+    Scan(ScanArgs),
+
     /// Manage a database index of DICOM on disk.
     ///
     /// Recursively scans a folder for DICOM datasets, indexing them into a database.
-    Index {
-        #[clap(short, long)]
-        /// The db URI of the index.
-        db: String,
+    Index(IndexArgs),
 
-        #[clap(subcommand)]
-        /// Index sub-command
-        cmd: IndexCommand,
-    },
     /// Archives DICOM datasets from a source folder into a destination folder.
     ///
     /// The source folder is assumed to be unstructured whereas the DICOM datasets will be copied
     /// into the destination folder in a consistent structure:
     ///   - One series per folder
     ///   - Each DICOM file will be named in the format `[SOP_UID].dcm`
-    Archive {
-        /// The source folder of DICOM datasets to process.
-        source: PathBuf,
+    Archive(ArchiveArgs),
+}
 
-        /// The destination folder to archive datasets into.
-        destination: PathBuf,
-    },
+#[derive(Args, Debug)]
+pub struct PrintArgs {
+    /// The file to process as a DICOM dataset.
+    pub file: PathBuf,
+}
+
+#[derive(Args, Debug)]
+pub struct EditArgs {
+    /// The file to process as a DICOM dataset.
+    pub file: PathBuf,
+}
+
+#[derive(Args, Debug)]
+pub struct ScanArgs {
+    /// The folder to recursively scan for DICOM datasets.
+    pub folder: PathBuf,
+}
+
+#[derive(Args, Debug)]
+pub struct IndexArgs {
+    #[arg(short, long)]
+    /// The db URI of the index.
+    pub db: String,
+
+    #[clap(subcommand)]
+    /// Index sub-command
+    pub cmd: IndexCommand,
 }
 
 #[derive(Parser, Debug)]
@@ -63,5 +73,14 @@ pub enum IndexCommand {
         folder: PathBuf,
     },
     /// Verify records in the database reference valid files on-disk.
-    Verify {},
+    Verify,
+}
+
+#[derive(Args, Debug)]
+pub struct ArchiveArgs {
+    /// The source folder of DICOM datasets to process.
+    pub source: PathBuf,
+
+    /// The destination folder to archive datasets into.
+    pub destination: PathBuf,
 }

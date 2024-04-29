@@ -2,13 +2,18 @@
 
 use std::collections::btree_map;
 use std::collections::BTreeMap;
+use std::io::Read;
 
 use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
+use crate::defn::constants::tags;
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
+use crate::defn::vl::ValueLength;
 
+use super::read::ParseError;
+use super::read::Parser;
 use super::write::error::WriteError;
 
 /// Trait for a dicom node which contains child elements.
@@ -110,6 +115,140 @@ impl<'dict> DicomRoot<'dict> {
     /// Get the dictionary used to encode the dataset.
     pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
         self.dictionary
+    }
+
+    /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
+    /// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
+    /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
+    pub fn parse_into_object<DatasetType: Read>(
+        parser: &mut Parser<'dict, DatasetType>,
+    ) -> Result<Option<DicomRoot<'dict>>, ParseError> {
+        let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
+        let mut items: Vec<DicomObject> = Vec::new();
+
+        let parse_result: Option<Result<DicomElement, ParseError>> =
+            DicomRoot::parse_into_object_recurse(parser, &mut child_nodes, &mut items, true);
+
+        if !parser.behavior.allow_partial_object {
+            if let Some(Err(e)) = parse_result {
+                return Err(e);
+            }
+        }
+
+        // If no child nodes and no items were parsed then this isn't valid dicom.
+        if child_nodes.is_empty() && items.is_empty() {
+            return Ok(None);
+        }
+
+        // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
+        // and specific character set.
+        let root: DicomRoot<'_> = DicomRoot::new(
+            parser.get_ts(),
+            parser.get_cs(),
+            parser.get_dictionary(),
+            child_nodes,
+            items,
+        );
+        Ok(Some(root))
+    }
+
+    /// Iterates through the parser populating values into the given `child_nodes` map. Elements which
+    /// are sequence-like (contain sub-elements) will be recursed into so child elements are added to
+    /// their node. The sequence path length is used to determine when parsing an element whether it
+    /// escapes the current level a of recursion, and how far back up it should go (the end of a
+    /// sequence can be the end of multiple sequences).
+    ///
+    /// `parser` The parser elements are being read from
+    /// `child_nodes` The map of child nodes which elements should be parsed into
+    /// `items` The list of nodes which item elements should be parsed into
+    /// `is_root_level` Whether the root level is being parsed, or within child nodes
+    fn parse_into_object_recurse<DatasetType: Read>(
+        parser: &mut Parser<'_, DatasetType>,
+        child_nodes: &mut BTreeMap<u32, DicomObject>,
+        items: &mut Vec<DicomObject>,
+        is_root_level: bool,
+    ) -> Option<Result<DicomElement, ParseError>> {
+        let mut prev_seq_path_len: usize = 0;
+        let mut next_element: Option<Result<DicomElement, ParseError>> = parser.next();
+
+        // If the first element at the root level is an error then this is probably not valid dicom.
+        if is_root_level {
+            if let Some(Err(_)) = next_element {
+                return None;
+            }
+        }
+
+        while let Some(Ok(element)) = next_element {
+            let tag: u32 = element.get_tag();
+            let cur_seq_path_len: usize = element.get_sequence_path().len() + 1;
+
+            if prev_seq_path_len == 0 {
+                prev_seq_path_len = cur_seq_path_len;
+            }
+
+            if cur_seq_path_len < prev_seq_path_len {
+                // If the next element has a shorter path than the previous one it should not be added
+                // to the given node but returned so it can be added to a parent node.
+                return Some(Ok(element));
+            }
+
+            let mut possible_next_elem: Option<Result<DicomElement, ParseError>> = None;
+            // Checking sequence or item tag should match dcmparser.read_dicom_element() which
+            // does not read a value for those elements but lets the parser read its value as
+            // separate elements which we're considering child elements.
+            let dcmobj: DicomObject = if element.is_seq_like()
+                || (tag == tags::ITEM && element.get_vl() != ValueLength::Explicit(0))
+            {
+                let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
+                let mut items: Vec<DicomObject> = Vec::new();
+                possible_next_elem = DicomRoot::parse_into_object_recurse(
+                    parser,
+                    &mut child_nodes,
+                    &mut items,
+                    false,
+                );
+                DicomObject::new_with_children(element, child_nodes, items)
+            } else {
+                DicomObject::new(element)
+            };
+            if tag == tags::ITEM {
+                items.push(dcmobj);
+            } else {
+                child_nodes.insert(tag, dcmobj);
+            }
+
+            prev_seq_path_len = cur_seq_path_len;
+
+            // If an element was returned from the recursive call that means the recursive call iterated
+            // into an element which is not a child of the node we passed into the recursive call and
+            // it should instead be added elsewhere up the tree.
+            if let Some(Ok(next_elem)) = possible_next_elem {
+                let next_seq_path_len: usize = next_elem.get_sequence_path().len() + 1;
+                match next_seq_path_len {
+                    val if val < cur_seq_path_len => {
+                        // If that element is still shorter than the current then it needs passed up further.
+                        return Some(Ok(next_elem));
+                    }
+                    val if val == cur_seq_path_len => {
+                        // If it matches the same level as the current node then it should be "inserted"
+                        // into the element iteration so it will be checked for being sequence-like and
+                        // then added into the current node.
+                        next_element = Some(Ok(next_elem));
+                        continue;
+                    }
+                    _ => {}
+                }
+            } else if let Some(Err(_)) = possible_next_elem {
+                // Errors need propagated all the way back up.
+                return possible_next_elem;
+            }
+
+            // Parse the next element from the dataset.
+            next_element = parser.next();
+        }
+
+        // Return the last value from the parser which will either be None or Error.
+        next_element
     }
 }
 

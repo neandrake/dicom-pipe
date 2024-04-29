@@ -21,13 +21,14 @@ pub(crate) trait CommandApplication {
     fn run(&mut self) -> Result<()>;
 }
 
-fn parse_file(path: &Path) -> Result<Parser<'_, File>> {
+fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, File>> {
     if !path.is_file() {
         return Err(anyhow!("invalid file: {}", path.display()));
     }
 
     let file: File = File::open(path)?;
     let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .allow_partial_object(allow_partial_object)
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build(file);
 

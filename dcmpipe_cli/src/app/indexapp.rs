@@ -15,12 +15,11 @@ use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
-use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
 use dcmpipe_lib::defn::tag::Tag;
 
 use crate::app::CommandApplication;
-use crate::args::IndexCommand;
+use crate::args::{IndexArgs, IndexCommand};
 
 static SERIES_UID_KEY: &str = "0020000E";
 static SOP_UID_KEY: &str = "00080018";
@@ -52,13 +51,12 @@ impl DicomDoc {
 }
 
 pub struct IndexApp {
-    db: String,
-    cmd: IndexCommand,
+    args: IndexArgs,
 }
 
 impl CommandApplication for IndexApp {
     fn run(&mut self) -> Result<()> {
-        match &self.cmd {
+        match &self.args.cmd {
             IndexCommand::Scan { folder } => {
                 let folder = folder.clone();
                 let uid_to_doc: HashMap<String, DicomDoc> = self.scan_dir(folder)?;
@@ -73,13 +71,13 @@ impl CommandApplication for IndexApp {
 }
 
 impl IndexApp {
-    pub fn new(db: String, cmd: IndexCommand) -> IndexApp {
-        IndexApp { db, cmd }
+    pub fn new(args: IndexArgs) -> IndexApp {
+        IndexApp { args }
     }
 
     fn get_dicom_coll(&self) -> Result<Collection<Document>> {
-        let client: Client = Client::with_uri_str(&self.db)
-            .with_context(|| format!("Invalid database URI: {}", &self.db))?;
+        let client: Client = Client::with_uri_str(&self.args.db)
+            .with_context(|| format!("Invalid database URI: {}", &self.args.db))?;
         let database: Database = client.database(DATABASE_NAME);
         Ok(database.collection(COLLECTION_NAME))
     }
@@ -101,7 +99,7 @@ impl IndexApp {
             let file: File = File::open(entry.path())?;
             let mut parser: Parser<'_, File> = parser_builder.build(file);
 
-            let dcm_root: Option<DicomRoot<'_>> = parse_into_object(&mut parser)?;
+            let dcm_root: Option<DicomRoot<'_>> = DicomRoot::parse_into_object(&mut parser)?;
             if dcm_root.is_none() {
                 continue;
             }
@@ -279,7 +277,7 @@ impl IndexApp {
     ) -> Result<impl Iterator<Item = DicomDoc>> {
         let all_dicom_docs: Cursor<Document> = dicom_coll
             .find(query, None)
-            .with_context(|| format!("Invalid database: {}", &self.db))?;
+            .with_context(|| format!("Invalid database: {}", &self.args.db))?;
 
         let doc_iter = all_dicom_docs.filter_map(|doc_res| {
             let doc: Document = match doc_res {

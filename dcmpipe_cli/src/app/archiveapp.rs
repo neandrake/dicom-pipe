@@ -1,27 +1,21 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 
-use crate::app::CommandApplication;
+use crate::{app::CommandApplication, args::ArchiveArgs};
 
 pub struct ArchiveApp {
-    source: PathBuf,
-    destination: PathBuf,
+    args: ArchiveArgs,
 }
 
 impl ArchiveApp {
-    pub fn new(source: PathBuf, destination: PathBuf) -> ArchiveApp {
-        ArchiveApp {
-            source,
-            destination,
-        }
+    pub fn new(args: ArchiveArgs) -> ArchiveApp {
+        ArchiveApp { args }
     }
 }
 
 impl CommandApplication for ArchiveApp {
     fn run(&mut self) -> Result<()> {
         // use fields to stop getting dead code warnings
-        format!("{:?}, {:?}", self.source, self.destination);
+        format!("{:?}, {:?}", self.args.source, self.args.destination);
         unimplemented!()
     }
 }

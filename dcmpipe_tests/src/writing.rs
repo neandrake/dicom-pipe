@@ -6,7 +6,8 @@ use dcmpipe_dict::dict::{
 use dcmpipe_lib::{
     core::{
         dcmelement::{DicomElement, RawValue},
-        read::{util::parse_into_object, ParserBuilder},
+        dcmobject::DicomRoot,
+        read::ParserBuilder,
         write::{error::WriteError, writer::Writer},
     },
     defn::vr,
@@ -87,7 +88,7 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build(file);
 
-    let dcmroot = parse_into_object(&mut parser)?.expect("Parse file into DicomObject");
+    let dcmroot = DicomRoot::parse_into_object(&mut parser)?.expect("Parse file into DicomObject");
 
     let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
     writer.set_ts(parser.get_ts());
