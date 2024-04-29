@@ -30,25 +30,25 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for RawValue {
         } else if vr == &vr::SS {
             Ok(RawValue::Shorts(Vec::<i16>::try_from(elem)?))
         } else if vr == &vr::US {
-            Ok(RawValue::UnsignedShorts(Vec::<u16>::try_from(elem)?))
+            Ok(RawValue::UShorts(Vec::<u16>::try_from(elem)?))
         } else if vr == &vr::SL {
-            Ok(RawValue::Integers(Vec::<i32>::try_from(elem)?))
+            Ok(RawValue::Ints(Vec::<i32>::try_from(elem)?))
         } else if vr == &vr::UL {
-            Ok(RawValue::UnsignedIntegers(Vec::<u32>::try_from(elem)?))
+            Ok(RawValue::UInts(Vec::<u32>::try_from(elem)?))
         } else if vr == &vr::SV {
             Ok(RawValue::Longs(Vec::<i64>::try_from(elem)?))
         } else if vr == &vr::UV {
-            Ok(RawValue::UnsignedLongs(Vec::<u64>::try_from(elem)?))
+            Ok(RawValue::ULongs(Vec::<u64>::try_from(elem)?))
         } else if vr == &vr::OW {
             Ok(RawValue::Words(Vec::<u16>::try_from(elem)?))
         } else if vr == &vr::OL {
-            Ok(RawValue::DoubleWords(Vec::<u32>::try_from(elem)?))
+            Ok(RawValue::DWords(Vec::<u32>::try_from(elem)?))
         } else if vr == &vr::OV {
-            Ok(RawValue::QuadWords(Vec::<u64>::try_from(elem)?))
+            Ok(RawValue::QWords(Vec::<u64>::try_from(elem)?))
         } else if vr == &vr::IS {
             let possible_i32s = Vec::<i32>::try_from(elem);
             if let Ok(i32s) = possible_i32s {
-                Ok(RawValue::Integers(i32s))
+                Ok(RawValue::Ints(i32s))
             } else {
                 // Sometimes decimal elems are (incorrectly) encoded with VR of IS.
                 Ok(RawValue::Doubles(Vec::<f64>::try_from(elem)?))

@@ -25,17 +25,17 @@ impl<'a> TryFrom<ElemAndRawValue<'a>> for Vec<u8> {
             RawValue::Uid(uid) => ElemAndUid(elem, uid).try_into()?,
             RawValue::Strings(strings) => ElemAndStrings(elem, strings).try_into()?,
             RawValue::Shorts(shorts) => ElemAndShorts(elem, shorts).into(),
-            RawValue::UnsignedShorts(ushorts) => ElemAndUnsignedShorts(elem, ushorts).into(),
-            RawValue::Integers(ints) => ElemAndIntegers(elem, ints).into(),
-            RawValue::UnsignedIntegers(uints) => ElemAndUnsignedIntegers(elem, uints).into(),
+            RawValue::UShorts(ushorts) => ElemAndUnsignedShorts(elem, ushorts).into(),
+            RawValue::Ints(ints) => ElemAndIntegers(elem, ints).into(),
+            RawValue::UInts(uints) => ElemAndUnsignedIntegers(elem, uints).into(),
             RawValue::Longs(longs) => ElemAndLongs(elem, longs).into(),
-            RawValue::UnsignedLongs(ulongs) => ElemAndUnsignedLongs(elem, ulongs).into(),
+            RawValue::ULongs(ulongs) => ElemAndUnsignedLongs(elem, ulongs).into(),
             RawValue::Floats(floats) => ElemAndFloats(elem, floats).into(),
             RawValue::Doubles(doubles) => ElemAndDoubles(elem, doubles).into(),
             RawValue::Bytes(bytes) => bytes,
             RawValue::Words(words) => ElemAndWords(elem, words).into(),
-            RawValue::DoubleWords(dwords) => ElemAndDoubleWords(elem, dwords).into(),
-            RawValue::QuadWords(qwords) => ElemAndQuadWords(elem, qwords).into(),
+            RawValue::DWords(dwords) => ElemAndDoubleWords(elem, dwords).into(),
+            RawValue::QWords(qwords) => ElemAndQuadWords(elem, qwords).into(),
         };
 
         // All fields are required to be of even length, with padding added as necessary. Note

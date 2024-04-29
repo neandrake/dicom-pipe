@@ -34,7 +34,7 @@ pub fn fixture(path: &str) -> Result<File, std::io::Error> {
 
 /// Parses the given file into a `DicomObject`. The fixture file path should be relative to the
 /// fixtures directory.
-pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot<'_>> {
+pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot> {
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
     } else {
@@ -44,7 +44,7 @@ pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot<'_>> {
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
         .build(fixture(path)?);
-    let dcmroot: DicomRoot<'_> = DicomRoot::parse(&mut parser)?.unwrap();
+    let dcmroot: DicomRoot = DicomRoot::parse(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
 }
@@ -134,7 +134,7 @@ pub fn is_standard_dcm_file<R: Read>(parser: &Parser<'_, R>) -> bool {
     true
 }
 
-pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> ParseResult<()> {
+pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot) -> ParseResult<()> {
     // This should always do nothing as the root should never have items.
     for dcmobj in dcmroot.iter_items() {
         parse_all_dcmobj_values(dcmobj)?;
