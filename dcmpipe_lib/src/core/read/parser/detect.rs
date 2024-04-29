@@ -58,38 +58,43 @@ impl<'d, R: Read> Parser<'d, R> {
     ///    library also uses this same value comparison.
     /// 4. Otherwise it's assumed the start of the file is proprietary file preamble. These bytes
     ///    are then skipped and detection begins again.
+
+    // This function is knowingly pretty lengthy. Attempting to break down into smaller functions
+    // may be possible, though I have not found a way to do so without also splitting the
+    // contextual logic which would make reading this logic more difficult.
+    #[allow(clippy::too_many_lines)]
     pub(super) fn iterate_detect_state(&mut self) -> ParseResult<()> {
-        // start off assuming EVRLE, the default for File-Meta
+        // Start off assuming EVRLE, the default for File-Meta.
         let mut ts: TSRef = &ExplicitVRLittleEndian;
 
-        // if this function has been called previously it will have read data into
-        // `self.file_preamble` for invalid element cases - if preamble is already read then those
-        // invalid element cases should now turn into errors
+        // If this function has been called previously it will have read data into
+        // `self.file_preamble` for invalid element cases. If preamble is already read then those
+        // invalid element cases should now turn into errors.
         let already_read_preamble: bool = self.file_preamble.is_some();
 
-        // as bytes are read from `self.dataset` they will be copied into this `file_preamble`, then
+        // As bytes are read from `self.dataset` they will be copied into this `file_preamble`, then
         // if it's determined that we're likely in a file preamble the rest of the standard
-        // preamble will be read from the dataset and stored into `self.file_preamble`
+        // preamble will be read from the dataset and stored into `self.file_preamble`.
         let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
         let mut bytes_read: usize = 0;
 
         let mut buf: [u8; 4] = [0; 4];
         self.dataset.read_exact(&mut buf)?;
 
-        // copy the read bytes into preamble in case we determine this is a preamble -- use a
-        // cursor to allow re-parsing the same bytes again for checking both endian
+        // Copy the read bytes into preamble in case we determine this is a preamble -- use a
+        // cursor to allow re-parsing the same bytes again for checking both endian.
         file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
         bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
         let mut tag: u32 = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
 
-        // a zero tag is valid for dimse, however dimse parser should not need to start by
-        // identifying the transfer syntax, as it should always be ImplicitVRLittleEndian
+        // A zero tag is valid for dimse, however the dimse parser should not need to start by
+        // identifying the transfer syntax, as it should always be ImplicitVRLittleEndian.
         if tag == 0 {
-            // if tag is zero then assume preamble, jump forward and attempt to detect tag after it
+            // If tag is zero then assume preamble, jump forward and attempt to detect tag after it
 
-            // if file preamble was already read then flip into Element mode and let it fail
+            // If file preamble was already read then flip into Element mode and let it fail.
             if already_read_preamble {
                 self.detected_ts = &ImplicitVRLittleEndian;
                 self.partial_tag = Some(tag);
@@ -98,7 +103,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 return Ok(());
             }
 
-            // read the remainder of the preamble, the prefix
+            // Read the remainder of the preamble and the prefix, then attempt detection again.
             self.dataset
                 .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
             self.bytes_read += u64::try_from(file_preamble.len()).unwrap_or_default();
@@ -111,9 +116,9 @@ impl<'d, R: Read> Parser<'d, R> {
             ts = &ExplicitVRBigEndian;
             tag = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
 
-            // if switching endian didn't result in a valid tag then try skipping preamble/prefix
+            // If switching endian didn't result in a valid tag then try skipping preamble/prefix.
             if !(FILE_META_INFORMATION_GROUP_LENGTH..=SOP_INSTANCE_UID).contains(&tag) {
-                // if file preamble was already read then flip into Element mode and let it fail
+                // If file preamble was already read then flip into Element mode and let it fail.
                 if already_read_preamble {
                     self.detected_ts = &ImplicitVRLittleEndian;
                     self.partial_tag = Some(tag);
@@ -122,7 +127,7 @@ impl<'d, R: Read> Parser<'d, R> {
                     return Ok(());
                 }
 
-                // read the remainder of the preamble, the prefix
+                // Read the remainder of the preamble and the prefix, then attempt detection again.
                 self.dataset
                     .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
                 self.bytes_read += u64::try_from(file_preamble.len()).unwrap_or_default();
@@ -133,18 +138,20 @@ impl<'d, R: Read> Parser<'d, R> {
             }
         }
 
-        // if not an expected non-file-meta tag then try big-endian
+        // If the tag was not an expected non-file-meta tag then try big-endian.
         if !ts.big_endian() && tag < FILE_META_INFORMATION_GROUP_LENGTH || tag > SOP_INSTANCE_UID {
             cursor.set_position(0);
             ts = &ExplicitVRBigEndian;
             tag = read_tag_from_dataset(&mut cursor, ts.big_endian())?;
         }
 
-        // doesn't appear to be a valid tag in either big or little endian
+        // Doesn't appear to be a valid tag in either big or little endian syntax, move to the next
+        // state and let failure propagate from there.
         if tag < FILE_META_INFORMATION_GROUP_LENGTH
             || tag > SOP_INSTANCE_UID && already_read_preamble
         {
-            // testing tag in either endian didn't seem to work, set as DICOM default
+            // Testing the tag in either endian didn't seem to work, set as DICOM default and let
+            // the failure propagate up from next state.
             self.detected_ts = &ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
             self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
@@ -152,14 +159,16 @@ impl<'d, R: Read> Parser<'d, R> {
             return Ok(());
         }
 
-        // read in 4 bytes. for implicit vr 4 bytes are used for value length. if it's not implicit
-        // then the first two bytes are re-parsed as vr and the later two bytes are the value length
-        // note: we could attempt to match the first two bytes as a valid VR to determine implicit
+        // Read in 4 bytes. For implicit vr 4 bytes are used for value length. If it's not implicit
+        // then the first two bytes are re-parsed as vr and the later two bytes are the value
+        // length.
+        //
+        // Note: We could attempt to match the first two bytes as a valid VR to determine implicit
         // vs. explicit vr however this current approach also works because all VR options have
         // really high binary values.
         let mut buf: [u8; 4] = [0; 4];
         self.dataset.read_exact(&mut buf)?;
-        // if we haven't already skipped preamble/prefix then continue to copy bytes read from the
+        // If we haven't already skipped preamble/prefix then continue to copy bytes read from the
         // dataset into the buffer to be stored as preamble we discover that we are in a preamble
         if !already_read_preamble {
             file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
@@ -171,7 +180,7 @@ impl<'d, R: Read> Parser<'d, R> {
             Ok(vr) => {
                 self.partial_vr = Some(vr);
                 if vr.has_explicit_2byte_pad {
-                    // if explict & padded then the padding was read-in already and we have to read
+                    // If explict & padded then the padding was read-in already and we have to read
                     // in the next 4 bytes for the value length.
                     self.dataset.read_exact(&mut buf)?;
                     if !already_read_preamble {
@@ -180,7 +189,7 @@ impl<'d, R: Read> Parser<'d, R> {
                     bytes_read += buf.len();
                     cursor = Cursor::new(&buf);
                 } else {
-                    // with no padding value length is only 2 bytes and was read-in as part of the
+                    // With no padding value length is only 2 bytes and was read-in as part of the
                     // buffer for vr above.
                     cursor.set_position(2);
                 }
@@ -193,7 +202,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 vr
             }
             Err(ParseError::UnknownExplicitVR(_)) => {
-                // unknown VR so this was likely a value length read in, reset the 4-byte buffer
+                // Unknown VR so this was likely a value length read in, reset the 4-byte buffer
                 // read in as vr and next read it as value length.
                 cursor.set_position(0);
                 if ts.big_endian() {
@@ -202,7 +211,7 @@ impl<'d, R: Read> Parser<'d, R> {
                     ts = &ImplicitVRLittleEndian;
                 }
 
-                // vr is used to determine how many bytes the value length should be, which after
+                // VR is used to determine how many bytes the value length should be, which after
                 // switching transfer syntax to implicit it will always be 4byte u32.
                 &INVALID_VR
             }
@@ -211,19 +220,19 @@ impl<'d, R: Read> Parser<'d, R> {
             }
         };
 
-        // assume implicit VR so read a value length and and if it's reasonably low then this is
-        // likely implicit
+        // Assume implicit VR so read a value length and and if it's reasonably low then this is
+        // likely implicit.
         let vl: ValueLength = read_value_length_from_dataset(&mut cursor, ts, vr)?;
         if let ValueLength::Explicit(len) = vl {
-            // if a value length is read which makes sense for file-meta elements then assume this
-            // is implicit endian and let regular parsing continue
+            // If a value length is read which makes sense for file-meta elements then assume this
+            // is implicit endian and let regular parsing continue.
             if len < MAX_VALUE_LENGTH_IN_DETECT {
                 self.detected_ts = ts;
                 self.partial_tag = Some(tag);
                 self.partial_vl = Some(vl);
                 self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
                 // FileMeta is coded to read as ExplicitVRLittleEndian and since we've determined
-                // this is implicit we skip to Element which will follow self.ts
+                // this is implicit we skip to Element which will follow `self.ts`.
                 if tag < FILE_META_GROUP_END {
                     if tag == FILE_META_INFORMATION_GROUP_LENGTH {
                         self.state = ParserState::ReadGroupLength;
@@ -246,7 +255,7 @@ impl<'d, R: Read> Parser<'d, R> {
             return Ok(());
         }
 
-        // garbage data so likely in preamble, finish reading preamble and prefix, restart detect
+        // Garbage data so likely in preamble, finish reading preamble and prefix, restart detect.
         self.dataset
             .read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
         self.bytes_read += u64::try_from(file_preamble.len()).unwrap_or_default();

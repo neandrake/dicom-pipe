@@ -245,7 +245,7 @@ mod parsing_tests {
 
         assert_eq!(
             CTImageStorage.uid,
-            String::try_from(ElementWithVr(element, &vr::UI))?,
+            String::try_from(&ElementWithVr(element, &vr::UI))?,
         );
 
         Ok(())
@@ -317,7 +317,7 @@ mod parsing_tests {
                 .expect("Should get element by tagpath")
                 .element();
 
-            let last_ref_sop_uid = String::try_from(ElementWithVr::of(last_ref_sop_uid_elem))?;
+            let last_ref_sop_uid = String::try_from(&ElementWithVr::of(last_ref_sop_uid_elem))?;
 
             let retrieved_tagpath: TagPath = last_ref_sop_uid_elem.create_tagpath();
             assert_eq!(tagpath, retrieved_tagpath);
@@ -549,17 +549,17 @@ mod parsing_tests {
         if with_std {
             assert_eq!(
                 MRImageStorage.uid,
-                String::try_from(ElementWithVr::of(sopuid))?
+                String::try_from(&ElementWithVr::of(sopuid))?
             );
         } else {
             assert_eq!(
                 format!("{}\u{0}", MRImageStorage.uid),
-                String::try_from(ElementWithVr::of(sopuid))?,
+                String::try_from(&ElementWithVr::of(sopuid))?,
             );
             // force parsing as UI should match exactly
             assert_eq!(
                 MRImageStorage.uid,
-                String::try_from(ElementWithVr(sopuid, &vr::UI))?,
+                String::try_from(&ElementWithVr(sopuid, &vr::UI))?,
             );
         }
 
@@ -703,7 +703,7 @@ mod parsing_tests {
             .expect("Should have Patient Name")
             .element();
 
-        let pn: String = String::try_from(ElementWithVr::of(pat_name))?;
+        let pn: String = String::try_from(&ElementWithVr::of(pat_name))?;
         if with_std {
             assert_eq!("6063^Anon17216", pn);
         } else {
@@ -711,7 +711,7 @@ mod parsing_tests {
             // isn't considered in parsing.
             assert_eq!("6063^Anon17216      ", pn);
             // Forcing the parse using a specific VR should trim the value though
-            let pn: String = String::try_from(ElementWithVr(pat_name, &vr::PN))?;
+            let pn: String = String::try_from(&ElementWithVr(pat_name, &vr::PN))?;
             assert_eq!("6063^Anon17216", pn);
         }
 
@@ -720,7 +720,7 @@ mod parsing_tests {
             .expect("Should have Patient Comments")
             .element();
 
-        let pc: String = String::try_from(ElementWithVr::of(pat_com))?;
+        let pc: String = String::try_from(&ElementWithVr::of(pat_com))?;
         // this value is a bunch of null bytes. with the standard dictionary this will attempt to parse
         // as a string based on the known VR and be stripped of all null bytes.
         let pc_expected: String = if with_std {
@@ -809,11 +809,11 @@ mod parsing_tests {
             .expect("Should have ReferencedSOPClassUID")
             .element();
 
-        let ref_sop_class_uid = String::try_from(ElementWithVr::of(ref_sop_class_uid_elem))?;
+        let ref_sop_class_uid = String::try_from(&ElementWithVr::of(ref_sop_class_uid_elem))?;
 
         assert_eq!(EnhancedMRImageStorage.uid, ref_sop_class_uid);
 
-        let ref_sop_class_uid = String::try_from(ElementWithVr::of(
+        let ref_sop_class_uid = String::try_from(&ElementWithVr::of(
             dcmroot
                 .get_child_by_tagpath(&TagPath::from(vec![
                     SharedFunctionalGroupsSequence.as_item_node(1),
@@ -828,7 +828,7 @@ mod parsing_tests {
 
         let elem_tagpath: TagPath = ref_sop_class_uid_elem.create_tagpath();
 
-        let ref_sop_class_uid = String::try_from(ElementWithVr::of(
+        let ref_sop_class_uid = String::try_from(&ElementWithVr::of(
             dcmroot
                 .get_child_by_tagpath(&elem_tagpath)
                 .expect("Should get by element tagpath")
@@ -898,7 +898,7 @@ mod parsing_tests {
             .expect("Should have Study Description tag")
             .element();
 
-        let study_desc = String::try_from(ElementWithVr::of(study_desc_elem))?;
+        let study_desc = String::try_from(&ElementWithVr::of(study_desc_elem))?;
 
         if with_std {
             assert_eq!("ABDOMEN", study_desc);
@@ -907,7 +907,7 @@ mod parsing_tests {
             // remove padding value.
             assert_eq!("ABDOMEN ", study_desc);
             // force parsing using the actual VR should trim the padding
-            let study_desc: String = String::try_from(ElementWithVr(study_desc_elem, &vr::LO))?;
+            let study_desc: String = String::try_from(&ElementWithVr(study_desc_elem, &vr::LO))?;
             assert_eq!("ABDOMEN", study_desc);
         }
 
@@ -932,7 +932,7 @@ mod parsing_tests {
         )?;
 
         // check we can read the first element just fine
-        let fme_length = u32::try_from(ElementWithVr::of(
+        let fme_length = u32::try_from(&ElementWithVr::of(
             dcmroot
                 .get_child_by_tag(FileMetaInformationGroupLength.tag)
                 .expect("Should have FileMetaInfo GroupLength tag")
@@ -1186,7 +1186,7 @@ mod parsing_tests {
         assert_eq!(&vr::UL, element1.vr());
         assert_eq!(ValueLength::Explicit(2), element1.vl());
         // should be able to parse the value as u16 since it has 2 bytes
-        let element1_val = u16::try_from(ElementWithVr::of(element1))?;
+        let element1_val = u16::try_from(&ElementWithVr::of(element1))?;
         assert_eq!(0x0800, element1_val);
 
         let element2: &DicomElement = dcmroot
@@ -1196,7 +1196,7 @@ mod parsing_tests {
         assert_eq!(&vr::UL, element2.vr());
         assert_eq!(ValueLength::Explicit(2), element2.vl());
         // should be able to parse the value as u16 since it has 2 bytes
-        let element2_val = u16::try_from(ElementWithVr::of(element2))?;
+        let element2_val = u16::try_from(&ElementWithVr::of(element2))?;
         assert_eq!(0x0800, element2_val);
 
         let element3: &DicomElement = dcmroot
@@ -1206,7 +1206,7 @@ mod parsing_tests {
         assert_eq!(&vr::UL, element3.vr());
         assert_eq!(ValueLength::Explicit(2), element3.vl());
         // should be able to parse the value as u16 since it has 2 bytes
-        let element3_val = u16::try_from(ElementWithVr::of(element3))?;
+        let element3_val = u16::try_from(&ElementWithVr::of(element3))?;
         assert_eq!(0x0800, element3_val);
 
         // check that we can properly parse the element after the ones with incorrect value length
@@ -1217,11 +1217,11 @@ mod parsing_tests {
         assert_eq!(&vr::UL, element4.vr());
         assert_eq!(ValueLength::Explicit(4), element4.vl());
 
-        let element4_val = u32::try_from(ElementWithVr::of(element4))?;
+        let element4_val = u32::try_from(&ElementWithVr::of(element4))?;
         assert_eq!(0x2_0000, element4_val);
 
         // this will return an error
-        u32::try_from(ElementWithVr::of(element1))?;
+        u32::try_from(&ElementWithVr::of(element1))?;
 
         Ok(())
     }

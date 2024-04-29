@@ -23,19 +23,24 @@ pub type VRRef = &'static VR;
 ///
 /// The Value Representation of a Data Element describes the data type and format of that Data
 /// Element's Value(s).
+
+// VRs are defined at compile-time and never instantiated at runtime. Since these boolean values
+// are only ever read by the use of this API, the boolean fields are more ergonomic to use compared
+// to converting to enums.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Eq)]
 pub struct VR {
     /// The two-letter identifer, "AE", "IS", etc.
     pub ident: &'static str,
 
-    /// A display name
+    /// A display name, e.g. `"Application Entity"` for `VR::AE`.
     pub name: &'static str,
 
-    /// The 16-bit code for this AE. In most (all?) cases this is the
-    /// ASCII representation of the ident.
+    /// The 16-bit code for this AE. In most (all?) cases this is the ASCII representation of the
+    /// ident.
     pub code: u32,
 
-    /// Which value is used to pad the encoded value to achieve an even length
+    /// Which value is used to pad the encoded value to achieve an even length.
     ///
     /// Part 5, Ch 6.2:
     /// - Values with VRs constructed of character strings, except
@@ -72,7 +77,7 @@ pub struct VR {
     /// Part 5, Ch 6.1.2.3:
     /// Data Elements of the following VR can have their character repertoire
     /// replaced via the Specific Character Set element. Other textual VRs
-    /// should use the default (ISO IR 100 / ISO 8859)
+    /// should use the default (ISO IR 100 / ISO 8859).
     ///
     /// - SH (Short String)
     /// - LO (Long String)
@@ -84,19 +89,23 @@ pub struct VR {
     ///
     /// This replacement character repertoire does not apply to other textual
     /// Value Representations (AE and CS).
+    ///
+    /// # Notes
+    /// Use `VR::get_proper_cs(CSRef)` which will return the appropriate character set based on the
+    /// value of this field.
     pub decode_text_with_replaced_cs: bool,
 
     /// Part 5, Ch 6.1.2.3:
     /// The Graphic Character represented by the bit combination 05/12, `\` (BACKSLASH) in the
     /// repertoire ISO-IR 6, shall only be used in character strings with Value Representations of
     /// UT, ST and LT. Otherwise the character code 05/12 is used as a separator for multiple valued
-    /// Data Elements
+    /// Data Elements.
     pub allows_backslash_text_value: bool,
 
-    /// Whether the VR specifies that the padding character may be used at the front of the value
+    /// Whether the VR specifies that the padding character may be used at the front of the value.
     pub can_pad_front: bool,
 
-    /// Whether the VR specifies that the padding character may be used at the end of the value
+    /// Whether the VR specifies that the padding character may be used at the end of the value.
     pub can_pad_end: bool,
 }
 

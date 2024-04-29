@@ -23,15 +23,15 @@ impl<'e> TryFrom<&'e DicomElement> for RawValue<'e> {
 
     /// Based on the VR of this element, parses the binary data into a `RawValue`.
     fn try_from(value: &'e DicomElement) -> ParseResult<Self> {
-        Self::try_from(ElementWithVr(value, value.vr()))
+        Self::try_from(&ElementWithVr(value, value.vr()))
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for RawValue<'e> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for RawValue<'e> {
     type Error = ParseError;
 
     /// Decode the element's value with the given VR.
-    fn try_from(value: ElementWithVr<'e>) -> Result<Self, Self::Error> {
+    fn try_from(value: &ElementWithVr<'e>) -> Result<Self, Self::Error> {
         let elem = value.0;
         let vr = value.1;
         if elem.data().is_empty() {
@@ -59,7 +59,7 @@ impl<'e> TryFrom<ElementWithVr<'e>> for RawValue<'e> {
         } else if vr == &OV {
             Ok(RawValue::QWords(Vec::<u64>::try_from(value)?))
         } else if vr == &IS {
-            let possible_i32s = Vec::<i32>::try_from(value.clone());
+            let possible_i32s = Vec::<i32>::try_from(value);
             if let Ok(i32s) = possible_i32s {
                 Ok(RawValue::Ints(i32s))
             } else {
@@ -90,12 +90,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for RawValue<'e> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<Attribute> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<Attribute> {
     type Error = ParseError;
 
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let shorts: Vec<u16> = value.try_into()?;
         if shorts.len() % 2 != 0 {
@@ -112,7 +112,7 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<Attribute> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for String {
+impl<'e> TryFrom<&ElementWithVr<'e>> for String {
     type Error = ParseError;
 
     /// Parses the value of this element as a string using the element's encoding and the specified
@@ -121,7 +121,7 @@ impl<'e> TryFrom<ElementWithVr<'e>> for String {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr<'_>) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr<'_>) -> ParseResult<Self> {
         let element: &DicomElement = value.0;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
@@ -139,11 +139,11 @@ impl TryFrom<&DicomElement> for Vec<String> {
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        Vec::<String>::try_from(ElementWithVr(value, value.vr()))
+        Vec::<String>::try_from(&ElementWithVr(value, value.vr()))
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<String> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<String> {
     type Error = ParseError;
 
     /// Parses the value of this element as a list of strings using the element's encoding and the
@@ -152,7 +152,7 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<String> {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr<'_>) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr<'_>) -> ParseResult<Self> {
         let element: &DicomElement = value.0;
         let vr: VRRef = value.1;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
@@ -173,11 +173,11 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<String> {
     }
 }
 
-impl<'e> From<ElementWithVr<'e>> for BytesWithoutPadding<'e> {
+impl<'e> From<&ElementWithVr<'e>> for BytesWithoutPadding<'e> {
     /// Returns the value as a slice with the padding character
     /// removed per the specification of whether the VR indicates leading/trailing
     /// padding is significant.
-    fn from(value: ElementWithVr<'e>) -> Self {
+    fn from(value: &ElementWithVr<'e>) -> Self {
         // grab the position to start reading bytes from prior to computing the new bytes_read
         let mut left_index: usize = 0;
 
@@ -233,7 +233,7 @@ impl<'e> From<ElementWithVr<'e>> for BytesWithoutPadding<'e> {
     }
 }
 
-fn str_parse_nums<T>(value: ElementWithVr) -> ParseResult<Vec<T>>
+fn str_parse_nums<T>(value: &ElementWithVr) -> ParseResult<Vec<T>>
 where
     T: FromStr,
     <T as FromStr>::Err: Display,
@@ -259,7 +259,7 @@ where
     Ok(values)
 }
 
-fn bin_parse_nums<T, FLE, FBE>(value: ElementWithVr, le: FLE, be: FBE) -> ParseResult<Vec<T>>
+fn bin_parse_nums<T, FLE, FBE>(value: &ElementWithVr, le: FLE, be: FBE) -> ParseResult<Vec<T>>
 where
     FLE: Fn(&[u8]) -> ParseResult<T>,
     FBE: Fn(&[u8]) -> ParseResult<T>,
@@ -297,12 +297,12 @@ where
     Ok(result)
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for i16 {
+impl<'e> TryFrom<&ElementWithVr<'e>> for i16 {
     type Error = ParseError;
 
     /// Parses the value for this element as a signed 16bit integer
     /// Associated VRs: SS
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         Vec::<i16>::try_from(value)?
             .into_iter()
@@ -311,12 +311,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for i16 {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<i16> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i16> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: SS
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
         if vr.is_character_string {
@@ -338,12 +338,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<i16> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for u16 {
+impl<'e> TryFrom<&ElementWithVr<'e>> for u16 {
     type Error = ParseError;
 
     /// Parses the value for this element as an unsigned 16bit integer
     /// Associated VRs: US
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         Vec::<u16>::try_from(value)?
             .into_iter()
@@ -352,12 +352,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for u16 {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<u16> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u16> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 16bit integer values
     /// Associated VRs: US, OW
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
 
@@ -380,12 +380,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<u16> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for i32 {
+impl<'e> TryFrom<&ElementWithVr<'e>> for i32 {
     type Error = ParseError;
 
     /// Parses the value for this element as a signed 32bit integer
     /// Associated VRs: SL
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         Vec::<i32>::try_from(value)?
             .into_iter()
@@ -394,12 +394,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for i32 {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<i32> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i32> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: IS, SL
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
 
@@ -422,12 +422,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<i32> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for u32 {
+impl<'e> TryFrom<&ElementWithVr<'e>> for u32 {
     type Error = ParseError;
 
     /// Parses the value for this element as an unsigned 32bit integer
     /// Associated VRs: UL
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         Vec::<u32>::try_from(value)?
             .into_iter()
@@ -436,12 +436,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for u32 {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<u32> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u32> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 32bit integer values
     /// Associated VRs: UL, OL
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
 
@@ -464,12 +464,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<u32> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<i64> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i64> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 64bit integer values
     /// Associated VRs: SV
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
 
@@ -492,12 +492,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<i64> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<u64> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u64> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 64bit integer values
     /// Associated VRs: UV
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
 
@@ -520,12 +520,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<u64> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for f32 {
+impl<'e> TryFrom<&ElementWithVr<'e>> for f32 {
     type Error = ParseError;
 
     /// Parses the value for this element as a 32bit floating point
     /// Associated VRs: FL
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         Vec::<f32>::try_from(value)?
             .into_iter()
@@ -534,12 +534,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for f32 {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<f32> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<f32> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: FD, OF
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
 
@@ -562,12 +562,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for Vec<f32> {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for f64 {
+impl<'e> TryFrom<&ElementWithVr<'e>> for f64 {
     type Error = ParseError;
 
     /// Parses the value for this element as a 64bit floating point
     /// Associated VRs: FD
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         Vec::<f64>::try_from(value)?
             .into_iter()
@@ -576,12 +576,12 @@ impl<'e> TryFrom<ElementWithVr<'e>> for f64 {
     }
 }
 
-impl<'e> TryFrom<ElementWithVr<'e>> for Vec<f64> {
+impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<f64> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: DS, OD, FL -- and a fallback for IS.
-    fn try_from(value: ElementWithVr) -> ParseResult<Self> {
+    fn try_from(value: &ElementWithVr) -> ParseResult<Self> {
         let elem = value.0;
         let vr = value.1;
 

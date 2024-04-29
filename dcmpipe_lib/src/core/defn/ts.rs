@@ -7,6 +7,11 @@ use super::uid::UIDRef;
 pub type TSRef = &'static TransferSyntax;
 
 /// Transfer Syntax Definition
+
+// TransferSyntaxes are defined at compile-time and never instantiated at runtime. Since these
+// boolean values are only ever read by the use of this API, the boolean fields are more ergonomic
+// to use compared to converting to enums.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Eq)]
 pub struct TransferSyntax {
     /// Identifier or name which can be used with a `DicomDictionary`.
@@ -43,23 +48,6 @@ impl Hash for TransferSyntax {
 }
 
 impl TransferSyntax {
-    #[must_use]
-    pub fn new(
-        uid: UIDRef,
-        explicit_vr: bool,
-        big_endian: bool,
-        deflated: bool,
-        encapsulated: bool,
-    ) -> TransferSyntax {
-        TransferSyntax {
-            uid,
-            explicit_vr,
-            big_endian,
-            deflated,
-            encapsulated,
-        }
-    }
-
     /// Get the transfer syntax's UID.
     #[must_use]
     pub fn uid(&self) -> UIDRef {

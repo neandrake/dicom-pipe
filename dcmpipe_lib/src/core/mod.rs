@@ -1,3 +1,9 @@
+// A number of the structures defined in this module will include the module name in the structure
+// name. This is intentional as many of these structs will be used in common code and have a chance
+// to collide, e.g. `ParseError` and `WriteError` are likely to be used in the same code, and the
+// distinguishing structure names aid readability and ergonomics.
+#![allow(clippy::module_name_repetitions)]
+
 pub mod charset;
 pub mod dcmelement;
 pub mod dcmobject;

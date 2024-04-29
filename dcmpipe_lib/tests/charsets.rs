@@ -129,7 +129,7 @@ mod charsets_tests {
 
         assert_eq!(cs.name(), item_pn.cs().name());
 
-        let item_pn_value = String::try_from(ElementWithVr::of(item_pn))?;
+        let item_pn_value = String::try_from(&ElementWithVr::of(item_pn))?;
 
         assert_eq!(pn, item_pn_value);
 
@@ -288,7 +288,7 @@ mod charsets_tests {
             .expect("Should have PN")
             .element();
 
-        let pn_val = String::try_from(ElementWithVr::of(pn_elem))?;
+        let pn_val = String::try_from(&ElementWithVr::of(pn_elem))?;
         assert_eq!(pn, pn_val);
 
         Ok(())

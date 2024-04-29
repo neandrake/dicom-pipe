@@ -238,7 +238,7 @@ impl DicomElement {
     /// # Errors
     /// Decoding of the element's value based on the given VR may fail.
     pub fn parse_value_as(&self, vr: VRRef) -> ParseResult<RawValue> {
-        RawValue::try_from(ElementWithVr(self, vr))
+        RawValue::try_from(&ElementWithVr(self, vr))
     }
 
     /// Encodes a `RawValue` into the binary data for this element.

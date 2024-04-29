@@ -293,7 +293,7 @@ impl<'d, R: Read> Parser<'d, R> {
     /// Parses the value of the given element as the transfer syntax return. If the transfer syntax
     /// cannot be resolved then this sets it to the default DICOM transfer syntax which is IVRLE.
     fn parse_transfer_syntax(&mut self, element: &DicomElement) -> ParseResult<Option<TSRef>> {
-        let ts_uid: String = String::try_from(ElementWithVr::of(element))?;
+        let ts_uid: String = String::try_from(&ElementWithVr::of(element))?;
         Ok(self.dictionary.get_ts_by_uid(ts_uid.as_ref()))
     }
 
@@ -328,21 +328,21 @@ impl<'d, R: Read> Parser<'d, R> {
         let tagpath_display: String =
             TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));
 
-        let vr_display = if let Some(vr) = self.vr_last_used {
+        let val_rep_display = if let Some(vr) = self.vr_last_used {
             vr.ident
         } else {
             "N/A"
         };
-        let vl_display = if let Some(vl) = self.vl_last_used {
+        let val_len_display = if let Some(vl) = self.vl_last_used {
             format!("{vl:?}")
         } else {
             "N/A".to_string()
         };
 
         // Format the bytes_read as 64bit hex value in "0x0000_0000" format.
-        let msb = self.bytes_read >> 16;
-        let lsb = self.bytes_read & 0x0000_FFFF;
-        let byte_str = format!("{msb:#06X}_{lsb:04X}");
+        let most_sig_word = self.bytes_read >> 16;
+        let least_sig_word = self.bytes_read & 0x0000_FFFF;
+        let byte_str = format!("{most_sig_word:#06X}_{least_sig_word:04X}");
 
         // Display "dataset_ts" if it's the same as the dataset's, otherwise show the ident name.
         let ts_str = if self.dataset_ts == self.ts_last_used {
@@ -355,9 +355,10 @@ impl<'d, R: Read> Parser<'d, R> {
 
         let state_str = format!("{:?}", self.state);
 
-        format!(
-            "state: {state_str} @ byte pos {byte_str}\n\ttagpath: {tagpath_display}\n\tvr: {vr_display}, vl: {vl_display}, ts: {ts_str}"
-        )
+        let line1 = format!("state: {state_str} @ byte pos {byte_str}");
+        let line2 = format!("tagpath: {tagpath_display}");
+        let line3 = format!("vr: {val_rep_display}, vl: {val_len_display}, ts: {ts_str}");
+        format!("{line1}\n\t{line2}\n\t{line3}")
     }
 
     /// Performs the primary iteration for the parser but the return type is consistent for error

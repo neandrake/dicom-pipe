@@ -60,7 +60,7 @@ impl<'d, R: Read> Parser<'d, R> {
         }
 
         let grouplength: DicomElement = self.read_dicom_element(tag, ts)?;
-        self.fmi_grouplength = u32::try_from(ElementWithVr::of(&grouplength))?;
+        self.fmi_grouplength = u32::try_from(&ElementWithVr::of(&grouplength))?;
         self.fmi_start = self.bytes_read;
         self.state = ParserState::ReadFileMeta;
         // reset partial_tag to None
