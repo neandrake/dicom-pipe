@@ -2,6 +2,7 @@
 
 use std::io::Read;
 
+use super::behavior::ParseBehavior;
 use super::parser::ParseState;
 use super::parser::Parser;
 use crate::core::charset::DEFAULT_CHARACTER_SET;
@@ -17,8 +18,8 @@ pub struct ParserBuilder<'dict> {
     /// Initial parse state. Default is `ParseState::DetectTransferSyntax`.
     state: Option<ParseState>,
 
-    /// When to stop parsing the dataset. Default is `ParseStop::EndOfDataset`.
-    stop: Option<ParseStop>,
+    // Configure behavior during parsing.
+    behavior: ParseBehavior,
 
     /// The transfer syntax of the dataset, if known. Defaults to `None` expecting that the initial
     /// parse state is `ParseState::DetectTransferSyntax`.
@@ -40,7 +41,14 @@ impl<'dict> ParserBuilder<'dict> {
 
     /// Sets the `ParseStop` for when to stop parsing the dataset.
     pub fn stop(mut self, stop: ParseStop) -> Self {
-        self.stop = Some(stop);
+        self.behavior.stop = stop;
+        self
+    }
+
+    /// Specify whether or not to return a partial `DicomObject` if the parser encounters an error
+    /// in the dataset.
+    pub fn allow_partial_object(mut self, allow_partial_object: bool) -> Self {
+        self.behavior.allow_partial_object = allow_partial_object;
         self
     }
 
@@ -69,7 +77,7 @@ impl<'dict> ParserBuilder<'dict> {
     pub fn build<DatasetType: Read>(&self, dataset: DatasetType) -> Parser<'dict, DatasetType> {
         Parser {
             dataset: Dataset::new(dataset, self.buffsize),
-            stop: self.stop.clone().unwrap_or(ParseStop::EndOfDataset),
+            behavior: self.behavior.clone(),
             dictionary: self.dictionary,
             state: self.state.unwrap_or(ParseState::DetectTransferSyntax),
 
@@ -95,7 +103,7 @@ impl<'dict> Default for ParserBuilder<'dict> {
     fn default() -> Self {
         ParserBuilder {
             state: None,
-            stop: None,
+            behavior: ParseBehavior::default(),
             dataset_ts: None,
             dictionary: &MINIMAL_DICOM_DICTIONARY,
             // BufReader's current default buffer size is 8k

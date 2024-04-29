@@ -136,8 +136,11 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
 
     let parse_result: Option<Result<DicomElement>> =
         parse_into_object_recurse(parser, &mut child_nodes, &mut items, true);
-    if let Some(Err(e)) = parse_result {
-        return Err(e);
+
+    if !parser.behavior.allow_partial_object {
+        if let Some(Err(e)) = parse_result {
+            return Err(e);
+        }
     }
 
     // If no child nodes and no items were parsed then this isn't valid dicom.
@@ -176,7 +179,7 @@ fn parse_into_object_recurse<DatasetType: Read>(
     let mut prev_seq_path_len: usize = 0;
     let mut next_element: Option<Result<DicomElement>> = parser.next();
 
-    // if the first element at the root level is an error then this is probably not valid dicom
+    // If the first element at the root level is an error then this is probably not valid dicom.
     if is_root_level {
         if let Some(Err(_)) = next_element {
             return None;
@@ -192,13 +195,13 @@ fn parse_into_object_recurse<DatasetType: Read>(
         }
 
         if cur_seq_path_len < prev_seq_path_len {
-            // if the next element has a shorter path than the previous one it should not be added
+            // If the next element has a shorter path than the previous one it should not be added
             // to the given node but returned so it can be added to a parent node.
             return Some(Ok(element));
         }
 
         let mut possible_next_elem: Option<Result<DicomElement>> = None;
-        // checking sequence or item tag should match dcmparser.read_dicom_element() which
+        // Checking sequence or item tag should match dcmparser.read_dicom_element() which
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.
         let dcmobj: DicomObject = if element.is_seq_like()
@@ -220,18 +223,18 @@ fn parse_into_object_recurse<DatasetType: Read>(
 
         prev_seq_path_len = cur_seq_path_len;
 
-        // if an element was returned from the recursive call that means the recursive call iterated
+        // If an element was returned from the recursive call that means the recursive call iterated
         // into an element which is not a child of the node we passed into the recursive call and
         // it should instead be added elsewhere up the tree.
         if let Some(Ok(next_elem)) = possible_next_elem {
             let next_seq_path_len: usize = next_elem.get_sequence_path().len() + 1;
             match next_seq_path_len {
                 val if val < cur_seq_path_len => {
-                    // if that element is still shorter than the current then it needs passed up further
+                    // If that element is still shorter than the current then it needs passed up further.
                     return Some(Ok(next_elem));
                 }
                 val if val == cur_seq_path_len => {
-                    // if it matches the same level as the current node then it should be "inserted"
+                    // If it matches the same level as the current node then it should be "inserted"
                     // into the element iteration so it will be checked for being sequence-like and
                     // then added into the current node.
                     next_element = Some(Ok(next_elem));
@@ -240,14 +243,14 @@ fn parse_into_object_recurse<DatasetType: Read>(
                 _ => {}
             }
         } else if let Some(Err(_)) = possible_next_elem {
-            // errors need propagated all the way back up
+            // Errors need propagated all the way back up.
             return possible_next_elem;
         }
 
-        // parse the next element from the dataset
+        // Parse the next element from the dataset.
         next_element = parser.next();
     }
 
-    // return the last value from the parser which will either be None or Error
+    // Return the last value from the parser which will either be None or Error.
     next_element
 }

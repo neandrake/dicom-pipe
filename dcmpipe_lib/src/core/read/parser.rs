@@ -17,6 +17,7 @@ use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
 
+use super::behavior::ParseBehavior;
 use super::util::is_non_standard_seq;
 
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
@@ -59,9 +60,8 @@ pub struct Parser<'dict, DatasetType: Read> {
     /// The current state of reading elements from the dataset.
     pub(crate) state: ParseState,
 
-    /// The condition under which this iterator should stop parsing elements from the dataset. This
-    /// can be used for only partially parsing through a dataset.
-    pub(crate) stop: ParseStop,
+    /// Configurations that modify how the parser behaves.
+    pub(crate) behavior: ParseBehavior,
 
     /// The DICOM dictionary. Parsing uses `get_ts_by_uid` to identify transfer syntax for parsing
     /// through the stream, and `get_tag_by_number` for resolving VR of parsed elements. The VR is
@@ -203,7 +203,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Checks if the stream should stop being parsed based on `self.stop`. This should be checked
     /// after parsing a tag number from the dataset.
     fn is_at_parse_stop(&self) -> bool {
-        match &self.stop {
+        match &self.behavior.stop {
             // If the entire dataset is intended to be read then never indicate to stop.
             ParseStop::EndOfDataset => false,
 
@@ -218,7 +218,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     .chain(once(TagNode::new(self.tag_last_read, None)))
                     .collect::<Vec<TagNode>>()
                     .into();
-                self.stop.evaluate(&current)
+                self.behavior.stop.evaluate(&current)
             }
         }
     }

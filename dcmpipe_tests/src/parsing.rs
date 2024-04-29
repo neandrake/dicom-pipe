@@ -19,7 +19,7 @@ use dcmpipe_lib::defn::vr;
 
 use crate::mock::MockDicomDataset;
 use crate::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};
-use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
+use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_all_dcmroot_values};
 
 #[test]
 fn test_good_preamble() {
@@ -1338,24 +1338,44 @@ fn test_explicit_implicit_bogus_iop(with_std: bool) -> Result<()> {
 }
 
 #[test]
-#[ignore]
 fn test_jpeg_lossless3a_with_std() -> Result<()> {
     test_jpeg_lossless3a(true)
 }
 
 #[test]
-#[ignore]
 fn test_jpeg_lossless3a_without_std() -> Result<()> {
     test_jpeg_lossless3a(false)
 }
 
-/// This dataset has a non-standard pixel-data structure. The second item/frame seems to be encoded
-/// in a different transfer syntax. This also fails parsing in dcmtk for the same reason.
+/// This dataset has a few extra bytes after the second item/frame in PixelData, which don't parse
+/// as a valid DicomElement. This test verifies the parser can be configured to return a partial
+/// result, which enables parsing objects which end in garbage data.
 fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "./fixtures/gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm",
-        with_std,
-    )?;
+    let file: &str = "./fixtures/gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm";
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
+
+    // Parse with default configuration, should result in error.
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .dictionary(dict)
+        .build(File::open(file)?);
+
+    let res: Result<Option<DicomRoot<'_>>> = parse_into_object(&mut parser);
+    assert!(res.is_err());
+
+    // Parse again but allow a partial DicomObject result. This dataset
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .allow_partial_object(true)
+        .dictionary(dict)
+        .build(File::open(file)?);
+
+    let dcmroot = parse_into_object(&mut parser)?.expect("Parse partial object");
+    // Verify a bunch of dicom was parsed.
+    assert_eq!(dcmroot.get_child_count(), 106);
+    parse_all_dcmroot_values(&dcmroot)?;
 
     Ok(())
 }

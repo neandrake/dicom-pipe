@@ -7,6 +7,7 @@ pub use parser::Result;
 mod ds;
 mod iter;
 
+pub mod behavior;
 pub mod builder;
 pub mod error;
 pub mod parser;
