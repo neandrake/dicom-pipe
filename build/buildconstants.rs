@@ -83,6 +83,7 @@ fn print_rerun_if_changed(files: &[DirEntry]) -> Result<(), Error> {
 /// Processes the HTML files in the given directory into CSV
 /// the converts the CSV format into code, writing files into src/core/
 fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
+    let mut tag_lookup_content: String = String::new();
     let mut transfer_syntaxes: String = String::new();
     for entry in files {
         let path: &Path = entry.path();
@@ -107,6 +108,9 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
             for element in elements {
                 if let Some(code) = table_type.process_element(&element) {
                     defns.push_str(&code);
+                }
+                if let Some(code) = table_type.process_element_lookup(&element) {
+                    tag_lookup_content.push_str(&code);
                 }
             }
         } else {
@@ -133,6 +137,14 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
         save_codefile(&TableType::TransferSyntaxes, &transfer_syntaxes)?;
     }
 
+    if !tag_lookup_content.is_empty() {
+        let code: String = get_element_lookup(&tag_lookup_content);
+        let mut out_rs_file: File = File::create("src/core/dict/tag_lookup.rs")?;
+        out_rs_file.write_all(code.as_bytes())?;
+        out_rs_file.flush()?;
+        out_rs_file.sync_all()?;
+    }
+
     Ok(())
 }
 
@@ -147,6 +159,45 @@ fn save_codefile(table_type: &TableType, code: &str) -> Result<(), Error> {
     Ok(())
 }
 
+fn get_element_lookup(content: &str) -> String {
+format!("//! This is an auto-generated file. Do not make modifications here.
+
+use core::dict::dicom_elements as tags;
+use core::dict::dir_structure_elements as dse;
+use core::dict::file_meta_elements as fme;
+use core::tag::Tag;
+
+use std::collections::hash_map::HashMap;
+
+pub struct TagLookup {{
+\tname_to_elem: HashMap<&'static str, &'static Tag>,
+\ttag_to_elem: HashMap<u32, &'static Tag>,
+}}
+
+impl TagLookup {{
+\tpub fn by_name(&self, name: &str) -> Option<&'static Tag> {{
+\t\tself.name_to_elem.get(name).map(|tag| *tag)
+\t}}
+
+\tpub fn by_tag(&self, tag: &u32) -> Option<&'static Tag> {{
+\t\tself.tag_to_elem.get(tag).map(|tag| *tag)
+\t}}
+
+\tpub fn new() -> TagLookup {{
+\t\tlet mut name_to_elem: HashMap<&'static str, &'static Tag> = HashMap::new();
+\t\tlet mut tag_to_elem: HashMap<u32, &'static Tag> = HashMap::new();
+{}
+
+\t\tTagLookup {{
+\t\t\tname_to_elem: name_to_elem,
+\t\t\ttag_to_elem: tag_to_elem,
+\t\t}}
+\t}}
+}}
+
+",
+content)
+}
 
 /// The different tables we parse out of the HTML/CSV
 #[derive(Eq, PartialEq, Debug)]
@@ -296,9 +347,9 @@ use core::ts::TransferSyntax;
 /// - **UID:** {}
 /// - **UID Type:** {}
 pub static {}: UID = UID {{
-    ident: \"{}\",
-    uid: \"{}\",
-    name: \"{}\",
+\tident: \"{}\",
+\tuid: \"{}\",
+\tname: \"{}\",
 }};
 
 ",
@@ -341,11 +392,11 @@ pub static {}: UID = UID {{
 /// 
 /// - **UID:** {}
 pub static {}: TransferSyntax = TransferSyntax {{
-    uid: {},
-    explicit_vr: {},
-    big_endian: {},
-    deflated: {},
-    encapsulated: {},
+\tuid: {},
+\texplicit_vr: {},
+\tbig_endian: {},
+\tdeflated: {},
+\tencapsulated: {},
 }};
 
 ",
@@ -402,11 +453,11 @@ pub static {}: TransferSyntax = TransferSyntax {{
 /// - **VR:** {}
 /// - **VM:** {}
 pub static {}: Tag = Tag {{
-    ident: \"{}\",
-    tag: 0x{:08X},
-    implicit_vr: {},
-    vm: {},
-    desc: \"{}\",
+\tident: \"{}\",
+\ttag: 0x{:08X},
+\timplicit_vr: {},
+\tvm: {},
+\tdesc: \"{}\",
 }};
 
 ",
@@ -414,6 +465,42 @@ pub static {}: Tag = Tag {{
             element.name, element.tag, vr, element.vm,
             // definitions
             var_name, var_name, tag_value, vr_value, vm, element.name);
+
+        Some(code)
+    }
+
+    fn process_element_lookup(&self, element: &DataElement) -> Option<String> {
+        let var_name: String = TableType::sanitize_var_name(&element.keyword);
+        if var_name.is_empty() {
+            return None;
+        }
+
+        let tag_value: u32 =
+            u32::from_str_radix(
+                &element.tag
+                    .replace("(", "")
+                    .replace(")", "")
+                    .replace(",", ""),
+                16)
+            .unwrap_or(0);
+        if tag_value == 0 {
+            return None;
+        }
+
+        let dict: &str = match *self {
+            TableType::DicomElements => "tags::",
+            TableType::FileMetaElements => "fme::",
+            TableType::DirStructureElements => "dse::",
+            _ => panic!("Trying to inset lookup for non-element tag")
+        };
+
+        let code: String = format!("
+\t\tname_to_elem.insert(\"{}\", &{}{});
+\t\ttag_to_elem.insert(0x{:08X}, &{}{});
+",
+            var_name, dict, var_name,
+            tag_value, dict, var_name,
+        );
 
         Some(code)
     }
