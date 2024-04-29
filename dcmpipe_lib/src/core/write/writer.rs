@@ -99,9 +99,11 @@ impl<W: Write> Writer<W> {
 
         if self.state == WriterState::Preamble {
             if let Some(preamble) = self.file_preamble {
-                bytes_written += self.dataset.write(&preamble)?;
+                self.dataset.write_all(&preamble)?;
+                bytes_written += preamble.len();
             }
-            bytes_written += self.dataset.write(DICOM_PREFIX)?;
+            self.dataset.write_all(DICOM_PREFIX)?;
+            bytes_written += DICOM_PREFIX.len();
             self.state = WriterState::FileMeta;
         }
 
@@ -163,7 +165,8 @@ impl<W: Write> Writer<W> {
         bytes_written += Writer::write_element(&mut self.dataset, &fm_group_length)?;
         // The FileMeta elements have already been encoded, write the resulting bytes to
         // the Writer's dataset.
-        bytes_written += self.dataset.write(&fm_bytes)?;
+        self.dataset.write_all(&fm_bytes)?;
+        bytes_written += fm_bytes.len();
 
         Ok(bytes_written)
     }
@@ -193,17 +196,20 @@ impl<W: Write> Writer<W> {
         let mut bytes_written: usize = 0;
 
         if element.ts().big_endian() {
-            bytes_written += dataset.write(&u16::to_be_bytes(
+            dataset.write_all(&u16::to_be_bytes(
                 (element.tag() >> 16 & 0x0000_FFFF) as u16,
             ))?;
-            bytes_written +=
-                dataset.write(&u16::to_be_bytes((element.tag() & 0x0000_FFFF) as u16))?;
+            bytes_written += 2;
+
+            dataset.write_all(&u16::to_be_bytes((element.tag() & 0x0000_FFFF) as u16))?;
+            bytes_written += 2;
         } else {
-            bytes_written += dataset.write(&u16::to_le_bytes(
+            dataset.write_all(&u16::to_le_bytes(
                 (element.tag() >> 16 & 0x0000_FFFF) as u16,
             ))?;
-            bytes_written +=
-                dataset.write(&u16::to_le_bytes((element.tag() & 0x0000_FFFF) as u16))?;
+            bytes_written += 2;
+            dataset.write_all(&u16::to_le_bytes((element.tag() & 0x0000_FFFF) as u16))?;
+            bytes_written += 2;
         }
 
         Ok(bytes_written)
@@ -216,13 +222,17 @@ impl<W: Write> Writer<W> {
             return Ok(0);
         }
 
-        let mut bytes_written: usize = dataset.write(element.vr().ident.as_bytes())?;
+        let mut bytes_written = 0usize;
+
+        dataset.write_all(element.vr().ident.as_bytes())?;
+        bytes_written += element.vr().ident.len();
 
         // When using Explicit VR and the VR specifies a 2byte padding then write out 16bits of
         // zeroes after the VR.
         // See Part 5, Ch 7.1.2
         if element.vr().has_explicit_2byte_pad {
-            bytes_written += dataset.write(&[0u8, 0u8])?;
+            dataset.write_all(&[0u8, 0u8])?;
+            bytes_written += 2;
         }
 
         Ok(bytes_written)
@@ -240,26 +250,32 @@ impl<W: Write> Writer<W> {
                 }
 
                 if element.ts().big_endian() {
-                    bytes_written += dataset.write(&UNDEFINED_LENGTH.to_be_bytes())?;
+                    dataset.write_all(&UNDEFINED_LENGTH.to_be_bytes())?;
+                    bytes_written += 4;
                 } else {
-                    bytes_written += dataset.write(&UNDEFINED_LENGTH.to_le_bytes())?;
+                    dataset.write_all(&UNDEFINED_LENGTH.to_le_bytes())?;
+                    bytes_written += 4;
                 }
             }
 
             ValueLength::Explicit(length) => {
                 if write_as_u32 {
                     if element.ts().big_endian() {
-                        bytes_written += dataset.write(&length.to_be_bytes())?;
+                        dataset.write_all(&length.to_be_bytes())?;
+                        bytes_written += 4;
                     } else {
-                        bytes_written += dataset.write(&length.to_le_bytes())?;
+                        dataset.write_all(&length.to_le_bytes())?;
+                        bytes_written += 4;
                     }
                 } else {
                     let length: u16 = (length & 0x0000_FFFF) as u16;
 
                     if element.ts().big_endian() {
-                        bytes_written += dataset.write(&length.to_be_bytes())?;
+                        dataset.write_all(&length.to_be_bytes())?;
+                        bytes_written += 2;
                     } else {
-                        bytes_written += dataset.write(&length.to_le_bytes())?;
+                        dataset.write_all(&length.to_le_bytes())?;
+                        bytes_written += 2;
                     }
                 }
             }
@@ -276,7 +292,8 @@ impl<W: Write> Writer<W> {
             dataset.set_write_deflated(element.ts().deflated());
         }
 
-        bytes_written += dataset.write(element.data().as_slice())?;
+        dataset.write_all(element.data().as_slice())?;
+        bytes_written += element.data().len();
         Ok(bytes_written)
     }
 }
