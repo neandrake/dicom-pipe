@@ -155,7 +155,36 @@ impl TryFrom<u32> for Status {
 
 #[cfg(test)]
 mod tests {
-    use super::{CommandField, Priority};
+    use super::{CommandField, Priority, Status};
+
+    /// Asserts that the given status's code roundtrips properly in `Status::try_from`.
+    fn assert_status_eq(status: Status) {
+        match status {
+            Status::Success(c) => assert_eq!(status, Status::try_from(c).expect("success")),
+            Status::Warning(c) => assert_eq!(status, Status::try_from(c).expect("warning")),
+            Status::Failure(c) => assert_eq!(status, Status::try_from(c).expect("failure")),
+            Status::Cancel(c) => assert_eq!(status, Status::try_from(c).expect("cancel")),
+            Status::Pending(c) => assert_eq!(status, Status::try_from(c).expect("pending")),
+        }
+    }
+
+    #[test]
+    fn test_echo_service_statuses() {
+        // Success
+        assert_status_eq(Status::Success(0x0000));
+
+        // Refused: SOP Class not supported
+        assert_status_eq(Status::Failure(0x0122));
+
+        // Duplicate invocation
+        assert_status_eq(Status::Failure(0x0210));
+
+        // Mistyped argument
+        assert_status_eq(Status::Failure(0x0212));
+
+        // Unrecognized operation
+        assert_status_eq(Status::Failure(0x0211));
+    }
 
     #[test]
     fn test_command_field_roundtrip() {
