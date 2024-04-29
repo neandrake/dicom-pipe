@@ -79,15 +79,15 @@ pub struct DicomElementRow {
 impl DicomElementRow {
     fn new(element: &DicomElement) -> DicomElementRow {
         let seq: String = if element.is_seq_like() { "+" } else { "" }.to_owned();
-        let name: String = super::render_tag_name(&element).to_owned();
+        let name: String = super::render_tag_name(element).to_owned();
 
-        let row_value = if let Ok(value) = super::render_value(&element, false) {
+        let row_value = if let Ok(value) = super::render_value(element, false) {
             value
         } else {
             "<Error Parsing Value>".to_owned()
         };
 
-        let full_value = if let Ok(value) = super::render_value(&element, true) {
+        let full_value = if let Ok(value) = super::render_value(element, true) {
             value
         } else {
             "<Error Parsing Value>".to_owned()
@@ -156,7 +156,7 @@ impl CommandApplication for BrowseApp {
         let mut total_name_size: usize = 0;
         for elem in dcmroot.flatten()? {
             if elem.get_sequence_path().is_empty() {
-                let name: &str = super::render_tag_name(&elem);
+                let name: &str = super::render_tag_name(elem);
                 total_name_size = name.len().max(total_name_size);
                 items.push(DicomElementRow::new(elem));
             }
@@ -181,7 +181,10 @@ impl CommandApplication for BrowseApp {
                 .call_on_name(
                     "table",
                     |table: &mut TableView<DicomElementRow, DicomElementColumn>| {
-                        table.borrow_item(data_index).unwrap().element_dialog_title()
+                        table
+                            .borrow_item(data_index)
+                            .unwrap()
+                            .element_dialog_title()
                     },
                 )
                 .unwrap();
