@@ -13,7 +13,7 @@ use crate::core::read;
 use crate::core::read::error::ParseError;
 use crate::core::read::parser::Result;
 use crate::defn::constants::tags;
-use crate::defn::tag::{TagNode, TagPath, Tag};
+use crate::defn::tag::{Tag, TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
@@ -83,11 +83,14 @@ pub struct DicomElement {
 
 impl fmt::Debug for DicomElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: VR[{:?}], VL[{:?}], TS[{:?}]",
-               Tag::format_tag_to_display(self.get_tag()),
-               self.get_vr(),
-               self.get_vl(),
-               self.get_ts().get_uid().get_ident())
+        write!(
+            f,
+            "{}: VR[{:?}], VL[{:?}], TS[{:?}]",
+            Tag::format_tag_to_display(self.get_tag()),
+            self.get_vr(),
+            self.get_vl(),
+            self.get_ts().get_uid().get_ident()
+        )
     }
 }
 
@@ -122,7 +125,7 @@ impl DicomElement {
             data: Vec::new(),
             sq_path: Vec::new(),
             ts,
-            cs
+            cs,
         }
     }
 

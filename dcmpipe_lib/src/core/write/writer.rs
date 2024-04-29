@@ -1,4 +1,4 @@
-use std::io::{Write, IntoInnerError, BufWriter};
+use std::io::{BufWriter, IntoInnerError, Write};
 
 use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, RawValue};
@@ -100,7 +100,9 @@ impl<DatasetType: Write> Writer<DatasetType> {
         self
     }
 
-    pub fn into_dataset(self) -> std::result::Result<DatasetType, IntoInnerError<BufWriter<DatasetType>>> {
+    pub fn into_dataset(
+        self,
+    ) -> std::result::Result<DatasetType, IntoInnerError<BufWriter<DatasetType>>> {
         self.dataset.into_inner()
     }
 

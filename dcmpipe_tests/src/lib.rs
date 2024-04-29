@@ -18,6 +18,8 @@ mod charsets;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
+mod mockdata;
+#[cfg(test)]
 mod parsing;
 
 /// Parses the given file into a `DicomObject`
