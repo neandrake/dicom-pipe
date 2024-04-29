@@ -341,7 +341,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // Determine whether the value should be read in as byte values or instead should continue
         // being parsed as more elements.
         let skip_bytes: bool =
-            vr == &vr::SQ || (tag == tags::ITEM && !in_pixeldata) || parse_as_seq;
+            vr == &vr::SQ
+            || (tag == tags::ITEM && !in_pixeldata)
+            || parse_as_seq;
 
         // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, ts: {}, bytesread: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, ts.uid.ident, self.bytes_read);
         let bytes: Vec<u8> = if skip_bytes {

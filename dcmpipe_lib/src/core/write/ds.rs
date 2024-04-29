@@ -3,7 +3,7 @@
 #[cfg(feature = "deflate")]
 pub(crate) mod dataset {
     use libflate::deflate::Encoder;
-    use std::io::{BufWriter, Result, Write};
+    use std::io::{BufWriter, Result, Write, IntoInnerError};
 
     pub(crate) struct Dataset<DatasetType: Write> {
         encoder: Encoder<BufWriter<DatasetType>>,
@@ -20,6 +20,10 @@ pub(crate) mod dataset {
 
         pub fn set_write_deflated(&mut self, write_deflated: bool) {
             self.write_deflated = write_deflated;
+        }
+
+        pub fn into_inner(self) -> std::result::Result<DatasetType, IntoInnerError<BufWriter<DatasetType>>> {
+            self.encoder.into_inner().into_inner()
         }
     }
 
@@ -55,6 +59,10 @@ pub(crate) mod dataset {
             Dataset {
                 dataset: BufWriter::with_capacity(buffsize, dataset),
             }
+        }
+
+        pub fn into_inner(self) -> std::result::Result<DatasetType, IntoInnerError<DatasetType>> {
+            self.dataset.into_inner()
         }
     }
 

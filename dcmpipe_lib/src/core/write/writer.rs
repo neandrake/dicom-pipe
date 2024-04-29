@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Write, IntoInnerError, BufWriter};
 
 use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, RawValue};
@@ -72,6 +72,36 @@ impl<DatasetType: Write> Writer<DatasetType> {
     /// Get the character set string values are encoded in.
     pub fn get_cs(&self) -> CSRef {
         self.cs
+    }
+
+    pub fn get_current_path(&self) -> &Vec<SequenceElement> {
+        &self.current_path
+    }
+
+    pub fn current_path_last(&self) -> Option<&SequenceElement> {
+        self.current_path.last()
+    }
+
+    pub fn current_path_push(&mut self, elem: SequenceElement) {
+        self.current_path.push(elem);
+    }
+
+    pub fn current_path_pop(&mut self) -> Option<SequenceElement> {
+        self.current_path.pop()
+    }
+
+    pub fn set_ts(&mut self, ts: TSRef) -> &Self {
+        self.ts = ts;
+        self
+    }
+
+    pub fn set_cs(&mut self, cs: CSRef) -> &Self {
+        self.cs = cs;
+        self
+    }
+
+    pub fn into_dataset(self) -> std::result::Result<DatasetType, IntoInnerError<BufWriter<DatasetType>>> {
+        self.dataset.into_inner()
     }
 
     pub fn write_preamble(&mut self) -> Result<usize> {

@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::convert::TryFrom;
+use std::fmt;
 use std::iter::once;
 
 use encoding::types::{DecoderTrap, EncoderTrap};
@@ -12,10 +13,12 @@ use crate::core::read;
 use crate::core::read::error::ParseError;
 use crate::core::read::parser::Result;
 use crate::defn::constants::tags;
-use crate::defn::tag::{TagNode, TagPath};
+use crate::defn::tag::{TagNode, TagPath, Tag};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
+
+use super::charset::DEFAULT_CHARACTER_SET;
 
 const U16_SIZE: usize = std::mem::size_of::<u16>();
 const I16_SIZE: usize = std::mem::size_of::<i16>();
@@ -78,6 +81,16 @@ pub struct DicomElement {
     cs: CSRef,
 }
 
+impl fmt::Debug for DicomElement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: VR[{:?}], VL[{:?}], TS[{:?}]",
+               Tag::format_tag_to_display(self.get_tag()),
+               self.get_vr(),
+               self.get_vl(),
+               self.get_ts().get_uid().get_ident())
+    }
+}
+
 impl DicomElement {
     pub fn new(
         tag: u32,
@@ -87,7 +100,7 @@ impl DicomElement {
         cs: CSRef,
         data: Vec<u8>,
         sq_path: Vec<SequenceElement>,
-    ) -> DicomElement {
+    ) -> Self {
         let cs: CSRef = vr.get_proper_cs(cs);
         DicomElement {
             tag,
@@ -97,6 +110,19 @@ impl DicomElement {
             sq_path,
             ts,
             cs,
+        }
+    }
+
+    pub fn new_empty(tag: u32, vr: VRRef, ts: TSRef) -> Self {
+        let cs: CSRef = vr.get_proper_cs(DEFAULT_CHARACTER_SET);
+        DicomElement {
+            tag,
+            vr,
+            vl: ValueLength::UndefinedLength,
+            data: Vec::new(),
+            sq_path: Vec::new(),
+            ts,
+            cs
         }
     }
 
