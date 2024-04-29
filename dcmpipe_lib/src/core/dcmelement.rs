@@ -1,14 +1,11 @@
 use crate::core::charset::CSRef;
 use crate::core::tagpath::{TagPath, TagPathElement};
-use crate::defn::tag::Tag;
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
-use crate::dict::lookup::TAG_BY_VALUE;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use encoding::types::DecoderTrap;
 use std::borrow::Cow;
-use std::fmt;
 use std::io::{Cursor, Error, ErrorKind};
 
 /// Represents the sequence/item position of an element.
@@ -75,22 +72,6 @@ pub struct DicomElement {
     cs: CSRef,
 }
 
-/// A nice user-readable display of the element such as
-/// (0002,0001) OB FileMetaInformationVersion
-impl fmt::Debug for DicomElement {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let tag_num: String = Tag::format_tag_to_display(self.tag);
-
-        let tag_name: &str = if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
-            &tag.ident
-        } else {
-            "<Private Tag>"
-        };
-
-        write!(f, "{} {} {}", tag_num, self.vr.ident, tag_name)
-    }
-}
-
 impl DicomElement {
     pub fn new(
         tag: u32,
@@ -123,7 +104,9 @@ impl DicomElement {
     }
 
     pub fn get_tag_path(&self) -> TagPath {
-        let mut path: Vec<TagPathElement> = self.sequence_path.iter()
+        let mut path: Vec<TagPathElement> = self
+            .sequence_path
+            .iter()
             .map(|dse: &DicomSequenceElement| TagPathElement::new(dse.get_seq_tag(), None))
             .collect::<Vec<TagPathElement>>();
         path.push(TagPathElement::new(self.tag, None));

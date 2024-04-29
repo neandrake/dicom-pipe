@@ -1,3 +1,4 @@
+extern crate phf;
 extern crate walkdir;
 
 use crate::core::dcmobject::DicomObject;
@@ -5,26 +6,18 @@ use crate::core::dcmparser::{
     DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use crate::core::dcmreader::parse_stream;
-use crate::core::tests::mock::MockDicomStream;
 use crate::core::tagstop::TagStop;
-use crate::defn::tag::Tag;
-use crate::defn::ts::TransferSyntax;
-use crate::defn::uid::UIDRef;
-use crate::dict::dicom_elements as tags;
-use crate::dict::dir_structure_elements as dse;
-use crate::dict::file_meta_elements as fme;
-use crate::dict::lookup::{
-    TAG_BY_IDENT, TAG_BY_VALUE, TS_BY_ID, TS_BY_IDENT, UID_BY_ID, UID_BY_IDENT,
-};
-use crate::dict::transfer_syntaxes as ts;
-use crate::dict::uids;
-
+use crate::core::tests::mock::{MockDicomStream, TAG_BY_VALUE, TS_BY_UID};
 use byteorder::ReadBytesExt;
 use std::fs::File;
 use std::path::Path;
 use walkdir::{DirEntry, WalkDir};
 
 static FIXTURE_DATASET1_FOLDER: &'static str = "../fixtures/dataset1";
+
+const PIXEL_DATA: u32 = 0x7FE0_0010;
+const SOP_CLASS_UID: u32 = 0x0008_0016;
+static CT_IMAGE_STORAGE_UID: &'static str = "1.2.840.10008.5.1.4.1.1.2";
 
 #[test]
 fn test_good_preamble() {
@@ -86,7 +79,7 @@ fn test_failure_to_read_preamble() {
 
 #[test] // slow
 fn test_parse_known_dicom_files() {
-    let tagstop: u32 = tags::PixelData.tag;
+    let tagstop: u32 = PIXEL_DATA;
     let mut dicom_iter: DicomStreamParser<File> =
         get_first_file_stream(TagStop::BeforeTag(tagstop));
 
@@ -123,12 +116,12 @@ pub fn test_dicom_object() {
 
     let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter).expect("Should be no probz");
     let sop_class_uid: &mut DicomObject = dcmobj
-        .get_object(tags::SOPClassUID.tag)
+        .get_object(SOP_CLASS_UID)
         .expect("Should have SOP Class UID");
     if let Some(ref mut element) = sop_class_uid.as_element() {
         assert_eq!(
             element.parse_string().expect("get cs"),
-            uids::CTImageStorage.uid
+            CT_IMAGE_STORAGE_UID
         )
     } else {
         panic!("Element should exist")
@@ -146,7 +139,8 @@ fn get_first_file_stream(tagstop: TagStop) -> DicomStreamParser<File> {
 
         let file: File = File::open(path).expect(&format!("Unable to open file: {:?}", path));
 
-        let dstream: DicomStreamParser<File> = DicomStreamParser::new(file, tagstop);
+        let dstream: DicomStreamParser<File> =
+            DicomStreamParser::new(file, tagstop, &TAG_BY_VALUE, &TS_BY_UID);
 
         return dstream;
     }
@@ -170,142 +164,4 @@ where
         }
     }
     true
-}
-
-#[test]
-pub fn test_tags_lookup() {
-    // Lookup a DICOM Element by identity/value from the TAG maps
-    let pd_by_ident: &Tag = TAG_BY_IDENT.get("PixelData").expect("Tag not found");
-    assert_eq!(pd_by_ident, &tags::PixelData);
-
-    let pd_by_tag: &Tag = TAG_BY_VALUE.get(&0x7FE00010).expect("Tag not found");
-    assert_eq!(pd_by_tag, &tags::PixelData);
-
-    // Lookup a Directory Structure Element by identity/value from the TAG maps
-    let fsid_by_ident: &Tag = TAG_BY_IDENT.get("FilesetID").expect("Tag not found");
-    assert_eq!(fsid_by_ident, &dse::FilesetID);
-
-    let fsid_by_tag: &Tag = TAG_BY_VALUE.get(&0x00041130).expect("Tag not found");
-    assert_eq!(fsid_by_tag, &dse::FilesetID);
-
-    // Lookup a File Meta Element by identity/value from the TAG maps
-    let tsuid_by_ident: &Tag = TAG_BY_IDENT
-        .get("TransferSyntaxUID")
-        .expect("Tag not found");
-    assert_eq!(tsuid_by_ident, &fme::TransferSyntaxUID);
-
-    let tsuid_by_tag: &Tag = TAG_BY_VALUE.get(&0x00020010).expect("Tag not found");
-    assert_eq!(tsuid_by_tag, &fme::TransferSyntaxUID);
-}
-
-#[test]
-pub fn test_transfer_syntaxes_lookup() {
-    let ivrle_by_ident: &TransferSyntax = TS_BY_IDENT
-        .get("ImplicitVRLittleEndian")
-        .expect("TransferSyntax not found");
-    assert_eq!(ivrle_by_ident, &ts::ImplicitVRLittleEndian);
-
-    let ivrle_by_id: &TransferSyntax = TS_BY_ID
-        .get("1.2.840.10008.1.2")
-        .expect("TransferSyntax not found");
-    assert_eq!(ivrle_by_id, &ts::ImplicitVRLittleEndian);
-
-    let ivrle_by_uid: &TransferSyntax = TS_BY_ID
-        .get(&uids::ImplicitVRLittleEndian.uid)
-        .expect("TransferSyntax not found");
-    assert_eq!(ivrle_by_uid, &ts::ImplicitVRLittleEndian);
-
-    let evrle_by_ident: &TransferSyntax = TS_BY_IDENT
-        .get("ExplicitVRLittleEndian")
-        .expect("TransferSyntax not found");
-    assert_eq!(evrle_by_ident, &ts::ExplicitVRLittleEndian);
-
-    let evrle_by_id: &TransferSyntax = TS_BY_ID
-        .get("1.2.840.10008.1.2.1")
-        .expect("TransferSyntax not found");
-    assert_eq!(evrle_by_id, &ts::ExplicitVRLittleEndian);
-
-    let evrle_by_uid: &TransferSyntax = TS_BY_ID
-        .get(&uids::ExplicitVRLittleEndian.uid)
-        .expect("TransferSyntax not found");
-    assert_eq!(evrle_by_uid, &ts::ExplicitVRLittleEndian);
-}
-
-#[test]
-pub fn test_uids_lookup() {
-    let ctis_by_ident: UIDRef = UID_BY_IDENT.get("CTImageStorage").expect("UID not found");
-    assert_eq!(ctis_by_ident, &uids::CTImageStorage);
-
-    let ctis_by_id: UIDRef = UID_BY_ID
-        .get("1.2.840.10008.5.1.4.1.1.2")
-        .expect("UID not found");
-    assert_eq!(ctis_by_id, &uids::CTImageStorage);
-}
-
-/// Sanity-check of the pre-defined TransferSyntax's to ensure
-/// that their defined properties reflect the UID's name.
-/// May catch issues with improperly copying over values from definitions.
-#[test]
-fn test_ts_name_vs_properties() {
-    for (_, ts) in TS_BY_IDENT.entries() {
-        let contains_little: bool = ts.uid.get_ident().contains("LittleEndian");
-        let contains_big: bool = ts.uid.get_ident().contains("BigEndian");
-        let contains_explicit: bool = ts.uid.get_ident().contains("ExplicitVR");
-        let contains_implicit: bool = ts.uid.get_ident().contains("ImplicitVR");
-        let contains_deflate: bool = ts.uid.get_ident().contains("Deflate");
-        let contains_encapsulated: bool = ts.uid.get_ident().contains("Encapsulated");
-
-        if contains_little {
-            assert!(
-                !ts.big_endian,
-                "Name contains \"LittleEndian\" but is big_endian: {:?}",
-                ts.uid
-            );
-        } else if contains_big {
-            assert!(
-                ts.big_endian,
-                "Name contains \"BigEndian\" but is not big_endian: {:?}",
-                ts.uid
-            );
-        } else {
-            // Currently the defined/known TS's which don't have Big/Little in the name are LittleEndian
-            assert!(
-                !ts.big_endian,
-                "Name contains no endian but is not big_endian: {:?}",
-                ts.uid
-            );
-        }
-
-        if contains_explicit {
-            assert!(
-                ts.explicit_vr,
-                "Name contains \"ExplicitVR\" but is not explicit_vr: {:?}",
-                ts.uid
-            );
-        } else if contains_implicit {
-            assert!(
-                !ts.explicit_vr,
-                "Name contains \"ImplicitVR\" but is explicit_vr: {:?}",
-                ts.uid
-            );
-        } else {
-            // Currently the defined/known TS's which don't have Implicit/Explicit in the name are Implicit
-            assert!(
-                !ts.explicit_vr,
-                "Name contains no vr but is not explicit_vr: {:?}",
-                ts.uid
-            );
-        }
-
-        assert_eq!(
-            contains_deflate, ts.deflated,
-            "Name contains \"Deflate\" but is not deflated: {:?}",
-            ts.uid
-        );
-        assert_eq!(
-            contains_encapsulated, ts.encapsulated,
-            "Name contains \"Encapsulated\" but is not encapsulated: {:?}",
-            ts.uid
-        );
-    }
 }

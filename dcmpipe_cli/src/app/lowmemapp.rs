@@ -1,12 +1,11 @@
-use std::io::{Error, ErrorKind};
-use std::io::{self, Write};
-use std::path::Path;
-use std::fs::File;
+use crate::app::render_element;
+use dcmpipe_dict::dict::lookup::{TAG_BY_VALUE, TS_BY_UID};
+use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmparser::DicomStreamParser;
 use dcmpipe_lib::core::tagstop::TagStop;
-use dcmpipe_lib::core::dcmelement::DicomElement;
-use crate::app::render_element;
-
+use std::fs::File;
+use std::io::{self, Error, ErrorKind, Write};
+use std::path::Path;
 
 pub struct LowMemApp {
     openpath: String,
@@ -14,9 +13,7 @@ pub struct LowMemApp {
 
 impl LowMemApp {
     pub fn new(openpath: String) -> LowMemApp {
-        LowMemApp {
-            openpath,
-        }
+        LowMemApp { openpath }
     }
 
     pub fn run(&self) -> Result<(), Error> {
@@ -31,7 +28,7 @@ impl LowMemApp {
 
         let file: File = File::open(path)?;
         let mut dicom_iter: DicomStreamParser<File> =
-            DicomStreamParser::new(file, TagStop::EndOfStream);
+            DicomStreamParser::new(file, TagStop::EndOfStream, &TAG_BY_VALUE, &TS_BY_UID);
 
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
@@ -51,7 +48,7 @@ impl LowMemApp {
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
                         dicom_iter.get_ts().uid.ident
                     )
-                        .as_ref(),
+                    .as_ref(),
                 )?;
                 prev_was_file_meta = false;
             }

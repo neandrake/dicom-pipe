@@ -1,7 +1,7 @@
+use crate::core::constants::tags;
 use crate::core::dcmelement::DicomElement;
 use crate::core::dcmobject::DicomObject;
 use crate::core::dcmparser::DicomStreamParser;
-use crate::dict::dicom_elements as tags;
 use byteorder::ReadBytesExt;
 use std::io::Error;
 
@@ -34,7 +34,7 @@ fn parse_stream_recurse<StreamType: ReadBytesExt>(
         // checking sequence or item tag should match dcmparser.read_dicom_element() which
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.
-        let dcmobj: DicomObject = if element.is_seq() || element.tag == tags::Item.tag {
+        let dcmobj: DicomObject = if element.is_seq() || element.tag == tags::ITEM {
             let mut object: DicomObject = DicomObject::new_with_element(element);
             possible_next_elem = parse_stream_recurse(parser, &mut object);
             object

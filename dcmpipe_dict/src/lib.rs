@@ -1,5 +1,6 @@
-extern crate phf_codegen;
-extern crate quick_xml;
+extern crate dcmpipe_lib;
 
-pub mod defnwrite;
-pub mod xmlparser;
+pub mod dict;
+
+#[cfg(test)]
+mod tests;

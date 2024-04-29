@@ -4,4 +4,3 @@ extern crate phf;
 
 pub mod core;
 pub mod defn;
-pub mod dict;

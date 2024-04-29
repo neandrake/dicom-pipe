@@ -1,17 +1,13 @@
 [package]
-name = "dcmpipe_lib"
+name = "dcmpipe_dict_builder"
 version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-byteorder = "1"
-encoding = "0.2"
-phf = "0.7"
-
-[dev-dependencies]
-walkdir = "2.2"
+phf_codegen = "0.7"
+quick-xml = "0.14"
 
 [lib]
-name="dcmpipe_lib"
+name="dcmpipe_dict_builder"
 path="src/lib.rs"
