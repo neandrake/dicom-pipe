@@ -266,7 +266,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Builds a string containing debug state of parsing, for errors and spurious output while
     /// debugging. Format is:
-    /// ```
+    /// ```text
     /// ParseState @ 0xDEAD_BEEF ImplicitVRLittleEndian: ReferenceSequence[1].(00A1,0000) OB [128]
     /// ```
     fn get_debug_str(&self, ts: TSRef, tag: u32, vr: VRRef, vl: ValueLength) -> String {
