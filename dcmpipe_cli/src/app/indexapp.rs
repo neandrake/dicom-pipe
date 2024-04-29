@@ -12,12 +12,15 @@ use anyhow::{anyhow, Context, Result};
 use dcmpipe_lib::{
     core::{
         dcmelement::DicomElement,
-        dcmobject::{DicomObject, DicomRoot},
+        dcmobject::DicomRoot,
         defn::tag::Tag,
         read::{stop::ParseStop, Parser, ParserBuilder},
         RawValue,
     },
-    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, tags},
+    dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY,
+        tags::{PixelData, SOPInstanceUID, SeriesInstanceUID},
+    },
 };
 
 use crate::{
@@ -90,10 +93,9 @@ impl IndexApp {
     fn scan_dir(&mut self, folder: PathBuf) -> Result<HashMap<String, DicomDoc>> {
         let mut uid_to_doc: HashMap<String, DicomDoc> = HashMap::new();
 
-        let walkdir = WalkDir::new(folder).into_iter().filter_map(|e| e.ok());
+        let walkdir = WalkDir::new(folder).into_iter().filter_map(Result::ok);
 
-        let parser_builder =
-            ParserBuilder::default().stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()));
+        let parser_builder = ParserBuilder::default().stop(ParseStop::before(&PixelData));
         for entry in walkdir {
             if !entry.metadata()?.file_type().is_file() {
                 continue;
@@ -104,21 +106,16 @@ impl IndexApp {
                 parser_builder.build(file, &STANDARD_DICOM_DICTIONARY);
 
             let dcm_root = DicomRoot::parse(&mut parser)?;
-            if dcm_root.is_none() {
+            let Some(dcm_root) = dcm_root else {
                 continue;
-            }
-            let dcm_root = dcm_root.unwrap();
+            };
 
-            let uid_obj: &DicomObject = dcm_root
-                .get_child_by_tag(tags::SeriesInstanceUID.tag)
-                .or_else(|| dcm_root.get_child_by_tag(tags::SOPInstanceUID.tag))
-                .ok_or_else(|| {
-                    anyhow!(
-                        "DICOM file has no SeriesInstanceUID or SOPInstanceUID: {:?}",
-                        entry.path().display()
-                    )
-                })?;
-            let uid_key: String = uid_obj.element().try_into()?;
+            let uid_key = dcm_root
+                .get_value_by_tag(&SeriesInstanceUID)
+                .or_else(|| dcm_root.get_value_by_tag(&SOPInstanceUID))
+                .and_then(|v| v.string().cloned())
+                .unwrap_or_default();
+
             let entry_key: String = uid_key.clone();
             let dicom_doc: &mut DicomDoc = uid_to_doc
                 .entry(entry_key)
@@ -273,7 +270,11 @@ impl IndexApp {
         Ok(())
     }
 
-    /// Query for all dicom records in the given collection and returns an iterator over `DicomDoc`
+    /// Query for dicom records in the given collection and returns an iterator over `DicomDoc`.
+    ///
+    /// # Params
+    /// `dicom_coll` The collection to query.
+    /// `query` The query to use. If `None`, then a blank query is issued, resulting in all records.
     fn query_docs(
         &mut self,
         dicom_coll: &Collection<Document>,
@@ -320,102 +321,86 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {
         RawValue::Attributes(attrs) => {
-            if !attrs.is_empty() {
-                if attrs.len() == 1 {
-                    dicom_doc.insert(key, attrs[0].0);
-                } else {
-                    let attrs = attrs.into_iter().map(|a| a.0).collect::<Vec<u32>>();
-                    dicom_doc.insert(key, attrs);
-                }
+            if attrs.len() == 1 {
+                dicom_doc.insert(key, attrs[0].0);
+            } else if !attrs.is_empty() {
+                let attrs = attrs.into_iter().map(|a| a.0).collect::<Vec<u32>>();
+                dicom_doc.insert(key, attrs);
             }
         }
         RawValue::Uid(uid) => {
             dicom_doc.insert(key, uid);
         }
         RawValue::Floats(floats) => {
-            if !floats.is_empty() {
-                if floats.len() == 1 {
-                    dicom_doc.insert(key, floats[0]);
-                } else {
-                    dicom_doc.insert(key, floats);
-                }
+            if floats.len() == 1 {
+                dicom_doc.insert(key, floats[0]);
+            } else if !floats.is_empty() {
+                dicom_doc.insert(key, floats);
             }
         }
         RawValue::Doubles(doubles) => {
-            if !doubles.is_empty() {
-                if doubles.len() == 1 {
-                    dicom_doc.insert(key, doubles[0]);
-                } else {
-                    dicom_doc.insert(key, doubles);
-                }
+            if doubles.len() == 1 {
+                dicom_doc.insert(key, doubles[0]);
+            } else if !doubles.is_empty() {
+                dicom_doc.insert(key, doubles);
             }
         }
         RawValue::Shorts(shorts) => {
-            if !shorts.is_empty() {
-                // convert to i32 because Bson doesn't support i16
-                let shorts: Vec<i32> = shorts.into_iter().map(i32::from).collect::<Vec<i32>>();
-                if shorts.len() == 1 {
-                    dicom_doc.insert(key, shorts[0]);
-                } else {
-                    dicom_doc.insert(key, shorts);
-                }
+            // convert to i32 because Bson doesn't support i16
+            let shorts: Vec<i32> = shorts.into_iter().map(i32::from).collect::<Vec<i32>>();
+            if shorts.len() == 1 {
+                dicom_doc.insert(key, shorts[0]);
+            } else if !shorts.is_empty() {
+                dicom_doc.insert(key, shorts);
             }
         }
         RawValue::UShorts(ushorts) => {
-            if !ushorts.is_empty() {
-                if ushorts.len() == 1 {
-                    dicom_doc.insert(key, u32::from(ushorts[0]));
-                } else {
-                    let uints = ushorts
-                        .into_iter()
-                        .map(|ushort: u16| u32::from(ushort))
-                        .collect::<Vec<u32>>();
-                    dicom_doc.insert(key, uints);
-                }
+            if ushorts.len() == 1 {
+                dicom_doc.insert(key, u32::from(ushorts[0]));
+            } else if !ushorts.is_empty() {
+                let uints = ushorts
+                    .into_iter()
+                    .map(|ushort: u16| u32::from(ushort))
+                    .collect::<Vec<u32>>();
+                dicom_doc.insert(key, uints);
             }
         }
         RawValue::Ints(ints) => {
-            if !ints.is_empty() {
-                if ints.len() == 1 {
-                    dicom_doc.insert(key, ints[0]);
-                } else {
-                    dicom_doc.insert(key, ints);
-                }
+            if ints.len() == 1 {
+                dicom_doc.insert(key, ints[0]);
+            } else if !ints.is_empty() {
+                dicom_doc.insert(key, ints);
             }
         }
         RawValue::UInts(uints) => {
-            if !uints.is_empty() {
-                if uints.len() == 1 {
-                    dicom_doc.insert(key, uints[0]);
-                } else {
-                    dicom_doc.insert(key, uints);
-                }
+            if uints.len() == 1 {
+                dicom_doc.insert(key, uints[0]);
+            } else if !uints.is_empty() {
+                dicom_doc.insert(key, uints);
             }
         }
         RawValue::Strings(strings) => {
-            if !strings.is_empty() {
-                if strings.len() == 1 {
-                    dicom_doc.insert(key, strings[0].clone());
-                } else {
-                    dicom_doc.insert(key, strings);
-                }
+            if strings.len() == 1 {
+                dicom_doc.insert(key, strings[0].clone());
+            } else if !strings.is_empty() {
+                dicom_doc.insert(key, strings);
             }
         }
         RawValue::Bytes(bytes) => {
-            let bytes: Vec<u8> = bytes.into_iter().take(16).collect::<Vec<u8>>();
-            let binary = Bson::Binary(Binary {
-                subtype: BinarySubtype::Generic,
-                bytes,
-            });
-            dicom_doc.insert(key, binary);
+            if !bytes.is_empty() {
+                let bytes: Vec<u8> = bytes.into_iter().take(16).collect::<Vec<u8>>();
+                let binary = Bson::Binary(Binary {
+                    subtype: BinarySubtype::Generic,
+                    bytes,
+                });
+                dicom_doc.insert(key, binary);
+            }
         }
         RawValue::Longs(longs) => {
-            if !longs.is_empty() {
-                if longs.len() == 1 {
-                    dicom_doc.insert(key, longs[0]);
-                } else {
-                    dicom_doc.insert(key, longs);
-                }
+            if longs.len() == 1 {
+                dicom_doc.insert(key, longs[0]);
+            } else if !longs.is_empty() {
+                dicom_doc.insert(key, longs);
             }
         }
         RawValue::ULongs(ulongs) => {
@@ -423,31 +408,25 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 .into_iter()
                 .map(|u| u.to_string())
                 .collect::<Vec<String>>();
-            if !ulongs.is_empty() {
-                if ulongs.len() == 1 {
-                    dicom_doc.insert(key, ulongs.remove(0));
-                } else {
-                    dicom_doc.insert(key, ulongs);
-                }
+            if ulongs.len() == 1 {
+                dicom_doc.insert(key, ulongs.remove(0));
+            } else if !ulongs.is_empty() {
+                dicom_doc.insert(key, ulongs);
             }
         }
         RawValue::Words(words) => {
-            if !words.is_empty() {
-                if words.len() == 1 {
-                    dicom_doc.insert(key, u32::from(words[0]));
-                } else {
-                    let words: Vec<u32> = words.into_iter().map(u32::from).collect::<Vec<u32>>();
-                    dicom_doc.insert(key, words);
-                }
+            if words.len() == 1 {
+                dicom_doc.insert(key, u32::from(words[0]));
+            } else if !words.is_empty() {
+                let words: Vec<u32> = words.into_iter().map(u32::from).collect::<Vec<u32>>();
+                dicom_doc.insert(key, words);
             }
         }
         RawValue::DWords(dwords) => {
-            if !dwords.is_empty() {
-                if dwords.len() == 1 {
-                    dicom_doc.insert(key, dwords[0]);
-                } else {
-                    dicom_doc.insert(key, dwords);
-                }
+            if dwords.len() == 1 {
+                dicom_doc.insert(key, dwords[0]);
+            } else if !dwords.is_empty() {
+                dicom_doc.insert(key, dwords);
             }
         }
         RawValue::QWords(qwords) => {
@@ -455,21 +434,21 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 .into_iter()
                 .map(|u| u.to_string())
                 .collect::<Vec<String>>();
-            if !qwords.is_empty() {
-                if qwords.len() == 1 {
-                    dicom_doc.insert(key, qwords.remove(0));
-                } else {
-                    dicom_doc.insert(key, qwords);
-                }
+            if qwords.len() == 1 {
+                dicom_doc.insert(key, qwords.remove(0));
+            } else if !qwords.is_empty() {
+                dicom_doc.insert(key, qwords);
             }
         }
         RawValue::BytesView(bytes) => {
-            let bytes: Vec<u8> = bytes.iter().copied().take(16).collect::<Vec<u8>>();
-            let binary = Bson::Binary(Binary {
-                subtype: BinarySubtype::Generic,
-                bytes,
-            });
-            dicom_doc.insert(key, binary);
+            if !bytes.is_empty() {
+                let bytes: Vec<u8> = bytes.iter().copied().take(16).collect::<Vec<u8>>();
+                let binary = Bson::Binary(Binary {
+                    subtype: BinarySubtype::Generic,
+                    bytes,
+                });
+                dicom_doc.insert(key, binary);
+            }
         }
     }
 
