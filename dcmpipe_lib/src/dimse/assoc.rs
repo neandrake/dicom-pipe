@@ -503,11 +503,14 @@ impl AssociationBuilder {
             AsyncOperationsWindowItem::new(1, 1),
         ));
 
+        // TODO: Double-check how roles should be set up. Based on behavior it seems like this is
+        // indicating which roles to accept from incoming associations, and not what roles this
+        // device enacts?
         for ab in &self.accept_abs {
             my_user_data.push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
                 ab.uid().into(),
-                0,
                 1,
+                0,
             )));
         }
 
