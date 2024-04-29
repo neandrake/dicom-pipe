@@ -17,10 +17,13 @@ use dcmpipe_lib::{
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
         tags::PatientID,
-        uids::{ModalityWorklistInformationModelFIND, VerificationSOPClass},
+        uids::{
+            ModalityWorklistInformationModelFIND,
+            PatientStudyOnlyQueryRetrieveInformationModelFIND, VerificationSOPClass,
+        },
     },
     dimse::{
-        commands::{messages::CommandMessage, CommandStatus},
+        commands::{messages::CommandMessage, CommandStatus, CommandType},
         pduiter::{PduIter, PduIterItem},
         pdus::{
             Abort, AssocAC, AssocACPresentationContext, AssocRJ, AssocRQ, Pdu,
@@ -65,8 +68,11 @@ impl CommandApplication for SvcProviderApp {
             HashSet::<String>::with_capacity(0)
         };
 
-        let accept_abs =
-            HashSet::from([&VerificationSOPClass, &ModalityWorklistInformationModelFIND]);
+        let accept_abs = HashSet::from([
+            &VerificationSOPClass,
+            &ModalityWorklistInformationModelFIND,
+            &PatientStudyOnlyQueryRetrieveInformationModelFIND,
+        ]);
         let accept_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
 
         for (stream_id, stream) in listener.incoming().enumerate() {
@@ -78,7 +84,7 @@ impl CommandApplication for SvcProviderApp {
             let accept_ts = accept_ts.clone();
             pool.execute(move || {
                 let mut assoc = Association {
-                    id,
+                    _id: id,
                     stream,
                     host_ae,
                     accept_aets,
@@ -149,7 +155,7 @@ struct AssocAcResult {
 }
 
 struct Association {
-    id: usize,
+    _id: usize,
     stream: TcpStream,
     host_ae: String,
     accept_aets: HashSet<String>,
@@ -172,11 +178,11 @@ impl Association {
     ) -> Result<()> {
         match err.rsp {
             AssocErrorRsp::RJ(rj) => {
-                println!("[info ->]: A-ASSOCIATE-RJ {} {source}", self.id);
+                println!("[info ->]: {:?} {source}", rj.pdu_type());
                 self.write_pdu(Pdu::AssocRJ(rj), bufwrite)
             }
             AssocErrorRsp::AB(ab) => {
-                println!("[info ->]: A-ABORT {} {source}", self.id);
+                println!("[info ->]: {:?} {source}", ab.pdu_type());
                 self.write_pdu(Pdu::Abort(ab), bufwrite)
             }
             AssocErrorRsp::AlreadyHandled => Err(err.err),
@@ -197,7 +203,7 @@ impl Association {
                 Pdu::AssocRQ(rq) => Ok(rq),
                 pdu => Err(AssocError {
                     rsp: AssocErrorRsp::AB(Abort::new(2u8, 2u8)),
-                    err: anyhow!("Unexpected PDU: {pdu:?}"),
+                    err: anyhow!("Unexpected PDU: {:?}", pdu.pdu_type()),
                 }),
             });
 
@@ -215,15 +221,24 @@ impl Association {
                 "[invalid ae]".to_owned()
             };
         let source = format!("{calling_ae} @ {remote_ip}");
-        println!("[info <-]: A-ASSOCIATE-RQ {} {source}", self.id);
 
-        let assoc_ac = match self.validate_assoc_rq(rq) {
+        let assoc_ac = match self.validate_assoc_rq(&rq) {
             Ok(rq) => rq,
-            Err(e) => return self.handle_error(e, &source, &mut bufwrite),
+            Err(e) => {
+                println!("[info <-]: {:?} {source}", rq.pdu_type());
+                return self.handle_error(e, &source, &mut bufwrite);
+            }
         };
-        println!("[info ->]: A-ASSOCIATE-AC {} {source}", self.id);
-        self.write_pdu(Pdu::AssocAC(assoc_ac.ac), &mut bufwrite)?;
         let (ab, ts) = (assoc_ac.ab, assoc_ac.ts);
+        let ab_type = if let Some(ab_type) = Option::<CommandType>::from(ab) {
+            format!("{ab_type:?}")
+        } else {
+            "".to_owned()
+        };
+        println!("[info <-]: {:?} {ab_type} {source}", rq.pdu_type());
+
+        println!("[info ->]: {:?} {source}", assoc_ac.ac.pdu_type());
+        self.write_pdu(Pdu::AssocAC(assoc_ac.ac), &mut bufwrite)?;
 
         if let Err(e) = self.pdu_loop(&source, ab, ts, &mut bufread, &mut bufwrite) {
             self.handle_error(e, &source, &mut bufwrite)
@@ -232,86 +247,7 @@ impl Association {
         }
     }
 
-    fn pdu_loop(
-        &self,
-        source: &str,
-        ab: UIDRef,
-        ts: TSRef,
-        mut bufread: &mut BufReader<&TcpStream>,
-        bufwrite: &mut BufWriter<&TcpStream>,
-    ) -> Result<(), AssocError> {
-        loop {
-            let mut last_dcm_pdvh: Option<PresentationDataValueHeader> = None;
-            let mut last_cmd_pdvh: Option<PresentationDataValueHeader> = None;
-            let mut last_cmd: Option<CommandMessage> = None;
-
-            let pdu_iter = PduIter::new(&mut bufread);
-            for iter_item in pdu_iter {
-                match iter_item {
-                    Ok(PduIterItem::Pdu(pdu)) => {
-                        return self.handle_disconnect(pdu, bufwrite, source);
-                    }
-                    Ok(PduIterItem::CmdMessage(pdvh, cmd)) => {
-                        println!("[info <-]: P-DATA COMMAND");
-                        if ab == &VerificationSOPClass {
-                            let rsp = self.handle_c_echo(ts, pdvh, cmd)?;
-                            println!("[info ->]: P-DATA COMMAND RSP");
-                            self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
-                            last_cmd_pdvh = None;
-                            last_cmd = None;
-                        } else {
-                            last_cmd_pdvh = Some(pdvh);
-                            last_cmd = Some(cmd);
-                        }
-                    }
-                    Ok(PduIterItem::Dataset(pdvh)) => {
-                        println!("[info <-]: P-DATA DICOM");
-                        last_dcm_pdvh = Some(pdvh);
-                        break;
-                    }
-                    Err(err) => {
-                        return self
-                            .handle_error(
-                                AssocError {
-                                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
-                                    err: Error::new(err).context("failed parsing PDU stream"),
-                                },
-                                source,
-                                bufwrite,
-                            )
-                            .map_err(|e| {
-                                AssocError::from((e, "failed handling error".to_owned()))
-                            });
-                    }
-                };
-            }
-
-            let Some(cmd_pdvh) = last_cmd_pdvh else {
-                return Err(AssocError {
-                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
-                    err: anyhow!("No COMMAND PDVH after receiving DICOM dataset"),
-                });
-            };
-            let Some(cmd) = last_cmd else {
-                return Err(AssocError {
-                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
-                    err: anyhow!("No COMMAND after receiving DICOM dataset"),
-                });
-            };
-            let Some(dcm_pdvh) = last_dcm_pdvh else {
-                return Err(AssocError {
-                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
-                    err: anyhow!("No DICOM after receiving DICOM dataset"),
-                });
-            };
-
-            if ab == &ModalityWorklistInformationModelFIND {
-                self.handle_c_find(source, ts, &cmd, &cmd_pdvh, &dcm_pdvh, bufread, bufwrite)?;
-            }
-        }
-    }
-
-    fn validate_assoc_rq(&self, rq: AssocRQ) -> Result<AssocAcResult, AssocError> {
+    fn validate_assoc_rq(&self, rq: &AssocRQ) -> Result<AssocAcResult, AssocError> {
         let host_ae = self.host_ae.trim();
 
         let calling_ae = CS
@@ -404,10 +340,11 @@ impl Association {
         source: &str,
     ) -> Result<(), AssocError> {
         match pdu {
-            Pdu::ReleaseRQ(_rq) => {
-                println!("[info <-]: A-RELEASE-RQ {source}");
-                println!("[info ->]: A-RELEASE-RP {source}");
-                self.write_pdu(Pdu::ReleaseRP(ReleaseRP::new()), bufwrite)
+            Pdu::ReleaseRQ(rq) => {
+                println!("[info <-]: {:?} {source}", rq.pdu_type());
+                let rp = ReleaseRP::new();
+                println!("[info ->]: {:?} {source}", rp.pdu_type());
+                self.write_pdu(Pdu::ReleaseRP(rp), bufwrite)
                     .map_err(|e| AssocError {
                         rsp: AssocErrorRsp::AlreadyHandled,
                         err: e.context("error releasing association"),
@@ -415,20 +352,130 @@ impl Association {
                 Ok(())
             }
             Pdu::Abort(ab) => {
-                println!("[info <-]: A-ABORT {source}: {}", ab.get_reason_desc());
+                println!(
+                    "[info <-]: {:?} {source}: {}",
+                    ab.pdu_type(),
+                    ab.get_reason_desc()
+                );
                 Ok(())
             }
             pdu => {
-                println!("[info ->]: A-ABORT {source}");
-                self.write_pdu(Pdu::Abort(Abort::new(2u8, 2u8)), bufwrite)
+                let ab = Abort::new(2u8, 2u8);
+                println!("[info ->]: {:?} {source}", ab.pdu_type());
+                self.write_pdu(Pdu::Abort(ab), bufwrite)
                     .map_err(|e| AssocError {
                         rsp: AssocErrorRsp::AlreadyHandled,
-                        err: e.context("error aborting association"),
+                        err: e.context(format!(
+                            "error aborting association from unexpected PDU: {:?}",
+                            pdu.pdu_type()
+                        )),
                     })?;
                 Err(AssocError {
                     rsp: AssocErrorRsp::AlreadyHandled,
-                    err: anyhow!("Unexpected PDU: {pdu:?}"),
+                    err: anyhow!("Unexpected PDU: {:?}", pdu.pdu_type()),
                 })
+            }
+        }
+    }
+
+    fn pdu_loop(
+        &self,
+        source: &str,
+        ab: UIDRef,
+        ts: TSRef,
+        mut bufread: &mut BufReader<&TcpStream>,
+        bufwrite: &mut BufWriter<&TcpStream>,
+    ) -> Result<(), AssocError> {
+        let Some(cmd_type) = Option::<CommandType>::from(ab) else {
+            return Err(AssocError {
+                rsp: AssocErrorRsp::RJ(AssocRJ::new(1u8, 1u8, 2u8)),
+                err: anyhow!("Unrecognized abstract_syntax: {ab:?}"),
+            });
+        };
+
+        loop {
+            let mut last_dcm_pdvh: Option<PresentationDataValueHeader> = None;
+            let mut last_cmd_pdvh: Option<PresentationDataValueHeader> = None;
+            let mut last_cmd: Option<CommandMessage> = None;
+
+            let pdu_iter = PduIter::new(&mut bufread);
+            for iter_item in pdu_iter {
+                match iter_item {
+                    Ok(PduIterItem::Pdu(pdu)) => {
+                        return self.handle_disconnect(pdu, bufwrite, source);
+                    }
+                    Ok(PduIterItem::CmdMessage(pdvh, cmd)) => {
+                        println!("[info <-]: P-DATA COMMAND");
+                        last_cmd_pdvh = Some(pdvh);
+                        last_cmd = Some(cmd);
+
+                        // C-ECHO only requires a P-DATA command, and no DICOM dataset.
+                        if cmd_type == CommandType::CEchoReq {
+                            break;
+                        }
+                    }
+                    Ok(PduIterItem::Dataset(pdvh)) => {
+                        println!("[info <-]: P-DATA DICOM");
+                        last_dcm_pdvh = Some(pdvh);
+                        break;
+                    }
+                    Err(err) => {
+                        return self
+                            .handle_error(
+                                AssocError {
+                                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
+                                    err: Error::new(err).context("failed parsing PDU stream"),
+                                },
+                                source,
+                                bufwrite,
+                            )
+                            .map_err(|e| {
+                                AssocError::from((e, "failed handling error".to_owned()))
+                            });
+                    }
+                };
+            }
+
+            let Some(cmd_pdvh) = last_cmd_pdvh else {
+                continue;
+                /*
+                return Err(AssocError {
+                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
+                    err: anyhow!("No COMMAND PDVH after receiving DICOM dataset"),
+                });
+                */
+            };
+            let Some(cmd) = last_cmd else {
+                continue;
+                /*
+                return Err(AssocError {
+                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
+                    err: anyhow!("No COMMAND after receiving DICOM dataset"),
+                });
+                */
+            };
+
+            if cmd_type == CommandType::CEchoReq {
+                let rsp = self.handle_c_echo(ts, cmd_pdvh, cmd)?;
+                println!("[info ->]: {:?} COMMAND RSP", rsp.pdu_type());
+                self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
+                continue;
+            }
+
+            // All services aside from C-ECHO require having received a DICOM dataset after the
+            // command.
+            let Some(dcm_pdvh) = last_dcm_pdvh else {
+                return Err(AssocError {
+                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 0u8)),
+                    err: anyhow!("No DICOM after receiving DICOM dataset"),
+                });
+            };
+
+            match cmd_type {
+                CommandType::CFindReq => {
+                    self.handle_c_find(source, ts, &cmd, &cmd_pdvh, &dcm_pdvh, bufread, bufwrite)?
+                }
+                _ => {}
             }
         }
     }
@@ -509,7 +556,7 @@ impl Association {
         for result in results {
             match self.create_c_find_cmd(ts, cmd_pdvh, cmd, &CommandStatus::Pending(0xFF00)) {
                 Ok(rsp) => {
-                    println!("[info ->]: P-DATA COMMAND");
+                    println!("[info ->]: {:?} COMMAND", rsp.pdu_type());
                     self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
                 }
                 Err(e) => {
@@ -521,7 +568,7 @@ impl Association {
 
             match self.create_c_find_result(dcm_pdvh, &result) {
                 Ok(rsp) => {
-                    println!("[info ->]: P-DATA DICOM");
+                    println!("[info ->]: {:?} DICOM", rsp.pdu_type());
                     self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
                 }
                 Err(e) => {
@@ -534,7 +581,7 @@ impl Association {
 
         match self.create_c_find_cmd(ts, cmd_pdvh, cmd, &CommandStatus::Success(0)) {
             Ok(rsp) => {
-                println!("[info ->]: P-DATA COMMAND");
+                println!("[info ->]: {:?} COMMAND", rsp.pdu_type());
                 self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)
                     .map_err(AssocError::from)
             }
@@ -555,7 +602,7 @@ impl Association {
             .map_err(|e| AssocError {
                 rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
                 err: Error::new(e)
-                    .context("Failed converting C-ECHO command message into response".to_string()),
+                    .context("Failed converting C-FIND command message into response".to_string()),
             })?;
 
         let mut writer = WriterBuilder::default()
@@ -566,7 +613,7 @@ impl Association {
             .write_dcmroot(rsp.message())
             .map_err(|e| AssocError {
                 rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
-                err: Error::new(e).context("Failed encoding C-ECHO response"),
+                err: Error::new(e).context("Failed encoding C-FIND response"),
             })?;
         let data = writer.into_dataset();
         let rsp = PresentationDataItem::new(vec![PresentationDataValue::new(
@@ -589,7 +636,7 @@ impl Association {
             .build(Vec::<u8>::new());
         writer.write_dcmroot(result).map_err(|e| AssocError {
             rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
-            err: Error::new(e).context("Failed encoding C-ECHO response"),
+            err: Error::new(e).context("Failed encoding C-FIND response"),
         })?;
 
         let result = writer.into_dataset();

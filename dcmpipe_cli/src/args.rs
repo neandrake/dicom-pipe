@@ -108,14 +108,4 @@ pub struct SvcProviderArgs {
     #[arg(short, long)]
     /// The maximum number of concurrent associations.
     pub max_assoc: usize,
-
-    #[clap(subcommand)]
-    /// DIMSE sub-command.
-    pub cmd: SvcProviderCommand,
-}
-
-#[derive(Parser, Debug)]
-pub enum SvcProviderCommand {
-    /// Serve a C-ECHO service.
-    Echo,
 }
