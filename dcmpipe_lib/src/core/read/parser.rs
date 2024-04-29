@@ -311,7 +311,7 @@ impl<'d, R: Read> Parser<'d, R> {
     pub(super) fn current_debug_str(&self) -> String {
         // Render the full tag path
         let tag = self.tag_last_read;
-        let mut full_path: TagPath = TagPath::from(&self.current_path);
+        let mut full_path: TagPath = TagPath::from(self.current_path.as_slice());
         full_path.nodes_mut().push(TagNode::from(tag));
         let tagpath_display: String =
             TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));

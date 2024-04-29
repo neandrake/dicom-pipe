@@ -5,9 +5,16 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use crate::core::{dcmsqelem::SequenceElement, read::ParseError};
-
-use super::{constants::tags, dcmdict::DicomDictionary, vm::VMRef, vr::VRRef};
+use crate::core::{
+    dcmsqelem::SequenceElement,
+    defn::{
+        constants::tags::{ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM},
+        dcmdict::DicomDictionary,
+        vm::VMRef,
+        vr::VRRef,
+    },
+    read::ParseError,
+};
 
 pub type TagRef = &'static Tag;
 
@@ -58,42 +65,44 @@ impl Tag {
     }
 
     pub fn as_item_node(&self, index: usize) -> TagNode {
-        TagNode::from((self, Some(index)))
+        TagNode::from((self, index))
     }
 
     /// Detects if the given tag is a private creator, which is defined to be an odd-numbered group
     /// number with an element number between 0x0010-0x00FF.
     pub fn is_private_creator<T>(tag: T) -> bool
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
-        let tag: u32 = tag.into();
-        if !Tag::is_private(tag) {
-            return false;
+        let tag: u32 = u32::from(tag);
+        if !Tag::is_private::<u32>(tag) {
+            false
+        } else {
+            let tag_elem: u32 = tag & 0x0000_FFFF;
+            (0x0010..=0x00FF).contains(&tag_elem)
         }
-        let tag_elem: u32 = tag & 0x0000_FFFF;
-        (0x0010..=0x00FF).contains(&tag_elem)
     }
 
     /// Detects if the given tag is a private group length. These tags are deprecated according to
     /// the dicom standard.
     pub fn is_private_group_length<T>(tag: T) -> bool
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
-        let tag: u32 = tag.into();
-        if !Tag::is_private(tag) {
-            return false;
+        let tag: u32 = u32::from(tag);
+        if !Tag::is_private::<u32>(tag) {
+            false
+        } else {
+            Tag::is_group_length::<u32>(tag)
         }
-        Tag::is_group_length(tag)
     }
 
     /// Detects if the given tag is a group length tag, defined to have an element value of 0.
     pub fn is_group_length<T>(tag: T) -> bool
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
-        let tag: u32 = tag.into();
+        let tag: u32 = u32::from(tag);
         (tag & 0x0000_FFFF) == 0
     }
 
@@ -101,10 +110,9 @@ impl Tag {
     /// not based on previously registered private creators.
     pub fn is_private<T>(tag: T) -> bool
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
-        let tag: u32 = tag.into();
-        let tag_group: u32 = tag >> 16;
+        let tag_group: u32 = u32::from(tag) >> 16;
         // See Part 5, Section 7.1:
         // Private Data Elements have an odd Group Number that is not (0001,eeee), (0003,eeee),
         // (0005,eeee), (0007,eeee), or (FFFF,eeee).
@@ -114,9 +122,9 @@ impl Tag {
     /// Renders the tag number as `(GGGG,EEEE)`.
     pub fn format_tag_to_display<T>(tag: T) -> String
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
-        let tag: u32 = tag.into();
+        let tag: u32 = u32::from(tag);
         let tag_group: u32 = tag >> 16;
         let tag_elem: u32 = tag & 0x0000_FFFF;
         format!("({:04X},{:04X})", tag_group, tag_elem)
@@ -125,9 +133,9 @@ impl Tag {
     /// Renders the tag number as `GGGGEEEE`.
     pub fn format_tag_to_path_display<T>(tag: T) -> String
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
-        let tag: u32 = tag.into();
+        let tag: u32 = u32::from(tag);
         let tag_group: u32 = tag >> 16;
         let tag_elem: u32 = tag & 0x0000_FFFF;
         format!("{:04X}{:04X}", tag_group, tag_elem)
@@ -166,8 +174,14 @@ pub struct TagNode {
 
 impl TagNode {
     /// Create a new tag node.
-    pub fn new(tag: u32, item: Option<usize>) -> TagNode {
-        TagNode { tag, item }
+    pub fn new<T>(tag: T, item: Option<usize>) -> TagNode
+    where
+        u32: From<T>,
+    {
+        TagNode {
+            tag: u32::from(tag),
+            item,
+        }
     }
 
     /// Get the tag number for this node.
@@ -189,46 +203,46 @@ impl TagNode {
     /// is supplied, or by standard hexformat (parens are optional). For a `TagNode` which is in a
     /// sequence path, an index can be supplied which must be at the end and contained within
     /// square brackets. Supplying a dictionary is optional however must be supplied in order to
-    /// resolve tags by name.
+    /// resolve tags by name. Tag names are case-insensitive.
     ///
     /// The acceptable formats are:
     /// ```text
     /// "PatientID" => (0x0010_0020, None)
     /// "(0010,0020)" => (0x0010_0020, None)
     /// "0010,0020" => (0x0010_0020, None)
+    /// "0010_0020" => (0x0010_0020, None)
+    /// "00100020" => (0x0010_0020, None)
+    /// "100020" => (0x0010_0020, None)
     /// "ReferencedFrameOfReferenceSequence[1]" => (0x3006_0010, Some(1))
     /// "(3006,0010)[1]" => (0x3006_0010, Some(1))
     /// ```
     pub fn parse(value: &str, dict: Option<&dyn DicomDictionary>) -> Result<Self, ParseError> {
-        let value = value.trim();
         let mut index = None;
-        let mut tag_id = value;
-        if let Some((name_part, index_part)) = value.rsplit_once('[') {
+        let mut tag_id = value.trim();
+        if let Some((name_part, index_part)) = tag_id.rsplit_once('[') {
             if let Some((index_part, _bracket)) = index_part.rsplit_once(']') {
-                if let Ok(parsed) = index_part.parse::<usize>() {
+                if let Ok(parsed) = str::parse::<usize>(index_part) {
                     index = Some(parsed);
                 }
             }
+            // Reassign the tag_id to remove the indexing component.
             tag_id = name_part;
         }
 
+        // Look up by name.
         let lookup = dict.and_then(|d| d.get_tag_by_name(tag_id));
         if let Some(tag) = lookup {
-            Ok(TagNode::new(tag.tag, index))
-        } else if let Some((group, tag)) = value.trim_matches(&['(', ')']).split_once(',') {
-            let group = u16::from_str_radix(group, 16).map_err(|e| ParseError::InvalidTagPath {
-                string_path: e.to_string(),
-            })?;
-            let tag = u16::from_str_radix(tag, 16).map_err(|e| ParseError::InvalidTagPath {
-                string_path: e.to_string(),
-            })?;
-            let full_tag: u32 = (u32::from(group) << 16) + (u32::from(tag) & 0x0000_FFFF);
-            Ok(TagNode::new(full_tag, index))
-        } else {
-            Err(ParseError::InvalidTagPath {
-                string_path: value.to_string(),
-            })
+            return Ok(TagNode::new(tag.tag, index));
         }
+
+        // Remove optional surrounding parens and optional group/elem splitter.
+        let tag_id = tag_id.replace(['(', ')', ',', '_'], "");
+        let full_tag: u32 =
+            u32::from_str_radix(&tag_id, 16).map_err(|e| ParseError::InvalidTagPath {
+                string_path: tag_id.to_owned(),
+                details: e.to_string(),
+            })?;
+        Ok(TagNode::new(full_tag, index))
     }
 }
 
@@ -247,45 +261,12 @@ impl From<u32> for TagNode {
     }
 }
 
-impl From<(u32, Option<usize>)> for TagNode {
-    fn from(tuple: (u32, Option<usize>)) -> Self {
-        TagNode {
-            tag: tuple.0,
-            item: tuple.1,
-        }
-    }
-}
-
-impl From<(&Tag, Option<usize>)> for TagNode {
-    fn from(tuple: (&Tag, Option<usize>)) -> Self {
-        TagNode {
-            tag: tuple.0.tag,
-            item: tuple.1,
-        }
-    }
-}
-
-impl From<&u32> for TagNode {
-    fn from(tag: &u32) -> Self {
-        TagNode {
-            tag: *tag,
-            item: None,
-        }
-    }
-}
-
 impl From<&Tag> for TagNode {
-    fn from(value: &Tag) -> Self {
+    fn from(tag: &Tag) -> Self {
         TagNode {
-            tag: value.tag,
+            tag: u32::from(tag),
             item: None,
         }
-    }
-}
-
-impl From<SequenceElement> for TagNode {
-    fn from(value: SequenceElement) -> Self {
-        value.node().clone()
     }
 }
 
@@ -294,6 +275,18 @@ impl From<&SequenceElement> for TagNode {
         TagNode {
             tag: element.seq_tag(),
             item: element.item(),
+        }
+    }
+}
+
+impl<T> From<(T, usize)> for TagNode
+where
+    u32: From<T>,
+{
+    fn from(tuple: (T, usize)) -> Self {
+        TagNode {
+            tag: u32::from(tuple.0),
+            item: Some(tuple.1),
         }
     }
 }
@@ -348,9 +341,9 @@ impl TagPath {
             // Filter out tags related to items & delimiters as they are markers which are already
             // contextually conveyed by the item number indicators.
             .filter(|node| {
-                node.tag != tags::ITEM
-                    && node.tag != tags::ITEM_DELIMITATION_ITEM
-                    && node.tag != tags::SEQUENCE_DELIMITATION_ITEM
+                node.tag != ITEM
+                    && node.tag != ITEM_DELIMITATION_ITEM
+                    && node.tag != SEQUENCE_DELIMITATION_ITEM
             })
             .map(|node| {
                 let tag: String = dict
@@ -399,7 +392,7 @@ impl TagPath {
             }
             nodes.push(node);
         }
-        Ok(nodes.into())
+        Ok(TagPath::from(nodes))
     }
 }
 
@@ -409,20 +402,26 @@ impl Display for TagPath {
     }
 }
 
-impl<T: Into<TagNode>> From<T> for TagPath {
+impl<T> From<T> for TagPath
+where
+    TagNode: From<T>,
+{
     fn from(value: T) -> Self {
         TagPath {
-            nodes: vec![value.into()],
+            nodes: vec![TagNode::from(value)],
         }
     }
 }
 
-impl<T: Into<TagNode>> From<Vec<T>> for TagPath {
+impl<T> From<Vec<T>> for TagPath
+where
+    TagNode: From<T>,
+{
     fn from(value: Vec<T>) -> Self {
         let len = value.len();
         let mut nodes: Vec<TagNode> = Vec::with_capacity(len);
         for (i, t) in value.into_iter().enumerate() {
-            let tag_node: TagNode = t.into();
+            let tag_node = TagNode::from(t);
             // For convenience, when making a tag path from a list of things that can be converted
             // into TagNode, assume that many of those things got the default into implementation
             // which defaults with an index of `None`, however unless it's the last node it should
@@ -453,18 +452,6 @@ impl From<&[u32]> for TagPath {
     }
 }
 
-impl From<&[Tag]> for TagPath {
-    fn from(tags: &[Tag]) -> Self {
-        let len = tags.len();
-        let mut nodes: Vec<TagNode> = Vec::with_capacity(len);
-        for (i, tag) in tags.iter().enumerate() {
-            let item = if i == len - 1 { None } else { Some(1) };
-            nodes.push(TagNode::new(tag.tag, item));
-        }
-        TagPath { nodes }
-    }
-}
-
 impl From<&[&Tag]> for TagPath {
     fn from(tags: &[&Tag]) -> Self {
         let len = tags.len();
@@ -481,7 +468,7 @@ impl From<&[&SequenceElement]> for TagPath {
     fn from(elements: &[&SequenceElement]) -> Self {
         elements
             .iter()
-            .map(|sq_el| sq_el.node().clone())
+            .map(|sq_el| TagNode::from(*sq_el))
             .collect::<Vec<TagNode>>()
             .into()
     }
@@ -491,18 +478,84 @@ impl From<&[SequenceElement]> for TagPath {
     fn from(elements: &[SequenceElement]) -> Self {
         elements
             .iter()
-            .map(|sq_el| sq_el.into())
+            .map(TagNode::from)
             .collect::<Vec<TagNode>>()
             .into()
     }
 }
 
-impl From<&Vec<SequenceElement>> for TagPath {
-    fn from(elements: &Vec<SequenceElement>) -> Self {
-        elements
-            .iter()
-            .map(|sq_el| sq_el.into())
-            .collect::<Vec<TagNode>>()
-            .into()
+#[cfg(test)]
+mod tests {
+    use crate::dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY,
+        tags::{
+            ContourImageSequence, PatientID, RTReferencedSeriesSequence, RTReferencedStudySequence,
+            ReferencedFrameofReferenceSequence, ReferencedSOPInstanceUID,
+        },
+    };
+
+    use super::{TagNode, TagPath};
+
+    #[test]
+    fn test_parse_tagnode() {
+        let pid = TagNode::new(&PatientID, None);
+        let rfr = TagNode::new(&ReferencedFrameofReferenceSequence, Some(5));
+
+        let val = TagNode::parse("00100020", None).expect("parse");
+        assert_eq!(pid, val);
+
+        let val = TagNode::parse("100020", None).expect("parse");
+        assert_eq!(pid, val);
+
+        let val = TagNode::parse("0010,0020", None).expect("parse");
+        assert_eq!(pid, val);
+
+        let val = TagNode::parse("(0010,0020)", None).expect("parse");
+        assert_eq!(pid, val);
+
+        let val = TagNode::parse("(0010_0020)", None).expect("parse");
+        assert_eq!(pid, val);
+
+        let val = TagNode::parse("PatientID", None).ok();
+        assert_eq!(None, val);
+
+        let val = TagNode::parse("PatientID", Some(&STANDARD_DICOM_DICTIONARY)).expect("parse");
+        assert_eq!(pid, val);
+
+        let val = TagNode::parse("PatientId", Some(&STANDARD_DICOM_DICTIONARY)).expect("parse");
+        assert_eq!(pid, val);
+
+        let val = TagNode::parse("3006,0010[5]", None).expect("parse");
+        assert_eq!(rfr, val);
+
+        let val = TagNode::parse(
+            "ReferencedFrameOfReferenceSequence[5]",
+            Some(&STANDARD_DICOM_DICTIONARY),
+        )
+        .expect("parse");
+        assert_eq!(rfr, val);
+    }
+
+    #[test]
+    fn test_parse_tagpath() {
+        let tagpath = TagPath::from(vec![
+            TagNode::from(&ReferencedFrameofReferenceSequence),
+            TagNode::from(&RTReferencedStudySequence),
+            TagNode::from(&RTReferencedSeriesSequence),
+            TagNode::from((&ContourImageSequence, 11)),
+            TagNode::from(&ReferencedSOPInstanceUID),
+        ]);
+
+        let parsed = TagPath::parse(
+            "ReferencedFrameOfReferenceSequence
+            .RTReferencedStudySequence
+            .RTReferencedSeriesSequence
+            .ContourImageSequence[11]
+            .ReferencedSOPInstanceUID",
+            Some(&STANDARD_DICOM_DICTIONARY),
+        )
+        .expect("parse");
+
+        assert_eq!(tagpath, parsed);
     }
 }

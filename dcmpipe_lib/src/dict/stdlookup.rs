@@ -15,7 +15,7 @@ impl DicomDictionary for StandardDicomDictionary {
     }
 
     fn get_ts_by_name(&self, name: &str) -> Option<TSRef> {
-        TS_BY_IDENT.get(name).copied()
+        TS_BY_IDENT.get(&name.to_lowercase()).copied()
     }
 
     fn get_tag_by_number(&self, number: u32) -> Option<TagRef> {
@@ -23,7 +23,7 @@ impl DicomDictionary for StandardDicomDictionary {
     }
 
     fn get_tag_by_name(&self, name: &str) -> Option<TagRef> {
-        TAG_BY_IDENT.get(name).copied()
+        TAG_BY_IDENT.get(&name.to_lowercase()).copied()
     }
 
     fn get_uid_by_uid(&self, uid: &str) -> Option<UIDRef> {
@@ -31,6 +31,6 @@ impl DicomDictionary for StandardDicomDictionary {
     }
 
     fn get_uid_by_name(&self, name: &str) -> Option<UIDRef> {
-        UID_BY_IDENT.get(name).copied()
+        UID_BY_IDENT.get(&name.to_lowercase()).copied()
     }
 }

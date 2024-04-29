@@ -1,14 +1,19 @@
-use dcmpipe_lib;
+use std::{
+    convert::{TryFrom, TryInto},
+    fs::File,
+};
 
-use std::convert::{TryFrom, TryInto};
-use std::fs::File;
-
-use dcmpipe_lib::core::charset::CSRef;
-use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::{ParseResult, Parser, ParserBuilder};
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::dict::tags;
+use dcmpipe_lib::{
+    core::{
+        charset::CSRef,
+        dcmobject::DicomRoot,
+        read::{ParseResult, Parser, ParserBuilder},
+    },
+    dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY,
+        tags::{DirectoryRecordSequence, PatientsName, SpecificCharacterSet},
+    },
+};
 
 mod common;
 
@@ -99,34 +104,34 @@ fn test_nested_charset(
     scs: &str,
     pn: &str,
 ) -> ParseResult<()> {
-    let item: &DicomObject = dcmroot
-        .get_child_by_tag(tags::DirectoryRecordSequence.tag)
+    let item = dcmroot
+        .get_child_by_tag(&DirectoryRecordSequence)
         .expect("Should have DirectoryRecordSequence")
         .get_item_by_index(item_num)
         .expect("Should have item");
 
     let item_scs_values: Vec<String> = item
-        .get_child_by_tag(tags::SpecificCharacterSet.tag)
+        .get_child_by_tag(&SpecificCharacterSet)
         .expect("Item should have SCS")
         .element()
         .try_into()?;
 
-    let item_scs: String = item_scs_values
+    let item_scs = item_scs_values
         .into_iter()
-        .filter(|cs_entry: &String| !cs_entry.is_empty())
+        .filter(|cs_entry| !cs_entry.is_empty())
         .nth(0)
         .expect("Should have at least one value for SCS");
 
     assert_eq!(scs, item_scs);
 
-    let item_pn: &DicomElement = item
-        .get_child_by_tag(tags::PatientsName.tag)
+    let item_pn = item
+        .get_child_by_tag(&PatientsName)
         .expect("Item should have PN")
         .element();
 
     assert_eq!(cs.name(), item_pn.cs().name());
 
-    let item_pn_value: String = String::try_from(item_pn)?;
+    let item_pn_value = String::try_from(item_pn)?;
 
     assert_eq!(pn, item_pn_value);
 
@@ -261,25 +266,25 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
 
     assert_eq!(cs.name(), dcmroot.cs().name());
 
-    let scs_elem: &DicomElement = dcmroot
-        .get_child_by_tag(tags::SpecificCharacterSet.tag)
+    let scs_elem = dcmroot
+        .get_child_by_tag(&SpecificCharacterSet)
         .expect("Should have SCS")
         .element();
 
     // value can be multiple and sometimes contains empties -- match logic from the parser
     let scs_val: String = Vec::<String>::try_from(scs_elem)?
         .into_iter()
-        .filter(|cs_entry: &String| !cs_entry.is_empty())
+        .filter(|cs_entry| !cs_entry.is_empty())
         .nth(0)
         .expect("Should have at least one value for SCS");
     assert_eq!(scs, scs_val);
 
-    let pn_elem: &DicomElement = dcmroot
-        .get_child_by_tag(tags::PatientsName.tag)
+    let pn_elem = dcmroot
+        .get_child_by_tag(&PatientsName)
         .expect("Should have PN")
         .element();
 
-    let pn_val: String = String::try_from(pn_elem)?;
+    let pn_val = String::try_from(pn_elem)?;
     assert_eq!(pn, pn_val);
 
     Ok(())

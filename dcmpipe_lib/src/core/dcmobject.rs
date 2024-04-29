@@ -78,7 +78,7 @@ impl DicomRoot {
     where
         u32: From<T>,
     {
-        self.sentinel.get_child_by_tag(u32::from(tag))
+        self.sentinel.get_child_by_tag(tag)
     }
 
     /// Gets a mutable child node by tag number.
@@ -86,7 +86,7 @@ impl DicomRoot {
     where
         u32: From<T>,
     {
-        self.sentinel.get_child_by_tag_mut(u32::from(tag))
+        self.sentinel.get_child_by_tag_mut(tag)
     }
 
     /// Returns an iterator for the child nodes in this `DicomRoot`.
@@ -367,13 +367,19 @@ impl DicomObject {
     }
 
     /// Gets a child node by tag number.
-    pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
-        self.child_nodes.get(&tag)
+    pub fn get_child_by_tag<T>(&self, tag: T) -> Option<&DicomObject>
+    where
+        u32: From<T>,
+    {
+        self.child_nodes.get(&u32::from(tag))
     }
 
     /// Gets a mutable child node by tag number.
-    pub fn get_child_by_tag_mut(&mut self, tag: u32) -> Option<&mut DicomObject> {
-        self.child_nodes.get_mut(&tag)
+    pub fn get_child_by_tag_mut<T>(&mut self, tag: T) -> Option<&mut DicomObject>
+    where
+        u32: From<T>,
+    {
+        self.child_nodes.get_mut(&u32::from(tag))
     }
 
     /// Returns an iterator for the child nodes in this `DicomObject`.
