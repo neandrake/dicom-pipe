@@ -32,7 +32,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot, Error> {
     }
     let mut parser: Parser<File> = parser.build();
     let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
-    parse_all_values(&dcmroot)?;
+    parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
 }
 
@@ -49,26 +49,8 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
         }
         let parser: Parser<File> = parser.build();
 
-        for elem_result in parser {
-            match elem_result {
-                Ok(elem) => match parse_value(&elem) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        num_failed += 1;
-                        eprintln!(
-                            "Error parsing DICOM Element:\n\t{}\n\t{}\n\t{}",
-                            path_str,
-                            Tag::format_tag_to_display(elem.tag),
-                            e
-                        );
-                        break;
-                    },
-                },
-                Err(e) => {
-                    num_failed += 1;
-                    eprintln!("Error parsing DICOM:\n\t{}\n\t{}", path_str, e);
-                },
-            }
+        if parse_all_element_values(parser, path_str).is_err() {
+            num_failed += 1;
         }
     }
 
@@ -138,22 +120,56 @@ where
     true
 }
 
-pub fn parse_all_values(dcmroot: &DicomRoot) -> Result<(), Error> {
+pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot) -> Result<(), Error> {
     for (_tag, dcmobj) in dcmroot.iter() {
-        parse_all_values_dcmobj(dcmobj)?;
+        parse_all_dcmobj_values(dcmobj)?;
     }
     Ok(())
 }
 
-fn parse_all_values_dcmobj(dcmobj: &DicomObject) -> Result<(), Error> {
-    parse_value(dcmobj.as_element())?;
+fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<(), Error> {
+    parse_element_value(dcmobj.as_element())?;
     for (_tag, child_dcmobj) in dcmobj.iter() {
-        parse_all_values_dcmobj(child_dcmobj)?;
+        parse_all_dcmobj_values(child_dcmobj)?;
     }
     Ok(())
 }
 
-pub fn parse_value(elem: &DicomElement) -> Result<(), Error> {
+pub fn parse_all_element_values(parser: Parser<File>, path_str: &str) -> Result<(), Error> {
+    for elem_result in parser {
+        match elem_result {
+            Ok(elem) => {
+                match parse_element_value(&elem) {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
+                        let sq_path: String = elem
+                            .get_sequence_path()
+                            .iter()
+                            .map(|sq| sq.get_seq_tag())
+                            .chain(vec![elem.tag])
+                            .map(Tag::format_tag_to_display)
+                            .collect::<Vec<String>>()
+                            .join(".");
+                        eprintln!(
+                            "Error parsing DICOM Element:\n\t{}\n\t{}\n\t{}",
+                            path_str, sq_path, e
+                        );
+                        Err(e)
+                    }
+                }?;
+                Ok(())
+            }
+            Err(e) => {
+                eprintln!("Error parsing DICOM:\n\t{}\n\t{}", path_str, e);
+                Err(e)
+            }
+        }?;
+    }
+
+    Ok(())
+}
+
+pub fn parse_element_value(elem: &DicomElement) -> Result<(), Error> {
     if elem.vr == &vr::AT {
         elem.parse_attribute()?;
     } else if elem.vr == &vr::FD || elem.vr == &vr::OF || elem.vr == &vr::OD || elem.vr == &vr::FL {

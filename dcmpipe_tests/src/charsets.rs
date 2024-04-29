@@ -1,20 +1,24 @@
-use crate::{parse_file, parse_all_values};
+use crate::{parse_all_element_values, parse_file};
 use dcmpipe_dict::dict::dicom_elements as tags;
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use encoding::all;
+use std::fs::File;
 use std::io::Error;
 
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]
 fn test_parse_nested_charset_values() -> Result<(), Error> {
-    let dcmroot: DicomRoot = parse_file(
-        "./fixtures/dclunie/charsettests/DICOMDIR",
-        true,
-    )?;
+    let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
+    let file: File = File::open(path_str)?;
+    let parser: Parser<File> = ParserBuilder::new(file)
+        .dictionary(&STANDARD_DICOM_DICTIONARY)
+        .build();
 
-    parse_all_values(&dcmroot)
+    parse_all_element_values(parser, path_str)
 }
 
 #[test]
