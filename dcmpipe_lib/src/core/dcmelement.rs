@@ -152,72 +152,62 @@ impl DicomElement {
         self.data.is_empty()
     }
 
-    /// Parses the value of this element as a string using the given encoding
+    /// Parses the value of this element as a string using the element's encoding and VR
     /// Associated VRs:
-    /// All character string AE's -- subsequent interpretation of String is necessary based on VR
+    /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     pub fn parse_string(&self) -> Result<String, Error> {
-        let is_ui: bool = self.vr == &vr::UI;
-        let is_char_str: bool = self.vr.is_character_string;
-        let padding: u8 = self.vr.padding;
-        let cs: CSRef = self.cs;
+        self.parse_string_with_vr(self.vr)
+    }
 
-        let mut data: &[u8] = self.get_string_bytes_without_padding();
-
-        if is_ui && data[data.len() - 1] == padding {
-            data = &data[0..data.len() - 1];
-        }
-
-        cs.decode(data, DecoderTrap::Strict)
-            .map(|v: String| {
-                if !is_ui && is_char_str {
-                    v.trim_end_matches(|c: char| c == padding as char)
-                        .to_string()
-                } else {
-                    v
-                }
-            })
+    /// Parses the value of this element as a string using the element's encoding and the specified
+    /// VR. This can be used in the event the parser of the element did not have an appropriate
+    /// tag dictionary for resolving implicit VRs.
+    /// Associated VRs:
+    /// All character string VR's -- subsequent interpretation of String is necessary based on VR
+    /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
+    pub fn parse_string_with_vr(&self, vr: VRRef) -> Result<String, Error> {
+        let data: &[u8] = self.get_string_bytes_without_padding(vr);
+        self.cs.decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
     }
 
-    /// Parses the value of this element as a list of strings using the given encoding
+    /// Parses the value of this element as a list of strings using the element's encoding and vr.
     /// Associated VRs:
-    /// All character string AE's -- subsequent interpretation of String is necessary based on VR
+    /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     pub fn parse_strings(&self) -> Result<Vec<String>, Error> {
-        let is_ui: bool = self.vr == &vr::UI;
-        let is_char_str: bool = self.vr.is_character_string;
-        let padding: u8 = self.vr.padding;
-        let cs: CSRef = self.cs;
+        self.parse_strings_with_vr(self.vr)
+    }
 
-        let mut data: &[u8] = self.get_string_bytes_without_padding();
-
-        if is_ui && data[data.len() - 1] == padding {
-            data = &data[0..data.len() - 1];
-        }
-
-        cs.decode(data, DecoderTrap::Strict)
-            .map(|v: String| {
-                if !is_ui && is_char_str {
-                    v.trim_end_matches(|c: char| c == padding as char)
-                        .to_string()
-                } else {
-                    v
-                }
-            })
+    /// Parses the value of this element as a list of strings using the element's encoding and the
+    /// specified VR. This can be used in the event the parser of the element did not have an appropriate
+    /// tag dictionary for resolving implicit VRs.
+    /// Associated VRs:
+    /// All character string VR's -- subsequent interpretation of String is necessary based on VR
+    /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
+    pub fn parse_strings_with_vr(&self, vr: VRRef) -> Result<Vec<String>, Error> {
+        let data: &[u8] = self.get_string_bytes_without_padding(vr);
+        self.cs.decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
             .map(|multivalue: String| {
-                multivalue
-                    .split(CHARACTER_STRING_SEPARATOR)
-                    .map(str::to_owned)
-                    .collect::<Vec<String>>()
+                if !vr.allows_backslash_text_value {
+                    multivalue
+                        .split(CHARACTER_STRING_SEPARATOR)
+                        .map(str::to_owned)
+                        .collect::<Vec<String>>()
+                } else {
+                    let mut vec: Vec<String> = Vec::new();
+                    vec.push(multivalue);
+                    vec
+                }
             })
     }
 
     /// Returns the value as a slice with the padding character
     /// removed per the specification of whether the VR indicates leading/trailing
     /// padding is significant.
-    fn get_string_bytes_without_padding(&self) -> &[u8] {
+    pub fn get_string_bytes_without_padding(&self, vr: VRRef) -> &[u8] {
         // grab the position to start reading bytes from prior to computing the new bytes_read
         let mut lindex: usize = 0;
 
@@ -227,23 +217,38 @@ impl DicomElement {
         }
 
         let mut rindex: usize = data.len() - 1;
-        if self.vr.should_trim_trailing_space {
-            while rindex > lindex {
-                if data[rindex] == 0x20 {
-                    rindex -= 1;
-                } else {
-                    break;
+        if vr.can_pad_end {
+            if vr.padding == vr::SPACE_PADDING {
+                // space padding should strip all trailing spaces
+                while rindex > lindex {
+                    if data[rindex] == vr.padding {
+                        rindex -= 1;
+                    } else {
+                        break;
+                    }
+                }
+            } else if vr.padding == vr::NULL_PADDING {
+                // null byte padding is only singular and only if used to achieve even length
+                if data.len() % 2 == 0 {
+                    if data[rindex] == vr.padding {
+                        rindex -= 1;
+                    }
                 }
             }
         }
-        if self.vr.should_trim_leading_space {
-            while lindex < rindex {
-                if data[lindex] == 0x20 {
-                    lindex += 1;
-                } else {
-                    break;
+
+        if vr.can_pad_front {
+            // space padding should strip all leading spaces
+            if vr.padding == vr::SPACE_PADDING {
+                while lindex < rindex {
+                    if data[lindex] == vr.padding {
+                        lindex += 1;
+                    } else {
+                        break;
+                    }
                 }
             }
+            // no such thing as leading padding of null bytes
         }
         &data[lindex..=rindex]
     }

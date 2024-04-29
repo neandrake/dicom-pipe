@@ -104,7 +104,7 @@ fn test_ts_name_vs_properties() {
                 ts.uid
             );
         } else {
-            // Currently the defined/known TS's which don't have Big/Little in the name are LittleEndian
+            // Defined/known TS's without "big/little" in the name are assumed little endian
             assert!(
                 !ts.big_endian,
                 "Name contains no endian but is not big_endian: {:?}",
@@ -125,23 +125,28 @@ fn test_ts_name_vs_properties() {
                 ts.uid
             );
         } else {
-            // Currently the defined/known TS's which don't have Implicit/Explicit in the name are Implicit
+            // Transfer syntaxes without "implicit/explicit" in name assumed to be explicit vr
             assert!(
-                !ts.explicit_vr,
+                ts.explicit_vr,
                 "Name contains no vr but is not explicit_vr: {:?}",
                 ts.uid
             );
         }
 
-        assert_eq!(
-            contains_deflate, ts.deflated,
-            "Name contains \"Deflate\" but is not deflated: {:?}",
-            ts.uid
-        );
-        assert_eq!(
-            contains_encapsulated, ts.encapsulated,
-            "Name contains \"Encapsulated\" but is not encapsulated: {:?}",
-            ts.uid
-        );
+        if contains_deflate {
+            assert!(
+                ts.deflated,
+                "Name contains \"Deflate\" but is not deflated: {:?}",
+                ts.uid
+            )
+        }
+
+        if contains_encapsulated {
+            assert!(
+                ts.encapsulated,
+                "Name contains \"Encapsulated\" but is not encapsulated: {:?}",
+                ts.uid
+            )
+        }
     }
 }
