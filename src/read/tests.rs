@@ -7,6 +7,7 @@ use byteorder::ReadBytesExt;
 
 use core::dict::dicom_elements as tags;
 
+use read::dcmelement::DicomElement;
 use read::dcmstream::{DicomStream, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::mock::MockDicomStream;
 use read::tagstop::TagStop;
@@ -72,24 +73,33 @@ fn test_parse_known_dicom_files() {
     let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
         .min_depth(1)
         .max_depth(1);
-    let dirwalker_iter: walkdir::Iter = dirwalker.into_iter();
-    for entry_res in dirwalker_iter {
+
+    for entry_res in dirwalker.into_iter() {
         let entry: DirEntry = entry_res.unwrap();
         let path: &Path = entry.path();
 
         let mut dstream: DicomStream<File> = DicomStream::new_from_path(path)
-            .expect("Unable to read file");
+            .expect(&format!("Unable to read file: {:?}", path));
 
-        dstream.read_file_meta()
+        println!("\n# Dicom-File-Format File: {:?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}", path, dstream.get_ts().uid.name);
+        dstream.read_file_meta(|elem: &DicomElement| {
+                println!("{:?}", elem);
+            })
             .expect(&format!("Unable to read FileMetaInformation: {:?}", path));
+
         let is_dcm = is_standard_preamble(&dstream);
         assert!(is_dcm);
 
         // Ability to read dicom elements after FileMetaInformation
         // means that we interpret the transfer syntax properly, as
         // the fixtures are implicit VR (FMI is encoded as explicit)
-        dstream.read_until(TagStop::BeforeTag(tags::PixelData.tag))
-            .expect("Error reading elements");
+        println!("\n\n# Dicom-Data-Set\n# Used TransferSyntax: {}", dstream.get_ts().uid.name);
+        dstream.read_until(
+            TagStop::BeforeTag(tags::PixelData.tag),
+            |elem: &DicomElement| {
+                println!("{:?}", elem);
+            })
+            .expect(&format!("Error reading elements: {:?}", path));
     }
 }
 
