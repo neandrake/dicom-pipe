@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_lines)]
+
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Error, Write};
 use std::path::{Path, PathBuf};
@@ -110,6 +112,11 @@ pub static {}: Tag = Tag {{
     };
 }
 
+/// Parse the given input XML files based on the DICOM standard structure and output the resulting
+/// definition files to the given folder.
+///
+/// # Errors
+/// I/O errors encountered reading/writing files.
 pub fn process_xml_files(files: Vec<File>, folder: &Path) -> Result<(), Error> {
     type PossibleDef = Result<XmlDicomDefinition, quick_xml::Error>;
 

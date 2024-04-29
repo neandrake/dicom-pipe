@@ -5,6 +5,8 @@
 //! structure of the expected document needs to be tracked as quick-xml emits events from the
 //! document.
 
+#![allow(clippy::too_many_lines, clippy::match_same_arms)]
+
 use std::io::BufRead;
 
 use quick_xml::events::{BytesText, Event};
@@ -510,7 +512,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                 self.element_obs = Some(parse_text_bytes(&data));
                             }
                         }
-                        _ => {}
+                        XmlDicomElementCell::RowStart => {}
                     },
                     XmlDicomReadingState::InDicomUidCell(uid_cell) => match uid_cell {
                         XmlDicomUidCell::Value => {
@@ -533,7 +535,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                 self.uid_part = Some(parse_text_bytes(&data));
                             }
                         }
-                        _ => {}
+                        XmlDicomUidCell::RowStart | XmlDicomUidCell::Keyword => {}
                     },
                     _ => {}
                 },
