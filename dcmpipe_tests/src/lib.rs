@@ -21,6 +21,8 @@ mod mock;
 mod mockdata;
 #[cfg(test)]
 mod parsing;
+#[cfg(test)]
+mod writing;
 
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {

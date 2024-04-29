@@ -126,6 +126,12 @@ impl<DatasetType: Write> Writer<DatasetType> {
             bytes_written += Writer::write_element(&mut self.dataset, element)?;
         }
 
+        // If the input elements only consist of FileMeta elements then the above loop will never
+        // result in writing any elements as they're being collected into `fm_elements`.
+        if self.state == WriteState::FileMeta && !fm_elements.is_empty() {
+            bytes_written += self.write_fm_elements(fm_elements.as_slice())?;
+        }
+
         Ok(bytes_written)
     }
 
