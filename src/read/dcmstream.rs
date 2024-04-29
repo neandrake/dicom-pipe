@@ -12,7 +12,9 @@ use core::vr;
 use read::dcmelement::DicomElement;
 
 use std::collections::hash_map::HashMap;
-use std::io::{Cursor, Error, ErrorKind, Seek};
+use std::fs::File;
+use std::io::{Cursor, Error, ErrorKind};
+use std::path::Path;
 use std::string;
 
 
@@ -37,7 +39,19 @@ pub struct DicomStream<StreamType> {
     bytes_read: usize,
 }
 
-impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
+impl DicomStream<File> {
+    pub fn new_from_path(path: &Path) -> Result<DicomStream<File>, Error> {
+        if !path.is_file() {
+            return Err(Error::new(ErrorKind::InvalidData,
+                format!("Invalid path: {:?}", path)));
+        }
+
+        let file: File = File::open(path)?;
+        Ok::<DicomStream<File>, Error>(DicomStream::new(file))
+    }
+}
+
+impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     pub fn new(stream: StreamType) -> DicomStream<StreamType> {
         DicomStream {
             stream: stream,
