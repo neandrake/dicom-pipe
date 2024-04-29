@@ -24,7 +24,7 @@ fn main() {
         Ok(()) => {}
         Err(err) => {
             writeln!(&mut std::io::stderr(),
-                     "[ERROR] Error parsing directory: {:?}",
+                     "[ERROR] Error parsing directory: {}",
                      err)
                 .unwrap();
         }
@@ -51,7 +51,7 @@ fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
             }
             Err(err) => {
                 writeln!(&mut std::io::stderr(),
-                         "[ERROR] Error parsing file as DICOM: {:?}",
+                         "[ERROR] Error parsing file as DICOM: {}",
                          err)
                     .unwrap();
             }
