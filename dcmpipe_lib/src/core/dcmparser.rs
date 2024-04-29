@@ -9,6 +9,7 @@ use crate::defn::tag::Tag;
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
+use std::convert::TryFrom;
 use std::io::{Cursor, Error, ErrorKind, Read};
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -402,7 +403,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Parses the value of the given element as the transfer syntax return. If the transfer syntax
     /// cannot be resolved then this sets it to the default DICOM transfer syntax which is IVRLE.
     fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<TSRef, Error> {
-        let ts_uid: String = element.parse_string()?;
+        let ts_uid: String = String::try_from(element)?;
         Ok(self
             .dictionary
             .get_ts_by_uid(ts_uid.as_ref())
@@ -412,8 +413,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Parses the value of the given element as the specific character set and sets the `cs` value
     /// on this iterator to affect the parsing of further text-type element values.
     fn parse_specific_character_set(&mut self, element: &DicomElement) -> Result<CSRef, Error> {
-        let new_cs: Option<String> = element
-            .parse_strings()?
+        let new_cs: Option<String> = Vec::<String>::try_from(element)?
             .into_iter()
             .filter(|cs_entry: &String| !cs_entry.is_empty())
             .nth(0);
@@ -768,7 +768,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         let grouplength: DicomElement = self.read_dicom_element(tag, ts)?;
-        self.fmi_grouplength = grouplength.parse_u32()?;
+        self.fmi_grouplength = u32::try_from(&grouplength)?;
         self.fmi_start = self.bytes_read;
         self.state = ParseState::FileMeta;
         // reset partial_tag to None

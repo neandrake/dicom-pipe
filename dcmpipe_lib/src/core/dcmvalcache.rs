@@ -1,5 +1,6 @@
 use crate::core::dcmelement::DicomElement;
 use std::collections::hash_map::{Entry, HashMap};
+use std::convert::TryFrom;
 use std::io::Error;
 
 /// A cache of the values parsed into native types -- the initial request
@@ -34,7 +35,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: String = element.parse_string()?;
+                let value: String = String::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -45,7 +46,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<String> = element.parse_strings()?;
+                let value: Vec<String> = Vec::<String>::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -56,7 +57,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: f32 = element.parse_f32()?;
+                let value: f32 = f32::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -67,7 +68,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<f32> = element.parse_f32s()?;
+                let value: Vec<f32> = Vec::<f32>::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -78,7 +79,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: f64 = element.parse_f64()?;
+                let value: f64 = f64::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -89,7 +90,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<f64> = element.parse_f64s()?;
+                let value: Vec<f64> = Vec::<f64>::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -100,7 +101,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: i16 = element.parse_i16()?;
+                let value: i16 = i16::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -111,7 +112,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<i16> = element.parse_i16s()?;
+                let value: Vec<i16> = Vec::<i16>::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -122,7 +123,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: i32 = element.parse_i32()?;
+                let value: i32 = i32::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -133,7 +134,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: Vec<i32> = element.parse_i32s()?;
+                let value: Vec<i32> = Vec::<i32>::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -144,7 +145,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: u16 = element.parse_u16()?;
+                let value: u16 = u16::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }
@@ -155,7 +156,7 @@ impl DicomValueCache {
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
-                let value: u32 = element.parse_u32()?;
+                let value: u32 = u32::try_from(element)?;
                 Ok(vac_entry.insert(value))
             }
         }

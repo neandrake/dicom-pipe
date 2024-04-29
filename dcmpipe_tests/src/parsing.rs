@@ -5,7 +5,7 @@ use dcmpipe_dict::dict::file_meta_elements as fme;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
-use dcmpipe_lib::core::dcmelement::DicomElement;
+use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{ParseState, Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
@@ -13,6 +13,7 @@ use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 
@@ -162,7 +163,7 @@ fn test_dicom_object(with_std: bool) -> Result<(), Error> {
     let element: &DicomElement = sop_class_uid.as_element();
 
     assert_eq!(
-        element.parse_string_with_vr(&vr::UI)?,
+        String::try_from(ElementWithVr(element, &vr::UI))?,
         uids::CTImageStorage.uid
     );
 
@@ -253,15 +254,15 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
     // Only if we detect the VR as UI (when using standard dictionary) then the value should
     // match exactly when parsed as a string otherwise we have to check it with the null byte.
     if with_std {
-        assert_eq!(sopuid.parse_string()?, uids::MRImageStorage.uid);
+        assert_eq!(String::try_from(sopuid)?, uids::MRImageStorage.uid);
     } else {
         assert_eq!(
-            sopuid.parse_string()?,
+            String::try_from(sopuid)?,
             format!("{}\u{0}", uids::MRImageStorage.uid)
         );
         // force parsing as UI should match exactly
         assert_eq!(
-            sopuid.parse_string_with_vr(&vr::UI)?,
+            String::try_from(ElementWithVr(sopuid, &vr::UI))?,
             uids::MRImageStorage.uid
         );
     }
@@ -396,7 +397,7 @@ fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
         .expect("Should have Patient Name")
         .as_element();
 
-    let pn: String = pat_name.parse_string()?;
+    let pn: String = String::try_from(pat_name)?;
     if with_std {
         assert_eq!(pn, "6063^Anon17216");
     } else {
@@ -404,7 +405,7 @@ fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
         // isn't considered in parsing.
         assert_eq!(pn, "6063^Anon17216      ");
         // Forcing the parse using a specific VR should trim the value though
-        let pn: String = pat_name.parse_string_with_vr(&vr::PN)?;
+        let pn: String = String::try_from(ElementWithVr(pat_name, &vr::PN))?;
         assert_eq!(pn, "6063^Anon17216");
     }
 
@@ -413,7 +414,7 @@ fn test_undefined_charset(with_std: bool) -> Result<(), Error> {
         .expect("Should have Patient Comments")
         .as_element();
 
-    let pc: String = pat_com.parse_string()?;
+    let pc: String = String::try_from(pat_com)?;
     let pc_expected: String = String::from_utf8(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
     assert_eq!(pc, pc_expected);
