@@ -35,7 +35,7 @@ fn main() -> Result<(), Error> {
 
     let file: Result<File, Error> = File::open(path);
     if let Err(e) = file {
-        eprintln!("Unable to open file: {}", path.display());
+        eprintln!("Unable to open file: {} - {}", e, path.display());
         process::exit(1);
     }
     let file: File = file.unwrap();
