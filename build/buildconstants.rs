@@ -152,34 +152,34 @@ use core::dict::dir_structure_elements as dse;
 use core::dict::file_meta_elements as fme;
 use core::dict::uids;
 use core::dict::transfer_syntaxes as ts;
-use core::tag::Tag;
-use core::ts::TransferSyntax;
-use core::uid::UID;
+use core::tag::TagRef;
+use core::ts::TSRef;
+use core::uid::UIDRef;
 
 
 ")?;
 
-    write!(&mut lookup_file, "pub static TAG_BY_IDENT: ::phf::Map<&'static str, &'static Tag> = ")?;
+    write!(&mut lookup_file, "pub static TAG_BY_IDENT: ::phf::Map<&'static str, TagRef> = ")?;
     tag_ident_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static TAG_BY_VALUE: ::phf::Map<u32, &'static Tag> = ")?;
+    write!(&mut lookup_file, "pub static TAG_BY_VALUE: ::phf::Map<u32, TagRef> = ")?;
     tag_tag_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static TS_BY_IDENT: ::phf::Map<&'static str, &'static TransferSyntax> = ")?;
+    write!(&mut lookup_file, "pub static TS_BY_IDENT: ::phf::Map<&'static str, TSRef> = ")?;
     ts_ident_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static TS_BY_ID: ::phf::Map<&'static str, &'static TransferSyntax> = ")?;
+    write!(&mut lookup_file, "pub static TS_BY_ID: ::phf::Map<&'static str, TSRef> = ")?;
     ts_id_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static UID_BY_IDENT: ::phf::Map<&'static str, &'static UID> = ")?;
+    write!(&mut lookup_file, "pub static UID_BY_IDENT: ::phf::Map<&'static str, UIDRef> = ")?;
     uid_ident_lookup_phf.build(&mut lookup_file)?;
 
     write!(&mut lookup_file, ";\n\n")?;
-    write!(&mut lookup_file, "pub static UID_BY_ID: ::phf::Map<&'static str, &'static UID> = ")?;
+    write!(&mut lookup_file, "pub static UID_BY_ID: ::phf::Map<&'static str, UIDRef> = ")?;
     uid_id_lookup_phf.build(&mut lookup_file)?;
     write!(&mut lookup_file, ";\n")?;
 

@@ -5,6 +5,8 @@
 
 use std::hash::{Hash, Hasher};
 
+pub type VRRef = &'static VR;
+
 /// Value Representation
 #[derive(Debug, Eq)]
 pub struct VR {
@@ -38,42 +40,40 @@ impl Hash for VR {
 	}
 }
 
-impl VR {
-	pub fn code_to_vr(code: u16) -> Option<&'static VR> {
-		match code {
-			0x4145 => Some(&AE),
-			0x4153 => Some(&AS),
-			0x4154 => Some(&AT),
-			0x4353 => Some(&CS),
-			0x4441 => Some(&DA),
-			0x4453 => Some(&DS),
-			0x4454 => Some(&DT),
-			0x4644 => Some(&FD),
-			0x464C => Some(&FL),
-			0x4953 => Some(&IS),
-			0x4C4F => Some(&LO),
-			0x4C54 => Some(&LT),
-			0x4F42 => Some(&OB),
-			0x4F44 => Some(&OD),
-			0x4F46 => Some(&OF),
-			0x4F4C => Some(&OL),
-			0x4F57 => Some(&OW),
-			0x504E => Some(&PN),
-			0x5348 => Some(&SH),
-			0x534C => Some(&SL),
-			0x5351 => Some(&SQ),
-			0x5353 => Some(&SS),
-			0x5354 => Some(&ST),
-			0x544D => Some(&TM),
-			0x5443 => Some(&UC),
-			0x5549 => Some(&UI),
-			0x554c => Some(&UL),
-			0x544E => Some(&UN),
-			0x5452 => Some(&UR),
-			0x5553 => Some(&US),
-			0x5554 => Some(&UT),
-			_ => None,
-		}
+pub fn code_to_vr(code: u16) -> Option<&'static VR> {
+	match code {
+		0x4145 => Some(&AE),
+		0x4153 => Some(&AS),
+		0x4154 => Some(&AT),
+		0x4353 => Some(&CS),
+		0x4441 => Some(&DA),
+		0x4453 => Some(&DS),
+		0x4454 => Some(&DT),
+		0x4644 => Some(&FD),
+		0x464C => Some(&FL),
+		0x4953 => Some(&IS),
+		0x4C4F => Some(&LO),
+		0x4C54 => Some(&LT),
+		0x4F42 => Some(&OB),
+		0x4F44 => Some(&OD),
+		0x4F46 => Some(&OF),
+		0x4F4C => Some(&OL),
+		0x4F57 => Some(&OW),
+		0x504E => Some(&PN),
+		0x5348 => Some(&SH),
+		0x534C => Some(&SL),
+		0x5351 => Some(&SQ),
+		0x5353 => Some(&SS),
+		0x5354 => Some(&ST),
+		0x544D => Some(&TM),
+		0x5443 => Some(&UC),
+		0x5549 => Some(&UI),
+		0x554c => Some(&UL),
+		0x544E => Some(&UN),
+		0x5452 => Some(&UR),
+		0x5553 => Some(&US),
+		0x5554 => Some(&UT),
+		_ => None,
 	}
 }
 
