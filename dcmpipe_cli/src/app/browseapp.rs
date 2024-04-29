@@ -133,11 +133,11 @@ impl CommandApplication for BrowseApp {
 
 impl<'app> DicomDocumentModel<'app> {
     fn parse<'dict>(path: &'app Path, dcmroot: &DicomRoot) -> DicomDocumentModel<'app> {
-        let map = DicomNodeModel::parse(dcmroot.as_obj());
-        let count = map.len();
+        let node_models = DicomNodeModel::parse(dcmroot.as_obj());
+        let count = node_models.len();
         DicomDocumentModel {
             file_path: path,
-            node_models: map,
+            node_models,
             node_views: HashMap::with_capacity(count),
         }
     }

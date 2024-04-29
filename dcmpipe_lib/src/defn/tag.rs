@@ -4,6 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 use crate::core::dcmsqelem::SequenceElement;
+use crate::core::read::ParseError;
 use crate::defn::vm::VMRef;
 use crate::defn::vr::VRRef;
 
@@ -177,6 +178,55 @@ impl TagNode {
     pub fn get_item_mut(&mut self) -> &mut Option<usize> {
         &mut self.item
     }
+
+    /// Parses a `TagNode` from the given string. The tag can be resolved by name if a dictionary
+    /// is supplied, or by standard hexformat (parens are optional). For a `TagNode` which is in a
+    /// sequence path, an index can be supplied which must be at the end and contained within
+    /// square brackets. Supplying a dictionary is optional however must be supplied in order to
+    /// resolve tags by name.
+    ///
+    /// The acceptable formats are:
+    /// ```text
+    /// "PatientID" => (0x0010_0020, None)
+    /// "(0010,0020)" => (0x0010_0020, None)
+    /// "0010,0020" => (0x0010_0020, None)
+    /// "ReferencedFrameOfReferenceSequence[1]" => (0x3006_0010, Some(1))
+    /// "(3006,0010)[1]" => (0x3006_0010, Some(1))
+    /// ```
+    pub fn from_str(value: &str, dict: Option<&dyn DicomDictionary>) -> Result<Self, ParseError> {
+        let value = value.trim();
+        let mut index = None;
+        let mut tag_id = value;
+        if let Some((name_part, index_part)) = value.rsplit_once('[') {
+            if let Some((index_part, _bracket)) = index_part.rsplit_once(']') {
+                if let Ok(parsed) = usize::from_str_radix(index_part, 10) {
+                    index = Some(parsed);
+                }
+            }
+            tag_id = name_part;
+        }
+
+        let lookup = dict.and_then(|d| d.get_tag_by_name(tag_id));
+        if let Some(tag) = lookup {
+            Ok(TagNode::new(tag.tag, index))
+        } else {
+            if let Some((group, tag)) = value.trim_matches(&['(', ')']).split_once(',') {
+                let group =
+                    u16::from_str_radix(group, 16).map_err(|e| ParseError::InvalidTagPath {
+                        string_path: e.to_string(),
+                    })?;
+                let tag = u16::from_str_radix(tag, 16).map_err(|e| ParseError::InvalidTagPath {
+                    string_path: e.to_string(),
+                })?;
+                let full_tag: u32 = ((group as u32) << 16) + ((tag as u32) & 0x0000_FFFF);
+                Ok(TagNode::new(full_tag, index))
+            } else {
+                Err(ParseError::InvalidTagPath {
+                    string_path: value.to_string(),
+                })
+            }
+        }
+    }
 }
 
 impl Debug for TagNode {
@@ -303,6 +353,43 @@ impl TagPath {
             })
             .collect::<Vec<String>>()
             .join(".")
+    }
+
+    /// Parses `TagNodes` from the given string and converts to a `TagPath`. The `TagNode`s must be
+    /// separated by the period character `.`. The format of `TagNode` is described in
+    /// `TagNode::from_str()`.
+    ///
+    /// Example:
+    /// ```text
+    /// "ReferencedFrameOfReferenceSequence
+    ///   .RTReferencedStudySequence
+    ///   .RTReferencedSeriesSequence
+    ///   .ContourImageSequence[11]
+    ///   .ReferencedSOPInstanceUID"
+    /// ```
+    /// will parse as:
+    /// ```text
+    /// [(0x3006_0010, Some(1)),
+    ///  (0x3006_0012, Some(1)),
+    ///  (0x3006_0014, Some(1)),
+    ///  (0x3006_0016, Some(11)),
+    ///  (0x0004_1504, None)]
+    /// ```
+    pub fn from_str(
+        value: &str,
+        dict: Option<&dyn DicomDictionary>,
+    ) -> Result<TagPath, ParseError> {
+        let tags = value.split('.').collect::<Vec<&str>>();
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
+        for (i, tag) in tags.iter().enumerate() {
+            let mut node = TagNode::from_str(tag, dict)?;
+            // Assume item #1 for all but the last TagNode if no item is supplied.
+            if i < tags.len() - 1 {
+                node.get_item_mut().get_or_insert(1);
+            }
+            nodes.push(node);
+        }
+        Ok(nodes.into())
     }
 }
 

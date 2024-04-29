@@ -1450,6 +1450,31 @@ fn test_empty_string_parsed_as_number(with_std: bool) -> ParseResult<()> {
 }
 
 #[test]
+fn test_parse_tagpath() -> ParseResult<()> {
+    let tagpath: TagPath = vec![
+        (tags::ReferencedFrameofReferenceSequence.tag, Some(1)),
+        (tags::ReferencedStudySequence.tag, Some(1)),
+        (tags::RTReferencedSeriesSequence.tag, Some(1)),
+        (tags::ContourImageSequence.tag, Some(11)),
+        (tags::ReferencedSOPInstanceUID.tag, None),
+    ]
+    .into();
+
+    let parsed = TagPath::from_str(
+        "ReferencedFrameofReferenceSequence
+        .ReferencedStudySequence
+        .RTReferencedSeriesSequence
+        .ContourImageSequence[11]
+        .ReferencedSOPInstanceUID",
+        Some(&STANDARD_DICOM_DICTIONARY),
+    )?;
+
+    assert_eq!(tagpath, parsed);
+
+    Ok(())
+}
+
+#[test]
 #[ignore]
 fn test_parse_all_dicom_files_with_std() -> ParseResult<()> {
     // Known to fail:

@@ -97,4 +97,10 @@ pub enum ParseError {
     /// An error occurs when converting RawValue to bytes.
     #[error("error converting RawValue to bytes: {message}")]
     RawValueConversionError { message: String },
+
+    /// An error when a text/string representation of a tagpath is unable to be parsed/resolved.
+    #[error("unable to resolve tagpath: {string_path}")]
+    InvalidTagPath {
+        string_path: String,
+    }
 }
