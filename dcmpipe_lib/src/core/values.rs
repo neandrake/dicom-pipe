@@ -172,6 +172,7 @@ impl<'e> RawValue<'e> {
     pub fn string(&self) -> Option<&String> {
         match self {
             RawValue::Strings(strings) if !strings.is_empty() => Some(&strings[0]),
+            RawValue::Uid(uid) => Some(uid),
             _ => None,
         }
     }

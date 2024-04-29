@@ -39,6 +39,7 @@ use crate::core::{
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
+#[derive(Clone)]
 pub struct DicomRoot {
     ts: TSRef,
     cs: CSRef,
@@ -400,6 +401,7 @@ impl std::fmt::Debug for DicomRoot {
 }
 
 /// A DICOM object which represents a DICOM Element and may have child elements
+#[derive(Clone)]
 pub struct DicomObject {
     /// The element of the current node. For sequence elements this will be the sequence element
     /// itself.

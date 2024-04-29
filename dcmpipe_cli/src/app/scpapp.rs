@@ -29,7 +29,7 @@ use dcmpipe_lib::{
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{PatientID, PatientsName},
+        tags::{AffectedSOPClassUID, MessageID, PatientID, PatientsName},
         uids::{
             ModalityWorklistInformationModelFIND, PatientRootQueryRetrieveInformationModelFIND,
             PatientStudyOnlyQueryRetrieveInformationModelFIND,
@@ -38,16 +38,9 @@ use dcmpipe_lib::{
     },
     dimse::{
         assoc::{Association, AssociationBuilder},
-        commands::{messages::CommandMessage, CommandStatus, CommandType},
+        commands::CommandType,
         error::{AssocError, DimseError},
-        pdus::{
-            mainpdus::{
-                PresentationDataItem, PresentationDataValue, P_DATA_CMD_LAST,
-                P_DATA_DCM_DATASET_LAST,
-            },
-            pduiter::DimseMsg,
-            Pdu,
-        },
+        pdus::{pduiter::DimseMsg, Pdu},
     },
 };
 use std::{
@@ -103,13 +96,13 @@ impl CommandApplication for SvcProviderApp {
                 .handler(
                     CommandType::CEchoReq,
                     |_ts: TSRef, msg: &DimseMsg, _reader: &mut dyn Read, writer: &mut dyn Write| {
-                        AssociationDevice::handle_c_echo(msg, writer)
+                        AssociationDevice::handle_c_echo_req(msg, writer)
                     },
                 )
                 .handler(
                     CommandType::CFindReq,
                     |ts: TSRef, msg: &DimseMsg, reader: &mut dyn Read, writer: &mut dyn Write| {
-                        AssociationDevice::handle_c_find(ts, msg, reader, writer)
+                        AssociationDevice::handle_c_find_req(ts, msg, reader, writer)
                     },
                 )
                 .build();
@@ -139,34 +132,29 @@ impl AssociationDevice {
             .map_err(|err| AssocError::ab_failure(DimseError::IOError(err)))
     }
 
-    fn handle_c_echo(msg: &DimseMsg, writer: &mut dyn Write) -> Result<(), AssocError> {
-        let rsp = CommandMessage::c_echo_rsp_from_req(
-            &ImplicitVRLittleEndian,
-            msg.cmd(),
-            &CommandStatus::Success(0),
-        )
-        .map_err(AssocError::ab_invalid_pdu)?;
-
-        let data = Association::serialize(rsp.message())?;
-        let rsp = PresentationDataItem::new(vec![PresentationDataValue::new(
-            msg.ctx_id(),
-            P_DATA_CMD_LAST,
-            data,
-        )]);
-
-        AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)
+    fn handle_c_echo_req(msg: &DimseMsg, writer: &mut dyn Write) -> Result<(), AssocError> {
+        let msg_id = msg
+            .cmd()
+            .get_ushort(&MessageID)
+            .map_err(AssocError::ab_failure)?;
+        let aff_sop_class = msg
+            .cmd()
+            .get_string(&AffectedSOPClassUID)
+            .map_err(AssocError::ab_failure)?;
+        let end_rsp = Association::create_cecho_end(msg.ctx_id(), msg_id, &aff_sop_class)?;
+        AssociationDevice::write_pdu(&end_rsp, writer)
     }
 
-    fn handle_c_find(
+    fn handle_c_find_req(
         ts: TSRef,
-        msg: &DimseMsg,
+        req: &DimseMsg,
         reader: &mut dyn Read,
         writer: &mut dyn Write,
     ) -> Result<(), AssocError> {
         let mut parser = ParserBuilder::default()
             .state(ParserState::ReadElement)
             .dataset_ts(ts)
-            .stop(ParseStop::AfterBytesRead(u64::from(msg.dcm_len())))
+            .stop(ParseStop::AfterBytesRead(u64::from(req.dcm_len())))
             .build(reader, &STANDARD_DICOM_DICTIONARY);
         let query = DicomRoot::parse(&mut parser)
             .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
@@ -176,6 +164,33 @@ impl AssociationDevice {
             )));
         };
 
+        /* TODO: Execute Search on Query */
+        let results = AssociationDevice::create_dummy_results(&query, ts);
+
+        let ctx_id = req.ctx_id();
+        let msg_id = req
+            .cmd()
+            .get_ushort(&MessageID)
+            .map_err(AssocError::ab_failure)?;
+        let aff_sop_class = req
+            .cmd()
+            .get_string(&AffectedSOPClassUID)
+            .map_err(AssocError::ab_failure)?;
+
+        for result in results {
+            let res_rsp =
+                Association::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
+            AssociationDevice::write_pdu(&res_rsp.0, writer)?;
+            AssociationDevice::write_pdu(&res_rsp.1, writer)?;
+        }
+
+        let end_rsp = Association::create_cfind_end(ctx_id, msg_id, &aff_sop_class)?;
+        AssociationDevice::write_pdu(&end_rsp, writer)?;
+
+        Ok(())
+    }
+
+    fn create_dummy_results(query: &DicomRoot, ts: TSRef) -> Vec<DicomRoot> {
         let q_pid = query
             .get_value_by_tag(&PatientID)
             .and_then(|v| v.string().cloned())
@@ -185,7 +200,6 @@ impl AssociationDevice {
             .and_then(|v| v.string().cloned())
             .unwrap_or_default();
 
-        /* TODO: Execute Search on Query */
         let mut results = Vec::<DicomRoot>::new();
         for patient in [
             ("477-0101", "SNOW^JON"),
@@ -195,10 +209,17 @@ impl AssociationDevice {
             let pid = patient.0;
             let name = patient.1;
 
-            let pid_match = !pid.starts_with(&q_pid) && !pid.ends_with(&q_pid);
-            let name_match = name
-                .split('^')
-                .any(|p| p.starts_with(&q_name) || p.ends_with(&q_name));
+            let pid_match = if q_pid.is_empty() {
+                false
+            } else {
+                pid.starts_with(&q_pid) || pid.ends_with(&q_pid)
+            };
+            let name_match = if q_name.is_empty() {
+                false
+            } else {
+                name.split('^')
+                    .any(|p| p.starts_with(&q_name) || p.ends_with(&q_name))
+            };
             if !pid_match && !name_match {
                 continue;
             }
@@ -208,56 +229,6 @@ impl AssociationDevice {
             result.add_child_with_val(&PatientsName, RawValue::of_string(name));
             results.push(result);
         }
-
-        for result in results {
-            match AssociationDevice::create_c_find_cmd(msg, &CommandStatus::Pending(0xFF00)) {
-                Ok(rsp) => {
-                    AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)?;
-                }
-                Err(e) => return Err(e),
-            }
-
-            match AssociationDevice::create_c_find_result(msg, &result) {
-                Ok(rsp) => {
-                    AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)?;
-                }
-                Err(e) => return Err(e),
-            }
-        }
-
-        match AssociationDevice::create_c_find_cmd(msg, &CommandStatus::Success(0)) {
-            Ok(rsp) => AssociationDevice::write_pdu(&Pdu::PresentationDataItem(rsp), writer)
-                .map_err(AssocError::from),
-            Err(e) => Err(e),
-        }
-    }
-
-    fn create_c_find_cmd(
-        msg: &DimseMsg,
-        status: &CommandStatus,
-    ) -> Result<PresentationDataItem, AssocError> {
-        let rsp = CommandMessage::c_find_rsp_from_req(&ImplicitVRLittleEndian, msg.cmd(), status)
-            .map_err(AssocError::ab_invalid_pdu)?;
-
-        let data = Association::serialize(rsp.message())?;
-        let rsp = PresentationDataItem::new(vec![PresentationDataValue::new(
-            msg.ctx_id(),
-            P_DATA_CMD_LAST,
-            data,
-        )]);
-
-        Ok(rsp)
-    }
-
-    fn create_c_find_result(
-        msg: &DimseMsg,
-        result: &DicomRoot,
-    ) -> Result<PresentationDataItem, AssocError> {
-        let data = Association::serialize(result)?;
-        Ok(PresentationDataItem::new(vec![PresentationDataValue::new(
-            msg.ctx_id(),
-            P_DATA_DCM_DATASET_LAST,
-            data,
-        )]))
+        results
     }
 }

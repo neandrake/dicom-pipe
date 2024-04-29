@@ -28,7 +28,6 @@ use crate::{
     },
     dict::{stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian},
     dimse::{
-        commands::CommandType,
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
@@ -38,6 +37,13 @@ use crate::{
             Pdu, PduType,
         },
         Syntax,
+        {
+            commands::{messages::CommandMessage, CommandStatus, CommandType},
+            pdus::mainpdus::{
+                PresentationDataItem, PresentationDataValue, P_DATA_CMD_LAST,
+                P_DATA_DCM_DATASET_LAST,
+            },
+        },
     },
 };
 
@@ -261,6 +267,84 @@ impl Association {
                 Err(AssocError::error(DimseError::UnexpectedPduType(pdu_type)))
             }
         }
+    }
+
+    /// Create a C-ECHO ending response, as a `PresentationDataItem`.
+    ///
+    /// # Errors
+    /// I/O errors may occur serializing the response object into `PresentationDataItem`.
+    pub fn create_cecho_end(
+        ctx_id: u8,
+        msg_id: u16,
+        aff_sop_class: &str,
+    ) -> Result<Pdu, AssocError> {
+        let status = CommandStatus::Success(0);
+        let rsp_cmd = CommandMessage::c_echo_rsp(msg_id, aff_sop_class, &status);
+
+        let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
+        let cmd_rsp_pdi =
+            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
+                ctx_id,
+                P_DATA_CMD_LAST,
+                cmd_rsp_data,
+            )]));
+
+        Ok(cmd_rsp_pdi)
+    }
+
+    /// Create a C-FIND result, as a pair of `PresentationDataItem` to be sent back to the SCU.
+    ///
+    /// # Errors
+    /// I/O errors may occur serializing the response objects into `PresentationDataItem`.
+    pub fn create_cfind_result(
+        ctx_id: u8,
+        msg_id: u16,
+        aff_sop_class: &str,
+        res: &DicomRoot,
+    ) -> Result<(Pdu, Pdu), AssocError> {
+        let status = CommandStatus::Pending(0xFF00);
+        let rsp_cmd = CommandMessage::c_find_rsp(msg_id, aff_sop_class, &status);
+
+        let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
+        let cmd_rsp_pdi =
+            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
+                ctx_id,
+                P_DATA_CMD_LAST,
+                cmd_rsp_data,
+            )]));
+
+        let dcm_rsp_data = Association::serialize(res)?;
+        let dcm_rsp_pdi =
+            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
+                ctx_id,
+                P_DATA_DCM_DATASET_LAST,
+                dcm_rsp_data,
+            )]));
+
+        Ok((cmd_rsp_pdi, dcm_rsp_pdi))
+    }
+
+    /// Create a C-FIND ending response, as a `PresentationDataItem`.
+    ///
+    /// # Errors
+    /// I/O errors may occur serializing the response object into `PresentationDataItem`.
+    pub fn create_cfind_end(
+        ctx_id: u8,
+        msg_id: u16,
+        aff_sop_class: &str,
+    ) -> Result<Pdu, AssocError> {
+        let status = CommandStatus::Success(0);
+        let rsp_cmd = CommandMessage::c_find_rsp(msg_id, aff_sop_class, &status);
+
+        let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
+        let cmd_rsp_pdi =
+            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
+                ctx_id,
+                P_DATA_CMD_LAST,
+                cmd_rsp_data,
+            )]));
+
+        Ok(cmd_rsp_pdi)
     }
 }
 

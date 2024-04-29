@@ -42,6 +42,7 @@ use super::values::ElementWithVr;
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
+#[derive(Clone)]
 pub struct DicomElement {
     tag: u32,
     vr: VRRef,
