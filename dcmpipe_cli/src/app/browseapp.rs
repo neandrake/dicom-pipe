@@ -154,7 +154,8 @@ impl BrowseApp {
         let row_index = event.row.saturating_sub(2) as usize;
 
         let index = Some(state.table_state.offset().saturating_add(row_index));
-        if state.table_state.selected() == index {
+        // Only toggle the selection on click, not drag.
+        if state.table_state.selected() == index && event.kind == MouseEventKind::Down(MouseButton::Left) {
             state.table_state.select(None)
         } else {
             state.table_state.select(index);
