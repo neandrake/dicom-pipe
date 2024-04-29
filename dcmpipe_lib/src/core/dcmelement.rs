@@ -52,6 +52,7 @@ pub enum RawValue {
 }
 
 fn error(message: &str, value: &DicomElement) -> ParseError {
+    // TODO: How to get a dicom dictionary here for better error messages?
     let tagstring = TagPath::format_tagpath_to_display(&value.get_tagpath(), None);
     ParseError::ValueParseError {
         message: message.to_owned(),
@@ -684,7 +685,7 @@ impl TryFrom<&DicomElement> for Vec<f32> {
             type MaybeFloats = Vec<Result<f32>>;
             let (values, errors): (MaybeFloats, MaybeFloats) = Vec::<String>::try_from(value)?
                 .into_iter()
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.trim().is_empty())
                 .map(|s| {
                     s.trim()
                         .parse::<f32>()
@@ -743,7 +744,7 @@ impl TryFrom<&DicomElement> for Vec<f64> {
             type MaybeDoubles = Vec<Result<f64>>;
             let (values, errors): (MaybeDoubles, MaybeDoubles) = Vec::<String>::try_from(value)?
                 .into_iter()
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.trim().is_empty())
                 .map(|s| {
                     s.trim()
                         .parse::<f64>()
@@ -801,7 +802,7 @@ impl TryFrom<&DicomElement> for Vec<i16> {
             type MaybeShorts = Vec<Result<i16>>;
             let (values, errors): (MaybeShorts, MaybeShorts) = Vec::<String>::try_from(value)?
                 .into_iter()
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.trim().is_empty())
                 .map(|s| {
                     s.trim()
                         .parse::<i16>()
@@ -860,7 +861,7 @@ impl TryFrom<&DicomElement> for Vec<i32> {
             type MaybeInts = Vec<Result<i32>>;
             let (values, errors): (MaybeInts, MaybeInts) = Vec::<String>::try_from(value)?
                 .into_iter()
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.trim().is_empty())
                 .map(|s| {
                     s.trim()
                         .parse::<i32>()
@@ -918,7 +919,7 @@ impl TryFrom<&DicomElement> for Vec<u32> {
             type MaybeUints = Vec<Result<u32>>;
             let (values, errors): (MaybeUints, MaybeUints) = Vec::<String>::try_from(value)?
                 .into_iter()
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.trim().is_empty())
                 .map(|s| {
                     s.trim()
                         .parse::<u32>()
@@ -976,7 +977,7 @@ impl TryFrom<&DicomElement> for Vec<u16> {
             type MaybeUshorts = Vec<Result<u16>>;
             let (values, errors): (MaybeUshorts, MaybeUshorts) = Vec::<String>::try_from(value)?
                 .into_iter()
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.trim().is_empty())
                 .map(|s| {
                     s.trim()
                         .parse::<u16>()

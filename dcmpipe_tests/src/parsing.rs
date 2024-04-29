@@ -6,7 +6,7 @@ use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
-use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
+use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr, RawValue};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::util::parse_into_object;
@@ -1325,6 +1325,36 @@ fn test_kodak_compressed_icon(with_std: bool) -> Result<()> {
         "./fixtures/gdcm/gdcmData/KODAK_CompressedIcon.dcm",
         with_std,
     )?;
+
+    Ok(())
+}
+
+#[test]
+fn test_empty_string_parsed_as_number_with_std() -> Result<()> {
+    test_empty_string_parsed_as_number(true)
+}
+
+#[test]
+fn test_empty_string_parsed_as_number_without_std() -> Result<()> {
+    test_empty_string_parsed_as_number(false)
+}
+
+fn test_empty_string_parsed_as_number(with_std: bool) -> Result<()> {
+    let dcmroot: DicomRoot<'_> = parse_file(
+        "./fixtures/gdcm/gdcmData/SignedShortLosslessBug.dcm",
+        with_std,
+    )?;
+
+    let patients_weight = dcmroot
+        .get_child_by_tag(tags::PatientsWeight.tag)
+        .expect("PatientWeight should exist");
+
+    let value: RawValue = patients_weight.get_element().parse_value()?;
+    if let RawValue::Doubles(vals) = value {
+        assert!(vals.is_empty());
+    } else {
+        panic!("PatientsWeight should parse as a list of doubles");
+    }
 
     Ok(())
 }
