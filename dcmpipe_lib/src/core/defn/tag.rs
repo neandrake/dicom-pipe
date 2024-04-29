@@ -53,6 +53,14 @@ impl Tag {
         self.vm
     }
 
+    pub fn as_node(&self) -> TagNode {
+        TagNode::from(self)
+    }
+
+    pub fn as_item_node(&self, index: usize) -> TagNode {
+        TagNode::from((self, Some(index)))
+    }
+
     /// Detects if the given tag is a private creator, which is defined to be an odd-numbered group
     /// number with an element number between 0x0010-0x00FF.
     pub fn is_private_creator<T>(tag: T) -> bool
@@ -302,7 +310,7 @@ impl From<&SequenceElement> for TagNode {
 /// ```
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct TagPath {
-    pub nodes: Vec<TagNode>,
+    nodes: Vec<TagNode>,
 }
 
 impl TagPath {
@@ -311,6 +319,16 @@ impl TagPath {
         TagPath {
             nodes: Vec::with_capacity(0),
         }
+    }
+
+    /// The nodes that make up this `TagPath`.
+    pub fn nodes(&self) -> &Vec<TagNode> {
+        &self.nodes
+    }
+
+    /// Mutable access to the nodes that make up this `TagPath`.
+    pub fn nodes_mut(&mut self) -> &mut Vec<TagNode> {
+        &mut self.nodes
     }
 
     /// Return whether there are any nodes in this tag path.

@@ -1,23 +1,26 @@
 //! DICOM Element Definition
 
-use std::fmt;
-use std::iter::once;
+use std::{fmt, iter::once};
 
 use crate::core::{
     charset::{CSRef, DEFAULT_CHARACTER_SET},
     dcmsqelem::SequenceElement,
     defn::{
-        constants::{tags, ts},
+        constants::{
+            tags::{ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM},
+            ts::ExplicitVRLittleEndian,
+        },
+        is_non_standard_sq,
         tag::{Tag, TagNode, TagPath},
         ts::TSRef,
         vl::ValueLength,
-        vr::{self, VRRef},
+        vr::VRRef,
+        vr::{INVALID_VR, SQ},
     },
-    read::{self, parser::ParseResult},
+    read::parser::ParseResult,
     values::RawValue,
+    write::valencode::ElemAndRawValue,
 };
-
-use super::{defn::vl::UNDEFINED_LENGTH, write::valencode::ElemAndRawValue};
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
@@ -47,6 +50,7 @@ impl fmt::Debug for DicomElement {
 }
 
 impl DicomElement {
+    /// Creates a new element with all fields specified.
     pub fn new<T>(
         tag: T,
         vr: VRRef,
@@ -57,11 +61,11 @@ impl DicomElement {
         sq_path: Vec<SequenceElement>,
     ) -> Self
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
         let cs: CSRef = vr.get_proper_cs(cs);
         Self {
-            tag: Into::<u32>::into(tag),
+            tag: u32::from(tag),
             vr,
             vl,
             data,
@@ -71,15 +75,17 @@ impl DicomElement {
         }
     }
 
+    /// Creates a new empty element with the given tag, VR, and transfer syntax. This element will
+    /// be initialized with the default character set.
     pub fn new_empty<T>(tag: T, vr: VRRef, ts: TSRef) -> Self
     where
-        T: Into<u32>,
+        u32: From<T>,
     {
         let cs: CSRef = vr.get_proper_cs(DEFAULT_CHARACTER_SET);
         Self {
-            tag: Into::<u32>::into(tag),
+            tag: u32::from(tag),
             vr,
-            vl: ValueLength::UndefinedLength,
+            vl: ValueLength::Explicit(0),
             data: Vec::with_capacity(0),
             sq_path: Vec::with_capacity(0),
             ts,
@@ -95,11 +101,11 @@ impl DicomElement {
     pub fn new_sentinel() -> Self {
         DicomElement {
             tag: 0,
-            vr: &vr::INVALID,
+            vr: &INVALID_VR,
             vl: ValueLength::Explicit(0),
             data: Vec::with_capacity(0),
             sq_path: Vec::with_capacity(0),
-            ts: &ts::ExplicitVRLittleEndian,
+            ts: &ExplicitVRLittleEndian,
             cs: DEFAULT_CHARACTER_SET,
         }
     }
@@ -128,7 +134,7 @@ impl DicomElement {
         &self.data
     }
 
-    pub fn sequence_path(&self) -> &Vec<SequenceElement> {
+    pub fn sq_path(&self) -> &Vec<SequenceElement> {
         &self.sq_path
     }
 
@@ -169,8 +175,8 @@ impl DicomElement {
     }
 
     /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence.
-    pub fn is_seq_like(&self) -> bool {
-        self.vr == &vr::SQ || read::util::is_non_standard_seq(self.tag, self.vr, self.vl)
+    pub fn is_sq_like(&self) -> bool {
+        self.vr == &SQ || is_non_standard_sq(self.tag, self.vr, self.vl)
     }
 
     /// Returns whether the the size of the value field for this element is zero.
@@ -185,7 +191,7 @@ impl DicomElement {
     /// - VR of `&vr::INVALID`
     /// - Transfer Syntax of `&ts::ImplicitVRLittleEndian`
     pub fn is_sentinel(&self) -> bool {
-        self.tag == 0 && self.vr == &vr::INVALID && self.ts == &ts::ExplicitVRLittleEndian
+        self.tag == 0 && self.vr == &INVALID_VR && self.ts == &ExplicitVRLittleEndian
     }
 
     /// Creates a `TagPath` for the current element.
@@ -195,7 +201,7 @@ impl DicomElement {
         } else {
             self.sq_path
                 .iter()
-                .filter(|sq| sq.seq_tag() != tags::ITEM)
+                .filter(|sq| sq.seq_tag() != ITEM)
                 .map(|sq| sq.node().clone())
                 .chain(once(self.tag.into()))
                 .collect::<Vec<TagNode>>()
@@ -208,13 +214,16 @@ impl DicomElement {
         RawValue::try_from(self)
     }
 
+    /// Encodes a `RawValue` into the binary data for this element.
+    ///
+    /// This will overwrite any existing value in this element's `self.data`.
     pub fn encode_val(&mut self, value: RawValue) -> ParseResult<()> {
         self.encode_val_with_vl(value, None)
     }
 
-    /// Encodes a RawValue into the binary data for this element.
+    /// Encodes a `RawValue` into the binary data for this element.
     ///
-    /// This will overwrite any existing value in this element in `self.data`.
+    /// This will overwrite any existing value in this element's `self.data`.
     ///
     /// # Arguments
     ///
@@ -232,14 +241,14 @@ impl DicomElement {
     ) -> ParseResult<()> {
         self.data = ElemAndRawValue(self, value).try_into()?;
 
-        self.vl = if vl.is_some() && self.is_seq_like() || self.tag == tags::ITEM {
+        self.vl = if vl.is_some() && self.is_sq_like() || self.tag == ITEM {
             vl.unwrap()
-        } else if self.tag == tags::ITEM_DELIMITATION_ITEM
-            || self.tag == tags::SEQUENCE_DELIMITATION_ITEM
-        {
+        } else if self.tag == ITEM_DELIMITATION_ITEM || self.tag == SEQUENCE_DELIMITATION_ITEM {
             ValueLength::Explicit(0)
         } else {
-            ValueLength::Explicit(u32::try_from(self.data.len()).unwrap_or(UNDEFINED_LENGTH))
+            u32::try_from(self.data.len())
+                .map(ValueLength::Explicit)
+                .unwrap_or(ValueLength::UndefinedLength)
         };
 
         Ok(())

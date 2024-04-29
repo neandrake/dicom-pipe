@@ -10,7 +10,13 @@ use crate::core::{
     dcmelement::DicomElement,
     dcmsqelem::SequenceElement,
     defn::{
-        constants::{tags, ts},
+        constants::{
+            tags::{
+                ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM, SPECIFIC_CHARACTER_SET,
+                TRANSFER_SYNTAX_UID,
+            },
+            ts::ImplicitVRLittleEndian,
+        },
         ts::TSRef,
         vl::ValueLength,
     },
@@ -38,9 +44,9 @@ impl<'d, R: Read> Parser<'d, R> {
         // item. without popping here it will create an item-in-item structure. also need to check
         // if a sequence delimiter is ending an item which didn't have item delimiter - otherwise
         // the sequence delimiter will not be parented properly
-        if tag == tags::SEQUENCE_DELIMITATION_ITEM {
+        if tag == SEQUENCE_DELIMITATION_ITEM {
             if let Some(seq_elem) = self.current_path.last() {
-                if seq_elem.seq_tag() == tags::ITEM {
+                if seq_elem.seq_tag() == ITEM {
                     self.current_path.pop();
                 }
             }
@@ -48,7 +54,7 @@ impl<'d, R: Read> Parser<'d, R> {
         self.pop_sequence_items_base_on_byte_pos();
 
         // reading element clones the current path so update prior to reading element
-        if tag == tags::ITEM {
+        if tag == ITEM {
             // get the sequence this item is for and increment its item number
             if let Some(seq_elem) = self.current_path.last_mut() {
                 seq_elem.increment_item();
@@ -59,13 +65,13 @@ impl<'d, R: Read> Parser<'d, R> {
 
         // if the file-meta state was skipped due to the initial detection we may still need to
         // switch transfer syntax -- only do this if the element is at the root of the dataset
-        if element.tag() == tags::TRANSFER_SYNTAX_UID && element.sequence_path().is_empty() {
+        if element.tag() == TRANSFER_SYNTAX_UID && element.sq_path().is_empty() {
             self.dataset_ts = self
                 .parse_transfer_syntax(&element)?
-                .or(Some(&ts::ImplicitVRLittleEndian));
-        } else if element.tag() == tags::SPECIFIC_CHARACTER_SET {
+                .or(Some(&ImplicitVRLittleEndian));
+        } else if element.tag() == SPECIFIC_CHARACTER_SET {
             let cs: CSRef = self.parse_specific_character_set(&element)?;
-            if element.sequence_path().is_empty() {
+            if element.sq_path().is_empty() {
                 self.cs = cs;
             } else if let Some(sq) = self.current_path.last_mut() {
                 sq.set_cs(cs);
@@ -77,22 +83,22 @@ impl<'d, R: Read> Parser<'d, R> {
 
         // check for exiting a sequence based on being sequence delimiter - do before checking
         // against byte position
-        if tag == tags::SEQUENCE_DELIMITATION_ITEM || tag == tags::ITEM_DELIMITATION_ITEM {
+        if tag == SEQUENCE_DELIMITATION_ITEM || tag == ITEM_DELIMITATION_ITEM {
             if let Some(seq_elem) = self.current_path.last() {
                 // if the parent is item then pop at least once for end of item
-                if seq_elem.seq_tag() == tags::ITEM {
+                if seq_elem.seq_tag() == ITEM {
                     self.current_path.pop();
                 }
             }
             // if the sequence ended we pop again to get out of the sequence
-            if tag == tags::SEQUENCE_DELIMITATION_ITEM {
+            if tag == SEQUENCE_DELIMITATION_ITEM {
                 self.current_path.pop();
             }
         }
 
         self.pop_sequence_items_base_on_byte_pos();
 
-        if element.is_seq_like() || tag == tags::ITEM {
+        if element.is_sq_like() || tag == ITEM {
             let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.vl() {
                 Some(self.bytes_read + u64::from(len))
             } else {

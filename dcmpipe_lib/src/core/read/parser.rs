@@ -1,11 +1,11 @@
 use std::{convert::TryFrom, io::Read, iter::once};
 
 use crate::core::{
-    charset::{self, CSRef},
+    charset::{lookup_charset, CSRef, DEFAULT_CHARACTER_SET},
     dcmelement::DicomElement,
     dcmsqelem::SequenceElement,
     defn::{
-        constants::tags,
+        constants::tags::{DOUBLE_PIXEL_DATA, FLOAT_PIXEL_DATA, ITEM, PIXEL_DATA},
         dcmdict::DicomDictionary,
         tag::{TagNode, TagPath},
         ts::TSRef,
@@ -21,6 +21,7 @@ mod dsread;
 mod elem;
 mod fme;
 mod iter;
+mod util;
 
 /// The `Result` type of the parser
 pub type ParseResult<T> = core::result::Result<T, ParseError>;
@@ -228,14 +229,14 @@ impl<'d, R: Read> Parser<'d, R> {
             ParseStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
 
             ParseStop::BeforeTagValue(_) | ParseStop::AfterTagValue(_) => {
-                let current: TagPath = self
-                    .current_path
-                    .iter()
-                    .map(|sq_el| sq_el.node().clone())
-                    .chain(once(TagNode::new(self.tag_last_read, None)))
-                    .collect::<Vec<TagNode>>()
-                    .into();
-                self.behavior.stop().evaluate(&current)
+                let current: TagPath = TagPath::from(
+                    self.current_path
+                        .iter()
+                        .map(|sq_el| sq_el.node().clone())
+                        .chain(once(TagNode::from(self.tag_last_read)))
+                        .collect::<Vec<TagNode>>(),
+                );
+                self.behavior.stop().evaluate(current)
             }
         }
     }
@@ -243,16 +244,16 @@ impl<'d, R: Read> Parser<'d, R> {
     /// Checks if the current path is within a pixeldata tag.
     fn is_in_pixeldata(&self) -> bool {
         for seq_elem in self.current_path.iter().rev() {
-            if seq_elem.seq_tag() == tags::FLOAT_PIXEL_DATA
-                || seq_elem.seq_tag() == tags::DOUBLE_PIXEL_DATA
-                || seq_elem.seq_tag() == tags::PIXEL_DATA
+            if seq_elem.seq_tag() == FLOAT_PIXEL_DATA
+                || seq_elem.seq_tag() == DOUBLE_PIXEL_DATA
+                || seq_elem.seq_tag() == PIXEL_DATA
             {
                 return true;
             }
             // If the parent element is an ITEM then keep walking up the chain to check against the
             // actual sequence element -- if it's not ITEM and not a PixelData then it's something
             // else and we can assume to not be within PixelData.
-            if seq_elem.seq_tag() != tags::ITEM {
+            if seq_elem.seq_tag() != ITEM {
                 break;
             }
         }
@@ -296,8 +297,8 @@ impl<'d, R: Read> Parser<'d, R> {
         //       Unsupported Character Sets"
 
         Ok(new_cs
-            .and_then(|cs: String| charset::lookup_charset(&cs))
-            .unwrap_or(charset::DEFAULT_CHARACTER_SET))
+            .and_then(|cs: String| lookup_charset(&cs))
+            .unwrap_or(DEFAULT_CHARACTER_SET))
     }
 
     /// Builds a string containing debug state of parsing, for errors and spurious output while
@@ -310,8 +311,8 @@ impl<'d, R: Read> Parser<'d, R> {
     pub(super) fn current_debug_str(&self) -> String {
         // Render the full tag path
         let tag = self.tag_last_read;
-        let mut full_path: TagPath = (&self.current_path).into();
-        full_path.nodes.push(tag.into());
+        let mut full_path: TagPath = TagPath::from(&self.current_path);
+        full_path.nodes_mut().push(TagNode::from(tag));
         let tagpath_display: String =
             TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));
 

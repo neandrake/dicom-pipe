@@ -24,7 +24,7 @@ impl TryFrom<&[u8]> for AeTitle {
         let mut filled_ae: Vec<u8> = vec![b' '; 16];
         let _ = &mut filled_ae[0..value.len()].copy_from_slice(value);
         TryInto::<[u8; 16]>::try_into(filled_ae)
-            .map(Into::<AeTitle>::into)
+            .map(AeTitle::from)
             .map_err(DimseError::InvalidAeTitle)
     }
 }

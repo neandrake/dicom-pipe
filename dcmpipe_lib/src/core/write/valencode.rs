@@ -12,11 +12,11 @@ use crate::core::{
 
 /// Encodes a RawValue into the binary data for the given element, based on the element's currently
 /// set Value Representation, Character Set, and Transfer Syntax.
-pub struct ElemAndRawValue<'a>(pub &'a DicomElement, pub RawValue);
-impl<'a> TryFrom<ElemAndRawValue<'a>> for Vec<u8> {
+pub struct ElemAndRawValue<'e>(pub &'e DicomElement, pub RawValue);
+impl<'e> TryFrom<ElemAndRawValue<'e>> for Vec<u8> {
     type Error = ParseError;
 
-    fn try_from(value: ElemAndRawValue<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: ElemAndRawValue<'e>) -> Result<Self, Self::Error> {
         let elem = value.0;
         let value = value.1;
 
@@ -56,9 +56,9 @@ impl<'a> TryFrom<ElemAndRawValue<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndAttributes<'a>(&'a DicomElement, Vec<Attribute>);
-impl<'a> From<ElemAndAttributes<'a>> for Vec<u8> {
-    fn from(value: ElemAndAttributes<'a>) -> Self {
+struct ElemAndAttributes<'e>(&'e DicomElement, Vec<Attribute>);
+impl<'e> From<ElemAndAttributes<'e>> for Vec<u8> {
+    fn from(value: ElemAndAttributes<'e>) -> Self {
         let elem = value.0;
         let attrs = value.1;
 
@@ -82,11 +82,11 @@ impl<'a> From<ElemAndAttributes<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndUid<'a>(&'a DicomElement, String);
-impl<'a> TryFrom<ElemAndUid<'a>> for Vec<u8> {
+struct ElemAndUid<'e>(&'e DicomElement, String);
+impl<'e> TryFrom<ElemAndUid<'e>> for Vec<u8> {
     type Error = ParseError;
 
-    fn try_from(value: ElemAndUid<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: ElemAndUid<'e>) -> Result<Self, Self::Error> {
         let elem = value.0;
         let uid = value.1;
         elem.cs()
@@ -95,11 +95,11 @@ impl<'a> TryFrom<ElemAndUid<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndStrings<'a>(&'a DicomElement, Vec<String>);
-impl<'a> TryFrom<ElemAndStrings<'a>> for Vec<u8> {
+struct ElemAndStrings<'e>(&'e DicomElement, Vec<String>);
+impl<'e> TryFrom<ElemAndStrings<'e>> for Vec<u8> {
     type Error = ParseError;
 
-    fn try_from(value: ElemAndStrings<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: ElemAndStrings<'e>) -> Result<Self, Self::Error> {
         let elem = value.0;
         let strings = value.1;
 
@@ -134,9 +134,9 @@ impl<'a> TryFrom<ElemAndStrings<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndShorts<'a>(&'a DicomElement, Vec<i16>);
-impl<'a> From<ElemAndShorts<'a>> for Vec<u8> {
-    fn from(value: ElemAndShorts<'a>) -> Self {
+struct ElemAndShorts<'e>(&'e DicomElement, Vec<i16>);
+impl<'e> From<ElemAndShorts<'e>> for Vec<u8> {
+    fn from(value: ElemAndShorts<'e>) -> Self {
         let elem = value.0;
         let shorts = value.1;
 
@@ -167,9 +167,9 @@ impl<'a> From<ElemAndShorts<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndUnsignedShorts<'a>(&'a DicomElement, Vec<u16>);
-impl<'a> From<ElemAndUnsignedShorts<'a>> for Vec<u8> {
-    fn from(value: ElemAndUnsignedShorts<'a>) -> Self {
+struct ElemAndUnsignedShorts<'e>(&'e DicomElement, Vec<u16>);
+impl<'e> From<ElemAndUnsignedShorts<'e>> for Vec<u8> {
+    fn from(value: ElemAndUnsignedShorts<'e>) -> Self {
         let elem = value.0;
         let ushorts = value.1;
 
@@ -200,9 +200,9 @@ impl<'a> From<ElemAndUnsignedShorts<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndIntegers<'a>(&'a DicomElement, Vec<i32>);
-impl<'a> From<ElemAndIntegers<'a>> for Vec<u8> {
-    fn from(value: ElemAndIntegers<'a>) -> Self {
+struct ElemAndIntegers<'e>(&'e DicomElement, Vec<i32>);
+impl<'e> From<ElemAndIntegers<'e>> for Vec<u8> {
+    fn from(value: ElemAndIntegers<'e>) -> Self {
         let elem = value.0;
         let ints = value.1;
 
@@ -232,9 +232,9 @@ impl<'a> From<ElemAndIntegers<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndUnsignedIntegers<'a>(&'a DicomElement, Vec<u32>);
-impl<'a> From<ElemAndUnsignedIntegers<'a>> for Vec<u8> {
-    fn from(value: ElemAndUnsignedIntegers<'a>) -> Self {
+struct ElemAndUnsignedIntegers<'e>(&'e DicomElement, Vec<u32>);
+impl<'e> From<ElemAndUnsignedIntegers<'e>> for Vec<u8> {
+    fn from(value: ElemAndUnsignedIntegers<'e>) -> Self {
         let elem = value.0;
         let uints = value.1;
 
@@ -266,9 +266,9 @@ impl<'a> From<ElemAndUnsignedIntegers<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndLongs<'a>(&'a DicomElement, Vec<i64>);
-impl<'a> From<ElemAndLongs<'a>> for Vec<u8> {
-    fn from(value: ElemAndLongs<'a>) -> Self {
+struct ElemAndLongs<'e>(&'e DicomElement, Vec<i64>);
+impl<'e> From<ElemAndLongs<'e>> for Vec<u8> {
+    fn from(value: ElemAndLongs<'e>) -> Self {
         let elem = value.0;
         let longs = value.1;
 
@@ -299,9 +299,9 @@ impl<'a> From<ElemAndLongs<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndUnsignedLongs<'a>(&'a DicomElement, Vec<u64>);
-impl<'a> From<ElemAndUnsignedLongs<'a>> for Vec<u8> {
-    fn from(value: ElemAndUnsignedLongs<'a>) -> Self {
+struct ElemAndUnsignedLongs<'e>(&'e DicomElement, Vec<u64>);
+impl<'e> From<ElemAndUnsignedLongs<'e>> for Vec<u8> {
+    fn from(value: ElemAndUnsignedLongs<'e>) -> Self {
         let elem = value.0;
         let ulongs = value.1;
 
@@ -333,9 +333,9 @@ impl<'a> From<ElemAndUnsignedLongs<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndFloats<'a>(&'a DicomElement, Vec<f32>);
-impl<'a> From<ElemAndFloats<'a>> for Vec<u8> {
-    fn from(value: ElemAndFloats<'a>) -> Self {
+struct ElemAndFloats<'e>(&'e DicomElement, Vec<f32>);
+impl<'e> From<ElemAndFloats<'e>> for Vec<u8> {
+    fn from(value: ElemAndFloats<'e>) -> Self {
         let elem = value.0;
         let floats = value.1;
 
@@ -375,9 +375,9 @@ impl<'a> From<ElemAndFloats<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndDoubles<'a>(&'a DicomElement, Vec<f64>);
-impl<'a> From<ElemAndDoubles<'a>> for Vec<u8> {
-    fn from(value: ElemAndDoubles<'a>) -> Self {
+struct ElemAndDoubles<'e>(&'e DicomElement, Vec<f64>);
+impl<'e> From<ElemAndDoubles<'e>> for Vec<u8> {
+    fn from(value: ElemAndDoubles<'e>) -> Self {
         let elem = value.0;
         let doubles = value.1;
 
@@ -417,9 +417,9 @@ impl<'a> From<ElemAndDoubles<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndWords<'a>(&'a DicomElement, Vec<u16>);
-impl<'a> From<ElemAndWords<'a>> for Vec<u8> {
-    fn from(value: ElemAndWords<'a>) -> Self {
+struct ElemAndWords<'e>(&'e DicomElement, Vec<u16>);
+impl<'e> From<ElemAndWords<'e>> for Vec<u8> {
+    fn from(value: ElemAndWords<'e>) -> Self {
         let elem = value.0;
         let words = value.1;
 
@@ -436,9 +436,9 @@ impl<'a> From<ElemAndWords<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndDoubleWords<'a>(&'a DicomElement, Vec<u32>);
-impl<'a> From<ElemAndDoubleWords<'a>> for Vec<u8> {
-    fn from(value: ElemAndDoubleWords<'a>) -> Self {
+struct ElemAndDoubleWords<'e>(&'e DicomElement, Vec<u32>);
+impl<'e> From<ElemAndDoubleWords<'e>> for Vec<u8> {
+    fn from(value: ElemAndDoubleWords<'e>) -> Self {
         let elem = value.0;
         let dwords = value.1;
 
@@ -455,9 +455,9 @@ impl<'a> From<ElemAndDoubleWords<'a>> for Vec<u8> {
     }
 }
 
-struct ElemAndQuadWords<'a>(&'a DicomElement, Vec<u64>);
-impl<'a> From<ElemAndQuadWords<'a>> for Vec<u8> {
-    fn from(value: ElemAndQuadWords<'a>) -> Self {
+struct ElemAndQuadWords<'e>(&'e DicomElement, Vec<u64>);
+impl<'e> From<ElemAndQuadWords<'e>> for Vec<u8> {
+    fn from(value: ElemAndQuadWords<'e>) -> Self {
         let elem = value.0;
         let qwords = value.1;
 

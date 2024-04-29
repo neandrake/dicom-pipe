@@ -23,20 +23,41 @@ pub enum ParseStop {
 }
 
 impl ParseStop {
+    /// Convenience for `ParseStop::BeforeTagValue`, for auto-converting the input to a `TagPath`.
+    pub fn before<T>(tagpath: T) -> ParseStop
+    where
+        TagPath: From<T>,
+    {
+        ParseStop::BeforeTagValue(TagPath::from(tagpath))
+    }
+
+    /// Convenience for `ParseStop::AfterTagValue`, for auto-converting the input to a `TagPath`.
+    pub fn after<T>(tagpath: T) -> ParseStop
+    where
+        TagPath: From<T>,
+    {
+        ParseStop::AfterTagValue(TagPath::from(tagpath))
+    }
+
     /// Evaluates the given `TagPath` against this `ParseStop`'s defined stopping point, assuming
     /// this is `ParseStop::BeforeTagValue` or `ParseStop::AfterTagValue`. If this is neither
     /// `BeforeTagValue` nor `AfterTagValue` then this returns false.
-    pub fn evaluate(&self, current: &TagPath) -> bool {
+    pub fn evaluate<T>(&self, current: T) -> bool
+    where
+        TagPath: From<T>,
+    {
+        let current_tagpath = TagPath::from(current);
+        let nodes = current_tagpath.nodes();
         match self {
             ParseStop::BeforeTagValue(target) => target
-                .nodes
+                .nodes()
                 .iter()
-                .zip(current.nodes.iter())
+                .zip(nodes)
                 .any(ParseStop::is_before_tag_value),
             ParseStop::AfterTagValue(target) => target
-                .nodes
+                .nodes()
                 .iter()
-                .zip(current.nodes.iter())
+                .zip(nodes)
                 .any(ParseStop::is_after_tag_value),
             _ => false,
         }

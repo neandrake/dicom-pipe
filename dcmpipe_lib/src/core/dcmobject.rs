@@ -74,13 +74,19 @@ impl DicomRoot {
     }
 
     /// Gets a child node by tag number.
-    pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
-        self.sentinel.get_child_by_tag(tag)
+    pub fn get_child_by_tag<T>(&self, tag: T) -> Option<&DicomObject>
+    where
+        u32: From<T>,
+    {
+        self.sentinel.get_child_by_tag(u32::from(tag))
     }
 
     /// Gets a mutable child node by tag number.
-    pub fn get_child_by_tag_mut(&mut self, tag: u32) -> Option<&mut DicomObject> {
-        self.sentinel.get_child_by_tag_mut(tag)
+    pub fn get_child_by_tag_mut<T>(&mut self, tag: T) -> Option<&mut DicomObject>
+    where
+        u32: From<T>,
+    {
+        self.sentinel.get_child_by_tag_mut(u32::from(tag))
     }
 
     /// Returns an iterator for the child nodes in this `DicomRoot`.
@@ -119,8 +125,11 @@ impl DicomRoot {
     }
 
     /// Get a child node with the given `TagNode`.
-    pub fn get_child_by_tagnode(&self, tag_node: &TagNode) -> Option<&DicomObject> {
-        self.sentinel.get_child_by_tagnode(tag_node)
+    pub fn get_child_by_tagnode<T>(&self, tag_node: T) -> Option<&DicomObject>
+    where
+        TagNode: From<T>,
+    {
+        self.sentinel.get_child_by_tagnode(&TagNode::from(tag_node))
     }
 
     /// Get a mutable child node with the given `TagNode`.
@@ -230,7 +239,7 @@ impl DicomRoot {
 
         while let Some(Ok(element)) = next_element {
             let tag: u32 = element.tag();
-            let cur_seq_path_len: usize = element.sequence_path().len() + 1;
+            let cur_seq_path_len: usize = element.sq_path().len() + 1;
 
             if prev_seq_path_len == 0 {
                 prev_seq_path_len = cur_seq_path_len;
@@ -246,7 +255,7 @@ impl DicomRoot {
             // Checking sequence or item tag should match dcmparser.read_dicom_element() which
             // does not read a value for those elements but lets the parser read its value as
             // separate elements which we're considering child elements.
-            let dcmobj: DicomObject = if element.is_seq_like()
+            let dcmobj: DicomObject = if element.is_sq_like()
                 || (tag == tags::ITEM && element.vl() != ValueLength::Explicit(0))
             {
                 let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
@@ -269,7 +278,7 @@ impl DicomRoot {
             // into an element which is not a child of the node we passed into the recursive call and
             // it should instead be added elsewhere up the tree.
             if let Some(Ok(next_elem)) = possible_next_elem {
-                let next_seq_path_len: usize = next_elem.sequence_path().len() + 1;
+                let next_seq_path_len: usize = next_elem.sq_path().len() + 1;
                 match next_seq_path_len {
                     val if val < cur_seq_path_len => {
                         // If that element is still shorter than the current then it needs passed up further.
@@ -423,10 +432,10 @@ impl DicomObject {
     /// Get a child node with the given `TagPath`.
     pub fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
         let mut target = tagpath
-            .nodes
+            .nodes()
             .first()
             .map(|n| self.get_child_by_tagnode(n))?;
-        for node in tagpath.nodes.iter().skip(1) {
+        for node in tagpath.nodes().iter().skip(1) {
             target = target.and_then(|parent| parent.get_child_by_tagnode(node));
         }
         target
@@ -435,10 +444,10 @@ impl DicomObject {
     /// Get a mutable child node with the given `TagPath`.
     pub fn get_child_by_tagpath_mut(&mut self, tagpath: &TagPath) -> Option<&mut DicomObject> {
         let mut target = tagpath
-            .nodes
+            .nodes()
             .first()
             .map(|n| self.get_child_by_tagnode_mut(n))?;
-        for node in tagpath.nodes.iter().skip(1) {
+        for node in tagpath.nodes().iter().skip(1) {
             target = target.and_then(|parent| parent.get_child_by_tagnode_mut(node));
         }
         target

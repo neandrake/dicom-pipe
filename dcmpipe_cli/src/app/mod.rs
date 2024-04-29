@@ -63,7 +63,7 @@ impl From<&DicomElement> for TagCategory {
             TagCategory::Known(tag.tag, tag.ident.to_string())
         } else if Tag::is_private_creator(element.tag()) {
             TagCategory::PrivateCreator(element.tag())
-        } else if Tag::is_private(element.tag()) && element.is_seq_like() {
+        } else if Tag::is_private(element.tag()) && element.is_sq_like() {
             TagCategory::PrivateSequence(element.tag())
         } else if Tag::is_private_group_length(element.tag()) {
             TagCategory::PrivateGroupLength(element.tag())
@@ -122,7 +122,7 @@ impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
         let elem = value.0;
         let multiline = value.1;
 
-        if elem.is_seq_like() {
+        if elem.is_sq_like() {
             return TagValue::Sequence;
         }
 

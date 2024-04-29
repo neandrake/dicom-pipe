@@ -103,7 +103,7 @@ fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
 
     // Some (malformed?) datasets have a bunch of zeroes between elements.
     if element.tag() == 0
-        && ((ts.explicit_vr() && element.vr() == &vr::INVALID)
+        && ((ts.explicit_vr() && element.vr() == &vr::INVALID_VR)
             || (!ts.explicit_vr() && element.vr() == &vr::UN))
         && element.vl() == ValueLength::Explicit(0)
     {
@@ -128,7 +128,7 @@ fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
     // Sequence path will nest tags under ITEM elements. Double the indentation level for the
     // number of nested sequences (non-ITEM), and each ITEM element should be nested one level.
     // If the current element is a delimiter then reduce the associated indentation level.
-    let seq_path: &Vec<SequenceElement> = element.sequence_path();
+    let seq_path: &Vec<SequenceElement> = element.sq_path();
     let non_item_parents = seq_path
         .iter()
         .filter(|sq_el| sq_el.seq_tag() != tags::Item.tag)

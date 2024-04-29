@@ -17,16 +17,23 @@ use crate::core::{
     dcmelement::DicomElement,
     dcmsqelem::SequenceElement,
     defn::{
-        constants::{tags, ts},
+        constants::{
+            tags::{
+                DATASET_TRAILING_PADDING, ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM,
+            },
+            ts::{ImplicitVRBigEndian, ImplicitVRLittleEndian},
+        },
+        is_non_standard_sq,
         tag::Tag,
         ts::TSRef,
         vl::ValueLength,
-        vr::{self, VRRef},
+        vr::{VRRef, INVALID_VR, SQ, UN},
     },
     read::{
-        self,
-        parser::{ParseResult, Parser},
-        util::is_non_standard_seq,
+        parser::{
+            util::{read_tag_from_dataset, read_value_length_from_dataset, read_vr_from_dataset},
+            ParseResult, Parser,
+        },
         ParseError,
     },
 };
@@ -37,7 +44,7 @@ impl<'d, R: Read> Parser<'d, R> {
         let tag: u32 = if let Some(partial_tag) = self.partial_tag {
             partial_tag
         } else {
-            let tag: u32 = read::util::read_tag_from_dataset(&mut self.dataset, ts.big_endian())?;
+            let tag: u32 = read_tag_from_dataset(&mut self.dataset, ts.big_endian())?;
             self.bytes_read += 4;
             self.partial_tag.replace(tag);
             tag
@@ -60,9 +67,8 @@ impl<'d, R: Read> Parser<'d, R> {
         // Sequence Delimitation Item (FFFE,E0DD). However, the Data Set within the Value Field of
         // the Data Element Item (FFFE,E000) shall be encoded according to the rules conveyed by the
         // Transfer Syntax.
-        let is_seq_delim = tag == tags::SEQUENCE_DELIMITATION_ITEM
-            || tag == tags::ITEM_DELIMITATION_ITEM
-            || tag == tags::ITEM;
+        let is_seq_delim =
+            tag == SEQUENCE_DELIMITATION_ITEM || tag == ITEM_DELIMITATION_ITEM || tag == ITEM;
         // See: Part 5, Section 6.2.2
         // Elements within a Private Sequence with VR of UN should be in ImplicitVR.
         // Elements within a Private Sequence with VR of SQ and VL of Undefined should use the
@@ -71,14 +77,14 @@ impl<'d, R: Read> Parser<'d, R> {
         //   ImplicitVR.
         let is_parent_priv_seq = self.current_path.iter().rev().any(|sq_el| {
             Tag::is_private(sq_el.seq_tag())
-                && is_non_standard_seq(sq_el.seq_tag(), sq_el.vr(), sq_el.vl())
+                && is_non_standard_sq(sq_el.seq_tag(), sq_el.vr(), sq_el.vl())
         });
 
         let ts: TSRef = if is_seq_delim || is_parent_priv_seq {
             if elem_ts.big_endian() {
-                &ts::ImplicitVRBigEndian
+                &ImplicitVRBigEndian
             } else {
-                &ts::ImplicitVRLittleEndian
+                &ImplicitVRLittleEndian
             }
         } else {
             elem_ts
@@ -95,7 +101,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 .or_else(|_e| self.read_vr());
             match vr_res {
                 Ok(vr) => vr,
-                Err(ParseError::UnknownExplicitVR(_code)) => &vr::INVALID,
+                Err(ParseError::UnknownExplicitVR(_code)) => &INVALID_VR,
                 Err(e) => return Err(e),
             }
         } else {
@@ -103,7 +109,7 @@ impl<'d, R: Read> Parser<'d, R> {
             if let Some(vr) = self.lookup_vr(tag) {
                 vr
             } else {
-                &vr::UN
+                &UN
             }
         };
         self.vr_last_used.replace(vr);
@@ -116,12 +122,12 @@ impl<'d, R: Read> Parser<'d, R> {
         };
         self.vl_last_used.replace(vl);
 
-        let parse_as_seq: bool = read::util::is_non_standard_seq(tag, vr, vl);
+        let parse_as_seq: bool = is_non_standard_sq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
             if !ts.big_endian() {
-                &ts::ImplicitVRLittleEndian
+                &ImplicitVRLittleEndian
             } else {
-                &ts::ImplicitVRBigEndian
+                &ImplicitVRBigEndian
             }
         } else {
             ts
@@ -135,8 +141,7 @@ impl<'d, R: Read> Parser<'d, R> {
 
         // Determine whether the value should be read in as byte values or instead should continue
         // being parsed as more elements.
-        let skip_bytes: bool =
-            vr == &vr::SQ || (tag == tags::ITEM && !in_pixeldata) || parse_as_seq;
+        let skip_bytes: bool = vr == &SQ || (tag == ITEM && !in_pixeldata) || parse_as_seq;
 
         //eprintln!("{}", &self.get_debug_str(ts, tag, vr, vl));
 
@@ -162,7 +167,7 @@ impl<'d, R: Read> Parser<'d, R> {
     /// explicit VRs then those bytes are also read (and thrown away). If the bytes do not
     /// correspond to a valid/known VR then `ParseError::UnknownExplicitVR` is returned.
     fn read_vr(&mut self) -> ParseResult<VRRef> {
-        match read::util::read_vr_from_dataset(&mut self.dataset) {
+        match read_vr_from_dataset(&mut self.dataset) {
             Ok(vr) => {
                 self.bytes_read += 2;
                 if vr.has_explicit_2byte_pad {
@@ -189,7 +194,7 @@ impl<'d, R: Read> Parser<'d, R> {
     /// padding then those bytes are also read from the dataset.
     fn read_value_length(&mut self, ts: TSRef, vr: VRRef) -> ParseResult<ValueLength> {
         let result: ParseResult<ValueLength> =
-            read::util::read_value_length_from_dataset(&mut self.dataset, ts, vr);
+            read_value_length_from_dataset(&mut self.dataset, ts, vr);
         if result.is_ok() {
             // For Implicit VR or Explicit w/ 2-byte pad then Value Length is read as a u32,
             // otherwise it's read as a u16.
@@ -228,7 +233,7 @@ impl<'d, R: Read> Parser<'d, R> {
                     // field's size. The standard indicates that the content of the value field
                     // should hold no significance - consider this not an error.
                     // See Part 10, Section 7.2
-                    if (tag == 0 || tag == tags::DATASET_TRAILING_PADDING)
+                    if (tag == 0 || tag == DATASET_TRAILING_PADDING)
                         && e.kind() == ErrorKind::UnexpectedEof
                     {
                         // TODO: Take what values were read and return that as a byte array, so the

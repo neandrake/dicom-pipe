@@ -19,7 +19,7 @@ use crate::core::{
 
 /// A builder for constructing a `Parser`.
 #[derive(Debug)]
-pub struct ParserBuilder<'dict> {
+pub struct ParserBuilder<'d> {
     /// Initial parse state. Default is `ParseState::DetectTransferSyntax`.
     state: Option<ParserState>,
 
@@ -31,13 +31,13 @@ pub struct ParserBuilder<'dict> {
     dataset_ts: Option<TSRef>,
 
     /// The `DicomDictionary` to be used when parsing elements. Default is `MinimalDicomDictionary`.
-    dictionary: &'dict dyn DicomDictionary,
+    dictionary: &'d dyn DicomDictionary,
 
     /// The dataset will be wrapped in a `BufReader`, this lets the buffer size be set.
     buffsize: usize,
 }
 
-impl<'dict> ParserBuilder<'dict> {
+impl<'d> ParserBuilder<'d> {
     /// Sets the initial `ParserState` indicating how to start parsing the dataset.
     pub fn state(mut self, state: ParserState) -> Self {
         self.state = Some(state);
@@ -67,7 +67,7 @@ impl<'dict> ParserBuilder<'dict> {
     /// parsing through the stream, and `get_tag_by_number` for resolving VR of parsed elements. The
     /// VR is not strictly necessary for parsing elements however there is potential for sequences
     /// to not have their sub-elements parsed properly without this.
-    pub fn dictionary(mut self, dictionary: &'dict dyn DicomDictionary) -> Self {
+    pub fn dictionary(mut self, dictionary: &'d dyn DicomDictionary) -> Self {
         self.dictionary = dictionary;
         self
     }
@@ -79,7 +79,7 @@ impl<'dict> ParserBuilder<'dict> {
     }
 
     /// Constructs a `Parser` from this builder.
-    pub fn build<DatasetType: Read>(&self, dataset: DatasetType) -> Parser<'dict, DatasetType> {
+    pub fn build<DatasetType: Read>(&self, dataset: DatasetType) -> Parser<'d, DatasetType> {
         Parser {
             dataset: Dataset::new(dataset, self.buffsize),
             behavior: self.behavior.clone(),
@@ -107,7 +107,7 @@ impl<'dict> ParserBuilder<'dict> {
     }
 }
 
-impl<'dict> Default for ParserBuilder<'dict> {
+impl<'d> Default for ParserBuilder<'d> {
     fn default() -> Self {
         ParserBuilder {
             state: None,
