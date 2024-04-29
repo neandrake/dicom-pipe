@@ -168,7 +168,8 @@ impl DicomElement {
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     pub fn parse_string_with_vr(&self, vr: VRRef) -> Result<String, Error> {
         let data: &[u8] = self.get_string_bytes_without_padding(vr);
-        self.cs.decode(data, DecoderTrap::Strict)
+        self.cs
+            .decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
     }
 
@@ -188,7 +189,8 @@ impl DicomElement {
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     pub fn parse_strings_with_vr(&self, vr: VRRef) -> Result<Vec<String>, Error> {
         let data: &[u8] = self.get_string_bytes_without_padding(vr);
-        self.cs.decode(data, DecoderTrap::Strict)
+        self.cs
+            .decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
             .map(|multivalue: String| {
                 if !vr.allows_backslash_text_value {
@@ -207,7 +209,7 @@ impl DicomElement {
     /// Returns the value as a slice with the padding character
     /// removed per the specification of whether the VR indicates leading/trailing
     /// padding is significant.
-    pub fn get_string_bytes_without_padding(&self, vr: VRRef) -> &[u8] {
+    fn get_string_bytes_without_padding(&self, vr: VRRef) -> &[u8] {
         // grab the position to start reading bytes from prior to computing the new bytes_read
         let mut lindex: usize = 0;
 
@@ -229,10 +231,8 @@ impl DicomElement {
                 }
             } else if vr.padding == vr::NULL_PADDING {
                 // null byte padding is only singular and only if used to achieve even length
-                if data.len() % 2 == 0 {
-                    if data[rindex] == vr.padding {
-                        rindex -= 1;
-                    }
+                if data.len() % 2 == 0 && data[rindex] == vr.padding {
+                    rindex -= 1;
                 }
             }
         }
