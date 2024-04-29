@@ -51,6 +51,7 @@ pub enum AssocRsp {
 }
 
 impl AssocRsp {
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         match self {
             AssocRsp::RJ(rj) => rj.pdu_type(),
@@ -72,14 +73,17 @@ impl Display for AssocError {
 }
 
 impl AssocError {
+    #[must_use]
     pub fn rsp(&self) -> &Option<AssocRsp> {
         &self.rsp
     }
 
+    #[must_use]
     pub fn into_err(self) -> DimseError {
         self.err
     }
 
+    #[must_use]
     pub fn error<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -90,6 +94,7 @@ impl AssocError {
         }
     }
 
+    #[must_use]
     pub fn ab_failure<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -100,6 +105,7 @@ impl AssocError {
         }
     }
 
+    #[must_use]
     pub fn ab_unexpected_pdu<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -110,6 +116,7 @@ impl AssocError {
         }
     }
 
+    #[must_use]
     pub fn ab_invalid_pdu<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -120,6 +127,7 @@ impl AssocError {
         }
     }
 
+    #[must_use]
     pub fn rj_failure<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -130,6 +138,7 @@ impl AssocError {
         }
     }
 
+    #[must_use]
     pub fn rj_calling_aet<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -140,6 +149,7 @@ impl AssocError {
         }
     }
 
+    #[must_use]
     pub fn rj_called_aet<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -150,6 +160,7 @@ impl AssocError {
         }
     }
 
+    #[must_use]
     pub fn rj_unsupported<E>(err: E) -> Self
     where
         DimseError: From<E>,
@@ -160,6 +171,11 @@ impl AssocError {
         }
     }
 
+    /// Writes this error response, if any, to the given writer, consuming this error.
+    ///
+    /// # Errors
+    /// I/O errors may occur writing the PDU to the writer, or flushing the writer.
+    #[must_use]
     pub fn write<W: Write>(self, mut writer: W) -> Result<(), DimseError> {
         match self.rsp {
             Some(AssocRsp::RJ(rj)) => {

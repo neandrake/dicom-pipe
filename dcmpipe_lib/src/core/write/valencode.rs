@@ -121,6 +121,11 @@ impl<'e> TryFrom<ElemAndStrings<'e>> for Vec<u8> {
             .collect::<Vec<u8>>();
         // Remove last separator.
         bytes.pop();
+
+        if bytes.len() % 2 != 0 {
+            bytes.push(elem.vr().padding);
+        }
+
         Ok(bytes)
     }
 }
