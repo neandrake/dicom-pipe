@@ -26,6 +26,9 @@ pub trait DicomNode {
     /// Get an item of the given index. Index is 1-based.
     fn get_item_by_index(&self, index: usize) -> Option<&DicomObject>;
 
+    /// Iterator over the item nodes of this node, if it is sequence-like.
+    fn iter_items(&self) -> std::slice::Iter<DicomObject>;
+
     /// Get a child node with the given `TagNode`.
     fn get_child_by_tagnode(&self, node: &TagNode) -> Option<&DicomObject> {
         self.get_child_by_tag(node.get_tag())
@@ -67,6 +70,7 @@ pub struct DicomRoot<'dict> {
     cs: CSRef,
     dictionary: &'dict dyn DicomDictionary,
     child_nodes: BTreeMap<u32, DicomObject>,
+    items: Vec<DicomObject>,
 }
 
 impl<'dict> DicomRoot<'dict> {
@@ -81,6 +85,7 @@ impl<'dict> DicomRoot<'dict> {
             cs,
             dictionary,
             child_nodes,
+            items: Vec::with_capacity(0),
         }
     }
 
@@ -113,12 +118,30 @@ impl<'dict> DicomNode for DicomRoot<'dict> {
         self.child_nodes.iter()
     }
 
+    /// Always returns zero, as the root of a DicomObject is never sequence-like.
     fn get_item_count(&self) -> usize {
-        0
+        self.items.len()
     }
 
-    fn get_item_by_index(&self, _index: usize) -> Option<&DicomObject> {
-        None
+    /// Always returns None, as the root of a DicomObject is never sequence-like.
+    fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
+        self.items.get(index)
+    }
+
+    /// Always returns an empty iterator, as the root of a DicomObject is never sequence-like.
+    fn iter_items(&self) -> std::slice::Iter<DicomObject> {
+        self.items.iter()
+    }
+}
+
+impl std::fmt::Debug for DicomRoot<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "<DicomRoot {} {}>",
+            self.get_ts().get_uid().get_name(),
+            self.cs.name()
+        )
     }
 }
 
@@ -179,5 +202,9 @@ impl DicomNode for DicomObject {
 
     fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
         self.items.get(index - 1)
+    }
+
+    fn iter_items(&self) -> std::slice::Iter<DicomObject> {
+        self.items.iter()
     }
 }

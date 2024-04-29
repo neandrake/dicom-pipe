@@ -1,4 +1,4 @@
-pub(crate) mod constants;
+pub mod constants;
 pub mod dcmdict;
 pub mod tag;
 pub mod ts;

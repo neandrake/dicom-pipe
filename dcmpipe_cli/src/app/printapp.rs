@@ -7,10 +7,11 @@ use anyhow::Result;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
+use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use dcmpipe_lib::core::dcmsqelem::SequenceElement;
 use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::Parser;
+use dcmpipe_lib::defn::constants::tags::FILE_META_GROUP_END;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::ts::TSRef;
@@ -43,7 +44,7 @@ impl PrintApp {
         while let Some(elem) = parser.next() {
             let elem: DicomElement = elem?;
 
-            if prev_was_file_meta && elem.get_tag() > 0x0002_FFFF {
+            if prev_was_file_meta && elem.get_tag() > FILE_META_GROUP_END {
                 stdout.write_all(
                     format!(
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
@@ -82,7 +83,7 @@ impl PrintApp {
         for (tag, obj) in dcmnode.iter_child_nodes() {
             let elem: &DicomElement = obj.get_element();
 
-            if prev_was_file_meta && *tag > 0x0002_FFFF {
+            if prev_was_file_meta && *tag > FILE_META_GROUP_END {
                 stdout.write_all(
                     format!(
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
@@ -101,8 +102,7 @@ impl PrintApp {
             // display items first followed by children. the only situation where an element
             // may have both items and children is a sequence with items whose only child is
             // its ending sequence delimiter.
-            for index in 0..obj.get_item_count() {
-                let child_obj: &DicomObject = obj.get_item_by_index(index + 1).unwrap();
+            for child_obj in obj.iter_items() {
                 let child_elem: &DicomElement = child_obj.get_element();
                 if let Some(printed) = render_element(child_elem)? {
                     stdout.write_all(format!("{}\n", printed).as_ref())?;

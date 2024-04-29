@@ -9,7 +9,6 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::{Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 
-use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::defn::tag::Tag;
 
@@ -26,16 +25,7 @@ mod writing;
 
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
-    parse_file_with_parsestop(path, with_std, ParseStop::EndOfDataset)
-}
-
-/// Parses the given file into a `DicomObject` using the given parsestop
-pub fn parse_file_with_parsestop(
-    path: &str,
-    with_std: bool,
-    stop: ParseStop,
-) -> Result<DicomRoot<'_>> {
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default().stop(stop);
+    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default();
     if with_std {
         parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -132,6 +122,10 @@ where
 }
 
 pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<()> {
+    // This should always do nothing as the root should never have items.
+    for dcmobj in dcmroot.iter_items() {
+        parse_all_dcmobj_values(dcmobj)?;
+    }
     for (_tag, dcmobj) in dcmroot.iter_child_nodes() {
         parse_all_dcmobj_values(dcmobj)?;
     }
@@ -139,7 +133,11 @@ pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<()> {
 }
 
 fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<()> {
+    // Parse current element value before moving on to items/children.
     dcmobj.get_element().parse_value()?;
+    for item_dcmobj in dcmobj.iter_items() {
+        parse_all_dcmobj_values(item_dcmobj)?;
+    }
     for (_tag, child_dcmobj) in dcmobj.iter_child_nodes() {
         parse_all_dcmobj_values(child_dcmobj)?;
     }

@@ -98,9 +98,9 @@ pub(crate) fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
 /// Reads a Value Length from a given dataset.
 /// `dataset` The dataset to read bytes from
 /// `read_4bytes` Whether 4 bytes or 2 bytes should be read from the dataset. Refer to the dicom
-///                 standard -- implicit vr transfer syntax uses 4 bytes for value length, explicit
-///                 vr uses 2 bytes, but if explicit and the VR has 2-byte padding then 4 bytes
-///                 should be parsed.
+///               standard -- implicit vr transfer syntax uses 4 bytes for value length, explicit
+///               vr uses 2 bytes, but if explicit and the VR has 2-byte padding then 4 bytes
+///               should be parsed.
 /// `big_endian` Whether to use big or little endian
 pub(crate) fn read_value_length_from_dataset(
     dataset: &mut impl Read,
@@ -160,15 +160,16 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
     Ok(Some(root))
 }
 
-/// Iterates through the parser populating values into the given `nodes` map. Elements which are
-/// sequence-like (contain sub-elements) will be recursed into so child elements are added to their
-/// node. The sequence path length is used to determine when parsing an element whether it escapes
-/// the current level a of recursion, and how far back up it should go (the end of a sequence can
-/// be the end of multiple sequences).
+/// Iterates through the parser populating values into the given `child_nodes` map. Elements which
+/// are sequence-like (contain sub-elements) will be recursed into so child elements are added to
+/// their node. The sequence path length is used to determine when parsing an element whether it
+/// escapes the current level a of recursion, and how far back up it should go (the end of a
+/// sequence can be the end of multiple sequences).
+///
 /// `parser` The parser elements are being read from
-/// `child_nodes` The map of nodes which elements should be parsed into
-/// `item_nodes` The list of nodes which item elements should be parsed into
-/// `is_first_level` Whether the root level is being parsed, or within child nodes
+/// `child_nodes` The map of child nodes which elements should be parsed into
+/// `items` The list of nodes which item elements should be parsed into
+/// `is_root_level` Whether the root level is being parsed, or within child nodes
 fn parse_into_object_recurse<DatasetType: Read>(
     parser: &mut Parser<'_, DatasetType>,
     child_nodes: &mut BTreeMap<u32, DicomObject>,

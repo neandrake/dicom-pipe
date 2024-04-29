@@ -17,7 +17,7 @@ use dcmpipe_lib::defn::vr;
 
 use crate::mock::MockDicomDataset;
 use crate::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};
-use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_parsestop};
+use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
 
 #[test]
 fn test_good_preamble() {
@@ -737,15 +737,10 @@ fn test_illegal_cp246_without_std() -> Result<()> {
     test_illegal_cp246(false)
 }
 
-/// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1] - also can't be parsed by
-/// dcmtk for the same reason.
 fn test_illegal_cp246(with_std: bool) -> Result<()> {
-    let dcmroot: DicomRoot<'_> = parse_file_with_parsestop(
-        "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
+    let dcmroot: DicomRoot<'_> = parse_file(
+        "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm",
         with_std,
-        // this file has invalid tag after this position, sequence-contained tag (0700,0300) which
-        // has a massive value length which goes past the file contents.
-        ParseStop::AfterBytePos(6484),
     )?;
 
     let ref_sop_class_uid_elem: &DicomElement = dcmroot
@@ -789,6 +784,35 @@ fn test_illegal_cp246(with_std: bool) -> Result<()> {
         .try_into()?;
 
     assert_eq!(ref_sop_class_uid, uids::EnhancedMRImageStorage.uid);
+
+    Ok(())
+}
+
+#[test]
+fn test_incomplete_dicom_file_with_std() -> Result<()> {
+    test_incomplete_dicom_file(true)
+}
+
+#[test]
+fn test_incomplete_dicom_file_without_std() -> Result<()> {
+    test_incomplete_dicom_file(false)
+}
+
+/// This dataset defines an item in (5200,9229)[1].(2005,140E)[1].(0700,0300) which specifies a
+/// very large explicit value length (~50mb) which is not actually present in the dicom file.
+fn test_incomplete_dicom_file(with_std: bool) -> Result<()> {
+    let result = parse_file(
+        "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
+        with_std,
+    );
+    assert!(result.is_err());
+
+    let err = result.unwrap_err();
+    if let ParseError::DetailedIOError { source, detail: _ } = err {
+        assert_eq!(source.kind(), ErrorKind::UnexpectedEof);
+    } else {
+        panic!("Error should be ParseError::DetailedIOError");
+    }
 
     Ok(())
 }
