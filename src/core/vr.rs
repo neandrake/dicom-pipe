@@ -15,7 +15,7 @@ pub struct VR {
 	/// The 16-bit code for this AE. In most (all?) cases this is the ASCII representation of the ident.
 	pub code: u32,
 	/// If the value is padded, what value/code is used to pad. Generally either zeroes or the space (0x20)
-	pub padding: u32,
+	pub padding: u8,
 	/// If this VR is encoded explicitly, how many bytes are used to encode the "header"
 	/// Part 5, 7.1.2 -- Total bytes for Tag, VR, and VL
 	pub explicit_vr_header_bytes: u32,

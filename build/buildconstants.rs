@@ -204,8 +204,8 @@ impl TagLookup {{
 \t\tself.ident_to_elem.get(ident).map(|tag| *tag)
 \t}}
 
-\tpub fn by_tag(&self, tag: &u32) -> Option<&'static Tag> {{
-\t\tself.tag_to_elem.get(tag).map(|tag| *tag)
+\tpub fn by_tag(&self, tag: u32) -> Option<&'static Tag> {{
+\t\tself.tag_to_elem.get(&tag).map(|tag| *tag)
 \t}}
 
 \tpub fn new() -> TagLookup {{
