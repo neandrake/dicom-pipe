@@ -42,6 +42,18 @@ pub struct Writer<DatasetType: Write> {
 }
 
 impl<DatasetType: Write> Writer<DatasetType> {
+    pub fn new(dataset: DatasetType) -> Writer<DatasetType> {
+        Writer {
+            dataset: Dataset::new(dataset, 8 * 1024),
+            state: WriteState::Preamble,
+            bytes_written: 0,
+            ts: &ts::ExplicitVRLittleEndian,
+            cs: DEFAULT_CHARACTER_SET,
+            current_path: Vec::new(),
+            file_preamble: Some([0u8; FILE_PREAMBLE_LENGTH]),
+        }
+    }
+
     /// Get the number of bytes read from the dataset.
     pub fn get_bytes_written(&self) -> u64 {
         self.bytes_written
@@ -179,8 +191,10 @@ impl<DatasetType: Write> Writer<DatasetType> {
     fn write_data(&mut self, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
 
-        bytes_written += self.dataset.write(element.get_data().as_slice())?;
+        #[cfg(feature = "deflate")]
+        self.dataset.set_write_deflated(element.get_ts().is_deflated());
 
+        bytes_written += self.dataset.write(element.get_data().as_slice())?;
         Ok(bytes_written)
     }
 }

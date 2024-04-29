@@ -904,9 +904,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             .unwrap_or(self.detected_ts);
 
         #[cfg(feature = "deflate")]
-        if ts.deflated {
-            self.dataset.set_read_deflated(true);
-        }
+        self.dataset.set_read_deflated(ts.is_deflated());
 
         let tag: u32 = self.read_tag(ts)?;
         if self.is_at_parse_stop() {
@@ -935,6 +933,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         let element: DicomElement = self.read_dicom_element(tag, ts)?;
+
         // if the file-meta state was skipped due to the initial detection we may still need to
         // switch transfer syntax -- only do this if the element is at the root of the dataset
         if element.tag == tags::TRANSFER_SYNTAX_UID && element.get_sequence_path().is_empty() {
