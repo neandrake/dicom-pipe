@@ -1,9 +1,42 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
 
+use std::fmt;
+use std::hash::{Hash, Hasher};
+
 use util::vr;
 
-use std::hash::{Hash, Hasher};
+
+pub enum TagValue {
+    Undefined(u32),
+    Defined(&'static Tag),
+}
+
+impl fmt::UpperHex for TagValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            TagValue::Undefined(num) => {
+                write!(f, "0x{:08X}", num)
+            },
+            TagValue::Defined(tag) => {
+                write!(f, "0x{:08X}", tag.tag)
+            }
+        }
+    }
+}
+
+impl fmt::LowerHex for TagValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            TagValue::Undefined(num) => {
+                write!(f, "0x{:08x}", num)
+            },
+            TagValue::Defined(tag) => {
+                write!(f, "0x{:08x}", tag.tag)
+            }
+        }
+    }
+}
 
 /// Value Multiplicity
 #[derive(Debug, PartialEq, Eq)]
@@ -21,15 +54,15 @@ pub enum VM {
 }
 
 #[derive(Debug, Eq)]
-pub struct Tag<'vr_lt> {
+pub struct Tag {
     ident: &'static str,
     tag: u32,
-    default_vr: Option<&'vr_lt vr::VR>,
+    default_vr: Option<&'static vr::VR>,
     vm: VM,
     desc: &'static str,
 }
 
-impl<'vr_lt> Tag<'vr_lt> {
+impl Tag {
     pub fn get_ident(&self) -> &'static str {
         self.ident
     }
@@ -38,7 +71,7 @@ impl<'vr_lt> Tag<'vr_lt> {
         self.tag
     }
 
-    pub fn get_default_vr(&self) -> Option<&'vr_lt vr::VR> {
+    pub fn get_default_vr(&self) -> Option<&'static vr::VR> {
         self.default_vr
     }
 
@@ -47,13 +80,13 @@ impl<'vr_lt> Tag<'vr_lt> {
     }
 }
 
-impl<'vr_lt> PartialEq for Tag<'vr_lt> {
+impl PartialEq for Tag {
     fn eq(&self, other: &Tag) -> bool {
         self.tag.eq(&other.tag)
     }
 }
 
-impl<'vr_lt> Hash for Tag<'vr_lt> {
+impl Hash for Tag {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tag.hash(state);
     }
@@ -62,7 +95,7 @@ impl<'vr_lt> Hash for Tag<'vr_lt> {
 macro_rules! define_tag {
     ($tag:expr, $tagval:expr, $tagtitle:expr, $tagname:ident, Option::None, $tagvm:expr) => {
         /// $tag, $tagtitle, $tagvr, $tagvm
-        pub static $tagname: Tag<'static> = Tag {
+        pub static $tagname: Tag = Tag {
             ident: "$tagname",
             tag: $tagval,
             default_vr: Option::None,
@@ -73,7 +106,7 @@ macro_rules! define_tag {
 
     ($tag:expr, $tagval:expr, $tagtitle:expr, $tagname:ident, $tagvr:ident, $tagvm:expr) => {
         /// $tag, $tagtitle, $tagvr, $tagvm
-        pub static $tagname: Tag<'static> = Tag {
+        pub static $tagname: Tag = Tag {
             ident: "$tagname",
             tag: $tagval,
             default_vr: Option::Some(&vr::$tagvr),

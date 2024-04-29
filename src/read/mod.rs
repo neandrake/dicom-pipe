@@ -12,6 +12,7 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Read, Seek};
 use std::path::Path;
 
+use util::tags::TagValue;
 use util::vr::VR;
 
 
@@ -31,7 +32,7 @@ pub struct DicomStream<StreamType> {
 }
 
 pub struct DicomElement {
-    pub tag: u32,
+    pub tag: TagValue,
     pub vr: &'static VR,
     pub vl: u32,
     pub bytes: Vec<u8>,
@@ -39,7 +40,7 @@ pub struct DicomElement {
 
 impl fmt::Debug for DicomElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "DicomElement {{ tag: 0x{:08X}  vr: {}  vl: {} }}", self.tag, self.vr.ident, self.vl)
+        write!(f, "DicomElement {{ tag: {:08X}  vr: {}  vl: {} }}", self.tag, self.vr.ident, self.vl)
     }
 }
 
@@ -113,11 +114,11 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
         return Result::Ok(())
     }
 
-    pub fn read_tag(&mut self) -> Result<u32, Error> {
+    pub fn read_tag(&mut self) -> Result<TagValue, Error> {
         let first: u32 = (try!(self.stream.read_u16::<LittleEndian>()) as u32) << 16;
         let second: u32 = try!(self.stream.read_u16::<LittleEndian>()) as u32;
         let result: u32 = first + second;
-        Result::Ok(result)
+        Result::Ok(TagValue::Undefined(result))
     }
 
     pub fn read_vr(&mut self) -> Result<&'static VR, Error> {
@@ -145,7 +146,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
     }
 
     pub fn read_dicom_element(&mut self) -> Result<DicomElement, Error> {
-        let tag: u32 = try!(self.read_tag());
+        let tag: TagValue = try!(self.read_tag());
         let vr: &VR = try!(self.read_vr());
         let vl: u32 = try!(self.read_value_length(vr));
         let bytes: Vec<u8> = try!(self.read_value_field(vl));
