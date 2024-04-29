@@ -23,7 +23,8 @@ impl<'dict, DatasetType: Read> Iterator for Parser<'dict, DatasetType> {
             }
             Err(e) => {
                 self.iterator_ended = true;
-                Some(Err(e))
+                let detail = self.get_current_debug_str();
+                Some(Err(ParseError::DetailedError { source: Box::new(e), detail }))
             }
             Ok(None) => {
                 self.iterator_ended = true;

@@ -59,8 +59,14 @@ fn test_bad_dicom_prefix_parser() {
 
     let parse_error: ParseError = result.err().unwrap();
     match parse_error {
+        ParseError::DetailedError { source, detail } => {
+            match *source {
+                ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {},
+                _ => panic!("{:?}", detail),
+            }
+        },
         ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {}
-        other => assert!(false, "{:?}", other),
+        other => panic!("{:?}", other),
     };
 }
 
@@ -825,10 +831,15 @@ fn test_incomplete_dicom_file(with_std: bool) -> Result<()> {
     assert!(result.is_err());
 
     let err = result.unwrap_err();
-    if let ParseError::DetailedIOError { source, detail: _ } = err {
-        assert_eq!(ErrorKind::UnexpectedEof, source.kind());
+    if let ParseError::DetailedError { source, detail: _ } = err {
+        let source = *source;
+        if let ParseError::IOError { source } = source {
+            assert_eq!(ErrorKind::UnexpectedEof, source.kind());
+        } else {
+            panic!("Error should be ParseError::DetailedError(IOError)");
+        }
     } else {
-        panic!("Error should be ParseError::DetailedIOError");
+        panic!("Error should be ParseError::DetailedError");
     }
 
     Ok(())
@@ -1437,6 +1448,38 @@ fn test_empty_string_parsed_as_number(with_std: bool) -> Result<()> {
 #[test]
 #[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<()> {
+    // Known to fail:
+    // - fixtures\gdcm\gdcmConformanceTests\Enhanced_MR_Image_Storage_Illegal_CP246.dcm
+    //   | SharedFunctionalGroupsSequence[1].(2005,140E)[1].(0700,0300) has too big ValueLength.
+    // - fixtures\gdcm\gdcmData\ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm
+    //   | jumbled bytes? last read tag is (0C00,0D00).
+    // - fixtures\gdcm\gdcmData\gdcm-JPEG-LossLess3a.dcm
+    //   | no delimeter between frames in PixelData, instead reading (B00C,0EB6).
+    // - fixtures\gdcm\gdcmData\GE_GENESIS-16-MONO2-WrongLengthItem.dcm
+    //   | (0810,0000) has too big ValueLength (GenericGroupLength).
+    // - fixtures\gdcm\gdcmData\IM-0001-0066.dcm
+    //   | jumbled bytes? last read tag is (6D00,6800).
+    // - fixtures\gdcm\gdcmData\JPEGInvalidSecondFrag.dcm
+    //   | jumbled bytes in PixelData[2].
+    // - [!] fixtures\gdcm\gdcmData\MR_Philips_Intera_PrivateSequenceExplicitVR_in_SQ_2001_e05f_item_wrong_lgt_use_NOSHADOWSEQ.dcm
+    //   | jumbled bytes? [!] = error is different from dcmdump.
+    // - [!] fixtures\gdcm\gdcmData\MR_Philips_Intera_SwitchIndianess_noLgtSQItem_in_trueLgtSeq.dcm
+    //   | jumbled bytes? [!] = error is different from dcmdump.
+    // - [!] fixtures\gdcm\gdcmData\PHILIPS_Intera-16-MONO2-Uncompress.dcm
+    //   | jumbled bytes? [!] = error is different from dcmdump.
+    // - [!] fixtures\gdcm\gdcmData\securedicomfileset\DICOMDIR
+    //   | DICOM is encrypted. [!] error is different from dcmdump.
+    // - [!] fixtures\gdcm\gdcmData\securedicomfileset\IMAGES\IMAGE1
+    //   | DICOM is encrypted. [!] error is different from dcmdump.
+    // - fixtures\gdcm\gdcmData\SIEMENS_GBS_III-16-ACR_NEMA_1-ULis2Bytes.dcm
+    //   | Element parse error: (0009,1130)+ are UL but only have 2 bytes.
+    // - fixtures\gdcm\gdcmData\SIEMENS_MAGNETOM-12-MONO2-GDCM12-VRUN.dcm
+    //   | (0009,1214) has too big ValueLength.
+    // - [!] fixtures\gdcm\gdcmData\SIEMENS_MAGNETOM-12-MONO2-Uncompressed.dcm
+    //   | Element parse error: (0009,1113) is UL but only 2 bytes. [!] error is different from
+    //   dcmdump. dcmdump fails the rest of the file due to jumbled bytes and eventually a value
+    //   length too big.
+    // - ReferencedPerformedProcedureStepSequence[1].(0500,0400) has too big ValueLength.
     let num_failed: usize = parse_all_dicom_files(true)?;
     if num_failed > 0 {
         Err(ParseError::IOError {

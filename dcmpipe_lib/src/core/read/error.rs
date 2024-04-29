@@ -30,22 +30,24 @@ pub enum ParseError {
     },
 
     /// Wrapper around `std::io::Error`.
-    #[error("i/o error reading from stream")]
+    #[error("i/o error reading from dataset")]
     IOError {
         #[from]
         source: std::io::Error,
     },
 
     /// Wrapper around `std::io::Error` but includes additional details at the point of error.
-    #[error("i/o error reading from stream: {detail}")]
-    DetailedIOError {
+    #[error("error reading from dataset: {source:?}\n\t{detail}")]
+    DetailedError {
         #[source]
-        source: std::io::Error,
+        source: Box<ParseError>,
         detail: String,
     },
 
     /// An error occurs while parsing the value of a DICOM element.
-    #[error("error parsing element value: {tagstring} [{vr:?}] [{cs:?}], {message} {bytes:?}")]
+    #[error(
+        "error parsing element value: {message}\n\ttagpath: {tagstring}\n\tvr:{vr:?}, cs: {cs:?}\n\tvalue: {bytes:?}"
+    )]
     ValueParseError {
         message: String,
         tagstring: String,

@@ -99,6 +99,18 @@ pub struct Parser<'dict, DatasetType: Read> {
     /// the element it's for was successfully finished parsing.
     pub(crate) tag_last_read: u32,
 
+    /// This is the VR detected for the last tag successfully read from the dataset,
+    /// regardless of whether the element it's for successfully finished parsing.
+    pub(crate) vr_last_used: Option<VRRef>,
+
+    /// This is the value length detected for the last tag successfully read from the dataset,
+    /// regardless of whether the element it's for successfully finished parsing.
+    pub(crate) vl_last_used: Option<ValueLength>,
+
+    /// This is the transfer syntax used for the last tag successfully read from the dataset,
+    /// regardless of whether the element it's for sucessfully finished parsing.
+    pub(crate) ts_last_used: Option<TSRef>,
+
     /// This is the element tag currently being read from the dataset. It will be `Some` once the
     /// element starts parsing and will be `None` after the element has completed parsing. Elements
     /// may be partially parsed either due to parsing errors or `ParseStop`. This is used regularly
@@ -261,29 +273,49 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Builds a string containing debug state of parsing, for errors and spurious output while
-    /// debugging. Format is:
+    /// debugging. Format is multiple lines, first line no indent, each other single-tab indent.
     /// ```text
-    /// ParseState @ 0xDEAD_BEEF ImplicitVRLittleEndian: ReferenceSequence[1].(00A1,0000) OB [128]
+    /// state: ParseState @ byte pos 0xDEAD_BEEF
+    ///     vr: OB, vl: 128, ts: ImplicitVRLittleEndian
+    ///     tagpath: ReferenceSequence[1].(00A1,0000)
     /// ```
-    fn get_debug_str(&self, ts: TSRef, tag: u32, vr: VRRef, vl: ValueLength) -> String {
+    pub(crate) fn get_current_debug_str(&self) -> String {
         // Render the full tag path
+        let tag = self.tag_last_read;
         let mut full_path: TagPath = (&self.current_path).into();
         full_path.nodes.push(tag.into());
         let tagpath_display: String =
             TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));
-        let vr_display = vr.ident;
+
+        let vr_display = if let Some(vr) = self.vr_last_used {
+            vr.ident
+        } else {
+            "N/A"
+        };
+        let vl_display = if let Some(vl) = self.vl_last_used {
+            format!("{vl:?}")
+        } else {
+            "N/A".to_string()
+        };
+
         // Format the bytes_read as 64bit hex value in "0x0000_0000" format.
         let msb = self.bytes_read >> 16;
         let lsb = self.bytes_read & 0x0000_FFFF;
         let byte_str = format!("{:#06X}_{:04X}", msb, lsb);
+
         // Display "dataset_ts" if it's the same as the dataset's, otherwise show the ident name.
-        let ts_str = self
-            .dataset_ts
-            .filter(|ds_ts| *ds_ts == ts)
-            .map_or(ts.uid.ident, |_| "dataset_ts");
+        let ts_str = if self.dataset_ts == self.ts_last_used {
+            "dataset_ts"
+        } else if let Some(ts) = self.ts_last_used {
+            ts.uid.ident
+        } else {
+            "N/A"
+        };
+
+        let state_str = format!("{:?}", self.state);
+
         format!(
-            "{:?} @ {byte_str} ts:{ts_str}: {tagpath_display} {vr_display} [{:?}]",
-            self.state, vl,
+            "state: {state_str} @ byte pos {byte_str}\n\ttagpath: {tagpath_display}\n\tvr: {vr_display}, vl: {vl_display}, ts: {ts_str}"
         )
     }
 
@@ -358,6 +390,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 &vr::UN
             }
         };
+        self.vr_last_used.replace(vr);
 
         let vl: ValueLength = if let Some(partial_vl) = self.partial_vl {
             self.partial_vl.take();
@@ -365,6 +398,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         } else {
             self.read_value_length(ts, vr)?
         };
+        self.vl_last_used.replace(vl);
+
         let parse_as_seq: bool = read::util::is_non_standard_seq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
             if !ts.is_big_endian() {
@@ -375,6 +410,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         } else {
             ts
         };
+        self.ts_last_used.replace(ts);
 
         // Sequence and item elements should let the iterator handle parsing its contents and not
         // associate bytes to the element's value. The exception are item elements within pixel data
@@ -391,7 +427,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let bytes: Vec<u8> = if skip_bytes {
             Vec::with_capacity(0)
         } else {
-            self.read_value_field(tag, vl, vr, ts)?
+            self.read_value_field(tag, vl)?
         };
 
         let ancestors: Vec<SequenceElement> = self.current_path.clone();
@@ -453,13 +489,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads the value field of the dicom element into a byte array. If the `ValueLength` is
     /// undefined then this returns an empty array as elements with undefined length should have
     /// their contents parsed as dicom elements.
-    fn read_value_field(
-        &mut self,
-        tag: u32,
-        vl: ValueLength,
-        vr: VRRef,
-        ts: TSRef,
-    ) -> Result<Vec<u8>> {
+    fn read_value_field(&mut self, tag: u32, vl: ValueLength) -> Result<Vec<u8>> {
         match vl {
             // Undefined length means that the contents of the element are other dicom elements to
             // be parsed. Don't read data from the dataset in this case.
@@ -488,8 +518,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                         //       original contents of the dataset are retained if needed.
                         ParseError::ExpectedEOF
                     } else {
-                        let detail = self.get_debug_str(ts, tag, vr, vl);
-                        ParseError::DetailedIOError { source: e, detail }
+                        ParseError::IOError { source: e }
                     }
                 });
 
