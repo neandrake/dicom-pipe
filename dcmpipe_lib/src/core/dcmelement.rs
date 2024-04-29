@@ -81,16 +81,24 @@ impl SequenceElement {
 
     pub fn increment_item_num(&mut self) {
         match self.item_number {
-            None => {self.item_number.replace(1);},
-            Some(val) => {self.item_number.replace(val + 1);},
+            None => {
+                self.item_number.replace(1);
+            }
+            Some(val) => {
+                self.item_number.replace(val + 1);
+            }
         }
     }
 
     pub fn decrement_item_num(&mut self) {
         match self.item_number {
             None => {}
-            Some(val) if val > 1 => {self.item_number.replace(val - 1);},
-            Some(_) => {self.item_number.take();},
+            Some(val) if val > 1 => {
+                self.item_number.replace(val - 1);
+            }
+            Some(_) => {
+                self.item_number.take();
+            }
         }
     }
 }
