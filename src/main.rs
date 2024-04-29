@@ -25,67 +25,39 @@ fn main() {
 										.into_iter();
 	let dir_entries = dirwalker.filter_entry(|e| !is_hidden(e));
 	for entry_res in dir_entries {
-		if entry_res.is_ok() {
-			let entry: DirEntry = entry_res.unwrap();
-			if entry.file_type().is_file() {
-				let file_path: &Path = entry.path();
-				let file_stream_result: Result<File, Error> = File::open(file_path);
-				if file_stream_result.is_err() {
-					writeln!(
-						&mut std::io::stderr(),
-						"[ERROR] Error reading file: {:?} - {}",
-						file_path,
-						file_stream_result.err().unwrap()
-					).unwrap();
-					continue;
-				}
-				
-				let fstream : File = file_stream_result.unwrap();
-				let is_dcm_result : Result<bool, Error> = is_standard_dicom(fstream);
-				if is_dcm_result.is_ok() {
-					let is_dcm : bool = is_dcm_result.ok().expect("wut");
-					if is_dcm {
-						println!("[INFO] File is DICOM: {:?}", file_path);
-					} else {
-						println!("[INFO] File is not DICOM: {:?}", file_path);
-					}
-				} else {
-					writeln!(
-						&mut std::io::stderr(),
-						"[ERROR] Error parsing file as DICOM: {:?} - {:?}",
-						file_path,
-						is_dcm_result.err()
-					).unwrap();
-				}
+		match do_thing(entry_res) {
+			Ok(val) => {
+				println!("Entry is DICOM: {:?}", "BLUH?")
+			},
+			Err(err) => {
+				writeln!(
+					&mut std::io::stderr(),
+					"[ERROR] Error parsing file as DICOM: {:?}",
+					err
+				).unwrap();
 			}
-		} else {
-			writeln!(
-				&mut std::io::stderr(),
-				"[ERROR] Error reading path: {}",
-				entry_res.err().unwrap()
-			).unwrap();
 		}
 	}
 }
 
-fn do_thing<'streamlife>(entry: Result<DirEntry, Error>) -> Result<&'streamlife DicomStream, Error> {
+fn do_thing(entry: Result<DirEntry, walkdir::Error>) -> Result<Box<DicomStream>, Error> {
 	let entry: DirEntry = try!(entry);
 	if !entry.file_type().is_file() {
 		return Result::Err(Error::new(ErrorKind::InvalidData, "File is a directory"));
 	}
 
 	let file_path: &Path = entry.path();
-	let fstream: File = try!(File::open(file_path));
-	let is_dcm: bool = try!(is_standard_dicom(fstream));
+	let mut fstream: File = try!(File::open(file_path));
+	let is_dcm: bool = try!(is_standard_dicom(&mut fstream));
 	if is_dcm {
-		return Result::Ok(&fstream as &DicomStream);
+		return Result::Ok(Box::new(fstream));
 		//println!("[INFO] File is DICOM: {:?}", file_path);
 	}
 	//println!("[INFO] File is not DICOM: {:?}", file_path);
 	return Result::Err(Error::new(ErrorKind::InvalidData, "File is not DICOM"));
 }
 
-fn is_standard_dicom<StreamType: Read + Seek>(mut stream : StreamType) -> Result<bool, Error> {
+fn is_standard_dicom<StreamType: Read + Seek>(stream : &mut StreamType) -> Result<bool, Error> {
 	let filler_size : usize = 128;
 	let preamble_size : usize = 4;
 	let buf_size : usize = filler_size + preamble_size;
