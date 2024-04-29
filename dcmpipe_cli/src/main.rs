@@ -3,14 +3,15 @@ use std::process;
 use structopt::StructOpt;
 
 use crate::app::archiveapp::ArchiveApp;
-use crate::app::args::{Arguments, Command};
 use crate::app::cursiveapp::CursiveApp;
 use crate::app::indexapp::IndexApp;
 use crate::app::printapp::PrintApp;
 use crate::app::scanapp::ScanApp;
 use crate::app::CommandApplication;
+use crate::args::{Arguments, Command};
 
 mod app;
+mod args;
 
 fn main() {
     let mut app: Box<dyn CommandApplication> = make_app();

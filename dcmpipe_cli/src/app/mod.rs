@@ -9,7 +9,6 @@ use std::iter::Peekable;
 use std::path::Path;
 
 pub(crate) mod archiveapp;
-pub(crate) mod args;
 pub(crate) mod cursiveapp;
 pub(crate) mod indexapp;
 pub(crate) mod printapp;
