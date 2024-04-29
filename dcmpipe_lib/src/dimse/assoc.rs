@@ -36,20 +36,18 @@ use crate::{
         pdus::{
             mainpdus::{
                 Abort, AssocAC, AssocACPresentationContext, AssocRQ, PresentationDataItem,
-                PresentationDataValue, ReleaseRP, TransferSyntaxItem, P_DATA_CMD_LAST,
-                P_DATA_DCM_DATASET_LAST,
+                PresentationDataValue, ReleaseRP, TransferSyntaxItem, UserInformationItem,
+                P_DATA_CMD_LAST, P_DATA_DCM_DATASET_LAST,
             },
             pduiter::{DimseMsg, DimseMsgIter},
+            userpdus::{AsyncOperationsWindowItem, MaxLengthItem},
             Pdu, PduType, UserPdu,
         },
         Syntax,
     },
 };
 
-use super::pdus::{
-    mainpdus::UserInformationItem,
-    userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
-};
+use super::pdus::userpdus::RoleSelectionItem;
 
 pub type MsgHandler =
     fn(&Association, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
@@ -101,6 +99,16 @@ impl Association {
     #[must_use]
     pub fn get_pres_ctx(&self, ctx_id: u8) -> Option<&AssocACPresentationContext> {
         self.negotiated_pres_ctx.get(&ctx_id)
+    }
+
+    #[must_use]
+    pub fn get_pdu_max_snd_size(&self) -> u32 {
+        for user_pdu in &self.their_user_data {
+            if let UserPdu::MaxLengthItem(mli) = user_pdu {
+                return mli.max_length();
+            }
+        }
+        0
     }
 
     /// Begin processing an `Association` acting as a Service Class Provider, reading requests from
@@ -210,18 +218,10 @@ impl Association {
             )));
         }
 
+        self.their_user_data
+            .append(rq.user_info().user_data().clone().as_mut());
         for user_pdu in rq.user_info().user_data() {
-            self.their_user_data.push(user_pdu.clone());
             match user_pdu {
-                UserPdu::RoleSelectionItem(role_item) => {
-                    // TODO: This should be set prior to clarify what operations this SCU supports.
-                    self.my_user_data
-                        .push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
-                            role_item.sop_class_uid().clone(),
-                            role_item.sc_provider_role(),
-                            role_item.sc_user_role(),
-                        )));
-                }
                 UserPdu::SOPClassExtendedNegotiationItem(_) => {}
                 UserPdu::SOPClassCommonExtendedNegotiationItem(_) => {}
                 UserPdu::UserIdentityItem(_) => {}
@@ -514,6 +514,14 @@ impl AssociationBuilder {
         my_user_data.push(UserPdu::AsyncOperationsWindowItem(
             AsyncOperationsWindowItem::new(1, 1),
         ));
+
+        for ab in &self.accept_abs {
+            my_user_data.push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
+                ab.uid().into(),
+                0,
+                1,
+            )));
+        }
 
         Association {
             _id: self.id,

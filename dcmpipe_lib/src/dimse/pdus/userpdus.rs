@@ -344,6 +344,11 @@ impl RoleSelectionItem {
     }
 
     /// Create a new `RoleSelectionItem`.
+    ///
+    /// # Notes
+    /// `sc_user_role`, `sc_provider_role`:
+    /// - 0: non-support of the SCU role.
+    /// - 1: support of the SCU role.
     #[must_use]
     pub fn new(sop_class_uid: Vec<u8>, sc_user_role: u8, sc_provider_role: u8) -> Self {
         let length: usize = size_of::<u16>() // sop_class_uid_length
