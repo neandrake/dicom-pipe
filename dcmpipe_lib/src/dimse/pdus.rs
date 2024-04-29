@@ -566,6 +566,18 @@ impl AssocAC {
         self.version
     }
 
+    /// Reserved, but this should be populated with the Destination AE field from the RQ though
+    /// its value should not be checked.
+    pub fn reserved_3(&self) -> &[u8; 16] {
+        &self.reserved_3
+    }
+
+    /// Reserved, but this should be populated with the Source AE field from the RQ though its
+    /// value should not be checked.
+    pub fn reserved_4(&self) -> &[u8; 16] {
+        &self.reserved_4
+    }
+
     /// Application Context.
     pub fn app_ctx(&self) -> &ApplicationContextItem {
         &self.app_ctx
@@ -683,6 +695,33 @@ impl AssocRJ {
         PduType::AssocRJ
     }
 
+    /// Create a new A-ASSOCIATE-RJ
+    ///
+    /// `result`, whether the rejection is transient or permanent.
+    ///   - 1: Rejected-permanent.
+    ///   - 2: Rejected-transient.
+    ///
+    /// `source`, source of the rejection.
+    ///   - 1: DICOM Upper Layer Service User.
+    ///   - 2: DICOM Upper Layer Service Provider (ACSE-related function).
+    ///   - 3: DICOM Upper Layer Service Provider (Presentation-related function).
+    ///
+    /// `reason`, why the association is rejected.
+    ///   - If `source` is 1,
+    ///     - 1: No reason given.
+    ///     - 2: Application Context Name not supported.
+    ///     - 3: Calling AE Title not recognized.
+    ///     - 4-6: Reserved.
+    ///     - 7: Called AE Title not recoginzed.
+    ///     - 8-10: Reserved.
+    ///   - If `source` is 2,
+    ///     - 1: No reason given.
+    ///     - 2: Protocol version not supported.
+    ///   - If `source` is 3,
+    ///     - 0: Reserved.
+    ///     - 1: Temporary congestion.
+    ///     - 2: Local limit exceeded.
+    ///     - 3-7: Reserved.
     pub fn new(result: u8, source: u8, reason: u8) -> AssocRJ {
         let length: usize = size_of::<u8>() // reserved_2
             + size_of::<u8>() // result
@@ -743,6 +782,33 @@ impl AssocRJ {
     ///   3-7: Reserved.
     pub fn reason(&self) -> u8 {
         self.reason
+    }
+
+    /// Returns a description of the reason for A-ASSOCIATION-RJ.
+    pub fn get_reason_desc(&self) -> &'static str {
+        if self.source == 1 {
+            match self.reason {
+                1 => "No reason given.",
+                2 => "Application Context Name not supported.",
+                3 => "Calling AE Title not recognized.",
+                7 => "Called AE Title not recognized.",
+                _ => "Unknown reason.",
+            }
+        } else if self.source == 2 {
+            match self.reason {
+                1 => "No reason given.",
+                2 => "Protocol version not supported.",
+                _ => "Unknown reason.",
+            }
+        } else if self.source == 3 {
+            match self.reason {
+                1 => "Temporary congestion.",
+                2 => "Local limit exceeded.",
+                _ => "Unknown reason.",
+            }
+        } else {
+            "Unknown reason."
+        }
     }
 
     pub fn byte_size(&self) -> usize {
@@ -946,6 +1012,21 @@ impl Abort {
         PduType::Abort
     }
 
+    /// Create a new A-ABORT.
+    ///
+    /// `source`, the source/initiator of the abort.
+    ///   - 0: DICOM Upper Layer service-user.
+    ///   - 1: Reserved.
+    ///   - 2: DICOM Upper Layer service-provider.
+    ///
+    /// `reason`, the reason for the abort, only if `source` isn't `0`.
+    ///   - 0: Reason not specified.
+    ///   - 1: Unrecognized PDU.
+    ///   - 2: Unexpected PDU.
+    ///   - 3: Reserved / Unexpected session-servicve primitive.
+    ///   - 4: Unrecognized PDU parameter.
+    ///   - 5: Unexpected PDU parameter.
+    ///   - 6: Invalid PDU parameter.
     pub fn new(source: u8, reason: u8) -> Abort {
         let length: usize = size_of::<u8>() // reserved_2
             + size_of::<u8>() // reserved_3
@@ -991,6 +1072,20 @@ impl Abort {
     /// significant and should be set to zero, but unchecked.
     pub fn reason(&self) -> u8 {
         self.reason
+    }
+
+    /// Returns a description of the reason for the A-ABORT.
+    pub fn get_reason_desc(&self) -> &'static str {
+        match self.reason {
+            0 => "Not-specified",
+            1 => "Unrecognized PDU",
+            2 => "Unexpected PDU",
+            3 => "Unexpected session-service primitive",
+            4 => "Unrecognized PDU parameter",
+            5 => "Unexpected PDU parameter",
+            6 => "Invalid PDU parameter value",
+            _ => "Unrecognized reason.",
+        }
     }
 
     pub fn byte_size(&self) -> usize {

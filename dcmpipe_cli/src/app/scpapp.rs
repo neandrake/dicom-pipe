@@ -2,7 +2,7 @@ use crate::{app::CommandApplication, args::SvcProviderArgs, threadpool::ThreadPo
 use anyhow::{anyhow, Error, Result};
 use dcmpipe_lib::{
     core::{
-        charset::DEFAULT_CHARACTER_SET,
+        charset::{CSRef, DEFAULT_CHARACTER_SET},
         dcmobject::DicomRoot,
         defn::constants::ts::ImplicitVRLittleEndian,
         read::{ParserBuilder, ParserState},
@@ -22,6 +22,8 @@ use std::{
     io::{BufReader, BufWriter, Cursor, Write},
     net::{TcpListener, TcpStream},
 };
+
+static CS: CSRef = DEFAULT_CHARACTER_SET;
 
 pub struct SvcProviderApp {
     args: SvcProviderArgs,
@@ -50,12 +52,14 @@ impl CommandApplication for SvcProviderApp {
             Vec::<String>::with_capacity(0)
         };
 
-        for stream in listener.incoming() {
+        for (stream_id, stream) in listener.incoming().enumerate() {
+            let id = stream_id;
             let stream = stream?;
             let host_ae = self.args.aetitle.clone();
             let accept_aets = accept_aets.clone();
-            pool.execute(|| {
+            pool.execute(move || {
                 let mut assoc = Association {
+                    id,
                     stream,
                     host_ae,
                     accept_aets,
@@ -67,12 +71,6 @@ impl CommandApplication for SvcProviderApp {
         }
         Ok(())
     }
-}
-
-struct Association {
-    stream: TcpStream,
-    host_ae: String,
-    accept_aets: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -93,7 +91,34 @@ impl Display for AssocError {
     }
 }
 
+struct Association {
+    id: usize,
+    stream: TcpStream,
+    host_ae: String,
+    accept_aets: Vec<String>,
+}
+
 impl Association {
+    fn handle_error(
+        &self,
+        err: AssocError,
+        source: &str,
+        mut bufwrite: &mut BufWriter<&TcpStream>,
+    ) -> Result<()> {
+        match err.rsp {
+            AssocErrorRsp::RJ(rj) => {
+                println!("[info ->]: A-ASSOCIATE-RJ {} {source}", self.id);
+                rj.write(&mut bufwrite)?;
+            }
+            AssocErrorRsp::AB(ab) => {
+                println!("[info ->]: A-ABORT {} {source}", self.id);
+                ab.write(&mut bufwrite)?;
+            }
+        }
+        bufwrite.flush()?;
+        Err(err.err)
+    }
+
     fn handle_association(&mut self) -> Result<()> {
         let mut bufread = BufReader::new(&self.stream);
         let mut bufwrite = BufWriter::new(&self.stream);
@@ -101,29 +126,25 @@ impl Association {
 
         let pdu = Pdu::read_pdu(&mut bufread)?;
         let Pdu::AssocRQ(rq) = pdu else {
-            let ab = Abort::new(0u8, 2u8);
-            ab.write(&mut bufwrite)?;
+            Abort::new(2u8, 2u8).write(&mut bufwrite)?;
             return Err(anyhow!("Unexpected PDU: {pdu:?}"));
         };
 
-        println!("[info <-]: A-ASSOCIATE-RQ {remote_ip}");
+        // Gracefully decode the calling AE title for logging purposes. If the calling AE can't
+        // properly be decoded it will be thrown up from handle_assoc_rq().
+        let calling_ae =
+            if let Ok(calling_ae) = CS.decode(rq.calling_ae()).map(|ae| ae.trim().to_owned()) {
+                calling_ae
+            } else {
+                "[invalid ae]".to_owned()
+            };
+        let source = format!("{calling_ae} @ {remote_ip}");
+        println!("[info <-]: A-ASSOCIATE-RQ {} {source}", self.id);
+
         match self.handle_assoc_rq(rq) {
-            Err(e) => {
-                match e.rsp {
-                    AssocErrorRsp::RJ(rj) => {
-                        println!("[info ->]: A-ASSOCIATE-RJ {remote_ip}");
-                        rj.write(&mut bufwrite)?;
-                    }
-                    AssocErrorRsp::AB(ab) => {
-                        println!("[info ->]: A-ABORT {remote_ip}");
-                        ab.write(&mut bufwrite)?;
-                    }
-                }
-                bufwrite.flush()?;
-                return Err(e.err);
-            }
+            Err(e) => return self.handle_error(e, &source, &mut bufwrite),
             Ok(rsp) => {
-                println!("[info ->]: A-ASSOCIATE-AC {remote_ip}");
+                println!("[info ->]: A-ASSOCIATE-AC {} {source}", self.id);
                 rsp.write(&mut bufwrite)?;
                 bufwrite.flush()?;
             }
@@ -132,58 +153,29 @@ impl Association {
         loop {
             let pdu = Pdu::read_pdu(&mut bufread)?;
             match pdu {
-                Pdu::PresentationDataItem(pdi) => {
-                    println!("[info <-]: PresentationDataItem");
-                    match self.handle_pres_data_item(pdi) {
-                        Err(e) => {
-                            match e.rsp {
-                                AssocErrorRsp::RJ(rj) => {
-                                    println!("[info ->]: A-ASSOCIATE-RJ {remote_ip}");
-                                    rj.write(&mut bufwrite)?;
-                                }
-                                AssocErrorRsp::AB(ab) => {
-                                    println!("[info ->]: A-ABORT {remote_ip}");
-                                    ab.write(&mut bufwrite)?;
-                                }
-                            }
-                            bufwrite.flush()?;
-                            return Err(e.err);
+                Pdu::PresentationDataItem(pdi) => match self.handle_pres_data_item(pdi) {
+                    Err(e) => return self.handle_error(e, &source, &mut bufwrite),
+                    Ok(responses) => {
+                        for rsp in responses {
+                            rsp.write(&mut bufwrite)?;
                         }
-                        Ok(responses) => {
-                            for rsp in responses {
-                                println!("[info ->]: PresentationDataItem");
-                                rsp.write(&mut bufwrite)?;
-                                bufwrite.flush()?;
-                            }
-                        }
+                        bufwrite.flush()?;
                     }
-                }
+                },
                 Pdu::ReleaseRQ(_rq) => {
-                    println!("[info <-]: A-RELEASE-RQ {remote_ip}");
-                    println!("[info ->]: A-RELEASE-RP {remote_ip}");
-                    let rsp = ReleaseRP::new();
-                    rsp.write(&mut bufwrite)?;
+                    println!("[info <-]: A-RELEASE-RQ {source}");
+                    println!("[info ->]: A-RELEASE-RP {source}");
+                    ReleaseRP::new().write(&mut bufwrite)?;
                     bufwrite.flush()?;
                     return Ok(());
                 }
                 Pdu::Abort(ab) => {
-                    let reason = match ab.reason() {
-                        0 => "Not-specified".to_owned(),
-                        1 => "Unrecognized PDU".to_owned(),
-                        2 => "Unexpected PDU".to_owned(),
-                        3 => "Unexpected session-service primitive".to_owned(),
-                        4 => "Unrecognized PDU parameter".to_owned(),
-                        5 => "Unexpected PDU parameter".to_owned(),
-                        6 => "Invalid PDU parameter value".to_owned(),
-                        c => format!("Non-standard reason {c}"),
-                    };
-                    println!("[info <-]: A-ABORT {remote_ip}: {reason}");
+                    println!("[info <-]: A-ABORT {source}: {}", ab.get_reason_desc());
                     return Ok(());
                 }
                 pdu => {
-                    println!("[info ->]: A-ABORT {remote_ip}");
-                    let ab = Abort::new(0u8, 2u8);
-                    ab.write(&mut bufwrite)?;
+                    println!("[info ->]: A-ABORT {source}");
+                    Abort::new(2u8, 2u8).write(&mut bufwrite)?;
                     return Err(anyhow!("Unexpected PDU: {pdu:?}"));
                 }
             }
@@ -191,14 +183,13 @@ impl Association {
     }
 
     fn handle_assoc_rq(&self, rq: AssocRQ) -> Result<AssocAC, AssocError> {
-        let cs = DEFAULT_CHARACTER_SET;
         let host_ae = self.host_ae.trim();
 
-        let calling_ae = cs
+        let calling_ae = CS
             .decode(rq.calling_ae())
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError {
-                rsp: AssocErrorRsp::AB(Abort::new(0u8, 6u8)),
+                rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
                 err: Error::new(e).context(format!(
                     "Failed to decode calling_ae: {:?}",
                     rq.calling_ae()
@@ -211,11 +202,11 @@ impl Association {
             });
         }
 
-        let called_ae = cs
+        let called_ae = CS
             .decode(rq.called_ae())
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError {
-                rsp: AssocErrorRsp::AB(Abort::new(0u8, 6u8)),
+                rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
                 err: Error::new(e)
                     .context(format!("Failed to decode called_ae {:?}", rq.called_ae())),
             })?;
@@ -233,10 +224,10 @@ impl Association {
             });
         }
         let pres_ctx = &rq.pres_ctxs()[0];
-        let abstract_syntax = cs
+        let abstract_syntax = CS
             .decode(pres_ctx.abstract_syntax().abstract_syntax())
             .map_err(|e| AssocError {
-                rsp: AssocErrorRsp::AB(Abort::new(0, 6u8)),
+                rsp: AssocErrorRsp::AB(Abort::new(2, 6u8)),
                 err: Error::new(e).context(format!(
                     "Failed to decode abstract syntax: {:?}",
                     pres_ctx.abstract_syntax().abstract_syntax()
@@ -254,7 +245,7 @@ impl Association {
         let ts = pres_ctx
             .transfer_syntaxes()
             .iter()
-            .filter_map(|ts| cs.decode(ts.transfer_syntaxes()).ok())
+            .filter_map(|ts| CS.decode(ts.transfer_syntaxes()).ok())
             .find(|ts| ts == ImplicitVRLittleEndian.uid().uid());
 
         let Some(ts) = ts else {
@@ -292,9 +283,11 @@ impl Association {
 
         let mut responses = Vec::<PresentationDataItem>::with_capacity(pdi.pres_data().len());
         for pdv in pdi.pres_data() {
+            // XXX: Check pdv.msg_header() to see if it's a command vs. dataset, and if it's the
+            //      last fragment or not.
             let mut parser = pb.build(Cursor::new(pdv.data()));
             let dicom_root = DicomRoot::parse(&mut parser).map_err(|e| AssocError {
-                rsp: AssocErrorRsp::AB(Abort::new(0u8, 6u8)),
+                rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
                 err: Error::new(e).context("Failed parsing presentation data value".to_string()),
             })?;
             let Some(dicom_root) = dicom_root else {
@@ -303,7 +296,7 @@ impl Association {
             let command = CommandMessage::new(dicom_root);
             let rsp = CommandMessage::c_echo_rsp_from_req(command, &CommandStatus::Success(0))
                 .map_err(|e| AssocError {
-                    rsp: AssocErrorRsp::AB(Abort::new(0u8, 6u8)),
+                    rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
                     err: Error::new(e).context(
                         "Failed converting C-ECHO command message into response".to_string(),
                     ),
@@ -316,11 +309,11 @@ impl Association {
             writer
                 .write_dcmroot(rsp.message())
                 .map_err(|e| AssocError {
-                    rsp: AssocErrorRsp::AB(Abort::new(1u8, 6u8)),
+                    rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
                     err: Error::new(e).context("Failed encoding C-ECHO response"),
                 })?;
             let data = writer.into_dataset().map_err(|e| AssocError {
-                rsp: AssocErrorRsp::AB(Abort::new(1u8, 6u8)),
+                rsp: AssocErrorRsp::AB(Abort::new(2u8, 6u8)),
                 err: Error::new(e).context("Failed encoding C-ECHO response"),
             })?;
 
