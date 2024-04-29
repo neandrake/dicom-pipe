@@ -456,11 +456,6 @@ fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
     let _dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
-    assert!(
-        false,
-        "The file-meta parses but the body does not parse, does not cause parse error"
-    );
-
     Ok(())
 }
 
@@ -475,17 +470,27 @@ fn test_illegal_cp246_without_std() -> Result<(), Error> {
 }
 
 /// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
-/// TODO: Refer to https://github.com/fo-dicom/fo-dicom/issues/177
 fn test_illegal_cp246(with_std: bool) -> Result<(), Error> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
+    let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
         with_std,
     )?;
 
-    assert!(
-        false,
-        "This test doesn't cause parsing failure but doesn't parse properly"
-    );
+    let ref_sop_class_uid: String = dcmroot
+        .get_child(tags::SharedFunctionalGroupsSequence.tag)
+        .expect("Should have SharedFunctionalGroupsSequence")
+        .get_item(0)
+        .expect("Should have item")
+        .get_child(tags::ReferencedImageSequence.tag)
+        .expect("Should have ReferencedImageSequence")
+        .get_item(0)
+        .expect("Should have item")
+        .get_child(tags::ReferencedSOPClassUID.tag)
+        .expect("Should have ReferencedSOPClassUID")
+        .as_element()
+        .try_into()?;
+
+    assert_eq!(ref_sop_class_uid, uids::EnhancedMRImageStorage.uid);
 
     Ok(())
 }
@@ -853,6 +858,22 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<(), Error> {
 
     // this will return an error
     TryInto::<u32>::try_into(element1)?;
+
+    Ok(())
+}
+
+#[test]
+fn test_dicomdir_with_std() -> Result<(), Error> {
+    test_dicomdir(true)
+}
+
+#[test]
+fn test_dicomdir_without_std() -> Result<(), Error> {
+    test_dicomdir(false)
+}
+
+fn test_dicomdir(with_std: bool) -> Result<(), Error> {
+    let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/dclunie/charsettests/DICOMDIR", with_std)?;
 
     Ok(())
 }
