@@ -55,7 +55,7 @@ impl ScanApp {
 impl CommandApplication for ScanApp {
     fn run(&mut self) -> Result<(), Error> {
         let parser_builder: ParserBuilder =
-            ParserBuilder::new().dictionary(&STANDARD_DICOM_DICTIONARY);
+            ParserBuilder::default().dictionary(&STANDARD_DICOM_DICTIONARY);
 
         for path in self.get_files() {
             let file: File = File::open(path.clone())?;
