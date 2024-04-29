@@ -3,9 +3,9 @@ use std::iter::once;
 use crate::core::dcmsqelem::SequenceElement;
 use crate::defn::tag::{TagNode, TagPath};
 
-/// TagStop specifies the stopping point at which parsing of a DICOM dataset should end.
+/// ParseStop specifies the stopping point at which parsing of a DICOM dataset should end.
 #[derive(Clone)]
-pub enum TagStop {
+pub enum ParseStop {
     /// The entire dataset should be parsed.
     EndOfDataset,
     /// Read all tag elements up to (but not including) the specified tag. The tag value is
@@ -20,7 +20,7 @@ pub enum TagStop {
     AfterBytePos(u64),
 }
 
-impl TagStop {
+impl ParseStop {
     /// Evaluates the given tagpath against the current sequence path and the last tag read, based
     /// on the given predicate `f`.
     ///
