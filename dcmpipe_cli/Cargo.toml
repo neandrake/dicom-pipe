@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 bson = "2.4"
-clap = { version = "3.2", features = ["derive"] }
+clap = { version = "4.0", features = ["derive"] }
 crossterm = "0.25"
 cursive = { version = "0.20", default-features = false, features = ["crossterm-backend"] }
 cursive_table_view = "0.14"

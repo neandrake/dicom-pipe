@@ -88,7 +88,7 @@ impl IndexApp {
     fn scan_dir(&mut self, folder: PathBuf) -> Result<HashMap<String, DicomDoc>> {
         let mut uid_to_doc: HashMap<String, DicomDoc> = HashMap::new();
 
-        let walkdir = WalkDir::new(&folder).into_iter().filter_map(|e| e.ok());
+        let walkdir = WalkDir::new(folder).into_iter().filter_map(|e| e.ok());
 
         let parser_builder: ParserBuilder<'_> = ParserBuilder::default()
             .stop(ParseStop::BeforeTag(tags::PixelData.tag.into()))

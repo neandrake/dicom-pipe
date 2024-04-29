@@ -436,7 +436,7 @@ fn save_codefile(filename: &Path, preamble: String, code: &str) -> Result<(), Er
 
 /// Cleans up the definition name to be a valid rust identifier.
 /// Some things straight up don't have a name aside from "(Retired)" o.O
-/// Such as: 1.2.840.10008.5.1.4.1.​1.​40 and (0018,0061)
+/// Such as: 1.2.840.10008.5.1.4.1.1.40 and (0018,0061)
 /// So check whether the returned string is empty
 fn sanitize_var_name(var_name: &str) -> String {
     let is_retired: bool = var_name.contains("Retired");
@@ -445,16 +445,7 @@ fn sanitize_var_name(var_name: &str) -> String {
     let mut sanitized: String = var_name
         .replace("(Retired)", "")
         .replace("(Trial)", "_Trial")
-        .replace(' ', "")
-        .replace('\'', "")
-        .replace('-', "")
-        .replace(',', "")
-        .replace('(', "")
-        .replace(')', "")
-        .replace('.', "")
-        .replace('/', "")
-        .replace('[', "")
-        .replace(']', "")
+        .replace([' ', '\'', '-', ',', '(', ')', '.', '/', '[', ']'], "")
         .replace('\"', "_")
         .replace('&', "_and_")
         .replace('µ', "micro")

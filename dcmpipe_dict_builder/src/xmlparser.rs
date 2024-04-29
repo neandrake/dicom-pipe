@@ -122,11 +122,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
 
     fn parse_text_bytes_as_u32(&self, data: &BytesText<'_>) -> u32 {
         u32::from_str_radix(
-            &self
-                .parse_text_bytes(data)
-                .replace('(', "")
-                .replace(')', "")
-                .replace(',', ""),
+            &self.parse_text_bytes(data).replace(['(', ')', ','], ""),
             16,
         )
         .unwrap_or(0)

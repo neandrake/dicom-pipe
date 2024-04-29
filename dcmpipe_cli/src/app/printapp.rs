@@ -70,11 +70,10 @@ impl PrintApp {
     ) -> Result<()> {
         let dcmroot: DicomRoot<'_> =
             parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
-        self.render_objects(&dcmroot, true, parser.get_ts(), stdout)
+        PrintApp::render_objects(&dcmroot, true, parser.get_ts(), stdout)
     }
 
     fn render_objects(
-        &mut self,
         dcmnode: &impl DicomNode,
         mut prev_was_file_meta: bool,
         ts: TSRef,
@@ -108,10 +107,10 @@ impl PrintApp {
                 if let Some(printed) = render_element(child_elem)? {
                     stdout.write_all(format!("{}\n", printed).as_ref())?;
                 }
-                self.render_objects(child_obj, prev_was_file_meta, ts, stdout)?;
+                PrintApp::render_objects(child_obj, prev_was_file_meta, ts, stdout)?;
             }
             if obj.get_child_count() > 0 {
-                self.render_objects(obj, prev_was_file_meta, ts, stdout)?;
+                PrintApp::render_objects(obj, prev_was_file_meta, ts, stdout)?;
             }
         }
 
