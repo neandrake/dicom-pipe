@@ -151,11 +151,20 @@ impl AssociationDevice {
             .build(reader, &STANDARD_DICOM_DICTIONARY);
         let query = DicomRoot::parse(&mut parser)
             .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-        let Some(_query) = query else {
+        let Some(query) = query else {
             return Err(AssocError::ab_failure(DimseError::GeneralError(
                 "No DICOM query after parsing query".to_string(),
             )));
         };
+
+        let q_pid = query
+            .get_value_by_tag(&PatientID)
+            .and_then(|v| v.string().cloned())
+            .unwrap_or_default();
+        let q_name = query
+            .get_value_by_tag(&PatientsName)
+            .and_then(|v| v.string().cloned())
+            .unwrap_or_default();
 
         /* TODO: Execute Search on Query */
         let mut results = Vec::<DicomRoot>::new();
@@ -166,6 +175,15 @@ impl AssociationDevice {
         ] {
             let pid = patient.0;
             let name = patient.1;
+
+            let pid_match = !pid.starts_with(&q_pid) && !pid.ends_with(&q_pid);
+            let name_match = name
+                .split('^')
+                .any(|p| p.starts_with(&q_name) || p.ends_with(&q_name));
+            if !pid_match && !name_match {
+                continue;
+            }
+
             let mut result = DicomRoot::new_empty(ts, CS);
             result.add_child_with_val(&PatientID, RawValue::of_string(pid));
             result.add_child_with_val(&PatientsName, RawValue::of_string(name));
