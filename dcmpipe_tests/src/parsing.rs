@@ -14,6 +14,7 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
+use dcmpipe_lib::defn::tag::Tag;
 
 #[test]
 fn test_good_preamble() {
@@ -124,10 +125,8 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
     assert!(next_elem.is_none());
 
     // the iterator state should be just after having parsed the stop tag
-    let stopped_at_tag: u32 = parser
-        .get_partial_tag()
-        .expect("Iteration should have stopped after reading the PixelData tag");
-    assert_eq!(tagstop, stopped_at_tag);
+    let stopped_at_tag: u32 = parser.get_tag_last_read();
+    assert_eq!(Tag::format_tag_to_display(stopped_at_tag), Tag::format_tag_to_display(tagstop));
 
     Ok(())
 }
@@ -196,7 +195,7 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<(), Error> {
     assert_eq!(rss_elem.vl, ValueLength::UndefinedLength);
 
     let sdi_pair: (&u32, &DicomObject) = rss_obj
-        .iter()
+        .iter_child_nodes()
         .next()
         .expect("Should be able to get single child item");
     assert_eq!(*sdi_pair.0, tags::SequenceDelimitationItem.tag);
@@ -226,13 +225,11 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
     let private_un_seq_obj: &DicomObject = dcmroot
         .get_child(tags::SharedFunctionalGroupsSequence.tag)
         .expect("Fixture should have this this tag")
-        .iter()
-        .next()
+        .get_item(0)
         .expect("This sequence should have 1 sequence item")
-        .1
         .get_child(0x2005_140E)
         .expect("This sequence should have private element as child");
-    assert_eq!(private_un_seq_obj.get_child_count(), 1);
+    assert_eq!(private_un_seq_obj.get_item_count(), 1);
 
     let private_un_seq_elem: &DicomElement = private_un_seq_obj.as_element();
     assert_eq!(private_un_seq_elem.vr, &vr::UN);
@@ -241,12 +238,10 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<(), Error> {
     assert_eq!(private_un_seq_elem.get_data().len(), 0);
 
     let child_obj: &DicomObject = private_un_seq_obj
-        .iter()
-        .next()
-        .expect("Private sequence should have one item")
-        .1;
+        .get_item(0)
+        .expect("Private sequence should have one item");
     // The first item has 28 elements
-    assert_eq!(child_obj.get_child_count(), 28);
+    assert_eq!(child_obj.get_child_count(), 27);
 
     let sopuid: &DicomElement = child_obj
         .get_child(tags::SOPClassUID.tag)
@@ -296,11 +291,11 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
         .expect("Should have Source Image Sequence");
 
     if with_std {
-        assert_eq!(sis_obj.get_child_count(), 1);
+        assert_eq!(sis_obj.get_item_count(), 1);
     } else {
         // Without standard lookup we won't know the implicit VR for this element and won't know
         // that it should be parsed as a sequence, so it won't be a parent element.
-        assert_eq!(sis_obj.get_child_count(), 0);
+        assert_eq!(sis_obj.get_item_count(), 0);
     }
 
     let sis_elem: &DicomElement = sis_obj.as_element();
@@ -315,17 +310,16 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<(), Error> {
     }
 
     let item_obj: &DicomObject = sis_obj
-        .iter()
-        .next()
-        .expect("Should be able to get child object")
-        .1;
+        .get_item(0)
+        .expect("Should be able to get child object");
+
     assert_eq!(item_obj.get_child_count(), 2);
 
     let item_elem: &DicomElement = item_obj.as_element();
     assert_eq!(item_elem.tag, tags::Item.tag);
     assert_eq!(item_elem.get_ts(), &ts::ImplicitVRLittleEndian);
 
-    for (_tag, inner_obj) in item_obj.iter() {
+    for (_tag, inner_obj) in item_obj.iter_child_nodes() {
         let elem: &DicomElement = inner_obj.as_element();
         // This assertion seems wrong (should be EVRBE) based on Part 5, Section 7.5 --
         // However, the Data Set within the Value Field of the Data Element Item (FFFE,E000) shall
@@ -641,18 +635,16 @@ fn test_uncompressed_even_length_tag(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
-#[ignore]
 fn test_dicomdir_with_embedded_icons_with_std() -> Result<(), Error> {
     test_dicomdir_with_embedded_icons(true)
 }
 
 #[test]
-#[ignore]
 fn test_dicomdir_with_embedded_icons_without_std() -> Result<(), Error> {
     test_dicomdir_with_embedded_icons(false)
 }
 
-/// High number of items in a sequence and causes a stack overflow when parsed into an object
+/// High number of items in a sequence
 fn test_dicomdir_with_embedded_icons(with_std: bool) -> Result<(), Error> {
     let _dcmroot: DicomRoot = parse_file(
         "./fixtures/gdcm/gdcmData/dicomdir_With_embedded_icons",

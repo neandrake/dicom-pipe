@@ -12,7 +12,7 @@ use std::io::{Error, ErrorKind};
 /// For elements to track which sequence they are a part of. When an SQ element is parsed the parser
 /// adds a new `SequenceElement` to its current path which subsequent elements will clone for
 /// themselves. This allows elements to know how they exist within a dicom object.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone)]
 pub struct SequenceElement {
     /// The SQ element tag.
     seq_tag: u32,
@@ -25,6 +25,12 @@ pub struct SequenceElement {
     /// should interpret the contents of the sequence as ImplicitVRLittleEndian. SQ elements need to
     /// track what transfer syntax their contents are encoded with.
     ts: TSRef,
+    /// See Part 5 Section 7.5.3
+    /// If an encapsulated Data Set includes the Specific Character Set Attribute, it shall apply
+    /// only to the encapsulated Data Set. If the Attribute Specific Character Set is not explicitly
+    /// included in an encapsulated Data Set, then the Specific Character Set value of the
+    /// encapsulating Data Set applies.
+    cs: CSRef,
     /// See Part 5 Section 7.5
     /// Items present in an SQ Data Element shall be an ordered set where each Item may be
     /// referenced by its ordinal position. Each Item shall be implicitly assigned an ordinal
@@ -39,11 +45,12 @@ pub struct SequenceElement {
 }
 
 impl SequenceElement {
-    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>, ts: TSRef) -> SequenceElement {
+    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>, ts: TSRef, cs: CSRef) -> SequenceElement {
         SequenceElement {
             seq_tag,
             seq_end_pos,
             ts,
+            cs,
             item_number: None,
         }
     }
@@ -64,30 +71,32 @@ impl SequenceElement {
         self.ts
     }
 
-    pub fn increment_item_number(&mut self) {
+    pub fn get_cs(&self) -> CSRef {
+        self.cs
+    }
+
+    pub fn set_cs(&mut self, cs: CSRef) {
+        self.cs = cs;
+    }
+
+    pub fn increment_item_num(&mut self) {
         match self.item_number {
-            None => self.item_number.replace(1),
-            Some(val) => self.item_number.replace(val + 1),
-        };
+            None => {self.item_number.replace(1);},
+            Some(val) => {self.item_number.replace(val + 1);},
+        }
     }
 
     pub fn decrement_item_num(&mut self) {
         match self.item_number {
             None => {}
-            Some(val) => {
-                if val > 1 {
-                    self.item_number.replace(val - 1);
-                } else {
-                    self.item_number.take();
-                }
-            }
+            Some(val) if val > 1 => {self.item_number.replace(val - 1);},
+            Some(_) => {self.item_number.take();},
         }
     }
 }
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
-#[derive(Clone)]
 pub struct DicomElement {
     pub tag: u32,
     pub vr: VRRef,
@@ -124,6 +133,10 @@ impl DicomElement {
 
     pub fn get_ts(&self) -> TSRef {
         self.ts
+    }
+
+    pub fn get_cs(&self) -> CSRef {
+        self.cs
     }
 
     pub fn get_data(&self) -> &Vec<u8> {

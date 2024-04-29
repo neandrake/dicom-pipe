@@ -100,7 +100,8 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
     parser: &mut Parser<'dict, DatasetType>,
 ) -> Result<DicomRoot<'dict>, Error> {
     let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
-    if let Some(Err(e)) = parse_into_object_recurse(parser, &mut child_nodes) {
+    let mut items: Vec<DicomObject> = Vec::new();
+    if let Some(Err(e)) = parse_into_object_recurse(parser, &mut child_nodes, &mut items) {
         return Err(e);
     }
     // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
@@ -123,20 +124,22 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
 /// `nodes` The map of nodes which elements should be parsed into
 fn parse_into_object_recurse<DatasetType: Read>(
     parser: &mut Parser<DatasetType>,
-    nodes: &mut BTreeMap<u32, DicomObject>,
+    child_nodes: &mut BTreeMap<u32, DicomObject>,
+    items: &mut Vec<DicomObject>,
 ) -> Option<Result<DicomElement, Error>> {
     let mut prev_seq_path_len: usize = 0;
     let mut next_element: Option<Result<DicomElement, Error>> = parser.next();
     while let Some(Ok(element)) = next_element {
         let tag: u32 = element.tag;
         let cur_seq_path_len: usize = element.get_sequence_path().len() + 1;
+
         if prev_seq_path_len == 0 {
             prev_seq_path_len = cur_seq_path_len;
         }
 
-        // if the next element has a shorter path than the previous one it should not be added
-        // to the given node but returned so it can be added to a parent node.
         if cur_seq_path_len < prev_seq_path_len {
+            // if the next element has a shorter path than the previous one it should not be added
+            // to the given node but returned so it can be added to a parent node.
             return Some(Ok(element));
         }
 
@@ -146,12 +149,17 @@ fn parse_into_object_recurse<DatasetType: Read>(
         // separate elements which we're considering child elements.
         let dcmobj: DicomObject = if element.is_seq_like() || tag == tags::ITEM {
             let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
-            possible_next_elem = parse_into_object_recurse(parser, &mut child_nodes);
-            DicomObject::new_with_children(element, child_nodes)
+            let mut items: Vec<DicomObject> = Vec::new();
+            possible_next_elem = parse_into_object_recurse(parser, &mut child_nodes, &mut items);
+            DicomObject::new_with_children(element, child_nodes, items)
         } else {
             DicomObject::new(element)
         };
-        nodes.insert(tag, dcmobj);
+        if tag == tags::ITEM {
+            items.push(dcmobj);
+        } else {
+            child_nodes.insert(tag, dcmobj);
+        }
 
         prev_seq_path_len = cur_seq_path_len;
 
