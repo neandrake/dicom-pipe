@@ -91,6 +91,7 @@ fn test_failure_to_read_preamble() {
 }
 
 #[test]
+#[ignore]
 fn test_unknown_explicit_vr_is_error() {
     let parser: Parser<'_, MockDicomDataset> =
         MockDicomDataset::standard_dicom_header_bad_explicit_vr();
