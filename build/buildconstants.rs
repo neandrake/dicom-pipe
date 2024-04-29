@@ -340,7 +340,7 @@ pub static {}: UID = UID {{
 "/// {}
 /// 
 /// - **UID:** {}
-pub static {}: TransferSyntax<'static> = TransferSyntax {{
+pub static {}: TransferSyntax = TransferSyntax {{
     uid: {},
     explicit_vr: {},
     big_endian: {},

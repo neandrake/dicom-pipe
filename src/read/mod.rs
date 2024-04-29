@@ -32,7 +32,7 @@ pub struct DicomStream<StreamType> {
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
     file_meta: HashMap<u32, DicomElement>,
-    ts: &'static TransferSyntax<'static>,
+    ts: &'static TransferSyntax,
 
     // To allow peeking the next tag without fully reading the next element 
     tag_peek: Option<u32>,
