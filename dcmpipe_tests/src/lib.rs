@@ -17,7 +17,7 @@ mod charsets;
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
-mod tests;
+mod parsing;
 
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomRoot), Error> {
@@ -33,12 +33,10 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomRoot
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
 /// whether the standard dicom dictionary should be reigstered with the parser.
-pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
-    let mut errors: usize = 0;
+pub fn parse_all_dicom_files(with_std: bool) -> Result<(), Error> {
     for mut pair in get_all_dicom_file_parsers(with_std)? {
         while let Some(element) = pair.1.next() {
             if let Err(e) = element {
-                errors += 1;
                 eprintln!(
                     "Error parsing DICOM:\n\t{}\n\t{}",
                     pair.0.to_str().expect("Should get path"),
@@ -47,7 +45,7 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
             }
         }
     }
-    Ok(errors)
+    Ok(())
 }
 
 /// Creates parsers for every dicom file in the `fixutres` folder. The `use_std_dict` argument
@@ -95,8 +93,8 @@ pub fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'.
 /// DICOM files do not need to abide by this format to be valid, but it's standard.
 pub fn is_standard_dcm_file<StreamType>(parser: &Parser<StreamType>) -> bool
-    where
-        StreamType: Read,
+where
+    StreamType: Read,
 {
     match parser.get_file_preamble() {
         Some(file_preamble) => {
@@ -106,8 +104,8 @@ pub fn is_standard_dcm_file<StreamType>(parser: &Parser<StreamType>) -> bool
                     return false;
                 }
             }
-        },
-        None => {},
+        }
+        None => {}
     }
 
     match parser.get_dicom_prefix() {
@@ -117,8 +115,8 @@ pub fn is_standard_dcm_file<StreamType>(parser: &Parser<StreamType>) -> bool
                     return false;
                 }
             }
-        },
-        None => {},
+        }
+        None => {}
     }
     true
 }
