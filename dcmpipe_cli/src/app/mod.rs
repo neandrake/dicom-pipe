@@ -27,7 +27,7 @@ static MAX_ITEMS_DISPLAYED: usize = 4;
 /// (gggg,eeee) VR TagName <empty>
 /// ```
 /// Names for private tags will render as `<PrivateTag>`
-fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
+fn render_element(element: &DicomElement) -> Result<Option<String>, Error> {
     if element.tag.trailing_zeros() >= 16 {
         // Group Length tags are deprecated, see note on Ch 5 Part 7.2
         return Ok(None);
@@ -113,7 +113,7 @@ fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
 }
 
 /// Formats the value of this element as a string based on the VR
-fn render_value(elem: &mut DicomElement) -> Result<String, Error> {
+fn render_value(elem: &DicomElement) -> Result<String, Error> {
     let mut ellipses: bool = false;
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
@@ -181,7 +181,7 @@ fn render_value(elem: &mut DicomElement) -> Result<String, Error> {
             .for_each(|val: String| str_vals.push(val));
         ellipses = vec_len > str_vals.len();
     } else {
-        let vec: &Vec<u8> = elem.get_data().get_ref();
+        let vec: &Vec<u8> = elem.get_data();
         vec.iter()
             .take(MAX_BYTES_DISPLAY)
             .map(|val: &u8| format!("{}", val))

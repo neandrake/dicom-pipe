@@ -1,5 +1,5 @@
 use crate::core::dcmelement::DicomElement;
-use std::collections::btree_map::IterMut;
+use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
 
@@ -26,19 +26,19 @@ impl DicomObject {
         }
     }
 
-    pub fn as_element(&mut self) -> Option<&mut DicomElement> {
-        self.element.as_mut()
+    pub fn as_element(&self) -> Option<&DicomElement> {
+        self.element.as_ref()
     }
 
     pub fn get_object_count(&self) -> usize {
         self.child_nodes.len()
     }
 
-    pub fn get_object(&mut self, tag: u32) -> Option<&mut DicomObject> {
-        self.child_nodes.get_mut(&tag)
+    pub fn get_object(&self, tag: u32) -> Option<&DicomObject> {
+        self.child_nodes.get(&tag)
     }
 
-    pub fn put_object(&mut self, mut object: DicomObject) -> Result<Option<DicomObject>, Error> {
+    pub fn put_object(&mut self, object: DicomObject) -> Result<Option<DicomObject>, Error> {
         let tag: u32;
         if let Some(element) = object.as_element() {
             tag = element.tag;
@@ -51,7 +51,7 @@ impl DicomObject {
         Ok(self.child_nodes.insert(tag, object))
     }
 
-    pub fn iter_mut(&mut self) -> IterMut<u32, DicomObject> {
-        self.child_nodes.iter_mut()
+    pub fn iter(&self) -> Iter<u32, DicomObject> {
+        self.child_nodes.iter()
     }
 }

@@ -50,9 +50,7 @@ impl TableViewItem<DicomElementColumn> for DicomElement {
             .to_owned(),
             DicomElementColumn::VR => self.vr.ident.to_owned(),
             DicomElementColumn::Value => {
-                // XXX: We really shouldn't be cloning the element in order to render...
-                let mut clone: DicomElement = self.clone();
-                if let Ok(value) = render_value(&mut clone) {
+                if let Ok(value) = render_value(&self) {
                     value
                 } else {
                     "<Error Parsing Value>".to_owned()

@@ -4,7 +4,7 @@ use dcmpipe_lib::core::dcmobject::DicomObject;
 use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmreader::parse_stream;
 use dcmpipe_lib::defn::ts::TSRef;
-use std::collections::btree_map::IterMut;
+use std::collections::btree_map::Iter;
 use std::fs::File;
 use std::io::{self, Error, ErrorKind, StdoutLock, Write};
 use std::path::Path;
@@ -39,21 +39,21 @@ impl FullObjApp {
             dicom_iter.get_ts().uid.ident).as_ref()
         )?;
 
-        let mut dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
-        let obj_iter: IterMut<u32, DicomObject> = dcmobj.iter_mut();
+        let dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
+        let obj_iter: Iter<u32, DicomObject> = dcmobj.iter();
         self.render_objects(obj_iter, true, dicom_iter.get_ts(), &mut stdout)?;
         Ok(())
     }
 
     fn render_objects(
         &self,
-        obj_iter: IterMut<u32, DicomObject>,
+        obj_iter: Iter<u32, DicomObject>,
         mut prev_was_file_meta: bool,
         ts: TSRef,
         stdout: &mut StdoutLock,
     ) -> Result<(), Error> {
         for (tag, obj) in obj_iter {
-            let mut elem: &mut DicomElement = obj.as_element().ok_or_else(|| {
+            let elem: &DicomElement = obj.as_element().ok_or_else(|| {
                 Error::new(ErrorKind::InvalidData, "DicomObject is not also element")
             })?;
 
@@ -68,13 +68,13 @@ impl FullObjApp {
                 prev_was_file_meta = false;
             }
 
-            let printed: Option<String> = render_element(&mut elem)?;
+            let printed: Option<String> = render_element(&elem)?;
             if let Some(printed) = printed {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
             }
 
             if obj.get_object_count() > 0 {
-                self.render_objects(obj.iter_mut(), prev_was_file_meta, ts, stdout)?;
+                self.render_objects(obj.iter(), prev_was_file_meta, ts, stdout)?;
             }
         }
 

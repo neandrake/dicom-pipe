@@ -29,7 +29,7 @@ impl DicomValueCache {}
 
 /// Implements the parsing and caching of DicomElements to different native types
 impl DicomValueCache {
-    pub fn get_string(&mut self, element: &mut DicomElement) -> Result<&String, Error> {
+    pub fn get_string(&mut self, element: &DicomElement) -> Result<&String, Error> {
         let entry: Entry<u32, String> = self.strings.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -40,7 +40,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_strings(&mut self, element: &mut DicomElement) -> Result<&Vec<String>, Error> {
+    pub fn get_strings(&mut self, element: &DicomElement) -> Result<&Vec<String>, Error> {
         let entry: Entry<u32, Vec<String>> = self.string_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -51,7 +51,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_f32(&mut self, element: &mut DicomElement) -> Result<&f32, Error> {
+    pub fn get_f32(&mut self, element: &DicomElement) -> Result<&f32, Error> {
         let entry: Entry<u32, f32> = self.floats.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -62,7 +62,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_f32s(&mut self, element: &mut DicomElement) -> Result<&Vec<f32>, Error> {
+    pub fn get_f32s(&mut self, element: &DicomElement) -> Result<&Vec<f32>, Error> {
         let entry: Entry<u32, Vec<f32>> = self.float_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -73,7 +73,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_f64(&mut self, element: &mut DicomElement) -> Result<&f64, Error> {
+    pub fn get_f64(&mut self, element: &DicomElement) -> Result<&f64, Error> {
         let entry: Entry<u32, f64> = self.doubles.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -84,7 +84,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_f64s(&mut self, element: &mut DicomElement) -> Result<&Vec<f64>, Error> {
+    pub fn get_f64s(&mut self, element: &DicomElement) -> Result<&Vec<f64>, Error> {
         let entry: Entry<u32, Vec<f64>> = self.double_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -95,7 +95,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_i16(&mut self, element: &mut DicomElement) -> Result<&i16, Error> {
+    pub fn get_i16(&mut self, element: &DicomElement) -> Result<&i16, Error> {
         let entry: Entry<u32, i16> = self.shorts.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -106,7 +106,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_i16s(&mut self, element: &mut DicomElement) -> Result<&Vec<i16>, Error> {
+    pub fn get_i16s(&mut self, element: &DicomElement) -> Result<&Vec<i16>, Error> {
         let entry: Entry<u32, Vec<i16>> = self.short_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -117,7 +117,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_i32(&mut self, element: &mut DicomElement) -> Result<&i32, Error> {
+    pub fn get_i32(&mut self, element: &DicomElement) -> Result<&i32, Error> {
         let entry: Entry<u32, i32> = self.ints.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -128,7 +128,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_i32s(&mut self, element: &mut DicomElement) -> Result<&Vec<i32>, Error> {
+    pub fn get_i32s(&mut self, element: &DicomElement) -> Result<&Vec<i32>, Error> {
         let entry: Entry<u32, Vec<i32>> = self.int_lists.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -139,7 +139,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_u16(&mut self, element: &mut DicomElement) -> Result<&u16, Error> {
+    pub fn get_u16(&mut self, element: &DicomElement) -> Result<&u16, Error> {
         let entry: Entry<u32, u16> = self.ushorts.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
@@ -150,7 +150,7 @@ impl DicomValueCache {
         }
     }
 
-    pub fn get_u32(&mut self, element: &mut DicomElement) -> Result<&u32, Error> {
+    pub fn get_u32(&mut self, element: &DicomElement) -> Result<&u32, Error> {
         let entry: Entry<u32, u32> = self.uints.entry(element.tag);
         match entry {
             Entry::Occupied(occ_entry) => Ok(occ_entry.into_mut()),
