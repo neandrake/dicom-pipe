@@ -99,9 +99,9 @@ impl PrintApp {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
             }
 
-            if obj.get_child_count() > 0 {
-                self.render_objects(obj, prev_was_file_meta, ts, stdout)?;
-            }
+            // display items first followed by children. the only situation where an element
+            // may have both items and children is a sequence with items whose only child is
+            // its ending sequence delimiter.
             for index in 0..obj.get_item_count() {
                 let child_obj: &DicomObject = obj.get_item(index + 1).unwrap();
                 let child_elem: &DicomElement = child_obj.as_element();
@@ -109,6 +109,9 @@ impl PrintApp {
                     stdout.write_all(format!("{}\n", printed).as_ref())?;
                 }
                 self.render_objects(child_obj, prev_was_file_meta, ts, stdout)?;
+            }
+            if obj.get_child_count() > 0 {
+                self.render_objects(obj, prev_was_file_meta, ts, stdout)?;
             }
         }
 
@@ -176,11 +179,9 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
 
     let mut indent_width: usize = seq_path.len();
     if indent_width > 0 {
-        if element.tag == tags::SequenceDelimitationItem.tag
-            || element.tag == tags::ItemDelimitationItem.tag
-        {
-            indent_width -= 1;
-        } else if element.tag != tags::Item.tag {
+        if element.tag != tags::SequenceDelimitationItem.tag
+            && element.tag != tags::ItemDelimitationItem.tag
+            && element.tag != tags::Item.tag {
             indent_width += 1;
         }
     }
