@@ -14,9 +14,9 @@ use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
+use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
-use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::defn::tag::Tag;
 
 use crate::app::CommandApplication;

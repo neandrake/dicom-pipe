@@ -1,7 +1,7 @@
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
-use dcmpipe_lib::core::read::{Parser, ParserBuilder};
 use dcmpipe_lib::core::read::stop::ParseStop;
+use dcmpipe_lib::core::read::{Parser, ParserBuilder};
 
 pub struct MockDicomDataset {
     pub data: Vec<u8>,

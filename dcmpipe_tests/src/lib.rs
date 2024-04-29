@@ -10,8 +10,8 @@ use dcmpipe_lib::core::read::{
     Parser, ParserBuilder, Result, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 
-use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::stop::ParseStop;
+use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::defn::tag::Tag;
 
 #[cfg(test)]
