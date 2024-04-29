@@ -565,19 +565,12 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
     // will properly indicate it's SQ. As it's explicitly UN it will not be parsed as a sequence.
     assert_eq!(sis_obj.get_item_count(), 0);
 
+    // Source Image Sequence should not implicitly be parsed as a sequence as it's explicitly
+    // encoded with a VR of UN instead of SQ.
     let sis_elem: &DicomElement = sis_obj.get_element();
-    if with_std {
-        // Should be switched to IVRLE during parse just for this element
-        assert_eq!(sis_elem.get_ts(), &ts::ImplicitVRLittleEndian);
-    } else {
-        // If not parsed as sequence then it should have the same TS as the parsed file
-        assert_eq!(sis_elem.get_ts(), dcmroot.get_ts());
-        // Nothing else to test in this case
-        return Ok(());
-    }
+    assert_eq!(sis_elem.get_ts(), dcmroot.get_ts());
 
-    // Parse the SourceImageSequence's data field as a sequence of items, as it's explicitly
-    // defined to have VR of UN rather than SQ.
+    // Manually parse the contents of Source Image Sequence as a sequence.
     let data: &Vec<u8> = sis_obj.get_element().get_data();
     // Initialize the parser to start with Element rather than file-stuff, specifying IVRLE since
     // the contents _must_ be encoded that way in a sequence.

@@ -62,6 +62,13 @@ impl Tag {
         return tag_group % 2 == 1 && tag_elem >= 0x0010 && tag_elem <= 0x00FF;
     }
 
+    /// Detects if the given tag is a private tag. This is only a basic/rudimentary check and is
+    /// not based on previously registered private creators.
+    pub fn is_private(tag: u32) -> bool {
+        let tag_group: u32 = tag >> 16;
+        return tag_group % 2 == 1;
+    }
+
     /// Renders the tag number as `(gggg,eeee)`.
     pub fn format_tag_to_display(tag: u32) -> String {
         let tag_group: u32 = tag >> 16;

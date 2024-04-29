@@ -287,10 +287,29 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // Sequence Delimitation Item (FFFE,E0DD). However, the Data Set within the Value Field of
         // the Data Element Item (FFFE,E000) shall be encoded according to the rules conveyed by the
         // Transfer Syntax.
-        let ts: TSRef = if tag == tags::SEQUENCE_DELIMITATION_ITEM
+        let is_seq_delim = tag == tags::SEQUENCE_DELIMITATION_ITEM
             || tag == tags::ITEM_DELIMITATION_ITEM
-            || tag == tags::ITEM
-        {
+            || tag == tags::ITEM;
+        // See: Part 5, Section 6.2.2
+        // If a private tag ends up parsed as a sequence then all its items should be
+        // ImplicitVRLittleEndian. Find the first non-ITEM parent and confirm it's sequence-like.
+        let is_parent_priv_seq = self
+            .current_path
+            .iter()
+            .rev()
+            .filter(|sq_el| sq_el.get_seq_tag() != tags::ITEM)
+            .next()
+            .filter(|sq_el| {
+                Tag::is_private(sq_el.get_seq_tag())
+                    && read::util::is_non_standard_seq(
+                        sq_el.get_seq_tag(),
+                        sq_el.get_vr(),
+                        sq_el.get_vl(),
+                    )
+            })
+            .is_some();
+
+        let ts: TSRef = if is_seq_delim || is_parent_priv_seq {
             if elem_ts.is_big_endian() {
                 &ts::ImplicitVRBigEndian
             } else {
@@ -300,7 +319,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             elem_ts
         };
 
-        let mut switch_to_ivrle: bool = false;
         let vr: VRRef = if ts.explicit_vr {
             // The `partial_vr` may be populated as part of initial dataset parsing when attempting
             // to detect the transfer syntax. The UnknownExplicitVR error used here is only
@@ -311,13 +329,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 .ok_or(ParseError::UnknownExplicitVR(0))
                 .or_else(|_e| self.read_vr());
             match vr_res {
-                Ok(vr) if vr == &vr::UN => {
-                    // See Part 5 Section 6.2.2 Note 2
-                    if self.lookup_vr(tag).is_some() {
-                        switch_to_ivrle = true;
-                    }
-                    vr
-                }
                 Ok(vr) => vr,
                 Err(ParseError::UnknownExplicitVR(_code)) => &vr::INVALID,
                 Err(e) => return Err(e),
@@ -325,16 +336,19 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         } else {
             // Implicit VR, look up in the current dictionary or assume UN if not resolved.
             if let Some(vr) = self.lookup_vr(tag) {
-                // Part 5 Section 6.2.2 Note 2
-                // If at some point an application knows the actual VR for an Attribute of VR UN
-                // (e.g., has its own applicable data dictionary), it can assume that the Value
-                // Field of the Attribute is encoded in Little Endian byte ordering with implicit
-                // VR encoding, irrespective of the current Transfer Syntax.
-                switch_to_ivrle = true;
                 vr
             } else {
                 &vr::UN
             }
+        };
+
+        // See Part 5 Section 6.2.2
+        // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
+        // and in the case of Implicit VR the private tag will also not be known/lookup.
+        let vr = if Tag::is_private_creator(tag) {
+            &vr::LO
+        } else {
+            vr
         };
 
         let vl: ValueLength = if let Some(partial_vl) = self.partial_vl {
@@ -343,10 +357,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         } else {
             self.read_value_length(ts, vr)?
         };
-
         let parse_as_seq: bool = read::util::is_non_standard_seq(tag, vr, vl);
-        let ts: TSRef = if parse_as_seq || switch_to_ivrle {
-            if switch_to_ivrle || !ts.is_big_endian() {
+        let ts: TSRef = if parse_as_seq {
+            if !ts.is_big_endian() {
                 &ts::ImplicitVRLittleEndian
             } else {
                 &ts::ImplicitVRBigEndian
@@ -1002,8 +1015,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 self.cs
             };
 
-            self.current_path
-                .push(SequenceElement::new(tag, seq_end_pos, sq_cs));
+            self.current_path.push(SequenceElement::new(
+                tag,
+                seq_end_pos,
+                element.get_vr(),
+                element.get_vl(),
+                sq_cs,
+            ));
         }
 
         Ok(Some(element))

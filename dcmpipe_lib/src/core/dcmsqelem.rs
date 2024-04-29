@@ -2,6 +2,8 @@ use std::fmt::{Debug, Display, Formatter};
 
 use crate::core::charset::CSRef;
 use crate::defn::tag::TagNode;
+use crate::defn::vl::ValueLength;
+use crate::defn::vr::VRRef;
 
 /// Represents the sequence/item position of an element.
 /// For elements to track which sequence they are a part of. When an SQ element is parsed the parser
@@ -26,6 +28,13 @@ pub struct SequenceElement {
     /// to None.
     seq_end_pos: Option<u64>,
 
+    /// The VR of the sequence/item. This will typically be SQ for sequence element and UN for Item
+    /// elements. For private sequence elements this should be UN.
+    vr: VRRef,
+
+    /// The Value Length of the sequence/item.
+    vl: ValueLength,
+
     /// See Part 5 Section 7.5.3
     /// If an encapsulated Data Set includes the Specific Character Set Attribute, it shall apply
     /// only to the encapsulated Data Set. If the Attribute Specific Character Set is not explicitly
@@ -35,10 +44,18 @@ pub struct SequenceElement {
 }
 
 impl SequenceElement {
-    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>, cs: CSRef) -> SequenceElement {
+    pub fn new(
+        seq_tag: u32,
+        seq_end_pos: Option<u64>,
+        vr: VRRef,
+        vl: ValueLength,
+        cs: CSRef,
+    ) -> SequenceElement {
         SequenceElement {
             node: TagNode::new(seq_tag, None),
             seq_end_pos,
+            vr,
+            vl,
             cs,
         }
     }
@@ -53,6 +70,14 @@ impl SequenceElement {
 
     pub fn get_seq_end_pos(&self) -> Option<u64> {
         self.seq_end_pos
+    }
+
+    pub fn get_vr(&self) -> VRRef {
+        self.vr
+    }
+
+    pub fn get_vl(&self) -> ValueLength {
+        self.vl
     }
 
     pub fn get_item_number(&self) -> Option<usize> {

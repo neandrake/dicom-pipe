@@ -12,12 +12,12 @@ use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, VR};
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements
-/// with a VR of `UN`, `OB`, or `OW` and have a value length of `UndefinedLength`. These types of
-/// elements are considered either private-tag sequences or otherwise whose contents are encoded
-/// as IVRLE.
+/// with a VR of `UN`, `OB`, `OF`, or `OW` and have a value length of `UndefinedLength`. These
+/// types of elements are considered either private-tag sequences or otherwise whose contents are
+/// encoded as IVRLE.
 pub(crate) fn is_non_standard_seq(tag: u32, vr: VRRef, vl: ValueLength) -> bool {
     tag != tags::ITEM
-        && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OW)
+        && (vr == &vr::UN || vr == &vr::OB || vr == &vr::OF || vr == &vr::OW)
         && vl == ValueLength::UndefinedLength
 }
 

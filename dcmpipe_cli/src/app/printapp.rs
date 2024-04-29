@@ -120,11 +120,18 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
             tag.ident
         } else if Tag::is_private_creator(element.get_tag()) {
             "<Private Creator>"
+        } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
+            "<Private Sequence>"
         } else {
             "<Unknown Tag>"
         };
 
     let vr: &str = element.get_vr().ident;
+
+    let vl: String = match element.get_vl() {
+        ValueLength::Explicit(_) => format!("[{:?}]", element.get_vl()),
+        ValueLength::UndefinedLength => "[u/l]".to_string(),
+    };
 
     let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
 
@@ -141,13 +148,13 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
     if element.get_tag() == tags::Item.tag {
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
             format!(
-                "{} {} [{:?}]",
+                "{} {} {}",
                 last_seq_elem
                     .get_item_number()
                     .map(|item_no: usize| format!("#{}", item_no))
                     .unwrap_or_else(|| "#[NO ITEM NUMBER]".to_string()),
                 vr,
-                element.get_vl(),
+                vl,
             )
         } else {
             String::new()
@@ -178,13 +185,13 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
     }
 
     Ok(Some(format!(
-        "{indentation:indent_width$}{tag_num} {vr} {tag_name} [{vl:?}]{tag_value}",
+        "{indentation:indent_width$}{tag_num} {vr} {tag_name} {vl}{tag_value}",
         indentation = "",
         indent_width = indent_width,
         tag_num = tag_num,
         vr = vr,
         tag_name = tag_name,
-        vl = element.get_vl(),
+        vl = vl,
         tag_value = tag_value,
     )))
 }
