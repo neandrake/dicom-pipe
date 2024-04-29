@@ -494,7 +494,8 @@ impl<StreamType: Read> Parser<StreamType> {
         let new_cs: Option<String> = element
             .parse_strings()?
             .into_iter()
-            .find(|cs_entry: &String| !cs_entry.is_empty());
+            .filter(|cs_entry: &String| !cs_entry.is_empty())
+            .nth(0);
 
         // TODO: There are options for what to do if we can't support the character repertoire
         // See note on Ch 5 Part 6.1.2.3 under "Considerations on the Handling of Unsupported Character Sets"
