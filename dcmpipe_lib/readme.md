@@ -104,8 +104,8 @@ datasets they are not included in the repository. To set up these test fixtures:
 
 1. [Download the fixtures (700mb .7z)](https://drive.google.com/file/d/1VI89r3leiLPm9-8sClyy0o15KtGZeqaD/view?usp=sharing).
 2. Extract the downloaded archive into this directory.
-3. The resulting extraction should create a `dcmpipe_lib/fixtures` folder with
-   subfolders containing the test datasets.
+3. The resulting extraction should create a `dcmpipe_lib/tests/fixtures` folder
+   with subfolders containing the test datasets.
 
 _These fixtures are a suite of dicom files gathered from several open sources:_
 

@@ -5,6 +5,9 @@ The `dcmpipe` library provides baseline functionality for managing DICOM,
 including reading and writing DICOM files as well communicating using the DIMSE
 network protocol.
 
+See the `dcmpipe_cli` sub-crate for example command-line utilities built using
+the library:
+
 ![Screenshot](mdassets/screenshot.png "Screenshot")
 
 ## Quick Example ##
