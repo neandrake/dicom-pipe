@@ -8,9 +8,6 @@ edition = "2018"
 encoding = "0.2"
 phf = "0.7"
 
-[dev-dependencies]
-walkdir = "2.2"
-
 [lib]
 name="dcmpipe_lib"
 path="src/lib.rs"
