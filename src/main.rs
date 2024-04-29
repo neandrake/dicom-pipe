@@ -8,7 +8,39 @@ use walkdir::{DirEntry, WalkDir, WalkDirIterator};
 
 static FIXTURE_DATASET1_FOLDER: &'static str = "fixtures/dataset1";
 
-trait DicomStream : Read + Seek {}
+trait DicomStream : Read + Seek {
+	fn is_standard_dicom(&mut self) -> Result<bool, Error> {
+		let filler_size : usize = 128;
+		let preamble_size : usize = 4;
+		let buf_size : usize = filler_size + preamble_size;
+		
+		let start_pos : u64 = try!(self.seek(SeekFrom::Current(0)));
+		
+		let mut buffer : Vec<u8> = vec![0;buf_size];
+		try!(self.read_exact(buffer.as_mut_slice()));
+		
+		// check that first 128 bytes are 0, followed by 'D', 'I', 'C', 'M'
+		
+		for n in 0..(filler_size) {
+			if buffer[n] != 0 {
+				try!(self.seek(SeekFrom::Start(start_pos)));
+				return Result::Ok(false);
+			}
+		}
+		
+		let preamble : Vec<u8> = vec!['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
+		let slice : &[u8] = &buffer[filler_size..filler_size + preamble_size];
+		for n in 0..preamble_size {
+			if slice[n] != preamble[n] {
+				try!(self.seek(SeekFrom::Start(start_pos)));
+				return Result::Ok(false);
+			}
+		}
+		
+		Result::Ok(true)
+	}
+}
+
 impl DicomStream for File {}
 
 fn is_hidden(entry: &DirEntry) -> bool {
@@ -19,15 +51,32 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 fn main() {
-	let dirwalker: walkdir::Iter = WalkDir::new(FIXTURE_DATASET1_FOLDER)
+	let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
 										.min_depth(1)
-										.max_depth(1)
-										.into_iter();
-	let dir_entries = dirwalker.filter_entry(|e| !is_hidden(e));
+										.max_depth(1);
+	match parse_directory(dirwalker) {
+		Ok(()) => {
+			
+		},
+		Err(err) => {
+			writeln!(
+				&mut std::io::stderr(),
+				"[ERROR] Error accessing directory: {:?}",
+				err
+			).unwrap();
+		}
+	}
+}
+
+fn parse_directory(dirwalker: WalkDir) -> Result<(), Error> {
+	let dirwalker_iter: walkdir::Iter = dirwalker.into_iter();
+	let dir_entries = dirwalker_iter.filter_entry(|e| !is_hidden(e));
 	for entry_res in dir_entries {
-		match open_file_as_dicom_stream(entry_res) {
+		let entry: DirEntry = try!(entry_res);
+		let dstream_res: Result<Box<DicomStream>, Error> = open_file_as_dicom_stream(entry);
+		match dstream_res {
 			Ok(val) => {
-				
+				println!("[INFO] File is DICOM: {:?}", entry.path());
 			},
 			Err(err) => {
 				writeln!(
@@ -38,17 +87,17 @@ fn main() {
 			}
 		}
 	}
+	return Result::Ok(());
 }
 
-fn open_file_as_dicom_stream(entry: Result<DirEntry, walkdir::Error>) -> Result<Box<DicomStream>, Error> {
-	let entry: DirEntry = try!(entry);
+fn open_file_as_dicom_stream(entry: DirEntry) -> Result<Box<DicomStream>, Error> {
 	if !entry.file_type().is_file() {
 		return Result::Err(Error::new(ErrorKind::InvalidData, "File is a directory"));
 	}
 
 	let file_path: &Path = entry.path();
 	let mut fstream: File = try!(File::open(file_path));
-	let is_dcm: bool = try!(is_standard_dicom(&mut fstream));
+	let is_dcm: bool = try!(fstream.is_standard_dicom());
 	if is_dcm {
 		println!("[INFO] File is DICOM: {:?}", file_path);
 		return Result::Ok(Box::new(fstream));
@@ -57,36 +106,7 @@ fn open_file_as_dicom_stream(entry: Result<DirEntry, walkdir::Error>) -> Result<
 	return Result::Err(Error::new(ErrorKind::InvalidData, format!("File is not DICOM: {:?}", file_path)));
 }
 
-fn is_standard_dicom(stream : &mut DicomStream) -> Result<bool, Error> {
-	let filler_size : usize = 128;
-	let preamble_size : usize = 4;
-	let buf_size : usize = filler_size + preamble_size;
-	
-	let start_pos : u64 = try!(stream.seek(SeekFrom::Current(0)));
-	
-	let mut buffer : Vec<u8> = vec![0;buf_size];
-	try!(stream.read_exact(buffer.as_mut_slice()));
-	
-	// check that first 128 bytes are 0, followed by 'D', 'I', 'C', 'M'
-	
-	for n in 0..(filler_size) {
-		if buffer[n] != 0 {
-			try!(stream.seek(SeekFrom::Start(start_pos)));
-			return Result::Ok(false);
-		}
-	}
-	
-	let preamble : Vec<u8> = vec!['D' as u8, 'I' as u8, 'C' as u8, 'M' as u8];
-	let slice : &[u8] = &buffer[filler_size..filler_size + preamble_size];
-	for n in 0..preamble_size {
-		if slice[n] != preamble[n] {
-			try!(stream.seek(SeekFrom::Start(start_pos)));
-			return Result::Ok(false);
-		}
-	}
-	
-	Result::Ok(true)
-}
+
 
 #[cfg(test)]
 mod tests {
