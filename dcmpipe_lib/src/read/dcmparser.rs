@@ -189,11 +189,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
     /// Reads the remainder of the dicom element from the stream.
     /// This assumes that just prior to calling this `self.read_tag()` was called
     /// and the result is passed as parameter here.
-    fn read_dicom_element(
-        &mut self,
-        tag: u32,
-        ts: TSRef,
-    ) -> Result<DicomElement, Error> {
+    fn read_dicom_element(&mut self, tag: u32, ts: TSRef) -> Result<DicomElement, Error> {
         let vr: VRRef = self.read_vr(tag, ts)?;
         let vl: ValueLength = self.read_value_length(vr, ts)?;
         let bytes: Vec<u8> = if vr == &vr::SQ || tag == tags::Item.tag {
@@ -205,18 +201,16 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
         };
 
         let ancestors: Vec<DicomSequencePosition> = self.current_path.clone();
-        Ok(DicomElement::new(tag, vr, vl, ts, self.cs,bytes, ancestors))
+        Ok(DicomElement::new(
+            tag, vr, vl, ts, self.cs, bytes, ancestors,
+        ))
     }
 
     /// Reads a VR attribute from the stream. If `force_explicit` is false then
     /// the transfer syntax specified from the stream is used to determine if the VR
     /// should be read explicitly or implicitly determined from the dataset dictionary.
     /// If `force_explicit` is true then the VR is explicitly read from the stream.
-    fn read_vr(
-        &mut self,
-        tag: u32,
-        ts: TSRef,
-    ) -> Result<VRRef, Error> {
+    fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<VRRef, Error> {
         if ts.explicit_vr {
             let first_char: u8 = self.stream.read_u8()?;
             self.bytes_read += 1;
@@ -249,21 +243,19 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
                 .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
                 .or_else(|| Some(&crate::core::vr::UN))
                 // TODO: Log an error but still use UN?
-                .ok_or_else(|| Error::new(
-                    ErrorKind::InvalidData,
-                    format!("ImplicitVR TS but VR is unknown for tag: {}", tag),
-                ))
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::InvalidData,
+                        format!("ImplicitVR TS but VR is unknown for tag: {}", tag),
+                    )
+                })
         }
     }
 
     /// Reads a Value Length attribute from the stream. If `force_explicit` is false then
     /// the transfer syntax specified from the stream is used to determine how to read the attribute
     /// otherwise it forces reading as explicit VR definition.
-    fn read_value_length(
-        &mut self,
-        vr: VRRef,
-        ts: TSRef,
-    ) -> Result<ValueLength, Error> {
+    fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
         let value_length: u32;
         if ts.explicit_vr {
             if vr.has_explicit_2byte_pad {
@@ -315,10 +307,12 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
         self.ts = TS_BY_ID
             .get::<str>(ts_uid.as_ref())
             .cloned()
-            .ok_or_else(|| Error::new(
-                ErrorKind::InvalidData,
-                format!("Unknown TransferSyntax: {:?}", ts_uid),
-            ))?;
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Unknown TransferSyntax: {:?}", ts_uid),
+                )
+            })?;
 
         Ok(())
     }

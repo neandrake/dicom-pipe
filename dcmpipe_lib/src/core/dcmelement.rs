@@ -5,7 +5,7 @@ use crate::core::ts::TSRef;
 use crate::core::vl::ValueLength;
 use crate::core::vr;
 use crate::core::vr::{VRRef, CHARACTER_STRING_SEPARATOR};
-use byteorder::{ReadBytesExt, BigEndian, LittleEndian};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use encoding::types::DecoderTrap;
 use std::borrow::Cow;
 use std::fmt;

@@ -1,5 +1,5 @@
-pub mod dcmreader;
 pub mod dcmparser;
+pub mod dcmreader;
 pub mod tagstop;
 
 #[cfg(test)]
