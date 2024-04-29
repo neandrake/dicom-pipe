@@ -27,30 +27,36 @@ use crate::{
 /// Errors related to the DIMSE protocol.
 #[derive(Debug, thiserror::Error)]
 pub enum DimseError {
+    /// A PDU type was encountered that is unknown, likely non-standard or a corruption in the
+    /// straem.
     #[error("invalid pdu type: {0:04X}")]
     InvalidPduType(u8),
 
+    /// An AE Title which is not correctly formatted.
     #[error("invalid ae title: {0:?}")]
     InvalidAeTitle(Vec<u8>),
 
+    /// The stream closed unexpectedly.
     #[error("unexpected end of byte stream")]
     UnexpectedEOF,
 
+    /// DIMSE Command Messages are expected to have a minimal set of elements.
     #[error("element missing from request: {0}")]
-    ElementMissingFromRequest(String),
+    DimseElementMissing(String),
 
-    #[error("invalid pdu parse state: {0}")]
-    InvalidPduParseState(String),
-
+    /// A Pdu was encountered which was not anticipated.
     #[error("unexpected pdu type {0:?}")]
     UnexpectedPduType(PduType),
 
+    /// Error while parsing a DICOM element in a DIMSE request/response.
     #[error("error parsing value from request")]
     ParseError(#[from] ParseError),
 
+    /// Character encoding errors while parsing DICOM element values in a DIMSE request/response.
     #[error("error decoding string")]
     CharsetError(#[from] CSError),
 
+    /// Errors when writing DICOM elements in a response request/response stream.
     #[error("error encoding DICOM")]
     WriteError(#[from] WriteError),
 
@@ -58,8 +64,13 @@ pub enum DimseError {
     #[error("i/o error reading from dataset")]
     IOError(#[from] std::io::Error),
 
+    /// Catch-all for error-states while interpreting the DIMSE stream.
     #[error("{0}")]
     GeneralError(String),
+
+    /// Wrapper around other errors.
+    #[error("error happened: {0}")]
+    OtherError(Box<dyn std::error::Error>),
 }
 
 #[derive(Debug)]

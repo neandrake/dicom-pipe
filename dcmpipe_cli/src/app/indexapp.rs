@@ -29,7 +29,6 @@ use dcmpipe_lib::{
     core::{
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
-        defn::tag::Tag,
         read::{stop::ParseStop, Parser, ParserBuilder},
         RawValue,
     },
@@ -57,7 +56,7 @@ static MONGO_ID_KEY: &str = "_id";
 /// record is updated from disk contents rather than creating new records, however it was easier
 /// for the moment to just make an optional `id` field -- which if filled in means that it will
 /// correspond to an existing record otherwise it represents a brand new document.
-struct DicomDoc {
+pub struct DicomDoc {
     key: String,
     doc: Document,
     id: Option<ObjectId>,
@@ -70,6 +69,11 @@ impl DicomDoc {
             doc: Document::new(),
             id: None,
         }
+    }
+
+    #[must_use]
+    pub fn doc(&self) -> &Document {
+        &self.doc
     }
 }
 
@@ -98,9 +102,9 @@ impl IndexApp {
         IndexApp { args }
     }
 
-    fn get_dicom_coll(db: &String) -> Result<Collection<Document>> {
-        let client: Client =
-            Client::with_uri_str(db).with_context(|| format!("Invalid database URI: {db}"))?;
+    pub fn get_dicom_coll(db: impl AsRef<str>) -> Result<Collection<Document>> {
+        let client: Client = Client::with_uri_str(db.as_ref())
+            .with_context(|| format!("Invalid database URI: {}", db.as_ref()))?;
         let database: Database = client.database(DATABASE_NAME);
         Ok(database.collection(COLLECTION_NAME))
     }
@@ -180,7 +184,7 @@ impl IndexApp {
             }
         };
 
-        for dicom_doc in Self::query_docs(db, &dicom_coll, Some(query))? {
+        for dicom_doc in Self::query_docs(&dicom_coll, Some(query))? {
             if let Some(existing) = uid_to_doc.get_mut(&dicom_doc.key) {
                 existing.id = dicom_doc.id;
             }
@@ -201,8 +205,8 @@ impl IndexApp {
             }
         }
 
-        println!("Inserting {} records", inserts.len());
         if !inserts.is_empty() {
+            println!("Inserting {} records", inserts.len());
             dicom_coll.insert_many(inserts, None)?;
         }
 
@@ -222,7 +226,7 @@ impl IndexApp {
         let mut record_count: usize = 0;
         let mut updated_records: Vec<Document> = Vec::new();
         let mut missing_records: Vec<Document> = Vec::new();
-        for mut dicom_doc in Self::query_docs(db, &dicom_coll, None)? {
+        for mut dicom_doc in Self::query_docs(&dicom_coll, None)? {
             record_count += 1;
             let metadata_doc = dicom_doc
                 .doc
@@ -286,14 +290,16 @@ impl IndexApp {
     /// `db` The database connection string, used for logging only.
     /// `dicom_coll` The collection to query.
     /// `query` The query to use. If `None`, then a blank query is issued, resulting in all records.
-    fn query_docs(
-        db: &String,
+    ///
+    /// # Errors
+    /// I/O errors may occur communicating with mongodb.
+    pub fn query_docs(
         dicom_coll: &Collection<Document>,
         query: Option<Document>,
     ) -> Result<impl Iterator<Item = DicomDoc>> {
         let all_dicom_docs: Cursor<Document> = dicom_coll
             .find(query, None)
-            .with_context(|| format!("Invalid database: {db}"))?;
+            .with_context(|| format!("Invalid database: {dicom_coll:?}"))?;
 
         let doc_iter = all_dicom_docs.filter_map(|doc_res| {
             let doc: Document = match doc_res {
@@ -325,10 +331,16 @@ impl IndexApp {
         Ok(doc_iter)
     }
 
+    pub fn tag_to_key(tag: u32) -> String {
+        let tag_group: u32 = tag >> 16;
+        let tag_elem: u32 = tag & 0x0000_FFFF;
+        format!("{tag_group:04X}{tag_elem:04X}")
+    }
+
     /// Builds a bson value from the given `DicomElement` and inserts it into the bson document
     #[allow(clippy::too_many_lines)]
     fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()> {
-        let key: String = Tag::format_tag_to_path_display(elem.tag());
+        let key: String = Self::tag_to_key(elem.tag());
         let raw_value: RawValue = elem.parse_value()?;
         match raw_value {
             RawValue::Attributes(attrs) => {

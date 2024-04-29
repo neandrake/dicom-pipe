@@ -51,6 +51,7 @@ use crate::{
 pub enum DimseMsg {
     Cmd(CommandMessage),
     Dataset(PresentationDataValue),
+    Cancel,
     ReleaseRQ,
     Abort(Abort),
 }

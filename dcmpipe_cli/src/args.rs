@@ -124,4 +124,11 @@ pub struct SvcProviderArgs {
     #[arg(short, long)]
     /// The maximum number of concurrent associations.
     pub max_assoc: usize,
+
+    #[arg(short, long)]
+    /// The database URL for resolving DIMSE queries.
+    ///
+    /// If not specified then Query/Retrieve will not return results, and Store will not persist
+    /// received series.
+    pub db: Option<String>,
 }

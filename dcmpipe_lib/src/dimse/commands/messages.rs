@@ -154,7 +154,7 @@ impl CommandMessage {
         self.message
             .get_value_as_by_tag(tag.clone(), &US)
             .and_then(|v| v.ushort())
-            .ok_or_else(|| DimseError::ElementMissingFromRequest(Tag::format_tag_to_display(tag)))
+            .ok_or_else(|| DimseError::DimseElementMissing(Tag::format_tag_to_display(tag)))
     }
 
     /// Gets the value for the given tag, as a String.
@@ -169,7 +169,7 @@ impl CommandMessage {
         self.message
             .get_value_by_tag(tag.clone())
             .and_then(|v| v.string().cloned())
-            .ok_or_else(|| DimseError::ElementMissingFromRequest(Tag::format_tag_to_display(tag)))
+            .ok_or_else(|| DimseError::DimseElementMissing(Tag::format_tag_to_display(tag)))
     }
 
     /// Create a `CommandMessage` from a list of tag/value pairs.
