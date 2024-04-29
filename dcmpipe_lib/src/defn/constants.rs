@@ -7,6 +7,7 @@ pub mod tags {
     pub const SPECIFIC_CHARACTER_SET: u32 = 0x0008_0005;
     pub const ITEM: u32 = 0xFFFE_E000;
     pub const SEQUENCE_DELIMITATION_ITEM: u32 = 0xFFFE_E0DD;
+    pub const ITEM_DELIMITATION_ITEM: u32 = 0xFFFE_E00D;
 }
 
 /// The transfer syntaxes needed for parsing a DICOM stream
