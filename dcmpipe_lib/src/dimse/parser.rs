@@ -14,6 +14,12 @@ pub struct PduParser<R: Read> {
 }
 
 impl<R: Read> PduParser<R> {
+    pub fn new(dataset: R) -> PduParser<R> {
+        PduParser {
+            dataset
+        }
+    }
+
     pub fn read_pdu(&mut self) -> Result<Pdu, PduError> {
         let mut buf: [u8; 2] = [0u8; 2];
         self.dataset

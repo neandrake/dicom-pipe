@@ -3,9 +3,15 @@
 //! PDU headers are encoded with Big Endian. The value fields are sent using the transfer syntax
 //! negotiated during establishment of the association.
 
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    mem::size_of,
+};
 
 use thiserror::Error;
+
+static ASSOCIATION_VERSION: u16 = 0b0000_0000_0000_0001;
+static SOP_CLASS_COMMON_EXTENDED_NEGOTIATION_VERSION: u8 = 0b0000_0000;
 
 #[derive(Debug, Error)]
 pub enum PduError {
@@ -24,7 +30,7 @@ pub enum PduError {
 }
 
 #[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum PduType {
     AssocRQ = 0x01,
     AssocAC = 0x02,
@@ -95,6 +101,7 @@ impl TryFrom<u8> for PduType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pdu {
     AssocRQ(AssocRQ),
     AssocAC(AssocAC),
@@ -120,11 +127,11 @@ pub enum Pdu {
     UserIdentityNegotiationItem(UserIdentityNegotiationItem),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssocRQ {
-    length: u32,
     /// Reserved, should be zero.
     reserved_1: u8,
+    length: u32,
     version: u16,
     /// Reserved, should be zeros.
     reserved_2: [u8; 2],
@@ -141,6 +148,36 @@ impl AssocRQ {
     /// The type of this PDU, `PduType::AssocRQ`.
     pub fn pdu_type() -> PduType {
         PduType::AssocRQ
+    }
+
+    pub fn new(
+        called_ae: [u8; 16],
+        calling_ae: [u8; 16],
+        app_ctx: ApplicationContextItem,
+        pres_ctxs: Vec<AssocRQPresentationContext>,
+        user_info: UserInformationItem,
+    ) -> AssocRQ {
+        let length: u32 = size_of::<u8>() as u32 + // version
+            size_of::<[u8; 2]>() as u32 + // reserved_2
+            size_of::<[u8; 16]>() as u32 + // called_ae
+            size_of::<[u8; 16]>() as u32 + // calling_ae
+            size_of::<[u8; 32]>() as u32 + // reserved_3
+            app_ctx.num_bytes() as u32 +
+            pres_ctxs.iter().map(|p| p.num_bytes() as u32).sum::<u32>() +
+            user_info.num_bytes() as u32;
+
+        AssocRQ {
+            reserved_1: 0u8,
+            length,
+            version: ASSOCIATION_VERSION,
+            reserved_2: [0u8; 2],
+            called_ae,
+            calling_ae,
+            reserved_3: [0u8; 32],
+            app_ctx,
+            pres_ctxs,
+            user_info,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -165,6 +202,12 @@ impl AssocRQ {
     /// and trailing spaces being non-significant.
     pub fn calling_ae(&self) -> &[u8; 16] {
         &self.calling_ae
+    }
+
+    /// The third reserved field, 32 bytes. This is exposed as the standard requires this value be
+    /// copied in the AssocAC response.
+    pub fn reserved_3(&self) -> &[u8; 32] {
+        &self.reserved_3
     }
 
     /// Application Context.
@@ -229,7 +272,7 @@ impl AssocRQ {
 
         let mut pres_ctxs: Vec<AssocRQPresentationContext> = Vec::new();
         dataset.read_exact(&mut buf)?;
-        while buf[0] == PduType::AssocACPresentationContext as u8 {
+        while buf[0] == PduType::AssocRQPresentationContext as u8 {
             let pres_ctx = AssocRQPresentationContext::read(&mut dataset, buf[1])?;
             pres_ctxs.push(pres_ctx);
             dataset.read_exact(&mut buf)?;
@@ -252,7 +295,7 @@ impl AssocRQ {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssocAC {
     /// Reserved, should be zero.
     reserved_1: u8,
@@ -278,6 +321,37 @@ impl AssocAC {
     /// The type of this PDU, `PduType::AssocAC`.
     pub fn pdu_type() -> PduType {
         PduType::AssocAC
+    }
+
+    pub fn new(
+        reserved_3: [u8; 16],
+        reserved_4: [u8; 16],
+        reserved_5: [u8; 32],
+        app_ctx: ApplicationContextItem,
+        pres_ctxs: Vec<AssocACPresentationContext>,
+        user_info: UserInformationItem,
+    ) -> AssocAC {
+        let length: u32 = size_of::<u16>() as u32 // version
+            + size_of::<[u8; 2]>() as u32 // reserved_2
+            + size_of::<[u8; 16]>() as u32 // reserved_3
+            + size_of::<[u8; 16]>() as u32 // reserved_4
+            + size_of::<[u8; 32]>() as u32 // reserved_5
+            + app_ctx.num_bytes() as u32
+            + pres_ctxs.iter().map(|p| p.num_bytes() as u32).sum::<u32>()
+            + user_info.num_bytes() as u32;
+
+        AssocAC {
+            reserved_1: 0u8,
+            length,
+            version: ASSOCIATION_VERSION,
+            reserved_2: [0u8; 2],
+            reserved_3,
+            reserved_4,
+            reserved_5,
+            app_ctx,
+            pres_ctxs,
+            user_info,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -377,7 +451,7 @@ impl AssocAC {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssocRJ {
     /// Reserved, should be zero.
     reserved_1: u8,
@@ -393,6 +467,22 @@ impl AssocRJ {
     /// The type of this PDU, `PduType::AssocRJ`.
     pub fn pdu_type() -> PduType {
         PduType::AssocRJ
+    }
+
+    pub fn new(result: u8, source: u8, reason: u8) -> AssocRJ {
+        let length: u32 = size_of::<u8>() as u32 // reserved_2
+            + size_of::<u8>() as u32 // result
+            + size_of::<u8>() as u32 // source
+            + size_of::<u8>() as u32; // reason
+
+        AssocRJ {
+            reserved_1: 0u8,
+            length,
+            reserved_2: 0u8,
+            result,
+            source,
+            reason,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -475,7 +565,7 @@ impl AssocRJ {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReleaseRQ {
     /// Reserved, should be zero.
     reserved_1: u8,
@@ -488,6 +578,16 @@ impl ReleaseRQ {
     /// The type of this PDU, `PduType::ReleaseRQ`.
     pub fn pdu_type() -> PduType {
         PduType::ReleaseRQ
+    }
+
+    pub fn new() -> ReleaseRQ {
+        let length: u32 = size_of::<[u8; 4]>() as u32; // reserved_2
+
+        ReleaseRQ {
+            reserved_1: 0u8,
+            length,
+            reserved_2: [0u8; 4],
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -521,7 +621,7 @@ impl ReleaseRQ {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReleaseRP {
     /// Reserved, should be zero.
     reserved_1: u8,
@@ -534,6 +634,16 @@ impl ReleaseRP {
     /// The type of this PDU, `PduType::ReleaseRP`.
     pub fn pdu_type() -> PduType {
         PduType::ReleaseRP
+    }
+
+    pub fn new() -> ReleaseRP {
+        let length: u32 = size_of::<[u8; 4]>() as u32; // reserved_2
+
+        ReleaseRP {
+            reserved_1: 0u8,
+            length,
+            reserved_2: [0u8; 4],
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -567,7 +677,7 @@ impl ReleaseRP {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Abort {
     /// Reserved, should be zero.
     reserved_1: u8,
@@ -584,6 +694,22 @@ impl Abort {
     /// The type of this PDU, `PduType::Abort`.
     pub fn pdu_type() -> PduType {
         PduType::Abort
+    }
+
+    pub fn new(source: u8, reason: u8) -> Abort {
+        let length: u32 = size_of::<u8>() as u32 // reserved_2
+            + size_of::<u8>() as u32 // reserved_3
+            + size_of::<u8>() as u32 // source
+            + size_of::<u8>() as u32; // reason
+
+        Abort {
+            reserved_1: 0u8,
+            length,
+            reserved_2: 0u8,
+            reserved_3: 0u8,
+            source,
+            reason,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -651,7 +777,7 @@ impl Abort {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PresentationDataItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -663,6 +789,16 @@ impl PresentationDataItem {
     /// The type of this PDU, `PduType::PresentationDataItem`.
     pub fn pdu_type() -> PduType {
         PduType::PresentationDataItem
+    }
+
+    pub fn new(pres_data: Vec<PresentationDataValue>) -> PresentationDataItem {
+        let length: u32 = pres_data.iter().map(|p| p.num_bytes() as u32).sum::<u32>();
+
+        PresentationDataItem {
+            reserved: 0u8,
+            length,
+            pres_data,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -714,7 +850,7 @@ impl PresentationDataItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PresentationDataValue {
     length: u32,
     ctx_id: u8,
@@ -723,6 +859,19 @@ pub struct PresentationDataValue {
 }
 
 impl PresentationDataValue {
+    pub fn new(ctx_id: u8, msg_header: u8, data: Vec<u8>) -> PresentationDataValue {
+        let length: u32 = size_of::<u8>() as u32 // ctx_id
+            + size_of::<u8>() as u32 // msg_header
+            + data.len() as u32;
+
+        PresentationDataValue {
+            length,
+            ctx_id,
+            msg_header,
+            data,
+        }
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// presentation data value field.
     pub fn length(&self) -> u32 {
@@ -752,6 +901,13 @@ impl PresentationDataValue {
     /// Presentation data, a fragment. Either a Command or a DICOM Data Set.
     pub fn data(&self) -> &Vec<u8> {
         &self.data
+    }
+
+    fn num_bytes(&self) -> usize {
+        size_of::<u32>() // length
+            + size_of::<u8>() // ctx_id
+            + size_of::<u8>() // msg_header
+            + self.data.len()
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), PduError> {
@@ -788,7 +944,7 @@ impl PresentationDataValue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ApplicationContextItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -802,6 +958,16 @@ impl ApplicationContextItem {
         PduType::ApplicationContextItem
     }
 
+    pub fn new(app_context_name: Vec<u8>) -> ApplicationContextItem {
+        let length: u16 = app_context_name.len() as u16;
+
+        ApplicationContextItem {
+            reserved: 0u8,
+            length,
+            app_context_name,
+        }
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// application context field name.
     pub fn length(&self) -> u16 {
@@ -811,6 +977,13 @@ impl ApplicationContextItem {
     /// A valid application context name (essentially a UID).
     pub fn app_context_name(&self) -> &Vec<u8> {
         &self.app_context_name
+    }
+
+    fn num_bytes(&self) -> usize {
+        size_of::<u8>() // pdu_type
+            + size_of::<u8>() // reserved
+            + size_of::<u16>() // length
+            + self.app_context_name.len()
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), PduError> {
@@ -842,7 +1015,7 @@ impl ApplicationContextItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssocRQPresentationContext {
     /// Reserved, should be zero.
     reserved_1: u8,
@@ -864,6 +1037,30 @@ impl AssocRQPresentationContext {
         PduType::AssocRQPresentationContext
     }
 
+    pub fn new(
+        ctx_id: u8,
+        abstract_syntax: AbstractSyntaxItem,
+        transfer_syntaxes: Vec<TransferSyntaxItem>,
+    ) -> AssocRQPresentationContext {
+        let length: u16 = size_of::<u8>() as u16 // ctx_id
+            + size_of::<u8>() as u16 // reserved_2
+            + size_of::<u8>() as u16 // reserved_3
+            + size_of::<u8>() as u16 // reserved_4
+            + abstract_syntax.num_bytes() as u16
+            + transfer_syntaxes.iter().map(|p| p.num_bytes() as u16).sum::<u16>();
+
+        AssocRQPresentationContext {
+            reserved_1: 0u8,
+            length,
+            ctx_id,
+            reserved_2: 0u8,
+            reserved_3: 0u8,
+            reserved_4: 0u8,
+            abstract_syntax,
+            transfer_syntaxes,
+        }
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the last
     /// transfer syntax item.
     pub fn length(&self) -> u16 {
@@ -883,6 +1080,18 @@ impl AssocRQPresentationContext {
     /// The transfer syntax sub-items.
     pub fn transfer_syntaxes(&self) -> &Vec<TransferSyntaxItem> {
         &self.transfer_syntaxes
+    }
+
+    fn num_bytes(&self) -> usize {
+        size_of::<u8>() // pdu_type
+            + size_of::<u8>() // reserved_1
+            + size_of::<u16>() // length
+            + size_of::<u8>() // ctx_id
+            + size_of::<u8>() // reserved_2
+            + size_of::<u8>() // reserved_3
+            + size_of::<u8>() // reserved_4
+            + self.abstract_syntax.num_bytes()
+            + self.transfer_syntaxes.iter().map(|t| t.num_bytes()).sum::<usize>()
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), PduError> {
@@ -963,7 +1172,7 @@ impl AssocRQPresentationContext {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AssocACPresentationContext {
     /// Reserved, should be zero.
     reserved_1: u8,
@@ -981,6 +1190,28 @@ impl AssocACPresentationContext {
     /// The type of this PDU, `PduType::AssocACPresentationContext`.
     pub fn pdu_type() -> PduType {
         PduType::AssocACPresentationContext
+    }
+
+    pub fn new(
+        ctx_id: u8,
+        result: u8,
+        transfer_syntax: TransferSyntaxItem,
+    ) -> AssocACPresentationContext {
+        let length: u16 = size_of::<u8>() as u16 // ctx_id
+            + size_of::<u8>() as u16 // reserved_2
+            + size_of::<u8>() as u16 // result
+            + size_of::<u8>() as u16 // reserved_3
+            + transfer_syntax.num_bytes() as u16;
+
+        AssocACPresentationContext {
+            reserved_1: 0u8,
+            length,
+            ctx_id,
+            reserved_2: 0u8,
+            result,
+            reserved_3: 0u8,
+            transfer_syntax,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -1010,6 +1241,17 @@ impl AssocACPresentationContext {
     /// only a single transfer syntax.
     pub fn transfer_syntax(&self) -> &TransferSyntaxItem {
         &self.transfer_syntax
+    }
+
+    fn num_bytes(&self) -> usize {
+        size_of::<u8>() // pdu_type
+            + size_of::<u8>() // reserved_1
+            + size_of::<u16>() // length
+            + size_of::<u8>() // ctx_id
+            + size_of::<u8>() // reserved_2
+            + size_of::<u8>() // result
+            + size_of::<u8>() // reserved_3
+            + self.transfer_syntax.num_bytes()
     }
 
     pub fn write<W: Write>(&self, mut dataset: &mut W) -> Result<(), PduError> {
@@ -1062,7 +1304,7 @@ impl AssocACPresentationContext {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AbstractSyntaxItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1076,6 +1318,16 @@ impl AbstractSyntaxItem {
         PduType::AbstractSyntaxItem
     }
 
+    pub fn new(abstract_syntax: Vec<u8>) -> AbstractSyntaxItem {
+        let length: u16 = abstract_syntax.len() as u16;
+
+        AbstractSyntaxItem {
+            reserved: 0u8,
+            length,
+            abstract_syntax,
+        }
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// abstract syntax name field.
     pub fn length(&self) -> u16 {
@@ -1085,6 +1337,13 @@ impl AbstractSyntaxItem {
     /// The abstract syntax UID related to the proposed presentation context.
     pub fn abstract_syntax(&self) -> &Vec<u8> {
         &self.abstract_syntax
+    }
+
+    fn num_bytes(&self) -> usize {
+        size_of::<u8>() // pdu_type
+            + size_of::<u8>() // reserved
+            + size_of::<u16>() // length
+            + self.abstract_syntax.len()
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), PduError> {
@@ -1113,7 +1372,7 @@ impl AbstractSyntaxItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TransferSyntaxItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1127,6 +1386,16 @@ impl TransferSyntaxItem {
         PduType::TransferSyntaxItem
     }
 
+    pub fn new(transfer_syntaxes: Vec<u8>) -> TransferSyntaxItem {
+        let length: u16 = transfer_syntaxes.len() as u16;
+
+        TransferSyntaxItem {
+            reserved: 0u8,
+            length,
+            transfer_syntaxes,
+        }
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// transfer syntax name fields.
     pub fn length(&self) -> u16 {
@@ -1136,6 +1405,13 @@ impl TransferSyntaxItem {
     /// The transfer syntax UIDs related to the proposed presentation context.
     pub fn transfer_syntaxes(&self) -> &Vec<u8> {
         &self.transfer_syntaxes
+    }
+
+    fn num_bytes(&self) -> usize {
+        size_of::<u8>() // pdu_type
+            + size_of::<u8>() // reserved
+            + size_of::<u16>() // length
+            + self.transfer_syntaxes.len()
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), PduError> {
@@ -1164,7 +1440,7 @@ impl TransferSyntaxItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UserInformationItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1178,6 +1454,16 @@ impl UserInformationItem {
         PduType::UserInformationItem
     }
 
+    pub fn new(user_data: Vec<u8>) -> UserInformationItem {
+        let length: u16 = user_data.len() as u16;
+
+        UserInformationItem {
+            reserved: 0u8,
+            length,
+            user_data,
+        }
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the user
     /// data fields.
     pub fn length(&self) -> u16 {
@@ -1187,6 +1473,13 @@ impl UserInformationItem {
     /// User-data sub-items.
     pub fn user_data(&self) -> &Vec<u8> {
         &self.user_data
+    }
+
+    fn num_bytes(&self) -> usize {
+        size_of::<u8>() // pdu_type
+            + size_of::<u8>() // reserved
+            + size_of::<u16>() // length
+            + self.user_data.len()
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), PduError> {
@@ -1215,7 +1508,7 @@ impl UserInformationItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MaxLengthItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1227,6 +1520,16 @@ impl MaxLengthItem {
     /// The type of this PDU, `PduType::MaxLengthItem`.
     pub fn pdu_type() -> PduType {
         PduType::MaxLengthItem
+    }
+
+    pub fn new(max_length: u32) -> MaxLengthItem {
+        let length: u16 = size_of::<u32>() as u16; // max_length
+
+        MaxLengthItem {
+            reserved: 0u8,
+            length,
+            max_length,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the user
@@ -1267,7 +1570,7 @@ impl MaxLengthItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImplementationClassUIDItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1279,6 +1582,16 @@ impl ImplementationClassUIDItem {
     /// The type of this PDU, `PduType::ImplementationClassUIDItem`.
     pub fn pdu_type() -> PduType {
         PduType::ImplementationClassUIDItem
+    }
+
+    pub fn new(impl_class_uid: Vec<u8>) -> ImplementationClassUIDItem {
+        let length: u16 = impl_class_uid.len() as u16;
+
+        ImplementationClassUIDItem {
+            reserved: 0u8,
+            length,
+            impl_class_uid,
+        }
     }
 
     /// The number of bytes in the following Implementation Class UID field.
@@ -1320,7 +1633,7 @@ impl ImplementationClassUIDItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AsyncOperationsWindowItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1333,6 +1646,18 @@ impl AsyncOperationsWindowItem {
     /// The type of this PDU, `PduType::AsyncOperationsWindowItem`.
     pub fn pdu_type() -> PduType {
         PduType::AsyncOperationsWindowItem
+    }
+
+    pub fn new(max_ops_invoked: u16, max_ops_performed: u16) -> AsyncOperationsWindowItem {
+        let length: u16 = size_of::<u16>() as u16 // max_ops_invoked
+            + size_of::<u16>() as u16; // max_ops_performed
+
+        AsyncOperationsWindowItem {
+            reserved: 0u8,
+            length,
+            max_ops_invoked,
+            max_ops_performed,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -1385,7 +1710,7 @@ impl AsyncOperationsWindowItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RoleSelectionItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1400,6 +1725,22 @@ impl RoleSelectionItem {
     /// The type of this PDU, `PduType::RoleSelectionItem`.
     pub fn pdu_type() -> PduType {
         PduType::RoleSelectionItem
+    }
+
+    pub fn new(sop_class_uid: Vec<u8>, scu_role: u8, scp_role: u8) -> RoleSelectionItem {
+        let length: u16 = size_of::<u16>() as u16 // sop_class_uid_length
+            + sop_class_uid.len() as u16
+            + size_of::<u8>() as u16 // scu_role
+            + size_of::<u8>() as u16; // scp_role
+
+        RoleSelectionItem {
+            reserved: 0u8,
+            length,
+            sop_class_uid_length: sop_class_uid.len() as u16,
+            sop_class_uid,
+            scu_role,
+            scp_role,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the SCP
@@ -1474,7 +1815,7 @@ impl RoleSelectionItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ImplementationVersionNameItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1486,6 +1827,16 @@ impl ImplementationVersionNameItem {
     /// The type of this PDU, `PduType::ImplementationVersionNameItem`.
     pub fn pdu_type() -> PduType {
         PduType::ImplementationVersionNameItem
+    }
+
+    pub fn new(impl_ver_name: Vec<u8>) -> ImplementationVersionNameItem {
+        let length: u16 = impl_ver_name.len() as u16;
+
+        ImplementationVersionNameItem {
+            reserved: 0u8,
+            length,
+            impl_ver_name,
+        }
     }
 
     /// The number of bytes in the Implementation Version Name field.
@@ -1527,7 +1878,7 @@ impl ImplementationVersionNameItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SOPClassExtendedNegotiationItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1541,6 +1892,23 @@ impl SOPClassExtendedNegotiationItem {
     /// The type of this PDU, `PduType::SOPClassExtendedNegotiationItem`.
     pub fn pdu_type() -> PduType {
         PduType::SOPClassExtendedNegotiationItem
+    }
+
+    pub fn new(
+        sop_class_uid: Vec<u8>,
+        service_class_app_info: Vec<u8>,
+    ) -> SOPClassExtendedNegotiationItem {
+        let length: u16 = size_of::<u16>() as u16 // sop_class_uid_length
+            + sop_class_uid.len() as u16
+            + service_class_app_info.len() as u16;
+
+        SOPClassExtendedNegotiationItem {
+            reserved: 0u8,
+            length,
+            sop_class_uid_length: sop_class_uid.len() as u16,
+            sop_class_uid,
+            service_class_app_info,
+        }
     }
 
     /// The number of bytes from the first byte of the following field the last byte of the Service
@@ -1603,15 +1971,15 @@ impl SOPClassExtendedNegotiationItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SOPClassCommonExtendedNegotiationItem {
     version: u8,
     length: u16,
     sop_class_uid_length: u16,
     sop_class_uid: Vec<u8>,
-    service_class_length: u16,
+    service_class_uid_length: u16,
     service_class_uid: Vec<u8>,
-    rel_gen_sop_class_length: u16,
+    rel_gen_sop_classes_length: u16,
     rel_gen_sop_classes: Vec<RelatedGeneralSOPClassUID>,
     reserved: Vec<u8>,
 }
@@ -1620,6 +1988,39 @@ impl SOPClassCommonExtendedNegotiationItem {
     /// The type of this PDU, `PduType::SOPClassCommonExtendedNegotiationItem`.
     pub fn pdu_type() -> PduType {
         PduType::SOPClassCommonExtendedNegotiationItem
+    }
+
+    pub fn new(
+        sop_class_uid: Vec<u8>,
+        service_class_uid: Vec<u8>,
+        rel_gen_sop_classes: Vec<RelatedGeneralSOPClassUID>,
+    ) -> SOPClassCommonExtendedNegotiationItem {
+        let length: u16 = size_of::<u16> as u16 // sop_class_uid_length
+            + sop_class_uid.len() as u16
+            + size_of::<u16>() as u16 // service_class_uid_length
+            + service_class_uid.len() as u16
+            + size_of::<u16>() as u16 // rel_gen_sop_classes_length
+            + rel_gen_sop_classes.len() as u16;
+
+        let rel_gen_sop_classes_length: u16 = rel_gen_sop_classes
+            .iter()
+            .map(|r| r.num_bytes() as u16)
+            .sum::<u16>();
+
+        // zero-length for version 0 of this sub-item definition
+        let reserved: Vec<u8> = Vec::with_capacity(0);
+
+        SOPClassCommonExtendedNegotiationItem {
+            version: SOP_CLASS_COMMON_EXTENDED_NEGOTIATION_VERSION,
+            length,
+            sop_class_uid_length: sop_class_uid.len() as u16,
+            sop_class_uid,
+            service_class_uid_length: service_class_uid.len() as u16,
+            service_class_uid,
+            rel_gen_sop_classes_length,
+            rel_gen_sop_classes,
+            reserved,
+        }
     }
 
     /// The version of this item. The current standard version is 0.
@@ -1645,7 +2046,7 @@ impl SOPClassCommonExtendedNegotiationItem {
 
     /// The number of bytes in the Service Class UID field.
     pub fn service_class_length(&self) -> u16 {
-        self.service_class_length
+        self.service_class_uid_length
     }
 
     /// The Service Class UID field.
@@ -1656,7 +2057,7 @@ impl SOPClassCommonExtendedNegotiationItem {
     /// The number of bytes in the Related General SOP Class Identification field. May be zero if
     /// that field is not present.
     pub fn rel_gen_sop_class_length(&self) -> u16 {
-        self.rel_gen_sop_class_length
+        self.rel_gen_sop_classes_length
     }
 
     /// The Related General SOP Class Identification fields.
@@ -1671,8 +2072,8 @@ impl SOPClassCommonExtendedNegotiationItem {
         dataset.write_all(&self.length.to_be_bytes())?;
         dataset.write_all(&self.sop_class_uid_length.to_be_bytes())?;
         dataset.write_all(&self.sop_class_uid)?;
-        dataset.write_all(&self.service_class_length.to_be_bytes())?;
-        dataset.write_all(&self.rel_gen_sop_class_length.to_be_bytes())?;
+        dataset.write_all(&self.service_class_uid_length.to_be_bytes())?;
+        dataset.write_all(&self.rel_gen_sop_classes_length.to_be_bytes())?;
         for rel_gen_sop_class in &self.rel_gen_sop_classes {
             rel_gen_sop_class.write(&mut dataset)?;
         }
@@ -1734,22 +2135,31 @@ impl SOPClassCommonExtendedNegotiationItem {
             version,
             sop_class_uid_length,
             sop_class_uid,
-            service_class_length,
+            service_class_uid_length: service_class_length,
             service_class_uid,
-            rel_gen_sop_class_length,
+            rel_gen_sop_classes_length: rel_gen_sop_class_length,
             rel_gen_sop_classes,
             reserved,
         })
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RelatedGeneralSOPClassUID {
     length: u16,
     rel_gen_sop_class: Vec<u8>,
 }
 
 impl RelatedGeneralSOPClassUID {
+    pub fn new(rel_gen_sop_class: Vec<u8>) -> RelatedGeneralSOPClassUID {
+        let length: u16 = rel_gen_sop_class.len() as u16;
+
+        RelatedGeneralSOPClassUID {
+            length,
+            rel_gen_sop_class,
+        }
+    }
+
     /// The number of bytes in the Related General SOP Class UID field.
     pub fn length(&self) -> u16 {
         self.length
@@ -1758,6 +2168,10 @@ impl RelatedGeneralSOPClassUID {
     /// The Related General SOP Class UID field.
     pub fn rel_gen_sop_class(&self) -> &Vec<u8> {
         &self.rel_gen_sop_class
+    }
+
+    fn num_bytes(&self) -> usize {
+        self.rel_gen_sop_class.len()
     }
 
     pub fn write<W: Write>(&self, dataset: &mut W) -> Result<(), PduError> {
@@ -1781,6 +2195,7 @@ impl RelatedGeneralSOPClassUID {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UserIdentityItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1797,6 +2212,31 @@ impl UserIdentityItem {
     /// The type of this PDU, `PduType::UserIdentityItem`.
     pub fn pdu_type() -> PduType {
         PduType::UserIdentityItem
+    }
+
+    pub fn new(
+        identity_type: u8,
+        pos_rsp_req: u8,
+        pri_value: Vec<u8>,
+        sec_value: Vec<u8>,
+    ) -> UserIdentityItem {
+        let length: u16 = size_of::<u8>() as u16 // identity_type
+            + size_of::<u8>() as u16 // pos_rsp_req
+            + size_of::<u16>() as u16 // pri_length
+            + pri_value.len() as u16
+            + size_of::<u16>() as u16 // sec_length
+            + sec_value.len() as u16;
+
+        UserIdentityItem {
+            reserved: 0u8,
+            length,
+            identity_type,
+            pos_rsp_req,
+            pri_length: pri_value.len() as u16,
+            pri_value,
+            sec_length: sec_value.len() as u16,
+            sec_value,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the last
@@ -1894,7 +2334,7 @@ impl UserIdentityItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UserIdentityNegotiationItem {
     /// Reserved, should be zero.
     reserved: u8,
@@ -1907,6 +2347,18 @@ impl UserIdentityNegotiationItem {
     /// The type of this PDU, `PduType::UserIdentityNegotiationItem`.
     pub fn pdu_type() -> PduType {
         PduType::UserIdentityNegotiationItem
+    }
+
+    pub fn new(server_rsp: Vec<u8>) -> UserIdentityNegotiationItem {
+        let length: u16 = size_of::<u16>() as u16 // server_rsp_length
+            + server_rsp.len() as u16;
+
+        UserIdentityNegotiationItem {
+            reserved: 0u8,
+            length,
+            server_rsp_length: server_rsp.len() as u16,
+            server_rsp,
+        }
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
@@ -1960,7 +2412,87 @@ impl UserIdentityNegotiationItem {
 
 #[cfg(test)]
 mod tests {
-    use super::PduType;
+    use std::io::Cursor;
+
+    use crate::dimse::parser::PduParser;
+
+    use super::{
+        AbstractSyntaxItem, ApplicationContextItem, AssocAC, AssocACPresentationContext, AssocRQ,
+        AssocRQPresentationContext, Pdu, PduType, TransferSyntaxItem, UserInformationItem,
+    };
+
+    fn create_assoc_rq() -> AssocRQ {
+        let ae_dest: &[u8] = "AE_DEST".as_bytes();
+        let mut called_ae: Vec<u8> = vec![b' '; 16];
+        let _ = &mut called_ae[0..ae_dest.len()].copy_from_slice(ae_dest);
+
+        let ae_source = "AE_SOURCE".as_bytes();
+        let mut calling_ae: Vec<u8> = vec![b' '; 16];
+        let _ = &mut calling_ae[0..ae_source.len()].copy_from_slice(ae_source);
+
+        let app_context_name: Vec<u8> = "My Sever App Context v1.1".into();
+
+        let pres_ctxs: Vec<AssocRQPresentationContext> = vec![AssocRQPresentationContext::new(
+            4u8,
+            AbstractSyntaxItem::new("1.2.3.4".into()),
+            vec![TransferSyntaxItem::new("2.3.4.5".into())],
+        )];
+
+        let user_data: Vec<u8> = "username".into();
+        let user_info = UserInformationItem::new(user_data);
+
+        let app_ctx = ApplicationContextItem::new(app_context_name);
+        AssocRQ::new(
+            called_ae.try_into().expect("convert called_ae to array"),
+            calling_ae.try_into().expect("convert calling_ae to array"),
+            app_ctx,
+            pres_ctxs,
+            user_info,
+        )
+    }
+
+    #[test]
+    fn test_assocrq_roundtrip() {
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let assoc_rq_pdu = create_assoc_rq();
+        assoc_rq_pdu.write(&mut cursor).expect("write pdu as bytes");
+
+        // reset the position so reading from it starts at the beginning
+        cursor.set_position(0);
+
+        let mut pdu_parser = PduParser::new(cursor);
+        let pdu = pdu_parser.read_pdu().expect("unable to pdu_parser");
+        assert_eq!(pdu, Pdu::AssocRQ(assoc_rq_pdu));
+    }
+
+    #[test]
+    fn test_assocac_roundtrip() {
+        let assoc_rq_pdu = create_assoc_rq();
+        let pres_ctxs: Vec<AssocACPresentationContext> = vec![AssocACPresentationContext::new(
+            4u8,
+            0u8,
+            TransferSyntaxItem::new("2.3.4.5".into()),
+        )];
+
+        let assoc_ac_pdu = AssocAC::new(
+            assoc_rq_pdu.called_ae().to_owned(),
+            assoc_rq_pdu.calling_ae().to_owned(),
+            assoc_rq_pdu.reserved_3().to_owned(),
+            assoc_rq_pdu.app_ctx().to_owned(),
+            pres_ctxs,
+            assoc_rq_pdu.user_info().to_owned(),
+        );
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        assoc_ac_pdu.write(&mut cursor).expect("write pdu as bytes");
+
+        // reset the position so reading from it starts at the beginning
+        cursor.set_position(0);
+
+        let mut pdu_parser = PduParser::new(cursor);
+        let pdu = pdu_parser.read_pdu().expect("unable to pdu_parser");
+        assert_eq!(pdu, Pdu::AssocAC(assoc_ac_pdu));
+    }
 
     #[test]
     fn test_pdu_type_roundtrip() {
