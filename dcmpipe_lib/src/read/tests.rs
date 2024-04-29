@@ -1,4 +1,3 @@
-extern crate byteorder;
 extern crate walkdir;
 
 use self::walkdir::{DirEntry, WalkDir};
