@@ -17,11 +17,7 @@ pub struct UID {
 
 impl UID {
     pub fn new(uid: &'static str, ident: &'static str, name: &'static str) -> UID {
-        UID {
-            uid,
-            ident,
-            name,
-        }
+        UID { uid, ident, name }
     }
 
     pub fn get_ident(&self) -> &'static str {

@@ -1,16 +1,14 @@
 use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, DicomSequencePosition};
-use crate::core::dict::dicom_elements as tags;
-use crate::core::dict::file_meta_elements as fme;
-use crate::core::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
-use crate::core::dict::transfer_syntaxes as ts;
-use crate::core::tag::Tag;
-use crate::core::ts::TSRef;
-use crate::core::vl;
-use crate::core::vl::ValueLength;
-use crate::core::vr;
-use crate::core::vr::{VRRef, VR};
-use crate::read::tagstop::TagStop;
+use crate::core::tagstop::TagStop;
+use crate::defn::tag::Tag;
+use crate::defn::ts::TSRef;
+use crate::defn::vl::{self, ValueLength};
+use crate::defn::vr::{self, VRRef, VR};
+use crate::dict::dicom_elements as tags;
+use crate::dict::file_meta_elements as fme;
+use crate::dict::lookup::{TAG_BY_VALUE, TS_BY_ID};
+use crate::dict::transfer_syntaxes as ts;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use std::io::{Error, ErrorKind};
 
@@ -221,7 +219,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             let vr: VRRef = match VR::from_code(code) {
                 Some(vr) => vr,
                 None => {
-                    &crate::core::vr::UN
+                    &vr::UN
                     // TODO: Log an error but still use UN?
                     //Err(Error::new(ErrorKind::InvalidData, format!("Unable to interpret VR: {:?}", code)))
                 }
@@ -241,7 +239,7 @@ impl<StreamType: ReadBytesExt> DicomStreamParser<StreamType> {
             TAG_BY_VALUE
                 .get(&tag)
                 .and_then(|read_tag: &&Tag| read_tag.implicit_vr)
-                .or_else(|| Some(&crate::core::vr::UN))
+                .or_else(|| Some(&vr::UN))
                 // TODO: Log an error but still use UN?
                 .ok_or_else(|| {
                     Error::new(

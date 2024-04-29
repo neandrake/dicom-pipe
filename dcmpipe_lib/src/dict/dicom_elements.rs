@@ -2,9 +2,9 @@
 
 #![allow(non_upper_case_globals)]
 
-use crate::core::tag::Tag;
-use crate::core::vm::VM;
-use crate::core::vr;
+use crate::defn::tag::Tag;
+use crate::defn::vm::VM;
+use crate::defn::vr;
 
 /// Length to End
 ///
@@ -54163,4 +54163,3 @@ pub static SequenceDelimitationItem: Tag = Tag {
     vm: &VM::Distinct(1),
     desc: "Sequence Delimitation Item",
 };
-

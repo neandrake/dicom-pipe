@@ -2,7 +2,7 @@
 
 #![allow(non_upper_case_globals)]
 
-use crate::core::uid::UID;
+use crate::defn::uid::UID;
 
 /// Verification SOP Class
 ///
@@ -3983,4 +3983,3 @@ pub static UniversalCoordinatedTime: UID = UID {
     uid: "1.2.840.10008.15.1.1",
     name: "Universal Coordinated Time",
 };
-
