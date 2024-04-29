@@ -7,14 +7,16 @@ use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 
 /// The BACKSLASH used to delimit multi-value character string values, `\`
 pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
+
 /// The SPACE character used for padding
 pub const SPACE_PADDING: u8 = 0x20;
+
 /// The NULL character used for padding
 pub const NULL_PADDING: u8 = 0x00;
 
 pub type VRRef = &'static VR;
 
-/// Value Representation
+/// Value Representation Definition
 ///
 /// The Value Representation of a Data Element describes the data type and format of that Data
 /// Element's Value(s).
@@ -22,8 +24,10 @@ pub type VRRef = &'static VR;
 pub struct VR {
     /// The two-letter identifer, "AE", "IS", etc.
     pub ident: &'static str,
+
     /// A display name
     pub name: &'static str,
+
     /// The 16-bit code for this AE. In most (all?) cases this is the
     /// ASCII representation of the ident.
     pub code: u32,
@@ -59,6 +63,7 @@ pub struct VR {
     /// contain a value equal to the length (in bytes) of the Value Field.
     pub has_explicit_2byte_pad: bool,
 
+    /// Whether the value is interpreted as a character string instead of binary value.
     pub is_character_string: bool,
 
     /// Part 5, Ch 6.1.2.3:
@@ -111,6 +116,10 @@ impl fmt::Debug for VR {
 }
 
 impl VR {
+    /// Gets the VR based on the encoded VR value, or `None` if the VR is unknown.
+    ///
+    /// Note that the code is effectively the ASCII encoding of the two letters making
+    /// up the value representation identifier.
     pub fn from_code(code: u16) -> Option<VRRef> {
         match code {
             0x4145 => Some(&AE),
@@ -151,6 +160,8 @@ impl VR {
         }
     }
 
+    /// Determines the appropriate character set to decode the string value for this VR, with the
+    /// given character set specified by the DICOM dataset.
     pub fn get_proper_cs(&self, cs: CSRef) -> CSRef {
         if self.decode_text_with_replaced_cs {
             return cs;

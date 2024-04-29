@@ -1,3 +1,5 @@
+//! DICOM Element Definition and Value Parsing
+
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::iter::once;

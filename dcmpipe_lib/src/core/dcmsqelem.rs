@@ -26,11 +26,13 @@ pub struct SequenceElement {
     /// `bytes_read + value_length` during parsing. If the sequence has undefined length this is set
     /// to None.
     seq_end_pos: Option<u64>,
+
     /// See Part 5 Section 6.2.2 Note 2
     /// If a sequence is encoded with explicit VR but data dictionary defines it as SQ then we
     /// should interpret the contents of the sequence as ImplicitVRLittleEndian. SQ elements need to
     /// track what transfer syntax their contents are encoded with.
     ts: TSRef,
+
     /// See Part 5 Section 7.5.3
     /// If an encapsulated Data Set includes the Specific Character Set Attribute, it shall apply
     /// only to the encapsulated Data Set. If the Attribute Specific Character Set is not explicitly

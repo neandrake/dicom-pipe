@@ -1,4 +1,4 @@
-//! Transfer Syntax UIDs
+//! Transfer Syntax
 
 use std::hash::{Hash, Hasher};
 
@@ -6,20 +6,24 @@ use crate::defn::uid::UIDRef;
 
 pub type TSRef = &'static TransferSyntax;
 
-/// Transfer Syntax
+/// Transfer Syntax Definition
 #[derive(Debug, Eq)]
 pub struct TransferSyntax {
-    /// The UID of the Transfer Syntax
+    /// Identifier or name which can be used with a `DicomDictionary`.
     pub uid: UIDRef,
+
     /// If Native Encoding, whether this encodes with ExplicitVR or ImplicitVR. The majority of
     /// transfer syntaxes are explicit VR.
     pub explicit_vr: bool,
+
     /// If Native Encoding, whether this encodes using BigEndian or LittleEndian. The majority of
     /// transfer syntaxes are little endian.
     pub big_endian: bool,
+
     /// A few transfer syntaxes are deflated which means all contents after the file meta segment
     /// are compressed using RFC 1951, including the dicom encodings.
     pub deflated: bool,
+
     /// Encapsulated transfer syntaxes (basically anything that isn't the handful of
     /// implicit/explicit big/little endian), including all jpeg - the content of the PixelData
     /// segment is encoded in a different format from the rest of the dicom elements.
@@ -55,27 +59,33 @@ impl TransferSyntax {
         }
     }
 
+    /// Get the transfer syntax's UID.
     pub fn get_uid(&self) -> UIDRef {
         self.uid
     }
 
+    /// Indicates whether this transfer syntax uses Explicit or Implicit VR.
     pub fn is_explicit_vr(&self) -> bool {
         self.explicit_vr
     }
 
+    /// Indicates whether this transfer syntax uses big or little endian.
     pub fn is_big_endian(&self) -> bool {
         self.big_endian
     }
 
+    /// Indicates whether this transfer syntax uses compression/deflation.
     pub fn is_deflated(&self) -> bool {
         self.deflated
     }
 
+    /// Indicates whether this transfer syntax uses encapsulation (?).
     pub fn is_encapsulated(&self) -> bool {
         self.encapsulated
     }
 
-    pub fn uncompressed(&self) -> bool {
+    /// Indicates whether this transfer syntax uses standard uncompressed data encoding.
+    pub fn is_uncompressed(&self) -> bool {
         !self.deflated && !self.encapsulated
     }
 }

@@ -29,18 +29,23 @@ pub type Result<T> = core::result::Result<T, ParseError>;
 pub enum ParseState {
     /// An initial state in which we're trying to detect the transfer syntax
     DetectTransferSyntax,
+
     /// The File Preamble. This is not required for all dicom datasets but is commonly present in
     /// file media.
     Preamble,
+
     /// The DICOM prefix. This is only present if Preamble is present.
     Prefix,
+
     /// The first element of most valid dicom datasets will be the Group Length element which is
     /// always encoded as `ExplicitVRLittleEndian`. The value of this element is the number of
     /// remaining bytes in the File Meta group.
     GroupLength,
+
     /// The first set of elements of a valid dicom dataset which provide details on how the dicom is
     /// encoded. These elements are always encoded using `ExplicitVRLittleEndian`.
     FileMeta,
+
     /// The primary content of a dicom dataset. They are parsed using the transfer syntax specified
     /// in the File Meta group.
     Element,
@@ -199,19 +204,26 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// after parsing a tag number from the dataset.
     fn is_at_parse_stop(&self) -> bool {
         match &self.stop {
+            // If the entire dataset is intended to be read then never indicate to stop.
             ParseStop::EndOfDataset => false,
+
+            // Check whether the last tag parsed is >= the desired stopping tag.
             ParseStop::BeforeTag(tagpath) => ParseStop::eval_tagpath(
                 tagpath,
                 &self.current_path,
                 self.tag_last_read,
                 |(to_check, current)| current >= to_check,
             ),
+
+            // Check whether the last tag parsed is > than the desired stopping tag.
             ParseStop::AfterTag(tagpath) => ParseStop::eval_tagpath(
                 tagpath,
                 &self.current_path,
                 self.tag_last_read,
                 |(to_check, current)| current > to_check,
             ),
+
+            // Check whether the parsing has surpassed the desired stopping byte position.
             ParseStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
         }
     }
@@ -391,11 +403,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         Ok((vr, ts))
     }
 
-    /// Looks up the VR of the given tag in the current dictionary.
+    /// Looks up the implicit VR of the given tag in the current dictionary.
     fn lookup_vr(&self, tag: u32) -> Option<VRRef> {
         self.dictionary
             .get_tag_by_number(tag)
-            .and_then(|read_tag: &Tag| read_tag.implicit_vr)
+            .and_then(|read_tag: &Tag| read_tag.get_implicit_vr())
     }
 
     /// Reads a Value Length attribute from the dataset using the given transfer syntax. The number
@@ -548,7 +560,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Performs the `ParserState::DetectState` iteration.
-    /// Detects little-vs-big endian and implicit-vs-explicit endian. This strategy is not fully
+    /// Detects little-vs-big endian and implicit-vs-explicit VR. This strategy is not fully
     /// complete however it does cover a wide variety of cases. It does not cover scenarios where
     /// endian-detection could possibly succeed incorrectly however these scenarios would likely
     /// be very odd dicom cases that most other libraries are also unable to parse.

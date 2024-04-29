@@ -1,3 +1,5 @@
+//! DICOM Object, an in-memory tree-like structure representing a DICOM dataset.
+
 use std::collections::btree_map;
 use std::collections::BTreeMap;
 
@@ -11,12 +13,16 @@ use crate::defn::ts::TSRef;
 pub trait DicomNode {
     /// Get the number of child node if this is a root or sequence-like node.
     fn get_child_count(&self) -> usize;
+
     /// Get a child node with the given tag.
     fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject>;
+
     /// Iterator over the child nodes, in tag-ascending order.
     fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject>;
+
     /// Get the number of item nodes if this is a sequence-like node.
     fn get_item_count(&self) -> usize;
+
     /// Get an item of the given index. Index is 1-based.
     fn get_item_by_index(&self, index: usize) -> Option<&DicomObject>;
 

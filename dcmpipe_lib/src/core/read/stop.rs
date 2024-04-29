@@ -8,12 +8,15 @@ use crate::defn::tag::{TagNode, TagPath};
 pub enum ParseStop {
     /// The entire dataset should be parsed.
     EndOfDataset,
+
     /// Read all tag elements up to (but not including) the specified tag. The tag value is
     /// interpreted only at the root of an object and not within sequences.
     BeforeTag(TagPath),
+
     /// Read all tag elements up to (and including) the specified tag. The tag value is interpreted
     /// only at the root of an object and not within sequences.
     AfterTag(TagPath),
+
     /// Read all tag elements up to specified number of bytes have been read. If the byte position
     /// is in the middle of an element then bytes from that dataset will continue to be read until
     /// the elment is fully parsed.
@@ -44,16 +47,20 @@ impl ParseStop {
     where
         F: FnMut((u32, u32)) -> bool,
     {
-        tagpath
-            .0
+        let full_current_path = current_path
+            .iter()
+            .map(SequenceElement::get_seq_tag)
+            .chain(once(tag_last_read));
+
+        // TODO: The TagNodes need to also be evaluated for their item number, so if a tag path to
+        //       stop at indicates not to exceed a certain item number then that can be enforced.
+        //       As it's currently implemented the entire sequence will be parsed regardless of
+        //       desired item number stopping point.
+
+        tagpath.0
             .iter()
             .map(TagNode::get_tag)
-            .zip(
-                current_path
-                    .iter()
-                    .map(SequenceElement::get_seq_tag)
-                    .chain(once(tag_last_read)),
-            )
+            .zip(full_current_path)
             .any(f)
     }
 }

@@ -1,3 +1,5 @@
+//! Character Sets
+
 use encoding::all::{self, WINDOWS_1252};
 use encoding::EncodingRef;
 

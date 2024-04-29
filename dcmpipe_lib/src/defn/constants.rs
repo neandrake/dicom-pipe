@@ -1,6 +1,6 @@
-//! This module is for defining the bare minimum constant values needed for parsing DICOM.
+//! This module defines the minimal constant values necessary for parsing DICOM.
 
-/// The tags necessary for parsing a DICOM dataset.
+/// The minimal set of tags needed when parsing a DICOM dataset.
 pub mod tags {
     pub const FILE_META_INFORMATION_GROUP_LENGTH: u32 = 0x0002_0000;
     pub const TRANSFER_SYNTAX_UID: u32 = 0x0002_0010;
@@ -20,7 +20,7 @@ pub mod tags {
     pub const ITEM_DELIMITATION_ITEM: u32 = 0xFFFE_E00D;
 }
 
-/// The transfer syntaxes needed for parsing a DICOM dataset.
+/// The minimal set of transfer syntaxes needed when parsing a DICOM dataset.
 pub mod ts {
     #![allow(non_upper_case_globals)]
 
@@ -82,7 +82,7 @@ pub mod ts {
     };
 }
 
-/// The UIDs needed for parsing a DICOM dataset.
+/// The minimal set of UIDs needed when parsing a DICOM dataset.
 pub mod uids {
     #![allow(non_upper_case_globals)]
 
@@ -150,13 +150,18 @@ pub mod lookup {
     use super::uids;
 
     /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
-    /// minimal set of `get_ts_by_uid`. All other functions return `None`.
+    /// minimal set of `get_ts_by_uid`, all other functions return `None`.
     pub static MINIMAL_DICOM_DICTIONARY: MinimalDicomDictionary = MinimalDicomDictionary {};
 
     /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
-    /// minimal set of `get_ts_by_uid`. All other functions return `None`.
+    /// minimal set of `get_ts_by_uid`, all other functions return `None`.
     pub struct MinimalDicomDictionary {}
     impl DicomDictionary for MinimalDicomDictionary {
+
+        fn get_ts_by_name(&self, _name: &str) -> Option<TSRef> {
+            None
+        }
+
         fn get_ts_by_uid(&self, uid: &str) -> Option<TSRef> {
             if uid == uids::ImplicitVRLittleEndian.uid {
                 Some(&ts::ImplicitVRLittleEndian)
@@ -171,7 +176,7 @@ pub mod lookup {
             }
         }
 
-        fn get_ts_by_name(&self, _name: &str) -> Option<TSRef> {
+        fn get_tag_by_name(&self, _name: &str) -> Option<TagRef> {
             None
         }
 
@@ -179,15 +184,12 @@ pub mod lookup {
             None
         }
 
-        fn get_tag_by_name(&self, _name: &str) -> Option<TagRef> {
+
+        fn get_uid_by_name(&self, _name: &str) -> Option<UIDRef> {
             None
         }
 
         fn get_uid_by_uid(&self, _uid: &str) -> Option<UIDRef> {
-            None
-        }
-
-        fn get_uid_by_name(&self, _name: &str) -> Option<UIDRef> {
             None
         }
     }

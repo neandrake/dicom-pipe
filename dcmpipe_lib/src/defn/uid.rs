@@ -1,33 +1,42 @@
-//! Unique Identifiers
+//! Unique Identifier
 
 use std::hash::{Hash, Hasher};
 
 pub type UIDRef = &'static UID;
 
-/// Unique Identifiers
+/// Unique Identifier Definition
 #[derive(Debug, Eq)]
 pub struct UID {
-    /// Some identifier or name, useful for lookup (no spaces - matches definition/name in code)
+    /// Identifier or name which can be used with a `DicomDictionary`.
     pub ident: &'static str,
-    /// The UID string code
+
+    /// The string representation of the UID.
     pub uid: &'static str,
-    /// Some descriptive name
+
+    /// A longer name or description of the UID.
     pub name: &'static str,
 }
 
 impl UID {
     pub fn new(uid: &'static str, ident: &'static str, name: &'static str) -> UID {
-        UID { ident, uid, name }
+        UID {
+            ident,
+            uid,
+            name
+        }
     }
 
+    /// Get the identifier or name for this UID.
     pub fn get_ident(&self) -> &'static str {
         self.ident
     }
 
+    /// Get the string representation of the UID.
     pub fn get_uid(&self) -> &'static str {
         self.uid
     }
 
+    /// Get the longer name or description of this UID.
     pub fn get_name(&self) -> &'static str {
         self.name
     }

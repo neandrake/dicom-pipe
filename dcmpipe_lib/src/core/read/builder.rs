@@ -1,3 +1,5 @@
+//! Configurable builder to create a DICOM parser.
+
 use std::io::Read;
 
 use super::parser::ParseState;
@@ -13,10 +15,13 @@ use crate::defn::dcmdict::DicomDictionary;
 pub struct ParserBuilder<'dict> {
     /// Initial parse state. Default is `ParseState::DetectState`.
     state: Option<ParseState>,
+
     /// When to stop parsing the dataset. Default is `ParseStop::EndOfDataset`.
     stop: Option<ParseStop>,
+
     /// The `DicomDictionary` to be used when parsing elements. Default is `MinimalDicomDictionary`.
     dictionary: &'dict dyn DicomDictionary,
+
     /// The dataset will be wrapped in a `BufReader`, this lets the buffere size be set.
     buffsize: usize,
 }
