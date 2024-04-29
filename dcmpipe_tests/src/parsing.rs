@@ -1287,7 +1287,8 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bo
         ))
         .build(File::open(file)?);
 
-    let dcmroot: DicomRoot<'_> = DicomRoot::parse_into_object(&mut parser)?.expect("Parse into object");
+    let dcmroot: DicomRoot<'_> =
+        DicomRoot::parse_into_object(&mut parser)?.expect("Parse into object");
     let sis_obj: &DicomObject = dcmroot
         .get_child_by_tagnode(&(&tags::SourceImageSequence).into())
         .expect("Parse SourceImageSequence");
