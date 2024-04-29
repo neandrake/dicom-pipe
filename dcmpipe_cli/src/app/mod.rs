@@ -45,7 +45,7 @@ fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, File
     Ok(parser)
 }
 
-pub(crate) enum TagName {
+pub(crate) enum TagCategory {
     Known(u32, String),
     PrivateCreator(u32),
     PrivateSequence(u32),
@@ -55,36 +55,36 @@ pub(crate) enum TagName {
     Unknown(u32),
 }
 
-impl From<&DicomElement> for TagName {
+impl From<&DicomElement> for TagCategory {
     fn from(element: &DicomElement) -> Self {
         if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
-            TagName::Known(tag.tag, tag.ident.to_string())
+            TagCategory::Known(tag.tag, tag.ident.to_string())
         } else if Tag::is_private_creator(element.get_tag()) {
-            TagName::PrivateCreator(element.get_tag())
+            TagCategory::PrivateCreator(element.get_tag())
         } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
-            TagName::PrivateSequence(element.get_tag())
+            TagCategory::PrivateSequence(element.get_tag())
         } else if Tag::is_private_group_length(element.get_tag()) {
-            TagName::PrivateGroupLength(element.get_tag())
+            TagCategory::PrivateGroupLength(element.get_tag())
         } else if Tag::is_private(element.get_tag()) {
-            TagName::Private(element.get_tag())
+            TagCategory::Private(element.get_tag())
         } else if Tag::is_group_length(element.get_tag()) {
-            TagName::GroupLength(element.get_tag())
+            TagCategory::GroupLength(element.get_tag())
         } else {
-            TagName::Unknown(element.get_tag())
+            TagCategory::Unknown(element.get_tag())
         }
     }
 }
 
-impl fmt::Display for TagName {
+impl fmt::Display for TagCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TagName::Known(_, display) => write!(f, "{}", display),
-            TagName::PrivateCreator(_) => write!(f, "<PrivateCreator>"),
-            TagName::PrivateSequence(_) => write!(f, "<PrivateSequence>"),
-            TagName::PrivateGroupLength(_) => write!(f, "<PrivateGroupLength>"),
-            TagName::Private(_) => write!(f, "<PrivateTag>"),
-            TagName::GroupLength(_) => write!(f, "<GroupLength>"),
-            TagName::Unknown(_) => write!(f, "<UnknownTag>"),
+            TagCategory::Known(_, display) => write!(f, "{}", display),
+            TagCategory::PrivateCreator(_) => write!(f, "<PrivateCreator>"),
+            TagCategory::PrivateSequence(_) => write!(f, "<PrivateSequence>"),
+            TagCategory::PrivateGroupLength(_) => write!(f, "<PrivateGroupLength>"),
+            TagCategory::Private(_) => write!(f, "<PrivateTag>"),
+            TagCategory::GroupLength(_) => write!(f, "<GroupLength>"),
+            TagCategory::Unknown(_) => write!(f, "<UnknownTag>"),
         }
     }
 }

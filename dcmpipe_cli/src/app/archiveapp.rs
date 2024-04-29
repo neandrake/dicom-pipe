@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use crate::{app::CommandApplication, args::ArchiveArgs};
 
@@ -14,8 +14,10 @@ impl ArchiveApp {
 
 impl CommandApplication for ArchiveApp {
     fn run(&mut self) -> Result<()> {
-        // use fields to stop getting dead code warnings
-        format!("{:?}, {:?}", self.args.source, self.args.destination);
-        unimplemented!()
+        Err(anyhow!(
+            "Archive is not implemented for source: {:?}, destination: {:?}",
+            self.args.source,
+            self.args.destination
+        ))
     }
 }

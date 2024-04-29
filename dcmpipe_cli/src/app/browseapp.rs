@@ -1,3 +1,5 @@
+//! The browse command opens a TUI for navigating through a DICOM data set.
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{stdout, Stdout};
@@ -31,7 +33,7 @@ use ratatui::{Frame, Terminal};
 use crate::app::CommandApplication;
 use crate::args::BrowseArgs;
 
-use super::{ElementWithLineFmt, TagName, TagValue};
+use super::{ElementWithLineFmt, TagCategory, TagValue};
 
 pub struct BrowseApp {
     args: BrowseArgs,
@@ -177,7 +179,7 @@ impl<'model> DicomNodeModel<'model> {
             map.extend(child_map);
         }
 
-        let tag_render: TagName = child.as_element().into();
+        let tag_render: TagCategory = child.as_element().into();
         let elem_name = tag_render.to_string();
         let name_len = elem_name.len() as u16;
         let elem_value: TagValue = ElementWithLineFmt(child.as_element(), false).into();
@@ -200,7 +202,7 @@ impl<'model> DicomNodeModel<'model> {
         );
 
         match tag_render {
-            TagName::Known(_, _) => {
+            TagCategory::Known(_, _) => {
                 cells.push(Cell::from(elem_name));
             }
             _ => {

@@ -1,3 +1,6 @@
+//! The print command renders the contents of a DICOM dataset to stdout, in a format similar to the
+//! dcmdump tool.
+
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -17,7 +20,7 @@ use dcmpipe_lib::defn::vr;
 use crate::app::{parse_file, CommandApplication};
 use crate::args::PrintArgs;
 
-use super::{ElementWithLineFmt, TagName, TagValue};
+use super::{ElementWithLineFmt, TagCategory, TagValue};
 
 static HIDE_GROUP_TAGS: bool = false;
 static HIDE_DELIMITATION_TAGS: bool = false;
@@ -105,7 +108,7 @@ fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
     }
 
     let tag_num: String = Tag::format_tag_to_display(element.get_tag());
-    let tag_name: TagName = element.into();
+    let tag_name: TagCategory = element.into();
     let vr: &str = element.get_vr().ident;
 
     let vl: String = match element.get_vl() {
