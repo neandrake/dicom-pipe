@@ -29,7 +29,7 @@ pub type ParseResult<T> = core::result::Result<T, ParseError>;
 
 /// The different parsing behaviors of the dataset.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub enum ParseState {
+pub enum ParserState {
     /// An initial state in which we're trying to detect the transfer syntax
     DetectTransferSyntax,
 
@@ -60,7 +60,7 @@ pub struct Parser<'dict, DatasetType: Read> {
     pub(super) dataset: Dataset<DatasetType>,
 
     /// The current state of reading elements from the dataset.
-    pub(super) state: ParseState,
+    pub(super) state: ParserState,
 
     /// Configurations that modify how the parser behaves.
     pub(super) behavior: ParseBehavior,
@@ -186,7 +186,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Get the current state of the parser.
-    pub fn parser_state(&self) -> ParseState {
+    pub fn parser_state(&self) -> ParserState {
         self.state
     }
 
@@ -356,21 +356,21 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // states which will eventually return a dicom element.
         loop {
             match self.state {
-                ParseState::DetectTransferSyntax => {
+                ParserState::DetectTransferSyntax => {
                     self.iterate_detect_state()?;
                 }
-                ParseState::Preamble => {
+                ParserState::Preamble => {
                     self.iterate_preamble()?;
                 }
-                ParseState::Prefix => {
+                ParserState::Prefix => {
                     self.iterate_prefix()?;
                 }
-                ParseState::GroupLength => {
+                ParserState::GroupLength => {
                     return match self.iterate_group_length()? {
                         None => {
                             // if none is returned and the state changed then let the iterator go to the
                             // next state -- it's likely group length wasn't read but another tag was
-                            if self.state != ParseState::GroupLength {
+                            if self.state != ParserState::GroupLength {
                                 continue;
                             }
                             Ok(None)
@@ -378,12 +378,12 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                         Some(element) => Ok(Some(element)),
                     };
                 }
-                ParseState::FileMeta => {
+                ParserState::FileMeta => {
                     return match self.iterate_file_meta()? {
                         None => {
                             // if none is returned and the state changed then let the iterator go to the
                             // next state -- it's likely file meta wasn't read but another tag was
-                            if self.state != ParseState::FileMeta {
+                            if self.state != ParserState::FileMeta {
                                 continue;
                             }
                             Ok(None)
@@ -391,7 +391,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                         Some(element) => Ok(Some(element)),
                     };
                 }
-                ParseState::Element => {
+                ParserState::Element => {
                     return self.iterate_element();
                 }
             }

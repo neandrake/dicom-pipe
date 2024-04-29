@@ -16,7 +16,7 @@ use std::io::{Cursor, Read};
 use crate::{
     core::read::{
         self,
-        parser::{ParseError, ParseResult, ParseState, Parser, FILE_PREAMBLE_LENGTH},
+        parser::{ParseError, ParseResult, ParserState, Parser, FILE_PREAMBLE_LENGTH},
     },
     defn::{
         constants::{tags, ts},
@@ -86,7 +86,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 self.detected_ts = &ts::ImplicitVRLittleEndian;
                 self.partial_tag = Some(tag);
                 self.bytes_read += bytes_read as u64;
-                self.state = ParseState::Element;
+                self.state = ParserState::Element;
                 return Ok(());
             }
 
@@ -96,7 +96,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.bytes_read += file_preamble.len() as u64;
             self.file_preamble = Some(file_preamble);
             self.iterate_prefix()?;
-            self.state = ParseState::DetectTransferSyntax;
+            self.state = ParserState::DetectTransferSyntax;
             return Ok(());
         } else if !(tags::FILE_META_INFORMATION_GROUP_LENGTH..=tags::SOP_INSTANCE_UID)
             .contains(&tag)
@@ -112,7 +112,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     self.detected_ts = &ts::ImplicitVRLittleEndian;
                     self.partial_tag = Some(tag);
                     self.bytes_read += bytes_read as u64;
-                    self.state = ParseState::Element;
+                    self.state = ParserState::Element;
                     return Ok(());
                 }
 
@@ -122,7 +122,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 self.bytes_read += file_preamble.len() as u64;
                 self.file_preamble = Some(file_preamble);
                 self.iterate_prefix()?;
-                self.state = ParseState::DetectTransferSyntax;
+                self.state = ParserState::DetectTransferSyntax;
                 return Ok(());
             }
         }
@@ -144,7 +144,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.detected_ts = &ts::ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
             self.bytes_read += bytes_read as u64;
-            self.state = ParseState::Element;
+            self.state = ParserState::Element;
             return Ok(());
         }
 
@@ -222,12 +222,12 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 // this is implicit we skip to Element which will follow self.ts
                 if tag < tags::FILE_META_GROUP_END {
                     if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
-                        self.state = ParseState::GroupLength;
+                        self.state = ParserState::GroupLength;
                     } else {
-                        self.state = ParseState::FileMeta;
+                        self.state = ParserState::FileMeta;
                     }
                 } else {
-                    self.state = ParseState::Element;
+                    self.state = ParserState::Element;
                 }
                 return Ok(());
             }
@@ -238,7 +238,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.partial_tag = Some(tag);
             self.partial_vl = Some(vl);
             self.bytes_read += bytes_read as u64;
-            self.state = ParseState::Element;
+            self.state = ParserState::Element;
             return Ok(());
         }
 
@@ -251,7 +251,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         self.partial_vr = None;
         self.partial_vl = None;
         self.iterate_prefix()?;
-        self.state = ParseState::DetectTransferSyntax;
+        self.state = ParserState::DetectTransferSyntax;
         Ok(())
     }
 }

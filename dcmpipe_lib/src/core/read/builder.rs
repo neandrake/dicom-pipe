@@ -3,7 +3,7 @@
 use std::io::Read;
 
 use super::behavior::ParseBehavior;
-use super::parser::ParseState;
+use super::parser::ParserState;
 use super::parser::Parser;
 use crate::core::charset::DEFAULT_CHARACTER_SET;
 use crate::core::read::ds::dataset::Dataset;
@@ -13,10 +13,10 @@ use crate::defn::constants::ts;
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::ts::TSRef;
 
-/// A builder for constructing `Parser` with common default states.
+/// A builder for constructing a `Parser`.
 pub struct ParserBuilder<'dict> {
     /// Initial parse state. Default is `ParseState::DetectTransferSyntax`.
-    state: Option<ParseState>,
+    state: Option<ParserState>,
 
     // Configure behavior during parsing.
     behavior: ParseBehavior,
@@ -34,7 +34,7 @@ pub struct ParserBuilder<'dict> {
 
 impl<'dict> ParserBuilder<'dict> {
     /// Sets the initial `ParseState` indicating how to start parsing the dataset.
-    pub fn state(mut self, state: ParseState) -> Self {
+    pub fn state(mut self, state: ParserState) -> Self {
         self.state = Some(state);
         self
     }
@@ -73,13 +73,13 @@ impl<'dict> ParserBuilder<'dict> {
         self
     }
 
-    /// Constructs the parser from this builder.
+    /// Constructs a `Parser` from this builder.
     pub fn build<DatasetType: Read>(&self, dataset: DatasetType) -> Parser<'dict, DatasetType> {
         Parser {
             dataset: Dataset::new(dataset, self.buffsize),
             behavior: self.behavior.clone(),
             dictionary: self.dictionary,
-            state: self.state.unwrap_or(ParseState::DetectTransferSyntax),
+            state: self.state.unwrap_or(ParserState::DetectTransferSyntax),
 
             bytes_read: 0,
             file_preamble: None,

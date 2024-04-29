@@ -1,5 +1,6 @@
 use std::{fs::File, io::Read, path::PathBuf};
 
+use dcmpipe_lib::core::write::builder::WriterBuilder;
 use dcmpipe_lib::dict::{
     stdlookup::STANDARD_DICOM_DICTIONARY, tags, transfer_syntaxes as ts, uids,
 };
@@ -21,8 +22,7 @@ use crate::mockdata;
 /// as `mockdata::STANDARD_HEADER`.
 #[test]
 fn test_write_mock_standard_header() -> Result<(), WriteError> {
-    let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
-    writer.set_ts(&ts::ExplicitVRLittleEndian);
+    let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file().ts(&ts::ExplicitVRLittleEndian).build(Vec::new());
 
     let mut elements: Vec<DicomElement> = Vec::new();
 
@@ -92,8 +92,7 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
 
     let dcmroot = DicomRoot::parse(&mut parser)?.expect("Parse file into DicomObject");
 
-    let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
-    writer.set_ts(parser.ts());
+    let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file().ts(parser.ts()).build(Vec::new());
     writer.write_dcmroot(&dcmroot)?;
     let written_bytes: Vec<u8> = writer.into_dataset()?;
 
@@ -138,7 +137,7 @@ pub fn test_write_reencoded_values() -> Result<(), WriteError> {
         elements.push(elem);
     }
 
-    let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
+    let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file().build(Vec::new());
     writer.write_elements(elements.iter())?;
     let written_bytes = writer.into_dataset()?;
 

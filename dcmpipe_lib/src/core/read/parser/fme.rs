@@ -10,7 +10,7 @@ use crate::{
     core::{
         dcmelement::DicomElement,
         read::parser::{
-            ParseError, ParseResult, ParseState, Parser, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
+            ParseError, ParseResult, ParserState, Parser, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
             FILE_PREAMBLE_LENGTH,
         },
     },
@@ -24,7 +24,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         self.dataset.read_exact(&mut file_preamble)?;
         self.bytes_read += file_preamble.len() as u64;
         self.file_preamble = Some(file_preamble);
-        self.state = ParseState::Prefix;
+        self.state = ParserState::Prefix;
         Ok(())
     }
 
@@ -39,7 +39,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             }
         }
         self.dicom_prefix = Some(dicom_prefix);
-        self.state = ParseState::GroupLength;
+        self.state = ParserState::GroupLength;
         Ok(())
     }
 
@@ -55,9 +55,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
             if tag > tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
-                self.state = ParseState::FileMeta;
+                self.state = ParserState::FileMeta;
             } else {
-                self.state = ParseState::Element;
+                self.state = ParserState::Element;
             }
             return Ok(None);
         }
@@ -65,7 +65,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let grouplength: DicomElement = self.read_dicom_element(tag, ts)?;
         self.fmi_grouplength = u32::try_from(&grouplength)?;
         self.fmi_start = self.bytes_read;
-        self.state = ParseState::FileMeta;
+        self.state = ParserState::FileMeta;
         // reset partial_tag to None
         self.partial_tag.take();
 
@@ -82,9 +82,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             // if we never read a transfer syntax in the file-meta then jump back to detecting the
             // transfer syntax of the main dataset.
             self.state = if self.dataset_ts.is_some() {
-                ParseState::Element
+                ParserState::Element
             } else {
-                ParseState::DetectTransferSyntax
+                ParserState::DetectTransferSyntax
             };
             return Ok(None);
         }
@@ -118,9 +118,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             // the dictionary used for parsing then flip to DetectState so the implicit vs. explicit
             // can be detected since it's likely to change after file-meta.
             self.state = if self.dataset_ts.is_some() {
-                ParseState::Element
+                ParserState::Element
             } else {
-                ParseState::DetectTransferSyntax
+                ParserState::DetectTransferSyntax
             };
         }
 

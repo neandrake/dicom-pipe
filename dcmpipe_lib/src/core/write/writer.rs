@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::{
     core::{
-        charset::{CSRef, DEFAULT_CHARACTER_SET},
+        charset::CSRef,
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
         read::ParseError,
@@ -21,7 +21,7 @@ use crate::{
 pub type WriteResult<T> = core::result::Result<T, WriteError>;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub enum WriteState {
+pub enum WriterState {
     Preamble,
     GroupLength,
     FileMeta,
@@ -31,7 +31,7 @@ pub enum WriteState {
 pub struct Writer<DatasetType: Write> {
     pub(crate) dataset: Dataset<DatasetType>,
 
-    pub(crate) state: WriteState,
+    pub(crate) state: WriterState,
 
     pub(crate) bytes_written: u64,
 
@@ -46,25 +46,13 @@ pub struct Writer<DatasetType: Write> {
 }
 
 impl<DatasetType: Write> Writer<DatasetType> {
-    /// Create a writer destined to a file, using default file preamble.
-    pub fn to_file(dataset: DatasetType) -> Writer<DatasetType> {
-        Writer {
-            dataset: Dataset::new(dataset, 8 * 1024),
-            state: WriteState::Preamble,
-            bytes_written: 0,
-            ts: &ts::ExplicitVRLittleEndian,
-            cs: DEFAULT_CHARACTER_SET,
-            file_preamble: Some([0u8; FILE_PREAMBLE_LENGTH]),
-        }
-    }
-
     /// Get the number of bytes read from the dataset.
     pub fn bytes_written(&self) -> u64 {
         self.bytes_written
     }
 
     /// Get the current state of the parser.
-    pub fn write_state(&self) -> WriteState {
+    pub fn write_state(&self) -> WriterState {
         self.state
     }
 
@@ -76,16 +64,6 @@ impl<DatasetType: Write> Writer<DatasetType> {
     /// Get the character set string values are encoded in.
     pub fn cs(&self) -> CSRef {
         self.cs
-    }
-
-    pub fn set_ts(&mut self, ts: TSRef) -> &Self {
-        self.ts = ts;
-        self
-    }
-
-    pub fn set_cs(&mut self, cs: CSRef) -> &Self {
-        self.cs = cs;
-        self
     }
 
     /// Creates a new `DicomElement` with the given value encoded with the given VR.
@@ -120,19 +98,19 @@ impl<DatasetType: Write> Writer<DatasetType> {
     {
         let mut bytes_written: usize = 0;
 
-        if self.state == WriteState::Preamble {
+        if self.state == WriterState::Preamble {
             if let Some(preamble) = self.file_preamble {
                 bytes_written += self.dataset.write(&preamble)?;
             }
             bytes_written += self.dataset.write(DICOM_PREFIX)?;
-            self.state = WriteState::FileMeta;
+            self.state = WriterState::FileMeta;
         }
 
         let mut fm_elements: Vec<&DicomElement> = Vec::new();
         for element in elements {
             // Collect all the FileMeta elements to write them in one go, as their total byte
             // length is needed for the first element, FileMetaInformationGroupLength.
-            if self.state == WriteState::FileMeta {
+            if self.state == WriterState::FileMeta {
                 if element.tag() <= tags::FILE_META_GROUP_END {
                     // Ignore FileMetaInformationGroupLength in place of one made below.
                     if element.tag() != tags::FILE_META_INFORMATION_GROUP_LENGTH {
@@ -148,7 +126,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
                 // Flip state to write standard elements, and fall-through. In the condition for
                 // getting to this state the `element` value is non-FileMeta and hasn't been
                 // written out yet.
-                self.state = WriteState::Element;
+                self.state = WriterState::Element;
             }
 
             bytes_written += Writer::write_element(&mut self.dataset, element)?;
@@ -156,7 +134,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
         // If the input elements only consist of FileMeta elements then the above loop will never
         // result in writing any elements as they're being collected into `fm_elements`.
-        if self.state == WriteState::FileMeta && !fm_elements.is_empty() {
+        if self.state == WriterState::FileMeta && !fm_elements.is_empty() {
             bytes_written += self.write_fm_elements(fm_elements.as_slice())?;
         }
 

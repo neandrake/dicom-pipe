@@ -1,7 +1,7 @@
 pub use builder::ParserBuilder;
 pub use error::ParseError;
 pub use parser::ParseResult;
-pub use parser::ParseState;
+pub use parser::ParserState;
 pub use parser::Parser;
 
 mod ds;

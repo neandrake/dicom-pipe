@@ -5,7 +5,7 @@ use std::io::{Cursor, ErrorKind};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
-use dcmpipe_lib::core::read::{ParseError, ParseResult, ParseState, Parser, ParserBuilder};
+use dcmpipe_lib::core::read::{ParseError, ParseResult, ParserState, Parser, ParserBuilder};
 use dcmpipe_lib::core::values::{ElementWithVr, RawValue};
 use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
@@ -154,7 +154,7 @@ fn test_parser_state(with_std: bool) -> ParseResult<()> {
     }
     let mut parser: Parser<'_, File> = parser.build(file);
 
-    assert_eq!(ParseState::DetectTransferSyntax, parser.parser_state());
+    assert_eq!(ParserState::DetectTransferSyntax, parser.parser_state());
 
     let first_elem: DicomElement = parser.next().expect("First element should be Some")?;
 
@@ -163,13 +163,13 @@ fn test_parser_state(with_std: bool) -> ParseResult<()> {
         first_elem.tag(),
     );
 
-    assert_eq!(ParseState::FileMeta, parser.parser_state());
+    assert_eq!(ParserState::FileMeta, parser.parser_state());
 
     while let Some(_) = parser.next() {
         // read through the entire dataset
     }
 
-    assert_eq!(ParseState::Element, parser.parser_state());
+    assert_eq!(ParserState::Element, parser.parser_state());
 
     // Ability to read dicom elements after FileMetaInformation
     // means that we interpret the transfer syntax properly, as
@@ -579,7 +579,7 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> ParseResult<()> {
     // Initialize the parser to start with Element rather than file-stuff, specifying IVRLE since
     // the contents _must_ be encoded that way in a sequence.
     let mut parser = ParserBuilder::default()
-        .state(ParseState::Element)
+        .state(ParserState::Element)
         .dataset_ts(&ts::ImplicitVRLittleEndian)
         .build(Cursor::new(data));
 
@@ -636,7 +636,7 @@ fn test_missing_preamble(with_std: bool) -> ParseResult<()> {
     // first tag is a group length tag
     assert_eq!(0x0008_0000, first_elem.tag());
     // should immediately jump past preamble/prefix, group length, and file meta
-    assert_eq!(ParseState::Element, parser.parser_state());
+    assert_eq!(ParserState::Element, parser.parser_state());
     assert_eq!(&ts::ImplicitVRLittleEndian, parser.ts());
 
     assert!(parser.file_preamble().is_none());
