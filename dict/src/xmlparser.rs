@@ -1,35 +1,10 @@
 use quick_xml::Error as XmlError;
-use quick_xml::events::attributes::Attribute;
 use quick_xml::events::{BytesText, Event};
 use quick_xml::Reader;
-use std::borrow::Cow;
+
 use std::io::BufRead;
 
 pub type XmlDicomDefinitionResult = Result<XmlDicomDefinition, XmlError>;
-
-/// Registry of DICOM Data Elements
-static DICOM_DATA_ELEMENTS_TABLE_ATTR: Attribute = Attribute {
-    key: b"xml:id",
-    value: Cow::Borrowed(b"table_6-1"),
-};
-
-/// Registry of DICOM File Meta Elements
-static DICOM_FILE_META_ELEMENTS_TABLE_ATTR: Attribute = Attribute {
-    key: b"xml:id",
-    value: Cow::Borrowed(b"table_7-1"),
-};
-
-/// Registry of DICOM Directory Structuring Elements
-static DICOM_DIRECTORY_STRUCTURING_ELEMENTS_TABLE_ATTR: Attribute = Attribute {
-    key: b"xml:id",
-    value: Cow::Borrowed(b"table_8-1"),
-};
-
-/// UID Values
-static DICOM_UID_VALUES_TABLE_ATTR: Attribute = Attribute {
-    key: b"xml:id",
-    value: Cow::Borrowed(b"table_A-1"),
-};
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum XmlDicomDefinition {
@@ -179,44 +154,37 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
 
     fn next(&mut self) -> Option<XmlDicomDefinitionResult> {
         loop {
+            // TODO: Move buffer into a reusable field that gets cleared before each use here.
+            // Currently unsure how to do this because it causes borrow problems.
             let mut buf: Vec<u8> = Vec::new();
-            let res = self.parser.read_event(&mut buf);
+            let res: Result<Event, XmlError> = self.parser.read_event(&mut buf);
             match res {
                 Ok(Event::Start(ref e)) => {
-                    let local_name = e.local_name();
+                    let local_name: &[u8] = e.local_name();
                     match self.state {
                         XmlDicomReadingState::Off => if local_name == b"table" {
-                            match e.attributes().find(|attr| attr.is_err() || attr.as_ref().unwrap() == &DICOM_DATA_ELEMENTS_TABLE_ATTR) {
-                                Some(Ok(_)) => {
-                                    self.table = XmlDicomDefinitionTable::DicomElements;
-                                    self.state = XmlDicomReadingState::InTableHead;
-                                },
-                                Some(Err(err)) => return Some(Err(err)),
-                                None => {}
-                            }
-                            match e.attributes().find(|attr| attr.is_err() || attr.as_ref().unwrap() == &DICOM_FILE_META_ELEMENTS_TABLE_ATTR) {
-                                Some(Ok(_)) => {
-                                    self.table = XmlDicomDefinitionTable::FileMetaElements;
-                                    self.state = XmlDicomReadingState::InTableHead;
-                                },
-                                Some(Err(err)) => return Some(Err(err)),
-                                None => {}
-                            }
-                            match e.attributes().find(|attr| attr.is_err() || attr.as_ref().unwrap() == &DICOM_DIRECTORY_STRUCTURING_ELEMENTS_TABLE_ATTR) {
-                                Some(Ok(_)) => {
-                                    self.table = XmlDicomDefinitionTable::DirStructureElements;
-                                    self.state = XmlDicomReadingState::InTableHead;
-                                },
-                                Some(Err(err)) => return Some(Err(err)),
-                                None => {}
-                            }
-                            match e.attributes().find(|attr| attr.is_err() || attr.as_ref().unwrap() == &DICOM_UID_VALUES_TABLE_ATTR) {
-                                Some(Ok(_)) => {
-                                    self.table = XmlDicomDefinitionTable::Uids;
-                                    self.state = XmlDicomReadingState::InTableHead;
-                                },
-                                Some(Err(err)) => return Some(Err(err)),
-                                None => {}
+                            if let Some(xml_id_attr) = e.attributes()
+                                .find(|attr| !attr.is_err() && attr.as_ref().unwrap().key == b"xml:id")
+                                .map(|attr| attr.unwrap()) {
+                                match xml_id_attr.value.as_ref() {
+                                    b"table_6-1" => {
+                                        self.table = XmlDicomDefinitionTable::DicomElements;
+                                        self.state = XmlDicomReadingState::InTableHead;
+                                    },
+                                    b"table_7-1" => {
+                                        self.table = XmlDicomDefinitionTable::FileMetaElements;
+                                        self.state = XmlDicomReadingState::InTableHead;
+                                    },
+                                    b"table_8-1" => {
+                                        self.table = XmlDicomDefinitionTable::DirStructureElements;
+                                        self.state = XmlDicomReadingState::InTableHead;
+                                    },
+                                    b"table_A-1" => {
+                                        self.table = XmlDicomDefinitionTable::Uids;
+                                        self.state = XmlDicomReadingState::InTableHead;
+                                    }
+                                    _ => {}
+                                }
                             }
                         },
                         XmlDicomReadingState::InTableHead => {
@@ -273,7 +241,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                     keyword: self.element_keyword.take().unwrap(),
                                     vr: self.element_vr.take().unwrap(),
                                     vm: self.element_vm.take().unwrap(),
-                                    obs: self.element_obs.clone(),
+                                    obs: self.element_obs.take(),
                                 };
 
                                 self.clear_next();
@@ -289,8 +257,8 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                 let out = XmlDicomUid {
                                     value: self.uid_value.take().unwrap(),
                                     name: self.uid_name.take().unwrap(),
-                                    uid_type: self.uid_type.clone(),
-                                    part: self.uid_part.clone(),
+                                    uid_type: self.uid_type.take(),
+                                    part: self.uid_part.take(),
                                 };
 
                                 self.clear_next();
@@ -298,6 +266,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
 
                                 match self.table {
                                     XmlDicomDefinitionTable::Uids => {
+                                        // TODO: Is a clone necessary here?
                                         let type_clone: Option<String> = out.uid_type.clone();
                                         if type_clone.filter(|v| v == "Transfer Syntax").is_some() {
                                             return Some(Ok(XmlDicomDefinition::TransferSyntax(out)));

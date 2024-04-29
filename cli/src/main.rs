@@ -1,21 +1,23 @@
-extern crate dcmpipe;
-extern crate walkdir;
+extern crate dcmpipe_lib;
 
-use dcmpipe::core::dict::dicom_elements as tags;
-use dcmpipe::core::tag::TagRef;
+use dcmpipe_lib::core::dict::dicom_elements as tags;
+use dcmpipe_lib::core::tag::TagRef;
+use dcmpipe_lib::read::dcmstream::{DicomStream};
+use dcmpipe_lib::read::tagstop::TagStop;
 
-use dcmpipe::read::dcmstream::{DicomStream};
-use dcmpipe::read::tagstop::TagStop;
-
+use std::env;
 use std::fs::File;
 use std::path::Path;
 
-use walkdir::{DirEntry, WalkDir};
-
-static FIXTURE_DATASET1_FOLDER: &'static str = "fixtures/dataset1";
-
 fn main() {
-    let mut dstream: DicomStream<File> = get_first_file_stream();
+    let args: Vec<_> = env::args().collect();
+    if args.len() != 2 {
+        panic!("Must specify dicom file to open");
+    }
+    let path: &Path = Path::new(&args[1]);
+
+    let mut dstream: DicomStream<File> = DicomStream::new_from_path(path)
+        .expect(&format!("Invalid path: {:?}", path));
 
     println!("\n# Dicom-File-Format File\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}", dstream.get_ts().uid.ident);
     dstream.read_file_meta_on_each(|ds: &mut DicomStream<File>, element_tag: u32| {
@@ -43,23 +45,4 @@ fn main() {
             }
         })
         .expect("Error reading elements");
-}
-
-
-fn get_first_file_stream() -> DicomStream<File> {
-    let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
-        .min_depth(1)
-        .max_depth(1);
-
-    for entry_res in dirwalker.into_iter() {
-        let entry: DirEntry = entry_res.unwrap();
-        let path: &Path = entry.path();
-
-        let dstream: DicomStream<File> = DicomStream::new_from_path(path)
-            .expect(&format!("Unable to read file: {:?}", path));
-        
-        return dstream;
-    }
-
-    panic!("No DICOM files found");
 }

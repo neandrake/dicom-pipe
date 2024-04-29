@@ -4,5 +4,4 @@ version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
 
 [dependencies]
-dcmpipe = { path = "../lib", version = "0.1" }
-walkdir = "2.2"
+dcmpipe_lib = { path = "../lib", version = "0.1" }

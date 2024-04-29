@@ -1,5 +1,5 @@
 [package]
-name = "dcmpipe"
+name = "dcmpipe_lib"
 version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
 build = "build/build.rs"
@@ -14,5 +14,5 @@ walkdir = "2.2"
 dcmpipe_dict = { path = "../dict", version = "0.1" }
 
 [lib]
-name="dcmpipe"
+name="dcmpipe_lib"
 path="src/lib.rs"

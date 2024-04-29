@@ -1,6 +1,7 @@
 extern crate dcmpipe_dict;
 
 use dcmpipe_dict::defnwrite;
+
 use std::fs::File;
 use std::path::Path;
 
