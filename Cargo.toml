@@ -6,3 +6,4 @@ members = [
     "dcmpipe_lib",
     "dcmpipe_tests",
 ]
+resolver = "2"
