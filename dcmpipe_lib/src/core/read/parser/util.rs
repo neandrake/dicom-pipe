@@ -56,7 +56,10 @@ fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> ParseRe
 }
 
 /// Reads a tag attribute from a given dataset
-pub(crate) fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> ParseResult<(u32, usize)> {
+pub(crate) fn read_tag_from_dataset(
+    dataset: &mut impl Read,
+    big_endian: bool,
+) -> ParseResult<(u32, usize)> {
     let mut buf: [u8; 2] = [0; 2];
     let mut bytes_read: usize = 0;
 

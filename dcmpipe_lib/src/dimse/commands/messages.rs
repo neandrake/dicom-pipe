@@ -47,6 +47,7 @@ const COMMAND_DATASET_TYPE_SOME: u16 = 0x1010;
 
 #[derive(Debug, Clone)]
 pub struct CommandMessage {
+    ctx_id: u8,
     msg_id: u16,
     cmd_type: CommandType,
     priority: CommandPriority,
@@ -65,7 +66,7 @@ impl CommandMessage {
     /// - `Priority`
     /// - `CommandDataSetType`
     #[must_use]
-    pub fn new(message: DicomRoot) -> Self {
+    pub fn new(ctx_id: u8, message: DicomRoot) -> Self {
         let msg_id = message
             .get_value_by_tag(&MessageID)
             .or_else(|| message.get_value_by_tag(&MessageIDBeingRespondedTo))
@@ -96,6 +97,7 @@ impl CommandMessage {
         );
 
         Self {
+            ctx_id,
             msg_id,
             cmd_type,
             priority,
@@ -103,6 +105,11 @@ impl CommandMessage {
             status,
             message,
         }
+    }
+
+    #[must_use]
+    pub fn ctx_id(&self) -> u8 {
+        self.ctx_id
     }
 
     #[must_use]
@@ -169,7 +176,7 @@ impl CommandMessage {
     ///
     /// This handles the `CommandGroupLength` element, computing the total number of bytes for the
     /// given list of tag/value pairs.
-    fn create(elements: Vec<(&Tag, RawValue)>) -> Self {
+    fn create(ctx_id: u8, elements: Vec<(&Tag, RawValue)>) -> Self {
         let mut message = DicomRoot::new_empty(&ImplicitVRLittleEndian, DEFAULT_CHARACTER_SET);
         for elem_pair in elements {
             message.add_child_with_val(elem_pair.0, elem_pair.1);
@@ -181,42 +188,48 @@ impl CommandMessage {
         let cmd_grp_len_val: u32 = u32::try_from(message.byte_size()).unwrap_or_default();
         message.add_child_with_val(&CommandGroupLength, RawValue::of_uint(cmd_grp_len_val));
 
-        Self::new(message)
+        Self::new(ctx_id, message)
     }
 
     /// Create a C-ECHO request.
     #[must_use]
-    pub fn c_echo_req(msg_id: u16, sop_class_uid: &str) -> Self {
-        CommandMessage::create(vec![
-            (&AffectedSOPClassUID, RawValue::of_uid(sop_class_uid)),
-            (
-                &CommandField,
-                RawValue::of_ushort(u16::from(&CommandType::CEchoReq)),
-            ),
-            (&MessageID, RawValue::of_ushort(msg_id)),
-            (
-                &CommandDataSetType,
-                RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
-            ),
-        ])
+    pub fn c_echo_req(ctx_id: u8, msg_id: u16, sop_class_uid: &str) -> Self {
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(sop_class_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CEchoReq)),
+                ),
+                (&MessageID, RawValue::of_ushort(msg_id)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
+                ),
+            ],
+        )
     }
 
     /// Create a C-ECHO response.
     #[must_use]
-    pub fn c_echo_rsp(msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
-        CommandMessage::create(vec![
-            (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_uid)),
-            (
-                &CommandField,
-                RawValue::of_ushort(u16::from(&CommandType::CEchoRsp)),
-            ),
-            (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
-            (
-                &CommandDataSetType,
-                RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
-            ),
-            (&Status, RawValue::from(status)),
-        ])
+    pub fn c_echo_rsp(ctx_id: u8, msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CEchoRsp)),
+                ),
+                (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
+                ),
+                (&Status, RawValue::from(status)),
+            ],
+        )
     }
 
     /// Create a C-ECHO response from the given C-ECHO request.
@@ -230,46 +243,52 @@ impl CommandMessage {
     ) -> Result<Self, DimseError> {
         let msg_id = req.get_ushort(&MessageID)?;
         let aff_sop_uid = req.get_string(&AffectedSOPClassUID)?;
-        Ok(Self::c_echo_rsp(msg_id, &aff_sop_uid, status))
+        Ok(Self::c_echo_rsp(req.ctx_id(), msg_id, &aff_sop_uid, status))
     }
 
     /// Create a C-FIND request.
     #[must_use]
-    pub fn c_find_req(msg_id: u16, sop_class_uid: &str) -> Self {
-        CommandMessage::create(vec![
-            (&AffectedSOPClassUID, RawValue::of_uid(sop_class_uid)),
-            (
-                &CommandField,
-                RawValue::of_ushort(u16::from(&CommandType::CFindReq)),
-            ),
-            (&MessageID, RawValue::of_ushort(msg_id)),
-            (&Priority, RawValue::from(&CommandPriority::Medium)),
-            (
-                &CommandDataSetType,
-                RawValue::of_ushort(COMMAND_DATASET_TYPE_SOME),
-            ),
-        ])
+    pub fn c_find_req(ctx_id: u8, msg_id: u16, sop_class_uid: &str) -> Self {
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(sop_class_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CFindReq)),
+                ),
+                (&MessageID, RawValue::of_ushort(msg_id)),
+                (&Priority, RawValue::from(&CommandPriority::Medium)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_SOME),
+                ),
+            ],
+        )
     }
 
     /// Create a C-FIND response.
     #[must_use]
-    pub fn c_find_rsp(msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
+    pub fn c_find_rsp(ctx_id: u8, msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
         // For a C-FIND response a DICOM dataset should immediately follow.
         let dataset_type = if status == &CommandStatus::success() {
             COMMAND_DATASET_TYPE_NONE
         } else {
             COMMAND_DATASET_TYPE_SOME
         };
-        CommandMessage::create(vec![
-            (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_uid)),
-            (
-                &CommandField,
-                RawValue::of_ushort(u16::from(&CommandType::CFindRsp)),
-            ),
-            (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
-            (&CommandDataSetType, RawValue::of_ushort(dataset_type)),
-            (&Status, RawValue::from(status)),
-        ])
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CFindRsp)),
+                ),
+                (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
+                (&CommandDataSetType, RawValue::of_ushort(dataset_type)),
+                (&Status, RawValue::from(status)),
+            ],
+        )
     }
 
     /// Create a C-FIND response from the given C-FIND request.
@@ -283,25 +302,28 @@ impl CommandMessage {
     ) -> Result<Self, DimseError> {
         let msg_id = req.get_ushort(&MessageID)?;
         let aff_sop_uid = req.get_string(&AffectedSOPClassUID)?;
-        Ok(Self::c_find_rsp(msg_id, &aff_sop_uid, status))
+        Ok(Self::c_find_rsp(req.ctx_id(), msg_id, &aff_sop_uid, status))
     }
 
     /// Create a C-STORE response.
     #[must_use]
-    pub fn c_store_rsp(msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
-        CommandMessage::create(vec![
-            (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_uid)),
-            (
-                &CommandField,
-                RawValue::of_ushort(u16::from(&CommandType::CStoreRsp)),
-            ),
-            (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
-            (
-                &CommandDataSetType,
-                RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
-            ),
-            (&Status, RawValue::from(status)),
-        ])
+    pub fn c_store_rsp(ctx_id: u8, msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CStoreRsp)),
+                ),
+                (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
+                ),
+                (&Status, RawValue::from(status)),
+            ],
+        )
     }
 }
 
@@ -347,7 +369,7 @@ mod tests {
         let exp_status = CommandStatus::Success(0);
         let exp_bytes = 74usize;
 
-        let req = CommandMessage::c_echo_req(exp_msg_id, exp_affected_sop);
+        let req = CommandMessage::c_echo_req(1, exp_msg_id, exp_affected_sop);
         let rsp = CommandMessage::c_echo_rsp_from_req(&req, &exp_status).expect("build response");
 
         let mut elem_iter = rsp.message().iter_child_nodes();
@@ -395,7 +417,7 @@ mod tests {
         let exp_affected_sop = MRImageStorage.uid();
         let exp_bytes = 64usize;
 
-        let req = CommandMessage::c_echo_req(exp_msg_id, exp_affected_sop);
+        let req = CommandMessage::c_echo_req(1, exp_msg_id, exp_affected_sop);
 
         let mut elem_iter = req.message().iter_child_nodes();
 

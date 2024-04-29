@@ -20,9 +20,8 @@ use crate::dimse::{
     pdus::{
         mainpdus::{
             Abort, AbstractSyntaxItem, ApplicationContextItem, AssocAC, AssocACPresentationContext,
-            AssocRJ, AssocRQ, AssocRQPresentationContext, PresentationDataItem,
-            PresentationDataItemPartial, ReleaseRP, ReleaseRQ, TransferSyntaxItem,
-            UserInformationItem,
+            AssocRJ, AssocRQ, AssocRQPresentationContext, PresentationDataItem, ReleaseRP,
+            ReleaseRQ, TransferSyntaxItem, UserInformationItem,
         },
         userpdus::{
             AsyncOperationsWindowItem, ImplementationClassUIDItem, ImplementationVersionNameItem,
@@ -32,6 +31,8 @@ use crate::dimse::{
     },
     DimseError,
 };
+
+use self::mainpdus::PresentationDataItemPartial;
 
 pub mod mainpdus;
 pub mod pduiter;
@@ -121,7 +122,6 @@ impl From<u8> for PduType {
 
             //0x04 => PduType::PresentationDataItem,
             0x04 => PduType::PresentationDataItemPartial,
-
             0x05 => PduType::ReleaseRQ,
             0x06 => PduType::ReleaseRP,
             0x07 => PduType::Abort,

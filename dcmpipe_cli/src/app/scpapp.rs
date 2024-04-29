@@ -25,7 +25,7 @@ use dcmpipe_lib::{
             dcmdict::DicomDictionary,
             ts::TSRef,
         },
-        read::{stop::ParseStop, ParserBuilder, ParserState},
+        read::{ParserBuilder, ParserState},
         RawValue,
     },
     dict::{
@@ -41,16 +41,16 @@ use dcmpipe_lib::{
         },
     },
     dimse::{
-        assoc::{Association, AssociationBuilder},
-        commands::{CommandStatus, CommandType},
+        assoc::{Association, AssociationBuilder, DimseMsg},
+        commands::{messages::CommandMessage, CommandStatus, CommandType},
         error::{AssocError, DimseError},
-        pdus::pduiter::DimseMsg,
+        pdus::PduType,
         Syntax,
     },
 };
 use std::{
     collections::HashSet,
-    io::{BufReader, BufWriter, Read, Write},
+    io::{BufReader, BufWriter, Cursor, Read, Write},
     net::TcpListener,
 };
 
@@ -98,47 +98,24 @@ impl CommandApplication for SvcProviderApp {
         ]);
         let accept_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
 
-        let assoc_builder = AssociationBuilder::new()
-            .host_ae(self.args.aetitle.clone())
-            .accept_aets(accept_aets.clone())
-            .accept_abs(accept_abs.clone())
-            .accept_ts(accept_ts.clone())
-            .handler(
-                CommandType::CEchoReq,
-                |assoc: &Association,
-                 msg: &DimseMsg,
-                 _reader: &mut dyn Read,
-                 mut writer: &mut dyn Write| {
-                    AssociationDevice::handle_c_echo_req(assoc, msg, &mut writer)
-                },
-            )
-            .handler(
-                CommandType::CFindReq,
-                |assoc: &Association,
-                 msg: &DimseMsg,
-                 reader: &mut dyn Read,
-                 mut writer: &mut dyn Write| {
-                    AssociationDevice::handle_c_find_req(assoc, msg, reader, &mut writer)
-                },
-            )
-            .handler(
-                CommandType::CStoreReq,
-                |assoc: &Association,
-                 msg: &DimseMsg,
-                 reader: &mut dyn Read,
-                 mut writer: &mut dyn Write| {
-                    AssociationDevice::handle_c_store_req(assoc, msg, reader, &mut writer)
-                },
-            );
-
         for (stream_id, stream) in listener.incoming().enumerate() {
             let stream = stream?;
-            let mut assoc = assoc_builder.clone().id(stream_id).build();
+            let assoc = AssociationBuilder::new()
+                .id(stream_id)
+                .host_ae(self.args.aetitle.clone())
+                .accept_aets(accept_aets.clone())
+                .accept_abs(accept_abs.clone())
+                .accept_ts(accept_ts.clone())
+                .build();
             pool.execute(move || {
                 let bufread = BufReader::new(&stream);
                 let bufwrite = BufWriter::new(&stream);
-                if let Err(e) = assoc.start(bufread, bufwrite) {
-                    eprintln!("[ err ><]: {e}");
+                let mut assoc_dev = AssociationDevice::new(assoc, bufread, bufwrite);
+                match assoc_dev.start() {
+                    Ok(DimseMsg::ReleaseRQ) => println!("[info <-]: {:?}", PduType::ReleaseRQ),
+                    Ok(DimseMsg::Abort(ab)) => println!("[warn <-]: {}", ab.get_reason_desc()),
+                    Ok(other) => eprintln!("Unexpected ending: {other:?}"),
+                    Err(e) => eprintln!("[ err ><]: {e}"),
                 }
             })?;
         }
@@ -146,86 +123,133 @@ impl CommandApplication for SvcProviderApp {
     }
 }
 
-struct AssociationDevice;
+struct AssociationDevice<R: Read, W: Write> {
+    assoc: Association,
+    reader: R,
+    writer: W,
+}
 
-impl AssociationDevice {
-    fn handle_c_echo_req(
-        assoc: &Association,
-        msg: &DimseMsg,
-        mut writer: &mut dyn Write,
-    ) -> Result<(), AssocError> {
-        let msg_id = msg
-            .cmd()
-            .get_ushort(&MessageID)
-            .map_err(AssocError::ab_failure)?;
-        let aff_sop_class = msg
-            .cmd()
+impl<R: Read, W: Write> AssociationDevice<R, W> {
+    fn new(assoc: Association, reader: R, writer: W) -> Self {
+        Self {
+            assoc,
+            reader,
+            writer,
+        }
+    }
+
+    fn start(&mut self) -> Result<DimseMsg, AssocError> {
+        self.assoc.accept(&mut self.reader, &mut self.writer)?;
+        println!("[info <-]: {:?}", PduType::AssocRQ);
+        println!("[info ->]: {:?}", PduType::AssocAC);
+
+        loop {
+            let msg = self.assoc.next_msg(&mut self.reader, &mut self.writer)?;
+            let cmd = match msg {
+                DimseMsg::Cmd(cmd) => cmd,
+                DimseMsg::Dataset(_) => {
+                    return Err(AssocError::ab_failure(DimseError::GeneralError(
+                        "Received DICOM dataset without prior Command.".to_string(),
+                    )));
+                }
+                DimseMsg::ReleaseRQ => return Ok(DimseMsg::ReleaseRQ),
+                DimseMsg::Abort(ab) => return Ok(DimseMsg::Abort(ab)),
+            };
+            println!("[info <-]: {:?}", cmd.cmd_type());
+
+            let Some(pres_ctx) = self.assoc.get_pres_ctx(cmd.ctx_id()) else {
+                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                    "Presentation Context not found: {}",
+                    cmd.ctx_id()
+                ))));
+            };
+
+            let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
+                .ok()
+                .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
+                .ok_or_else(|| {
+                    AssocError::ab_failure(DimseError::GeneralError(
+                        "Failed to resolve transfer syntax".to_string(),
+                    ))
+                })?;
+
+            if !cmd.has_dataset() {
+                if cmd.cmd_type() == &CommandType::CEchoReq {
+                    self.handle_c_echo_req(&cmd)?;
+                    println!("[info ->]: {:?}", CommandType::CEchoRsp);
+                }
+                continue;
+            }
+
+            let mut buffer = Vec::<u8>::new();
+            let mut all_read = false;
+            while !all_read {
+                let dcm_msg = self.assoc.next_msg(&mut self.reader, &mut self.writer)?;
+                let DimseMsg::Dataset(pdv) = dcm_msg else {
+                    return Err(AssocError::ab_failure(DimseError::GeneralError(
+                        "Expected DICOM dataset".to_string(),
+                    )));
+                };
+
+                all_read = pdv.is_last_fragment();
+                buffer.append(&mut pdv.into_data());
+            }
+
+            let mut dcm_parser = ParserBuilder::default()
+                .dataset_ts(ts)
+                .state(ParserState::ReadElement)
+                .build(Cursor::new(buffer), &STANDARD_DICOM_DICTIONARY);
+
+            let dcm = DicomRoot::parse(&mut dcm_parser)
+                .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
+                .ok_or_else(|| {
+                    AssocError::ab_failure(DimseError::GeneralError(
+                        "Expected DICOM dataset".to_string(),
+                    ))
+                })?;
+
+            if cmd.cmd_type() == &CommandType::CFindReq {
+                self.handle_c_find_req(&cmd, &dcm)?;
+                println!("[info ->]: {:?}", CommandType::CFindRsp);
+            } else if cmd.cmd_type() == &CommandType::CStoreReq {
+                self.handle_c_store_req(&cmd, &dcm)?;
+                println!("[info ->]: {:?}", CommandType::CStoreRsp);
+            }
+        }
+    }
+
+    fn handle_c_echo_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
+        let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
-        let end_rsp = Association::create_cecho_end(msg.ctx_id(), msg_id, &aff_sop_class)?;
-        assoc.write_pdu(&end_rsp, &mut writer)?;
-
+        let end_rsp = Association::create_cecho_end(cmd.ctx_id(), cmd.msg_id(), &aff_sop_class)?;
+        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
         Ok(())
     }
 
     fn handle_c_find_req(
-        assoc: &Association,
-        req: &DimseMsg,
-        reader: &mut dyn Read,
-        mut writer: &mut dyn Write,
+        &mut self,
+        cmd: &CommandMessage,
+        dcm: &DicomRoot,
     ) -> Result<(), AssocError> {
-        let Some(pres_ctx) = assoc.get_pres_ctx(req.ctx_id()) else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Presentation Context {} not found",
-                req.ctx_id()
-            ))));
-        };
-
-        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
-            .map_err(AssocError::error)?;
-        let ts = STANDARD_DICOM_DICTIONARY
-            .get_ts_by_uid(&ts)
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "Failed to resolve transfer syntax: {ts}"
-                )))
-            })?;
-
-        let mut parser = ParserBuilder::default()
-            .state(ParserState::ReadElement)
-            .dataset_ts(ts)
-            .stop(ParseStop::AfterBytesRead(u64::from(req.dcm_len())))
-            .build(reader, &STANDARD_DICOM_DICTIONARY);
-        let query = DicomRoot::parse(&mut parser)
-            .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-        let Some(query) = query else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(
-                "No DICOM query after parsing query".to_string(),
-            )));
-        };
-
         /* TODO: Execute Search on Query */
-        let results = AssociationDevice::create_dummy_results(&query, ts);
+        let results = AssociationDevice::<R, W>::create_dummy_results(dcm, dcm.ts());
 
-        let ctx_id = req.ctx_id();
-        let msg_id = req
-            .cmd()
-            .get_ushort(&MessageID)
-            .map_err(AssocError::ab_failure)?;
-        let aff_sop_class = req
-            .cmd()
+        let ctx_id = cmd.ctx_id();
+        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
+        let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
         for result in results {
             let res_rsp =
                 Association::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
-            assoc.write_pdu(&res_rsp.0, &mut writer)?;
-            assoc.write_pdu(&res_rsp.1, &mut writer)?;
+            self.assoc.write_pdu(&res_rsp.0, &mut self.writer)?;
+            self.assoc.write_pdu(&res_rsp.1, &mut self.writer)?;
         }
 
         let end_rsp = Association::create_cfind_end(ctx_id, msg_id, &aff_sop_class)?;
-        assoc.write_pdu(&end_rsp, &mut writer)?;
+        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
 
         Ok(())
     }
@@ -273,54 +297,13 @@ impl AssociationDevice {
     }
 
     fn handle_c_store_req(
-        assoc: &Association,
-        msg: &DimseMsg,
-        mut reader: &mut dyn Read,
-        mut writer: &mut dyn Write,
+        &mut self,
+        cmd: &CommandMessage,
+        _dcm: &DicomRoot,
     ) -> Result<(), AssocError> {
-        let Some(pres_ctx) = assoc.get_pres_ctx(msg.ctx_id()) else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Presentation Context {} not found",
-                msg.ctx_id()
-            ))));
-        };
-
-        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
-            .map_err(AssocError::error)?;
-        let ts = STANDARD_DICOM_DICTIONARY
-            .get_ts_by_uid(&ts)
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "Failed to resolve transfer syntax: {ts}"
-                )))
-            })?;
-
-        let mut parser = ParserBuilder::default()
-            .state(ParserState::ReadElement)
-            .dataset_ts(ts)
-            .stop(ParseStop::AfterBytesRead(u64::from(msg.dcm_len())))
-            .build(&mut reader, &STANDARD_DICOM_DICTIONARY);
-
-        let dataset = DicomRoot::parse(&mut parser)
-            .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
-        println!(
-            "Told to read {}, read: {}",
-            msg.dcm_len(),
-            parser.bytes_read()
-        );
-        let Some(_dataset) = dataset else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(
-                "No DICOM query after parsing query".to_string(),
-            )));
-        };
-
-        let ctx_id = msg.ctx_id();
-        let msg_id = msg
-            .cmd()
-            .get_ushort(&MessageID)
-            .map_err(AssocError::ab_failure)?;
-        let aff_sop_class = msg
-            .cmd()
+        let ctx_id = cmd.ctx_id();
+        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
+        let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
@@ -330,14 +313,7 @@ impl AssociationDevice {
             &aff_sop_class,
             &CommandStatus::success(),
         )?;
-        assoc.write_pdu(&end_rsp, &mut writer)?;
-
-        let mut buf = Vec::<u8>::new();
-        reader
-            .read_to_end(&mut buf)
-            .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
-
-        println!("Remaining: {buf:?}");
+        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
 
         Ok(())
     }

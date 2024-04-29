@@ -14,21 +14,18 @@
    limitations under the License.
 */
 
-use std::io::Read;
+use std::io::{Cursor, Read};
 
 use crate::{
     core::{
         dcmobject::DicomRoot,
         defn::constants::ts::ImplicitVRLittleEndian,
-        read::{stop::ParseStop, ParserBuilder, ParserState},
+        read::{ParserBuilder, ParserState},
     },
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
     dimse::{
         commands::messages::CommandMessage,
-        pdus::{
-            mainpdus::{PresentationDataItemPartial, PresentationDataValuePartial},
-            Pdu,
-        },
+        pdus::{mainpdus::PresentationDataValue, Pdu},
         DimseError,
     },
 };
@@ -36,8 +33,8 @@ use crate::{
 #[derive(Debug)]
 pub enum PduIterItem {
     Pdu(Pdu),
-    CmdMessage(PresentationDataValuePartial, CommandMessage),
-    Dataset(PresentationDataValuePartial),
+    CmdMessage(CommandMessage),
+    Dataset(PresentationDataValue),
 }
 
 #[derive(Debug)]
@@ -49,20 +46,11 @@ pub enum PduIterState {
 
 pub struct PduIter<R: Read> {
     stream: R,
-    state: PduIterState,
-
-    pdi: Option<PresentationDataItemPartial>,
-    pdvh: Option<PresentationDataValuePartial>,
 }
 
 impl<R: Read> PduIter<R> {
     pub fn new(stream: R) -> Self {
-        Self {
-            stream,
-            state: PduIterState::ReadPdu,
-            pdi: None,
-            pdvh: None,
-        }
+        Self { stream }
     }
 }
 
@@ -70,166 +58,72 @@ impl<R: Read> Iterator for PduIter<R> {
     type Item = Result<PduIterItem, DimseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.state {
-                PduIterState::ReadPdu => {
-                    let pdu = Pdu::read(&mut self.stream);
-                    if let Ok(Pdu::PresentationDataItemPartial(pdi)) = pdu {
-                        self.pdi = Some(pdi);
-                        self.state = PduIterState::ReadPdiVal;
-                        continue;
-                    }
-                    return Some(pdu.map(PduIterItem::Pdu));
-                }
-                PduIterState::ReadPdiVal => {
-                    let pdvh = PresentationDataValuePartial::read(&mut self.stream);
-                    match pdvh {
-                        Ok(pdvh) => {
-                            let is_cmd = pdvh.is_command();
-                            let is_last_fragment = pdvh.is_last_fragment();
+        let pdu = Pdu::read(&mut self.stream);
 
-                            if is_cmd {
-                                self.pdvh = Some(pdvh);
-                                self.state = PduIterState::ReadCmdMessage;
-                                continue;
-                            }
-                            if is_last_fragment {
-                                self.pdi.take();
-                                self.state = PduIterState::ReadPdu;
-                            } else {
-                                self.state = PduIterState::ReadPdiVal;
-                            }
-                            return Some(Ok(PduIterItem::Dataset(pdvh)));
-                        }
-                        Err(e) => return Some(Err(e)),
-                    }
-                }
-                PduIterState::ReadCmdMessage => {
-                    let Some(pdvh) = self.pdvh.take() else {
-                        return Some(Err(DimseError::InvalidPduParseState(format!(
-                            "In state {:?} but no PresentationDataValueHeader is set",
-                            self.state
-                        ))));
-                    };
-                    // Command P-DATA always uses IVRLE. Use the standard dicom dictinoary for
-                    // parsing, otherwise anything pulling values from the command dataset will
-                    // have to explicitly specify the VR to parse values as since they would
-                    // otherwise all be `UN`.
-                    let mut parser = ParserBuilder::default()
-                        .state(ParserState::ReadElement)
-                        .dataset_ts(&ImplicitVRLittleEndian)
-                        .stop(ParseStop::AfterBytesRead(u64::from(pdvh.length_of_data())))
-                        .build(&mut self.stream, &STANDARD_DICOM_DICTIONARY);
-                    match DicomRoot::parse(&mut parser) {
-                        Ok(Some(cmd_root)) => {
-                            if pdvh.is_last_fragment() {
-                                self.pdi.take();
-                                self.state = PduIterState::ReadPdu;
-                            } else {
-                                self.pdvh = Some(pdvh.clone());
-                                self.state = PduIterState::ReadPdiVal;
-                            }
-                            return Some(Ok(PduIterItem::CmdMessage(
-                                pdvh.clone(),
-                                CommandMessage::new(cmd_root),
-                            )));
-                        }
-                        Ok(None) => return None,
-                        Err(source) => return Some(Err(DimseError::ParseError(source))),
-                    }
-                }
-            }
+        let pres_data_item = match pdu {
+            Ok(Pdu::PresentationDataItemPartial(pres_data_item)) => pres_data_item,
+            Ok(other) => return Some(Ok(PduIterItem::Pdu(other))),
+            Err(e) => return Some(Err(e)),
+        };
+
+        let pres_data_val = PresentationDataValue::read(&mut self.stream);
+        if let Err(e) = pres_data_val {
+            return Some(Err(e));
         }
-    }
-}
+        let Ok(pres_data_val) = pres_data_val else {
+            return None;
+        };
 
-#[derive(Debug)]
-pub struct DimseMsg {
-    cmd: CommandMessage,
-    ctx_id: u8,
-    dcm_len: u32,
-}
+        if pres_data_val.is_command() {
+            let ctx_id = pres_data_val.ctx_id();
+            // Continue readind PDV segments until the full command message can be read into
+            // memory. Unless the `MaxLengthItem` is set abnormally small then the command should
+            // rarely be split into multiple PDVs.
+            let mut is_done = pres_data_val.is_last_fragment();
 
-impl DimseMsg {
-    #[must_use]
-    pub fn new(cmd: CommandMessage, ctx_id: u8) -> Self {
-        Self {
-            cmd,
-            ctx_id,
-            dcm_len: 0,
-        }
-    }
+            let mut buffer = Vec::<u8>::with_capacity(
+                usize::try_from(pres_data_item.length()).unwrap_or_default(),
+            );
+            buffer.append(&mut pres_data_val.into_data());
 
-    #[must_use]
-    pub fn new_with_dcm(cmd: CommandMessage, ctx_id: u8, dcm_len: u32) -> Self {
-        Self {
-            cmd,
-            ctx_id,
-            dcm_len,
-        }
-    }
-
-    #[must_use]
-    pub fn cmd(&self) -> &CommandMessage {
-        &self.cmd
-    }
-
-    #[must_use]
-    pub fn ctx_id(&self) -> u8 {
-        self.ctx_id
-    }
-
-    #[must_use]
-    pub fn dcm_len(&self) -> u32 {
-        self.dcm_len
-    }
-}
-
-pub struct DimseMsgIter<R: Read> {
-    reader: R,
-}
-
-impl<R: Read> DimseMsgIter<R> {
-    pub fn new(reader: R) -> Self {
-        Self { reader }
-    }
-}
-
-impl<R: Read> Iterator for DimseMsgIter<R> {
-    type Item = Result<DimseMsg, DimseError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let mut last_cmd: Option<DimseMsg> = None;
-            let pdu_iter = PduIter::new(&mut self.reader);
-            for iter_item in pdu_iter {
-                match iter_item {
-                    Ok(PduIterItem::Pdu(pdu)) => {
-                        return Some(Err(DimseError::UnexpectedPduType(pdu.pdu_type())));
-                    }
-                    Ok(PduIterItem::CmdMessage(pdvh, cmd)) => {
-                        if !cmd.has_dataset() {
-                            return Some(Ok(DimseMsg::new(cmd, pdvh.ctx_id())));
-                        }
-                        last_cmd = Some(DimseMsg::new(cmd, pdvh.ctx_id()));
-                    }
-                    Ok(PduIterItem::Dataset(pdvh)) => {
-                        let Some(cmd) = last_cmd else {
-                            return Some(Err(DimseError::InvalidPduParseState(
-                                "DimseMsgIter expecting Dataset without prior Command.".to_owned(),
-                            )));
-                        };
-                        return Some(Ok(DimseMsg::new_with_dcm(
-                            cmd.cmd,
-                            cmd.ctx_id,
-                            pdvh.length_of_data(),
-                        )));
-                    }
-                    Err(err) => {
-                        return Some(Err(err));
-                    }
+            while !is_done {
+                // TODO: Check for PDU first which might be `PresentationDataItem`?
+                //       The standard is terribly unclear on whether the max length applies to the
+                //       PDI or the PDV! Given that PDV is the structure that indicates it being
+                //       the last fragment or not, it seems that max length applies to PDV.
+                let pres_data_val = PresentationDataValue::read(&mut self.stream);
+                if let Err(e) = pres_data_val {
+                    return Some(Err(e));
+                }
+                let Ok(pres_data_val) = pres_data_val else {
+                    return None;
                 };
+                is_done = pres_data_val.is_last_fragment();
+                buffer.append(&mut pres_data_val.into_data());
+            }
+
+            // Command P-DATA always uses IVRLE. Use the standard dicom dictinoary for
+            // parsing, otherwise anything pulling values from the command dataset will
+            // have to explicitly specify the VR to parse values as since they would
+            // otherwise all be `UN`.
+            let mut buffer = Cursor::new(buffer);
+            let mut parser = ParserBuilder::default()
+                .state(ParserState::ReadElement)
+                .dataset_ts(&ImplicitVRLittleEndian)
+                .build(&mut buffer, &STANDARD_DICOM_DICTIONARY);
+            match DicomRoot::parse(&mut parser) {
+                Ok(Some(cmd_root)) => {
+                    return Some(Ok(PduIterItem::CmdMessage(CommandMessage::new(
+                        ctx_id, cmd_root,
+                    ))));
+                }
+                Ok(None) => return None,
+                Err(source) => return Some(Err(DimseError::ParseError(source))),
             }
         }
+
+        // If it's a DICOM fragment then send it up as-is, allowing the user of this API to
+        // manually stitch or forward the data without fully loading it into memory.
+        Some(Ok(PduIterItem::Dataset(pres_data_val)))
     }
 }

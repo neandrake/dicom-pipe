@@ -238,7 +238,7 @@ impl<'e> FormattedElement<'e> {
                 .dict
                 .get_tag_by_number(self.elem.tag())
                 .and_then(Tag::implicit_vr)
-                .unwrap_or(vr)
+                .unwrap_or(vr);
         }
 
         let elem_value = match self.elem.parse_value_as(vr) {
@@ -374,7 +374,7 @@ impl<'e> fmt::Display for FormattedElement<'e> {
                 .dict
                 .get_tag_by_number(self.elem.tag())
                 .and_then(Tag::implicit_vr)
-                .unwrap_or(vr)
+                .unwrap_or(vr);
         }
         let vr: &str = vr.ident;
 

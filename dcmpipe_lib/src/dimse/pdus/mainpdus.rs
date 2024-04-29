@@ -1050,8 +1050,9 @@ impl PresentationDataItem {
     /// Read a `PresentationDataItem` from the given dataset.
     ///
     /// # Notes
-    /// This will read the entire PDU field into memory, which may be large. Refer to
-    /// `PresentationDataItemPartial` for more flexible memory management.
+    /// This will read the entire PDU field into memory, which may be large. Utilize the
+    /// `MaxLengthItem` during association negotiation to require smaller chunked data values for
+    /// more efficitent memory usage.
     ///
     /// # Errors
     /// I/O errors reading from the dataset.
@@ -1142,6 +1143,13 @@ impl PresentationDataValue {
         &self.data
     }
 
+    /// Presentation data, a fragment. Either a Command or a DICOM Data Set. Consumes this
+    /// `PresentationDataValue`.
+    #[must_use]
+    pub fn into_data(self) -> Vec<u8> {
+        self.data
+    }
+
     /// The total number of bytes that this PDU will require to write to a dataset.
     #[must_use]
     pub fn byte_size(&self) -> usize {
@@ -1181,8 +1189,9 @@ impl PresentationDataValue {
     /// Read a `PresentationDataValue` from the given dataset.
     ///
     /// # Notes
-    /// This will read the entire PDU field into memory, which may be large. Refer to
-    /// `PresentationDataValuePartial` for more flexible memory management.
+    /// This will read the entire PDU field into memory, which may be large. Utilize the
+    /// `MaxLengthItem` during association negotiation to require smaller chunked data values for
+    /// more efficitent memory usage.
     ///
     /// # Errors
     /// I/O errors reading from the dataset.
@@ -1277,142 +1286,6 @@ impl PresentationDataItemPartial {
         let length = u32::from_be_bytes(buf);
 
         Ok(Self { reserved, length })
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PresentationDataValuePartial {
-    length: u32,
-    ctx_id: u8,
-    msg_header: u8,
-}
-
-impl PresentationDataValuePartial {
-    /// Create a new `PresentationDataValuePartial`.
-    ///
-    /// # Notes
-    /// For the `msg_header` field, the following constants can be used to simplify comparison of
-    /// this field.
-    /// - `P_DATA_CMD`
-    /// - `P_DATA_CMD_LAST`
-    /// - `P_DATA_DCM_DATASET`
-    /// - `P_DATA_DCM_DATASET_LAST`
-    #[must_use]
-    pub fn new(length: u32, ctx_id: u8, msg_header: u8) -> Self {
-        Self {
-            length,
-            ctx_id,
-            msg_header,
-        }
-    }
-
-    /// The number of bytes from the first byte of the following field to the last byte of the
-    /// presentation data value field.
-    #[must_use]
-    pub fn length(&self) -> u32 {
-        self.length
-    }
-
-    /// Context ID, an odd number between 1-255.
-    #[must_use]
-    pub fn ctx_id(&self) -> u8 {
-        self.ctx_id
-    }
-
-    /// Message Header, interpreted as bit fields.
-    ///
-    /// Refer to `is_command()` and `is_last_fragment()` to assist with interpreting this field.
-    ///
-    /// # Notes
-    /// LSB 0,
-    ///   0: The message contains a DICOM Data Set.
-    ///   1: The message contains a Command.
-    ///
-    /// LSB 1,
-    ///   0: The message fragment is not the last fragment.
-    ///   1: The message fragment is the last fragment.
-    ///
-    /// The other bits shall be zeros, but unchecked.
-    #[must_use]
-    pub fn msg_header(&self) -> u8 {
-        self.msg_header
-    }
-
-    /// The length of the data field.
-    #[must_use]
-    pub fn length_of_data(&self) -> u32 {
-        // The length field appears before the ctx_id and msg_header fields, so the length's value
-        // includes those two bytes which need subtracted.
-        self.length - u32::try_from(size_of::<u8>() + size_of::<u8>()).unwrap_or_default()
-    }
-
-    /// Returns true if this value is a command message, false for a dicom dataset.
-    #[must_use]
-    pub fn is_command(&self) -> bool {
-        self.msg_header & 0b01 == 0b01
-    }
-
-    /// Returns true if this value is the last fragment in a presentation data item, false if not.
-    #[must_use]
-    pub fn is_last_fragment(&self) -> bool {
-        self.msg_header & 0b10 == 0b10
-    }
-
-    /// The total number of bytes that this PDU will require to write to a dataset.
-    ///
-    /// # Notes
-    /// Unline the `read()` and `write()` functions, this value _DOES_ include the length of the
-    /// data field, as it must be known ahead of time when preparing to write this PDU to a
-    /// dataset.
-    #[must_use]
-    pub fn byte_size(&self) -> usize {
-        size_of::<u32>() // length
-            + usize::try_from(self.length).unwrap_or_default()
-    }
-
-    /// Write this _partial_ PDU to the given dataset.
-    ///
-    /// # Notes
-    /// This does not write the data field of the `PresentationDataValue` PDU structure. This is to
-    /// allow the caller to determine the best way to handle the variable-sized data field, which
-    /// can be large. Including the data field as part of this structure would require the data to
-    /// be fully loaded into memory.
-    ///
-    /// # Errors
-    /// I/O errors writing to the dataset.
-    pub fn write<W: Write>(&self, mut dataset: W) -> Result<(), DimseError> {
-        dataset.write_all(&self.length.to_be_bytes())?;
-
-        let buf: [u8; 2] = [self.ctx_id, self.msg_header];
-        dataset.write_all(&buf)?;
-
-        Ok(())
-    }
-
-    /// Read a _partial_ `PresentationDataValue` from the given dataset.
-    ///
-    /// # Notes
-    /// This does not read the data field from the dataset. This is to allow the caller to
-    /// determine the best way to handle the variable-sized data field, which can be large. Reading
-    /// the data field value into a field here would require loading the entire value into memory.
-    ///
-    /// # Errors
-    /// I/O errors reading from the dataset.
-    pub fn read<R: Read>(mut dataset: R) -> Result<Self, DimseError> {
-        let mut buf: [u8; 4] = [0u8; 4];
-        dataset.read_exact(&mut buf)?;
-        let length = u32::from_be_bytes(buf);
-
-        let mut buf: [u8; 2] = [0u8; 2];
-        dataset.read_exact(&mut buf)?;
-        let ctx_id = buf[0];
-        let msg_header = buf[1];
-
-        Ok(Self {
-            length,
-            ctx_id,
-            msg_header,
-        })
     }
 }
 
@@ -2219,9 +2092,6 @@ mod tests {
     }
 
     #[test]
-    // Ignoring because PresentationDataItem does not round trip now that it's partially managed
-    // instead of fully.
-    #[ignore]
     fn test_pres_data_item_roundtrip() {
         let pres_data_vals = vec![
             PresentationDataValue::new(1u8, 1u8, vec![1, 2, 3, 4]),
@@ -2244,8 +2114,8 @@ mod tests {
         assert_eq!(PduType::AssocRJ, (u8::from(&PduType::AssocRJ)).into());
 
         assert_eq!(
-            PduType::PresentationDataItemPartial,
-            (u8::from(&PduType::PresentationDataItemPartial)).into()
+            PduType::PresentationDataItem,
+            (u8::from(&PduType::PresentationDataItem)).into()
         );
 
         assert_eq!(PduType::ReleaseRQ, (u8::from(&PduType::ReleaseRQ)).into());

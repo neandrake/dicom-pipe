@@ -31,7 +31,7 @@ use crate::{
         uids::DICOMApplicationContextName,
     },
     dimse::{
-        commands::{messages::CommandMessage, CommandStatus, CommandType},
+        commands::{messages::CommandMessage, CommandStatus},
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
@@ -39,18 +39,21 @@ use crate::{
                 PresentationDataValue, ReleaseRP, TransferSyntaxItem, UserInformationItem,
                 P_DATA_CMD_LAST, P_DATA_DCM_DATASET_LAST,
             },
-            pduiter::{DimseMsg, DimseMsgIter},
-            userpdus::{AsyncOperationsWindowItem, MaxLengthItem},
-            Pdu, PduType, UserPdu,
+            pduiter::{PduIter, PduIterItem},
+            userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
+            Pdu, UserPdu,
         },
         Syntax,
     },
 };
 
-use super::pdus::userpdus::RoleSelectionItem;
-
-pub type MsgHandler =
-    fn(&Association, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
+#[derive(Debug)]
+pub enum DimseMsg {
+    Cmd(CommandMessage),
+    Dataset(PresentationDataValue),
+    ReleaseRQ,
+    Abort(Abort),
+}
 
 pub struct Association {
     /* Fields configured by this SCU. */
@@ -59,7 +62,6 @@ pub struct Association {
     accept_aets: HashSet<String>,
     accept_abs: HashSet<UIDRef>,
     accept_ts: HashSet<TSRef>,
-    handlers: HashMap<CommandType, MsgHandler>,
     my_user_data: Vec<UserPdu>,
 
     /* Fields negotiated with other SCU. */
@@ -121,13 +123,13 @@ impl Association {
         0
     }
 
-    /// Begin processing an `Association` acting as a Service Class Provider, reading requests from
-    /// the  reader and writing responses to the writer.
+    /// Accept the association request, negotiating the association parameters and leaving the
+    /// reader/writer in a state to start exchanging PDUs.
     ///
     /// # Errors
     /// - I/O errors may occur when reading/writing from the reader/writer.
     /// - Any misbehaving SCU will be managed within, and this will not propagate these as errors.
-    pub fn start<R: Read, W: Write>(
+    pub fn accept<R: Read, W: Write>(
         &mut self,
         mut reader: R,
         mut writer: W,
@@ -158,19 +160,15 @@ impl Association {
             }
         }
 
-        self.write_pdu(&Pdu::AssocAC(assoc_ac), &mut writer)?;
-
         if self.negotiated_pres_ctx.is_empty() {
-            return Err(AssocError::error(DimseError::GeneralError(
+            return Err(AssocError::rj_failure(DimseError::GeneralError(
                 "No presentation contexts negotiated".to_owned(),
             )));
         }
 
-        if let Err(e) = self.msg_loop(&mut reader, &mut writer) {
-            e.write(&mut writer).map_err(AssocError::error)
-        } else {
-            Ok(())
-        }
+        self.write_pdu(&Pdu::AssocAC(assoc_ac), &mut writer)?;
+
+        Ok(())
     }
 
     /// Validates the association request, checking that this `Association`'s configuration can
@@ -230,15 +228,17 @@ impl Association {
 
         self.their_user_data
             .append(rq.user_info().user_data().clone().as_mut());
+        /*
         for user_pdu in rq.user_info().user_data() {
             match user_pdu {
-                UserPdu::SOPClassExtendedNegotiationItem(_) => {}
-                UserPdu::SOPClassCommonExtendedNegotiationItem(_) => {}
-                UserPdu::UserIdentityItem(_) => {}
-                UserPdu::UserIdentityNegotiationItem(_) => {}
+                UserPdu::SOPClassExtendedNegotiationItem(_)
+                | UserPdu::SOPClassCommonExtendedNegotiationItem(_)
+                | UserPdu::UserIdentityItem(_)
+                | UserPdu::UserIdentityNegotiationItem(_) => {}
                 _ => {}
             }
         }
+        */
 
         // Check the proposed presentation contexts and create responses for each.
         let mut rsp_pres_ctx: Vec<AssocACPresentationContext> =
@@ -294,41 +294,24 @@ impl Association {
         ))
     }
 
-    /// The main request/resposne processing loop.
-    fn msg_loop<R: Read, W: Write>(
+    /// Parse the next message, either a Command, DICOM Dataset, release/abort, or unexpected PDU.
+    ///
+    /// # Errors
+    /// I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
+    /// disconnect response to the writer.
+    pub fn next_msg<R: Read, W: Write>(
         &self,
-        mut reader: &mut R,
-        mut writer: &mut W,
-    ) -> Result<(), AssocError> {
-        loop {
-            // Read one command message then handle it. The handling can't be done within a loop
-            // over the command message iterator as both the iterator and the handler need to read
-            // from the reader.
-            let mut msg_iter = DimseMsgIter::new(&mut reader);
-            let msg = match msg_iter.next() {
-                Some(Ok(msg)) => msg,
-
-                Some(Err(DimseError::UnexpectedPduType(pdu))) => {
-                    return self.handle_disconnect(pdu, writer);
-                }
-                Some(Err(err)) => {
-                    return Err(AssocError::ab_failure(err));
-                }
-                None => {
-                    return Err(AssocError::ab_failure(DimseError::GeneralError(
-                        "No DIMSE message received".to_owned(),
-                    )));
-                }
-            };
-
-            if let Some(handler) = self.handlers.get(msg.cmd().cmd_type()) {
-                handler(self, &msg, &mut reader, &mut writer)?;
-            } else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "No handler registered for {:?}",
-                    msg.cmd().cmd_type()
-                ))));
-            }
+        reader: &mut R,
+        writer: &mut W,
+    ) -> Result<DimseMsg, AssocError> {
+        match PduIter::new(reader).next() {
+            Some(Ok(PduIterItem::Pdu(pdu))) => self.handle_disconnect(pdu, writer),
+            Some(Ok(PduIterItem::CmdMessage(cmd))) => Ok(DimseMsg::Cmd(cmd)),
+            Some(Ok(PduIterItem::Dataset(dataset))) => Ok(DimseMsg::Dataset(dataset)),
+            Some(Err(err)) => Err(AssocError::ab_failure(err)),
+            None => Err(AssocError::ab_failure(DimseError::GeneralError(
+                "No DIMSE message received".to_owned(),
+            ))),
         }
     }
 
@@ -336,18 +319,20 @@ impl Association {
     /// this scenario the only valid PDUs are `ReleaseRQ` or `Abort`.
     fn handle_disconnect<W: Write>(
         &self,
-        pdu_type: PduType,
+        pdu: Pdu,
         writer: &mut W,
-    ) -> Result<(), AssocError> {
-        match pdu_type {
-            PduType::ReleaseRQ => {
+    ) -> Result<DimseMsg, AssocError> {
+        match pdu {
+            Pdu::ReleaseRQ(_) => {
                 self.write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
-                Ok(())
+                Ok(DimseMsg::ReleaseRQ)
             }
-            PduType::Abort => Ok(()),
-            pdu_type => {
+            Pdu::Abort(ab) => Ok(DimseMsg::Abort(ab)),
+            other => {
                 self.write_pdu(&Pdu::Abort(Abort::new(2, 2)), writer)?;
-                Err(AssocError::error(DimseError::UnexpectedPduType(pdu_type)))
+                Err(AssocError::error(DimseError::UnexpectedPduType(
+                    other.pdu_type(),
+                )))
             }
         }
     }
@@ -362,7 +347,7 @@ impl Association {
         aff_sop_class: &str,
     ) -> Result<Pdu, AssocError> {
         let status = CommandStatus::success();
-        let rsp_cmd = CommandMessage::c_echo_rsp(msg_id, aff_sop_class, &status);
+        let rsp_cmd = CommandMessage::c_echo_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
         let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
@@ -386,7 +371,7 @@ impl Association {
         res: &DicomRoot,
     ) -> Result<(Pdu, Pdu), AssocError> {
         let status = CommandStatus::pending();
-        let rsp_cmd = CommandMessage::c_find_rsp(msg_id, aff_sop_class, &status);
+        let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
         let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
@@ -417,7 +402,7 @@ impl Association {
         aff_sop_class: &str,
     ) -> Result<Pdu, AssocError> {
         let status = CommandStatus::success();
-        let rsp_cmd = CommandMessage::c_find_rsp(msg_id, aff_sop_class, &status);
+        let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
         let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
@@ -440,7 +425,7 @@ impl Association {
         aff_sop_class: &str,
         status: &CommandStatus,
     ) -> Result<Pdu, AssocError> {
-        let rsp_cmd = CommandMessage::c_store_rsp(msg_id, aff_sop_class, status);
+        let rsp_cmd = CommandMessage::c_store_rsp(ctx_id, msg_id, aff_sop_class, status);
 
         let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
@@ -462,7 +447,6 @@ pub struct AssociationBuilder {
     accept_abs: HashSet<UIDRef>,
     accept_ts: HashSet<TSRef>,
     pdu_rcv_max_len: u32,
-    handlers: HashMap<CommandType, MsgHandler>,
 }
 
 impl AssociationBuilder {
@@ -508,12 +492,6 @@ impl AssociationBuilder {
     }
 
     #[must_use]
-    pub fn handler(mut self, cmd_type: CommandType, handler: MsgHandler) -> Self {
-        self.handlers.insert(cmd_type, handler);
-        self
-    }
-
-    #[must_use]
     pub fn build(self) -> Association {
         let mut my_user_data = Vec::<UserPdu>::new();
         my_user_data.push(UserPdu::MaxLengthItem(MaxLengthItem::new(
@@ -539,7 +517,6 @@ impl AssociationBuilder {
             accept_aets: self.accept_aets,
             accept_abs: self.accept_abs,
             accept_ts: self.accept_ts,
-            handlers: self.handlers,
             my_user_data,
 
             their_user_data: Vec::new(),
