@@ -10,8 +10,8 @@ use dcmpipe_lib::defn::tag::Tag;
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
-use std::path::Path;
 use std::ops::AddAssign;
+use std::path::Path;
 
 pub struct CursiveApp {
     openpath: String,
@@ -147,8 +147,10 @@ impl CursiveApp {
                 .call_on_id(
                     "table",
                     move |table: &mut TableView<DicomElement, DicomElementColumn>| {
-                        let tag_info: String = render_element_tag(table.borrow_item(index).unwrap());
-                        let val_info: String = render_value(table.borrow_item(index).unwrap()).unwrap();
+                        let tag_info: String =
+                            render_element_tag(table.borrow_item(index).unwrap());
+                        let val_info: String =
+                            render_value(table.borrow_item(index).unwrap()).unwrap();
                         let mut display: String = String::new();
                         display.add_assign(tag_info.as_str());
                         display.add_assign("\n");
