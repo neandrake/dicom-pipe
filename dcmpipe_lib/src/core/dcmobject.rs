@@ -40,23 +40,23 @@ pub trait DicomNode {
 
     /// Get a child node with the given `TagPath`.
     fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
-        if tagpath.0.is_empty() {
+        if tagpath.nodes.is_empty() {
             return None;
         }
 
         let obj = tagpath
-            .0
+            .nodes
             .get(0)
             .and_then(|node| self.get_child_by_tagnode(node));
 
-        if tagpath.0.len() == 1 {
+        if tagpath.nodes.len() == 1 {
             return obj;
         }
 
         let mut obj: &DicomObject = obj?;
-        for index in 1..tagpath.0.len() {
+        for index in 1..tagpath.nodes.len() {
             obj = tagpath
-                .0
+                .nodes
                 .get(index)
                 .and_then(|node| obj.get_child_by_tagnode(node))?;
         }

@@ -1,21 +1,20 @@
-use std::iter::once;
-
-use crate::core::dcmsqelem::SequenceElement;
 use crate::defn::tag::{TagNode, TagPath};
 
 /// ParseStop specifies the stopping point at which parsing of a DICOM dataset should end.
 #[derive(Clone)]
 pub enum ParseStop {
-    /// The entire dataset should be parsed.
+    /// The entire dataset should be parsed, until the dataset stream/end is encountered.
     EndOfDataset,
 
-    /// Read all tag elements up to (but not including) the specified tag. The tag value is
-    /// interpreted only at the root of an object and not within sequences.
-    BeforeTag(TagPath),
+    /// Read all elements until encountering the given tag, to avoid parsing the given tag's value
+    /// field. This can be used to read everything up to e.g. `PixelData` but avoids parsing the
+    /// `PixelData`s contents.
+    ///
+    /// If the tag does not exist in the dataset then this stops
+    BeforeTagValue(TagPath),
 
-    /// Read all tag elements up to (and including) the specified tag. The tag value is interpreted
-    /// only at the root of an object and not within sequences.
-    AfterTag(TagPath),
+    /// Read all elements until the given tag and its value contents have been parsed.
+    AfterTagValue(TagPath),
 
     /// Read all tag elements up to specified number of bytes have been read. If the byte position
     /// is in the middle of an element then bytes from that dataset will continue to be read until
@@ -24,44 +23,73 @@ pub enum ParseStop {
 }
 
 impl ParseStop {
-    /// Evaluates the given tagpath against the current sequence path and the last tag read, based
-    /// on the given predicate `f`.
-    ///
-    /// `tagpath` - The tag path to evaluate against the current path
-    /// `current_path` - The current sequence path to evaluate against `tagpath`
-    /// `tag_last_read` - The last tag read by parser. This will be used along with `current_path`
-    ///                   to build a comparative list of tags for comparing against `tagpath`. This
-    ///                   tag should be for an element which is a child of the last element of
-    ///                   `current_path`.
-    /// `f` - The predicate for comparing the specified tagpath value against the corresponding
-    ///       current tag value. This will be passed a tuple, `(to_check, current)` where `to_check`
-    ///       is the tag from `tagpath` and `current` is the tag from `current_path` or
-    ///       `tag_last_read`. If this predicate returns true the return value of this function will
-    ///       be true.
-    pub(crate) fn eval_tagpath<F>(
-        tagpath: &TagPath,
-        current_path: &[SequenceElement],
-        tag_last_read: u32,
-        f: F,
-    ) -> bool
-    where
-        F: FnMut((u32, u32)) -> bool,
-    {
-        let full_current_path = current_path
-            .iter()
-            .map(SequenceElement::get_seq_tag)
-            .chain(once(tag_last_read));
+    /// Evaluates the given `TagPath` against this `ParseStop`'s defined stopping point, assuming
+    /// this is `ParseStop::BeforeTagValue` or `ParseStop::AfterTagValue`. If this is neither
+    /// `BeforeTagValue` nor `AfterTagValue` then this returns false.
+    pub fn evaluate(&self, current: &TagPath) -> bool {
+        match self {
+            ParseStop::BeforeTagValue(target) => target
+                .nodes
+                .iter()
+                .zip(current.nodes.iter())
+                .any(ParseStop::is_before_tag_value),
+            ParseStop::AfterTagValue(target) => target
+                .nodes
+                .iter()
+                .zip(current.nodes.iter())
+                .any(ParseStop::is_after_tag_value),
+            _ => false,
+        }
+    }
 
-        // TODO: The TagNodes need to also be evaluated for their item number, so if a tag path to
-        //       stop at indicates not to exceed a certain item number then that can be enforced.
-        //       As it's currently implemented the entire sequence will be parsed regardless of
-        //       desired item number stopping point.
+    fn is_before_tag_value((target, current): (&TagNode, &TagNode)) -> bool {
+        if current.get_tag() < target.get_tag() {
+            // The target tag has not yet been encountered, do not stop parsing.
+            false
+        } else if current.get_tag() == target.get_tag() {
+            // The target tag is encountered, compare target index.
+            if let Some(cur_idx) = current.get_item() {
+                match target.get_item() {
+                    // If at or past (shouldn't occur) the target index then stop parsing.
+                    Some(target_idx) => cur_idx >= target_idx,
 
-        tagpath
-            .0
-            .iter()
-            .map(TagNode::get_tag)
-            .zip(full_current_path)
-            .any(f)
+                    // Stop parsing if no index was specified for the target.
+                    None => true,
+                }
+            } else {
+                // The target tag matches but there's no index to compare.
+                true
+            }
+        } else {
+            // The current tag has surpassed the target, the target is not present in the dataset.
+            true
+        }
+    }
+
+    fn is_after_tag_value((target, current): (&TagNode, &TagNode)) -> bool {
+        if current.get_tag() <= target.get_tag() {
+            // The target tag has not yet been encountered, do not stop parsing.
+            false
+        } else if current.get_tag() == target.get_tag() {
+            // The target tag is encountered, compare target index.
+            if let Some(cur_idx) = current.get_item() {
+                match target.get_item() {
+                    // If past the target index then stop parsing.
+                    Some(target_idx) => cur_idx > target_idx,
+
+                    // Do not stop parsing if no index was specified for target, assuming the
+                    // entire set of items should then be parsed.
+                    None => false,
+                }
+            } else {
+                // The target tag matches but there's no index for comparison. Do not stop parsing
+                // so all contents/items are parsed.
+                false
+            }
+        } else {
+            // The current tag has surpassed the target, the target and its contents have been
+            // parsed (or target was not in dataset).
+            true
+        }
     }
 }

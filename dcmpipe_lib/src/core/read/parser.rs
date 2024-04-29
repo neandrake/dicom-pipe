@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::io::{Cursor, ErrorKind, Read};
+use std::iter::once;
 
 use crate::core::charset::{self, CSRef};
 use crate::core::dcmelement::DicomElement;
@@ -11,7 +12,7 @@ use crate::core::read::stop::ParseStop;
 use crate::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use crate::defn::constants::{tags, ts};
 use crate::defn::dcmdict::DicomDictionary;
-use crate::defn::tag::{Tag, TagPath};
+use crate::defn::tag::{Tag, TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
@@ -206,24 +207,19 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             // If the entire dataset is intended to be read then never indicate to stop.
             ParseStop::EndOfDataset => false,
 
-            // Check whether the last tag parsed is >= the desired stopping tag.
-            ParseStop::BeforeTag(tagpath) => ParseStop::eval_tagpath(
-                tagpath,
-                &self.current_path,
-                self.tag_last_read,
-                |(to_check, current)| current >= to_check,
-            ),
-
-            // Check whether the last tag parsed is > than the desired stopping tag.
-            ParseStop::AfterTag(tagpath) => ParseStop::eval_tagpath(
-                tagpath,
-                &self.current_path,
-                self.tag_last_read,
-                |(to_check, current)| current > to_check,
-            ),
-
             // Check whether the parsing has surpassed the desired stopping byte position.
             ParseStop::AfterBytePos(byte_pos) => self.bytes_read > *byte_pos,
+
+            ParseStop::BeforeTagValue(_) | ParseStop::AfterTagValue(_) => {
+                let current: TagPath = self
+                    .current_path
+                    .iter()
+                    .map(|sq_el| sq_el.get_node().clone())
+                    .chain(once(TagNode::new(self.tag_last_read, None)))
+                    .collect::<Vec<TagNode>>()
+                    .into();
+                self.stop.evaluate(&current)
+            }
         }
     }
 
@@ -272,7 +268,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     fn get_debug_str(&self, ts: TSRef, tag: u32, vr: VRRef, vl: ValueLength) -> String {
         // Render the full tag path
         let mut full_path: TagPath = (&self.current_path).into();
-        full_path.0.push(tag.into());
+        full_path.nodes.push(tag.into());
         let tagpath_display: String =
             TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));
         let vr_display = vr.ident;
@@ -929,7 +925,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // use the one initialized/detected.
         let ts: TSRef = self.dataset_ts.unwrap_or(self.detected_ts);
 
-        #[cfg(feature = "deflate")]
+        #[cfg(feature = "compress")]
         self.dataset.set_read_deflated(ts.is_deflated());
 
         let tag: u32 = self.read_tag(ts)?;

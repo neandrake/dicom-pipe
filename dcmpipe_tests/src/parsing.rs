@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{Cursor, ErrorKind};
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_dict::dict::tags;
+use dcmpipe_dict::dict::tags::{self};
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr, RawValue};
@@ -144,7 +144,7 @@ fn test_parser_state(with_std: bool) -> Result<()> {
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().stop(ParseStop::BeforeTag(stop.into()));
+        ParserBuilder::default().stop(ParseStop::BeforeTagValue(stop.into()));
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
@@ -205,7 +205,7 @@ fn test_dicom_object(with_std: bool) -> Result<()> {
 
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
-        .stop(ParseStop::BeforeTag(tags::PixelData.tag.into()))
+        .stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()))
         .build(File::open(file)?);
 
     let dcmroot: DicomRoot<'_> =
@@ -244,7 +244,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
 
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
-        .stop(ParseStop::BeforeTag(tags::PixelData.tag.into()))
+        .stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()))
         .build(File::open(file)?);
 
     let dcmroot: DicomRoot<'_> =
@@ -1252,13 +1252,11 @@ fn test_sq_with_undefined_length_unconvertable_to_defined_length(with_std: bool)
 }
 
 #[test]
-#[ignore]
 fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_with_std() -> Result<()> {
     test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(true)
 }
 
 #[test]
-#[ignore]
 fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std() -> Result<()> {
     test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(false)
 }
@@ -1267,16 +1265,55 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std(
 /// syntax of elements at the root switch to being ImplicitVR rather than the defined ExplicitVR.
 /// It's not clear if this is something that we can handle -- dcmtk also is unable to parse this
 /// though it's not clear if for the same reason.
+///
 /// See: http://compgroups.net/comp.protocols.dicom/mixing-explicit-and-implicit-transfer-sy/2221446
+///
 /// >Pre-1996 versions of DCMTK (then still called the European CTN software) had some
 /// >code that would "guess" the transfer syntax for every sequence item and would even
 /// >handle implicit VR big endian encoding. However, the heuristics created more problems
 /// >then they solved.
 fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bool) -> Result<()> {
-    let _dcmroot: DicomRoot<'_> = parse_file(
-        "./fixtures/gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm",
-        with_std,
-    )?;
+    let file: &str =
+        "./fixtures/gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm";
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
+
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .dictionary(dict)
+        .stop(ParseStop::AfterTagValue(
+            tags::SourceImageSequence.tag.into(),
+        ))
+        .build(File::open(file)?);
+
+    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?.expect("Parse into object");
+    let sis_obj: &DicomObject = dcmroot
+        .get_child_by_tagnode(&tags::SourceImageSequence.tag.into())
+        .expect("Parse SourceImageSequence");
+
+    assert_eq!(sis_obj.get_item_count(), 1);
+
+    let tagpath: TagPath = vec![
+        TagNode::new(tags::SourceImageSequence.tag, Some(1)),
+        TagNode::new(tags::ReferencedSOPInstanceUID.tag, None),
+    ]
+    .into();
+
+    let ref_sop_obj: &DicomObject = dcmroot
+        .get_child_by_tagpath(&tagpath)
+        .expect("Parse SourceImageSequence.ReferencedSOPInstanceUID");
+
+    let ref_sop_uid: RawValue = ref_sop_obj.get_element().parse_value()?;
+    if let RawValue::Uid(uid) = ref_sop_uid {
+        assert_eq!(
+            uid,
+            "1.3.46.670589.11.0.0.11.4.2.0.5701.5.5248.2003110619383806273"
+        );
+    } else {
+        panic!("Parsed UID should be RawValue::Uid");
+    }
 
     Ok(())
 }

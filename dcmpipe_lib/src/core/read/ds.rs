@@ -1,6 +1,6 @@
 //! A buffered DICOM reader
 
-#[cfg(feature = "deflate")]
+#[cfg(feature = "compress")]
 pub(crate) mod dataset {
     use libflate::deflate::Decoder;
     use std::io::{BufReader, Read, Result};
@@ -34,7 +34,7 @@ pub(crate) mod dataset {
     }
 }
 
-#[cfg(not(feature = "deflate"))]
+#[cfg(not(feature = "compress"))]
 pub(crate) mod dataset {
     use std::io::{BufReader, Read, Result};
 

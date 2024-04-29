@@ -192,7 +192,9 @@ impl From<&SequenceElement> for TagNode {
 ///         ReferencedSOPInstanceUID
 /// ```
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct TagPath(pub Vec<TagNode>);
+pub struct TagPath {
+    pub nodes: Vec<TagNode>,
+}
 
 impl TagPath {
     /// Formats the tag path as readable text, optionally using the tag's display name where
@@ -202,7 +204,7 @@ impl TagPath {
         dict: Option<&dyn DicomDictionary>,
     ) -> String {
         tagpath
-            .0
+            .nodes
             .iter()
             // Filter out tags related to items & delimiters as they are markers which are already
             // contextually conveyed by the item number indicators.
@@ -243,7 +245,9 @@ impl From<u32> for TagPath {
 
 impl From<Vec<TagNode>> for TagPath {
     fn from(nodes: Vec<TagNode>) -> Self {
-        TagPath(nodes)
+        TagPath {
+            nodes
+        }
     }
 }
 

@@ -91,7 +91,7 @@ impl IndexApp {
         let walkdir = WalkDir::new(folder).into_iter().filter_map(|e| e.ok());
 
         let parser_builder: ParserBuilder<'_> = ParserBuilder::default()
-            .stop(ParseStop::BeforeTag(tags::PixelData.tag.into()))
+            .stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()))
             .dictionary(&STANDARD_DICOM_DICTIONARY);
         for entry in walkdir {
             if !entry.metadata()?.file_type().is_file() {
