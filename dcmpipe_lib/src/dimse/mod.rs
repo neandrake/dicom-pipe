@@ -1,3 +1,5 @@
+#![allow(clippy::module_name_repetitions)]
+
 use crate::{core::charset::DEFAULT_CHARACTER_SET, dimse::error::DimseError};
 
 pub mod assoc;

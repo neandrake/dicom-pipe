@@ -76,7 +76,7 @@ impl AssocRQ {
             size_of::<[u8; 16]>() + // calling_ae
             size_of::<[u8; 32]>() + // reserved_3
             app_ctx.byte_size() +
-            pres_ctxs.iter().map(|p| p.byte_size()).sum::<usize>() +
+            pres_ctxs.iter().map(AssocRQPresentationContext::byte_size).sum::<usize>() +
             user_info.byte_size();
 
         Self {
@@ -122,7 +122,7 @@ impl AssocRQ {
     }
 
     /// The third reserved field, 32 bytes. This is exposed as the standard requires this value be
-    /// copied in the AssocAC response.
+    /// copied in the `AssocAC` response.
     #[must_use]
     pub fn reserved_3(&self) -> &[u8; 32] {
         &self.reserved_3
@@ -158,7 +158,7 @@ impl AssocRQ {
             + self.calling_ae.len()
             + self.reserved_3.len()
             + self.app_ctx.byte_size()
-            + self.pres_ctxs.iter().map(|p| p.byte_size()).sum::<usize>()
+            + self.pres_ctxs.iter().map(AssocRQPresentationContext::byte_size).sum::<usize>()
             + self.user_info.byte_size()
     }
 
@@ -285,7 +285,7 @@ impl AssocAC {
             + size_of::<[u8; 16]>() // reserved_4
             + size_of::<[u8; 32]>() // reserved_5
             + app_ctx.byte_size()
-            + pres_ctxs.iter().map(|p| p.byte_size()).sum::<usize>()
+            + pres_ctxs.iter().map(AssocACPresentationContext::byte_size).sum::<usize>()
             + user_info.byte_size();
 
         Self {
@@ -360,7 +360,7 @@ impl AssocAC {
             + self.reserved_4.len()
             + self.reserved_5.len()
             + self.app_ctx.byte_size()
-            + self.pres_ctxs.iter().map(|p| p.byte_size()).sum::<usize>()
+            + self.pres_ctxs.iter().map(AssocACPresentationContext::byte_size).sum::<usize>()
             + self.user_info.byte_size()
     }
 
@@ -981,7 +981,10 @@ impl PresentationDataItem {
     /// Create a new `PresentationDataItem`.
     #[must_use]
     pub fn new(pres_data: Vec<PresentationDataValue>) -> Self {
-        let length: usize = pres_data.iter().map(|p| p.byte_size()).sum::<usize>();
+        let length: usize = pres_data
+            .iter()
+            .map(PresentationDataValue::byte_size)
+            .sum::<usize>();
 
         Self {
             reserved: 0u8,
@@ -1009,7 +1012,7 @@ impl PresentationDataItem {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
             + size_of::<u32>() // length
-            + self.pres_data.iter().map(|p| p.byte_size()).sum::<usize>()
+            + self.pres_data.iter().map(PresentationDataValue::byte_size).sum::<usize>()
     }
 
     /// Write this PDU to the given dataset.
@@ -1515,7 +1518,7 @@ impl AssocRQPresentationContext {
             + size_of::<u8>() // reserved_3
             + size_of::<u8>() // reserved_4
             + abstract_syntax.byte_size()
-            + transfer_syntaxes.iter().map(|p| p.byte_size()).sum::<usize>();
+            + transfer_syntaxes.iter().map(TransferSyntaxItem::byte_size).sum::<usize>();
 
         Self {
             reserved_1: 0u8,
@@ -1565,7 +1568,7 @@ impl AssocRQPresentationContext {
             + size_of::<u8>() // reserved_3
             + size_of::<u8>() // reserved_4
             + self.abstract_syntax.byte_size()
-            + self.transfer_syntaxes.iter().map(|t| t.byte_size()).sum::<usize>()
+            + self.transfer_syntaxes.iter().map(TransferSyntaxItem::byte_size).sum::<usize>()
     }
 
     /// Write this PDU to the given dataset.

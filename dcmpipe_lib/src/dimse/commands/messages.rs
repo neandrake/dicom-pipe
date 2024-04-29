@@ -148,6 +148,11 @@ impl CommandMessage {
         )
     }
 
+    /// Create a C-ECHO response from the given C-ECHO request.
+    ///
+    /// # Errors
+    /// This pulls values from the given `req`, however if those values are not present in the
+    /// request this will be propagated as a `DimseError::ElementMissingFromRequest`.
     pub fn c_echo_rsp_from_req(
         ts: TSRef,
         req: &CommandMessage,
@@ -208,6 +213,11 @@ impl CommandMessage {
         )
     }
 
+    /// Create a C-FIND response from the given C-FIND request.
+    ///
+    /// # Errors
+    /// This pulls values from the given `req`, however if those values are not present in the
+    /// request this will be propagated as a `DimseError::ElementMissingFromRequest`.
     pub fn c_find_rsp_from_req(
         ts: TSRef,
         req: &CommandMessage,

@@ -43,6 +43,10 @@ pub struct Association {
 }
 
 impl Association {
+    /// Serialize the given `DicomRoot` into in-memory bytes.
+    ///
+    /// # Errors
+    /// An I/O error may occur when writing to the in-memory `Vec`.
     pub fn serialize(dicom: &DicomRoot) -> Result<Vec<u8>, AssocError> {
         let mut ds_writer = WriterBuilder::default()
             .state(WriterState::Element)
@@ -54,7 +58,11 @@ impl Association {
         Ok(ds_writer.into_dataset())
     }
 
-    pub fn write_pdu<W: Write>(&self, pdu: Pdu, mut writer: &mut W) -> Result<(), AssocError> {
+    /// Write the given PDU to the given writer.
+    ///
+    /// # Errors
+    /// I/O errors may occur when writing to the writer or flushing the writer.
+    pub fn write_pdu<W: Write>(&self, pdu: &Pdu, mut writer: &mut W) -> Result<(), AssocError> {
         pdu.write(&mut writer).map_err(AssocError::error)?;
         writer
             .flush()
@@ -62,6 +70,12 @@ impl Association {
         Ok(())
     }
 
+    /// Begin processing an `Association` acting as a Service Class Provider, reading requests from
+    /// the  reader and writing responses to the writer.
+    ///
+    /// # Errors
+    /// - I/O errors may occur when reading/writing from the reader/writer.
+    /// - Any misbehaving SCU will be managed within, and this will not propagate these as errors.
     pub fn start<R: Read, W: Write>(&self, mut reader: R, mut writer: W) -> Result<(), AssocError> {
         let rq = Pdu::read(&mut reader)
             .map_err(AssocError::ab_failure)
@@ -83,7 +97,7 @@ impl Association {
         };
         let (ab, ts) = (assoc_ac.ab, assoc_ac.ts);
 
-        self.write_pdu(Pdu::AssocAC(assoc_ac.ac), &mut writer)?;
+        self.write_pdu(&Pdu::AssocAC(assoc_ac.ac), &mut writer)?;
 
         if let Err(e) = self.msg_loop(ab, ts, &mut reader, &mut writer) {
             e.write(&mut writer).map_err(AssocError::error)
@@ -92,6 +106,15 @@ impl Association {
         }
     }
 
+    /// Validates the association request, checking that this `Association`'s configuration can
+    /// handle and will accept the request.
+    ///
+    /// # Return
+    /// Whether to accept, reject, or abort the association request. If accepted, also includes the
+    /// accepted abstract and transfer syntaxes.
+    ///
+    /// # Errors
+    /// If the result of the request is to reject or abort, those are propagated as an `AssocError`.
     fn validate_assoc_rq(&self, rq: &AssocRQ) -> Result<AssocAcResult, AssocError> {
         let host_ae = self.host_ae.trim();
 
@@ -127,7 +150,7 @@ impl Association {
 
         let Some(ab) = ab else {
             let ab = pres_ctx.abstract_syntax().abstract_syntax().clone();
-            let ab = String::from_utf8(ab.clone()).unwrap_or_else(|_e| format!("{:?}", ab));
+            let ab = String::from_utf8(ab.clone()).unwrap_or_else(|_e| format!("{ab:?}"));
             return Err(AssocError::rj_failure(DimseError::GeneralError(format!(
                 "Unsupported abstract syntax: {ab:?}"
             ))));
@@ -169,6 +192,7 @@ impl Association {
         Ok(AssocAcResult { ac, ab, ts })
     }
 
+    /// The main request/resposne processing loop.
     fn msg_loop<R: Read, W: Write>(
         &self,
         _ab: UIDRef,
@@ -177,6 +201,9 @@ impl Association {
         mut writer: &mut W,
     ) -> Result<(), AssocError> {
         loop {
+            // Read one command message then handle it. The handling can't be done within a loop
+            // over the command message iterator as both the iterator and the handler need to read
+            // from the reader.
             let mut msg_iter = DimseMsgIter::new(&mut reader);
             let msg = match msg_iter.next() {
                 Some(Ok(msg)) => msg,
@@ -209,12 +236,12 @@ impl Association {
     ) -> Result<(), AssocError> {
         match pdu_type {
             PduType::ReleaseRQ => {
-                self.write_pdu(Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
+                self.write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
                 Ok(())
             }
             PduType::Abort => Ok(()),
             pdu_type => {
-                self.write_pdu(Pdu::Abort(Abort::new(2, 2)), writer)?;
+                self.write_pdu(&Pdu::Abort(Abort::new(2, 2)), writer)?;
                 Err(AssocError::error(DimseError::UnexpectedPduType(pdu_type)))
             }
         }
@@ -267,6 +294,7 @@ impl AssociationBuilder {
         self
     }
 
+    #[must_use]
     pub fn handler(mut self, cmd_type: CommandType, handler: MsgHandler) -> Self {
         self.handlers.insert(cmd_type, handler);
         self

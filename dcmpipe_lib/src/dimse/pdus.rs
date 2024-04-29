@@ -52,8 +52,9 @@ impl std::fmt::Debug for PduType {
             PduType::AssocRQ => write!(f, "A-ASSOCIATE-RQ"),
             PduType::AssocAC => write!(f, "A-ASSOCIATE-AC"),
             PduType::AssocRJ => write!(f, "A-ASSOCIATE-RJ"),
-            PduType::PresentationDataItem => write!(f, "P-DATA"),
-            PduType::PresentationDataItemPartial => write!(f, "P-DATA"),
+            PduType::PresentationDataItem | PduType::PresentationDataItemPartial => {
+                write!(f, "P-DATA")
+            }
             PduType::ReleaseRQ => write!(f, "A-RELEASE-RQ"),
             PduType::ReleaseRP => write!(f, "A-RELEASE-RP"),
             PduType::Abort => write!(f, "A-ABORT"),
@@ -75,8 +76,7 @@ impl From<&PduType> for u8 {
             PduType::AssocAC => 0x02,
             PduType::AssocRJ => 0x03,
 
-            PduType::PresentationDataItem => 0x04,
-            PduType::PresentationDataItemPartial => 0x04,
+            PduType::PresentationDataItem | PduType::PresentationDataItemPartial => 0x04,
 
             PduType::ReleaseRQ => 0x05,
             PduType::ReleaseRP => 0x06,

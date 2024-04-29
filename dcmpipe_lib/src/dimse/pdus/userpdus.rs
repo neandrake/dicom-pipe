@@ -288,8 +288,8 @@ pub struct RoleSelectionItem {
     length: u16,
     sop_class_uid_length: u16,
     sop_class_uid: Vec<u8>,
-    scu_role: u8,
-    scp_role: u8,
+    sc_user_role: u8,
+    sc_provider_role: u8,
 }
 
 impl RoleSelectionItem {
@@ -301,19 +301,19 @@ impl RoleSelectionItem {
 
     /// Create a new `RoleSelectionItem`.
     #[must_use]
-    pub fn new(sop_class_uid: Vec<u8>, scu_role: u8, scp_role: u8) -> Self {
+    pub fn new(sop_class_uid: Vec<u8>, sc_user_role: u8, sc_provider_role: u8) -> Self {
         let length: usize = size_of::<u16>() // sop_class_uid_length
             + sop_class_uid.len()
-            + size_of::<u8>() // scu_role
-            + size_of::<u8>(); // scp_role
+            + size_of::<u8>() // sc_user_role
+            + size_of::<u8>(); // sc_provider_role
 
         Self {
             reserved: 0u8,
             length: length.try_into().unwrap_or_default(),
             sop_class_uid_length: sop_class_uid.len().try_into().unwrap_or_default(),
             sop_class_uid,
-            scu_role,
-            scp_role,
+            sc_user_role,
+            sc_provider_role,
         }
     }
 
@@ -338,20 +338,22 @@ impl RoleSelectionItem {
 
     /// Support for the SCU role.
     ///
-    /// 0: non-support of the SCU role.
-    /// 1: support of the SCU role.
+    /// # Notes
+    /// - 0: non-support of the SCU role.
+    /// - 1: support of the SCU role.
     #[must_use]
-    pub fn scu_role(&self) -> u8 {
-        self.scu_role
+    pub fn sc_user_role(&self) -> u8 {
+        self.sc_user_role
     }
 
     /// Support for the SCP role.
     ///
-    /// 0: non-support of the SCP role.
-    /// 1: support of the SCP role.
+    /// # Notes
+    /// - 0: non-support of the SCP role.
+    /// - 1: support of the SCP role.
     #[must_use]
-    pub fn scp_role(&self) -> u8 {
-        self.scp_role
+    pub fn sc_provider_role(&self) -> u8 {
+        self.sc_provider_role
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
@@ -362,8 +364,8 @@ impl RoleSelectionItem {
             + size_of::<u16>() // length
             + size_of::<u16>() // sop_class_uid_length
             + self.sop_class_uid.len()
-            + size_of::<u8>() // scu_role
-            + size_of::<u8>() // scp_role
+            + size_of::<u8>() // sc_user_role
+            + size_of::<u8>() // sc_provider_role
     }
 
     /// Write this PDU to the given dataset.
@@ -378,8 +380,8 @@ impl RoleSelectionItem {
         dataset.write_all(&self.sop_class_uid_length.to_be_bytes())?;
         dataset.write_all(&self.sop_class_uid)?;
 
-        buf[0] = self.scu_role;
-        buf[1] = self.scp_role;
+        buf[0] = self.sc_user_role;
+        buf[1] = self.sc_provider_role;
         dataset.write_all(&buf)?;
 
         Ok(())
@@ -400,16 +402,16 @@ impl RoleSelectionItem {
         dataset.read_exact(&mut sop_class_uid)?;
 
         dataset.read_exact(&mut buf)?;
-        let scu_role = buf[0];
-        let scp_role = buf[1];
+        let sc_user_role = buf[0];
+        let sc_provider_role = buf[1];
 
         Ok(Self {
             reserved,
             length,
             sop_class_uid_length,
             sop_class_uid,
-            scu_role,
-            scp_role,
+            sc_user_role,
+            sc_provider_role,
         })
     }
 }
@@ -637,7 +639,7 @@ impl SOPClassCommonExtendedNegotiationItem {
     ) -> Self {
         let rel_gen_sop_classes_length: usize = rel_gen_sop_classes
             .iter()
-            .map(|r| r.byte_size())
+            .map(RelatedGeneralSOPClassUID::byte_size)
             .sum::<usize>();
 
         let length: usize = size_of::<u16>() // sop_class_uid_length
@@ -724,7 +726,7 @@ impl SOPClassCommonExtendedNegotiationItem {
             + size_of::<u16>() // service_class_uid_length
             + self.service_class_uid.len()
             + size_of::<u16>() // rel_gen_sop_classes_length
-            + self.rel_gen_sop_classes.iter().map(|r| r.byte_size()).sum::<usize>()
+            + self.rel_gen_sop_classes.iter().map(RelatedGeneralSOPClassUID::byte_size).sum::<usize>()
             + self.reserved.len()
     }
 

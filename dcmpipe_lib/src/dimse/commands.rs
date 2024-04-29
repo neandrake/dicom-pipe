@@ -65,8 +65,8 @@ impl std::fmt::Debug for CommandType {
             CommandType::NCreateReq => write!(f, "N-CREATE-RQ"),
             CommandType::NCreateRsp => write!(f, "N-CREATE-RP"),
             CommandType::NDeleteReq => write!(f, "N-DELETE-RQ"),
-            CommandType::NDeleteRsp => write!(f, "N-DELETE-RQ"),
-            CommandType::CCancelReq => write!(f, "N-CANCEL-RP"),
+            CommandType::NDeleteRsp => write!(f, "N-DELETE-RP"),
+            CommandType::CCancelReq => write!(f, "N-CANCEL-RQ"),
             CommandType::INVALID(c) => write!(f, "INVALID: {c:04x}"),
         }
     }
@@ -224,12 +224,12 @@ pub enum CommandStatus {
 impl<'e> From<&CommandStatus> for RawValue<'e> {
     fn from(value: &CommandStatus) -> Self {
         match value {
-            CommandStatus::Success(c) => RawValue::of_ushort(*c),
-            CommandStatus::Warning(c) => RawValue::of_ushort(*c),
-            CommandStatus::Failure(c) => RawValue::of_ushort(*c),
-            CommandStatus::Cancel(c) => RawValue::of_ushort(*c),
-            CommandStatus::Pending(c) => RawValue::of_ushort(*c),
-            CommandStatus::INVALID(c) => RawValue::of_ushort(*c),
+            CommandStatus::Success(c)
+            | CommandStatus::Warning(c)
+            | CommandStatus::Failure(c)
+            | CommandStatus::Cancel(c)
+            | CommandStatus::Pending(c)
+            | CommandStatus::INVALID(c) => RawValue::of_ushort(*c),
         }
     }
 }
