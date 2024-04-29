@@ -1,143 +1,42 @@
-use std::cmp::Ordering;
 use std::fs::File;
+use std::io::{stdout, Stdout};
+use std::ops::Sub;
 use std::path::Path;
+use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use cursive::view::{Nameable, Resizable};
-use cursive::views::{Dialog, TextView};
-use cursive::{Cursive, CursiveExt};
-use cursive_table_view::{TableColumn, TableView, TableViewItem};
 
-use dcmpipe_lib::core::dcmelement::DicomElement;
+use crossterm::event::{self, Event::Key, Event::Mouse, KeyCode::Char};
+use crossterm::event::{
+    DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyEventKind, MouseButton,
+    MouseEvent, MouseEventKind,
+};
+use crossterm::execute;
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::tag::Tag;
+use ratatui::backend::CrosstermBackend;
+use ratatui::layout::{Constraint, Layout};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Borders, Cell, Row, Table, TableState};
+use ratatui::{Frame, Terminal};
 
 use crate::app::CommandApplication;
 use crate::args::BrowseArgs;
+
+use super::{render_tag_name, render_value};
 
 pub struct BrowseApp {
     args: BrowseArgs,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
-enum DicomElementColumn {
-    Expand,
-    Tag,
-    Name,
-    VR,
-    Value,
-}
-
-impl DicomElementColumn {
-    fn iter() -> std::vec::IntoIter<DicomElementColumn> {
-        vec![
-            DicomElementColumn::Expand,
-            DicomElementColumn::Tag,
-            DicomElementColumn::Name,
-            DicomElementColumn::VR,
-            DicomElementColumn::Value,
-        ]
-        .into_iter()
-    }
-
-    fn title(&self) -> &str {
-        match *self {
-            DicomElementColumn::Expand => "+",
-            DicomElementColumn::Tag => "Tag",
-            DicomElementColumn::Name => "Name",
-            DicomElementColumn::VR => "VR",
-            DicomElementColumn::Value => "Value",
-        }
-    }
-
-    fn configure(
-        &self,
-        max_tagname_size: usize,
-        c: TableColumn<DicomElementColumn>,
-    ) -> TableColumn<DicomElementColumn> {
-        match self {
-            DicomElementColumn::Expand => c.width(5),
-            DicomElementColumn::Tag => c.width(12).ordering(Ordering::Greater),
-            DicomElementColumn::Name => c.width(max_tagname_size),
-            DicomElementColumn::VR => c.width(5),
-            DicomElementColumn::Value => c,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct DicomElementRow {
-    tag: u32,
-    seq: String,
-    tag_display: String,
-    name: String,
-    vr: String,
-    row_value: String,
-    full_value: String,
-}
-impl DicomElementRow {
-    fn new(element: &DicomElement) -> DicomElementRow {
-        let seq: String = if element.is_seq_like() { "+" } else { "" }.to_owned();
-        let name: String = super::render_tag_name(element).to_owned();
-
-        let row_value = if let Ok(value) = super::render_value(element, false) {
-            value
-        } else {
-            "<Error Parsing Value>".to_owned()
-        };
-
-        let full_value = if let Ok(value) = super::render_value(element, true) {
-            value
-        } else {
-            "<Error Parsing Value>".to_owned()
-        };
-
-        DicomElementRow {
-            tag: element.get_tag(),
-            seq,
-            tag_display: Tag::format_tag_to_display(element.get_tag()),
-            name,
-            vr: element.get_vr().ident.to_owned(),
-            row_value,
-            full_value,
-        }
-    }
-
-    fn element_dialog_title(&self) -> String {
-        format!("{} {} {}", self.tag_display, self.name, self.vr)
-    }
-}
-
-impl TableViewItem<DicomElementColumn> for DicomElementRow {
-    fn to_column(&self, column: DicomElementColumn) -> String {
-        match column {
-            DicomElementColumn::Expand => self.seq.clone(),
-            DicomElementColumn::Tag => self.tag_display.clone(),
-            DicomElementColumn::Name => self.name.clone(),
-            DicomElementColumn::VR => self.vr.clone(),
-            DicomElementColumn::Value => self.row_value.clone(),
-        }
-    }
-
-    fn cmp(&self, other: &Self, column: DicomElementColumn) -> Ordering
-    where
-        Self: Sized,
-    {
-        match column {
-            DicomElementColumn::Expand => Ordering::Equal,
-            DicomElementColumn::Tag => self.tag.cmp(&other.tag),
-            DicomElementColumn::Name => Ordering::Equal,
-            DicomElementColumn::VR => Ordering::Equal,
-            DicomElementColumn::Value => Ordering::Equal,
-        }
-    }
-}
-
-impl BrowseApp {
-    pub fn new(args: BrowseArgs) -> BrowseApp {
-        BrowseApp { args }
-    }
+struct BrowseAppState<'app> {
+    is_running: bool,
+    dcmroot: DicomRoot<'app>,
+    table_state: TableState,
 }
 
 impl CommandApplication for BrowseApp {
@@ -152,66 +51,178 @@ impl CommandApplication for BrowseApp {
             Err(err) => return Err(anyhow!(err)),
         };
 
-        let mut items: Vec<DicomElementRow> = Vec::new();
-        let mut total_name_size: usize = 0;
-        for elem in dcmroot.flatten()? {
-            if elem.get_sequence_path().is_empty() {
-                let name: &str = super::render_tag_name(elem);
-                total_name_size = name.len().max(total_name_size);
-                items.push(DicomElementRow::new(elem));
-            }
-        }
+        let mut table_state = TableState::default();
+        table_state.select(Some(0));
+        let state = BrowseAppState {
+            is_running: true,
+            dcmroot,
+            table_state,
+        };
+        let mut terminal = self.init()?;
 
-        let mut cursive: Cursive = Cursive::default();
-        cursive.add_global_callback('q', Cursive::quit);
-        cursive.add_global_callback('~', Cursive::toggle_debug_console);
+        let app_result = self.run_loop(&mut terminal, state);
 
-        let mut table = TableView::<DicomElementRow, DicomElementColumn>::new();
+        self.close(terminal)?;
 
-        for column in DicomElementColumn::iter() {
-            table = table.column(column, column.title(), |c| {
-                column.configure(total_name_size, c)
-            });
-        }
-
-        table.set_items(items);
-
-        table.set_on_submit(|siv: &mut Cursive, _view_index: usize, data_index: usize| {
-            let title: String = siv
-                .call_on_name(
-                    "table",
-                    |table: &mut TableView<DicomElementRow, DicomElementColumn>| {
-                        table
-                            .borrow_item(data_index)
-                            .unwrap()
-                            .element_dialog_title()
-                    },
-                )
-                .unwrap();
-
-            let value: String = siv
-                .call_on_name(
-                    "table",
-                    |table: &mut TableView<DicomElementRow, DicomElementColumn>| {
-                        table.borrow_item(data_index).unwrap().full_value.clone()
-                    },
-                )
-                .unwrap();
-
-            siv.add_layer(Dialog::around(TextView::new(value)).title(title).button(
-                "Close",
-                move |s| {
-                    s.pop_layer();
-                },
-            ));
-        });
-
-        cursive.add_layer(
-            Dialog::around(table.with_name("table").full_screen()).title("DICOM Browser"),
-        );
-
-        cursive.run();
+        app_result?;
 
         Ok(())
+    }
+}
+
+impl BrowseApp {
+    pub fn new(args: BrowseArgs) -> BrowseApp {
+        BrowseApp { args }
+    }
+
+    fn init(&self) -> Result<Terminal<CrosstermBackend<Stdout>>> {
+        execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+        enable_raw_mode()?;
+        let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+        terminal.clear()?;
+        Ok(terminal)
+    }
+
+    fn close(&self, mut terminal: Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
+        terminal.clear()?;
+        execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
+        disable_raw_mode()?;
+        terminal.show_cursor()?;
+        Ok(())
+    }
+
+    fn run_loop(
+        &self,
+        terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+        mut state: BrowseAppState,
+    ) -> Result<()> {
+        loop {
+            terminal.draw(|frame| self.render(&mut state, frame))?;
+            self.update_state(&mut state)?;
+            if !state.is_running {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn update_state(&self, state: &mut BrowseAppState) -> Result<()> {
+        if event::poll(Duration::from_millis(50))? {
+            match event::read()? {
+                Key(key) => match key.kind {
+                    KeyEventKind::Press => self.event_keypress(state, key),
+                    _ => {}
+                },
+                Mouse(mouse) => match mouse.kind {
+                    MouseEventKind::Down(button) | MouseEventKind::Drag(button) => {
+                        self.event_mouse_down(state, mouse, button)
+                    }
+                    MouseEventKind::ScrollDown => self.event_mouse_scroll_down(state, mouse),
+                    MouseEventKind::ScrollUp => self.event_mouse_scroll_up(state, mouse),
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn event_keypress(&self, state: &mut BrowseAppState, event: KeyEvent) {
+        match event.code {
+            Char('q') => state.is_running = false,
+            KeyCode::Esc => state.is_running = false,
+            Char('j') | KeyCode::Down => self.table_select_next(state, 1),
+            Char('k') | KeyCode::Up => self.table_select_next(state, -1),
+            _ => {}
+        }
+    }
+
+    fn event_mouse_down(&self, state: &mut BrowseAppState, event: MouseEvent, button: MouseButton) {
+        if button != MouseButton::Left {
+            return;
+        }
+
+        let index = state.table_state.offset().saturating_add(event.row.saturating_sub(3) as usize);
+        state.table_state.select(Some(index));
+    }
+
+    fn event_mouse_scroll_up(&self, state: &mut BrowseAppState, _event: MouseEvent) {
+        self.table_select_next(state, -1);
+    }
+
+    fn event_mouse_scroll_down(&self, state: &mut BrowseAppState, _event: MouseEvent) {
+        self.table_select_next(state, 1);
+    }
+
+    fn table_select_next(&self, state: &mut BrowseAppState, modifier: isize) {
+        let i = match state.table_state.selected() {
+            None => 0,
+            Some(i) => state
+                .dcmroot
+                .get_child_count()
+                .sub(1)
+                .min(i.saturating_add_signed(modifier))
+                .max(0),
+        };
+        state.table_state.select(Some(i));
+    }
+
+    fn render(&self, state: &mut BrowseAppState, frame: &mut Frame) {
+        let mut max_name_width: u16 = 0;
+        let mut rows: Vec<Row> = Vec::with_capacity(state.dcmroot.get_child_count());
+        for (tag, dcmobj) in state.dcmroot.iter_child_nodes() {
+            let elem_name = render_tag_name(dcmobj.get_element());
+            max_name_width = max_name_width.max(elem_name.len() as u16);
+            let elem_value = render_value(dcmobj.get_element(), false)
+                .unwrap_or_else(|_err| "<Error>".to_owned());
+
+            let mut cells: Vec<Cell> = Vec::with_capacity(5);
+            cells.push(Cell::from(if dcmobj.get_element().is_seq_like() {
+                "+"
+            } else {
+                ""
+            }));
+            cells.push(Cell::from(Tag::format_tag_to_display(*tag)));
+            cells.push(Cell::from(elem_name));
+            cells.push(Cell::from(dcmobj.get_element().get_vr().ident));
+            cells.push(Cell::from(elem_value));
+            rows.push(Row::new(cells));
+        }
+
+        let column_widths = [
+            Constraint::Length(1),
+            Constraint::Length(11),
+            Constraint::Length(max_name_width),
+            Constraint::Length(2),
+            Constraint::Max(1024),
+        ];
+
+        let table = Table::new(rows)
+            .header(
+                Row::new(vec!["+", "Tag", "Name", "VR", "Value"])
+                    .style(Style::default().fg(Color::Red)),
+            )
+            .block(
+                Block::default()
+                    .title("DICOM Browser")
+                    .borders(Borders::all()),
+            )
+            .widths(&column_widths)
+            .highlight_style(
+                Style::default()
+                    .bg(Color::LightBlue)
+                    .add_modifier(Modifier::BOLD),
+            );
+
+        let sections = Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Min(1),
+                Constraint::Length(1),
+            ])
+            .split(frame.size());
+
+        frame.render_stateful_widget(table, sections[1], &mut state.table_state);
     }
 }
