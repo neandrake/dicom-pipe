@@ -20,7 +20,17 @@ use walkdir::WalkDir;
 pub mod mock;
 pub mod mockdata;
 
-/// Parses the given file into a `DicomObject`
+/// The path to the fixtures, relative to the `dcmpipe_lib` crate which is the working directory
+/// when tests are run.
+const FIXTURES_PATH: &'static str = "./tests/fixtures";
+
+/// Gets the fixture file of the given file path, relative to the fixtures directory.
+pub fn fixture(path: &str) -> Result<File, std::io::Error> {
+    File::open(Path::new(FIXTURES_PATH).join(path))
+}
+
+/// Parses the given file into a `DicomObject`. The fixture file path should be relative to the
+/// fixtures directory.
 pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot<'_>> {
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
@@ -30,7 +40,7 @@ pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot<'_>> {
 
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
-        .build(File::open(path)?);
+        .build(fixture(path)?);
     let dcmroot: DicomRoot<'_> = DicomRoot::parse(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
@@ -64,7 +74,7 @@ pub fn parse_all_dicom_files(with_std: bool) -> ParseResult<usize> {
 /// Gets the paths to all dicom files within the `fixtures` directory.
 /// See the `readme.md` in this project for information on obtaining test fixtures.
 pub fn get_dicom_file_paths() -> impl Iterator<Item = PathBuf> {
-    let fixtures_path: &Path = Path::new("./fixtures");
+    let fixtures_path: &Path = Path::new(FIXTURES_PATH);
     assert!(
         fixtures_path.is_dir(),
         "The fixtures are missing and need downloaded"

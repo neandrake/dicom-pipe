@@ -12,13 +12,12 @@ use dcmpipe_lib::dict::tags;
 
 mod common;
 
-use common::parse_file;
+use common::{fixture, parse_file};
 
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]
 fn test_parse_nested_charset_values() -> ParseResult<()> {
-    let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
-    let file: File = File::open(path_str)?;
+    let file = fixture("dclunie/charsettests/DICOMDIR")?;
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build(file);
@@ -138,7 +137,7 @@ fn test_nested_charset(
 fn test_scs_arab() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSARAB",
+        "dclunie/charsettests/SCSARAB",
         CSRef::of(encoding_rs::ISO_8859_6),
         "ISO_IR 127",
         "قباني^لنزار",
@@ -149,7 +148,7 @@ fn test_scs_arab() -> ParseResult<()> {
 fn test_scs_french() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSFREN",
+        "dclunie/charsettests/SCSFREN",
         CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO_IR 100",
         "Buc^Jérôme",
@@ -160,7 +159,7 @@ fn test_scs_french() -> ParseResult<()> {
 fn test_scs_german() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSGERM",
+        "dclunie/charsettests/SCSGERM",
         CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO_IR 100",
         "Äneas^Rüdiger",
@@ -171,7 +170,7 @@ fn test_scs_german() -> ParseResult<()> {
 fn test_scs_greek() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSGREEK",
+        "dclunie/charsettests/SCSGREEK",
         CSRef::of(encoding_rs::ISO_8859_7),
         "ISO_IR 126",
         "Διονυσιος",
@@ -182,7 +181,7 @@ fn test_scs_greek() -> ParseResult<()> {
 fn test_scs_h31() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSH31",
+        "dclunie/charsettests/SCSH31",
         CSRef::of(encoding_rs::ISO_2022_JP),
         "ISO 2022 IR 87",
         "Yamada^Tarou=山田^太郎=やまだ^たろう",
@@ -195,7 +194,7 @@ fn test_scs_h31() -> ParseResult<()> {
 fn test_scs_h32() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSH32",
+        "dclunie/charsettests/SCSH32",
         CSRef::of(encoding_rs::SHIFT_JIS),
         "ISO 2022 IR 13",
         "",
@@ -206,7 +205,7 @@ fn test_scs_h32() -> ParseResult<()> {
 fn test_scs_hebrew() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSHBRW",
+        "dclunie/charsettests/SCSHBRW",
         CSRef::of(encoding_rs::ISO_8859_8),
         "ISO_IR 138",
         "שרון^דבורה",
@@ -217,7 +216,7 @@ fn test_scs_hebrew() -> ParseResult<()> {
 fn test_scs_i12() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSI2",
+        "dclunie/charsettests/SCSI2",
         CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO 2022 IR 149",
         "Hong^Gildong=\u{1b}$)Cûó^\u{1b}$)CÑÎÔ×=\u{1b}$)CÈ«^\u{1b}$)C±æµ¿",
@@ -228,7 +227,7 @@ fn test_scs_i12() -> ParseResult<()> {
 fn test_scs_russian() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSRUSS",
+        "dclunie/charsettests/SCSRUSS",
         CSRef::of(encoding_rs::ISO_8859_5),
         "ISO_IR 144",
         "Люкceмбypг",
@@ -239,7 +238,7 @@ fn test_scs_russian() -> ParseResult<()> {
 fn test_scs_x1() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSX1",
+        "dclunie/charsettests/SCSX1",
         CSRef::of(encoding_rs::UTF_8),
         "ISO_IR 192",
         "Wang^XiaoDong=王^小東=",
@@ -250,7 +249,7 @@ fn test_scs_x1() -> ParseResult<()> {
 fn test_scs_x2() -> ParseResult<()> {
     test_scs_file(
         true,
-        "./fixtures/dclunie/charsettests/SCSX2",
+        "dclunie/charsettests/SCSX2",
         CSRef::of(encoding_rs::GB18030),
         "GB18030",
         "Wang^XiaoDong=王^小东=",

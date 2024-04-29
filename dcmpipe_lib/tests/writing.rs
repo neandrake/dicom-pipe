@@ -18,7 +18,7 @@ use dcmpipe_lib::{
 
 mod common;
 
-use common::{get_dicom_file_paths, mockdata};
+use common::{fixture, get_dicom_file_paths, mockdata};
 
 /// This builds up an in-memory dicom dataset that when written out will result in the same bytes
 /// as `mockdata::STANDARD_HEADER`.
@@ -87,8 +87,8 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
 
 #[test]
 pub fn test_write_same_object() -> Result<(), WriteError> {
-    let file_path: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
-    let file: File = File::open(file_path)?;
+    let path: &str = "gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
+    let file: File = fixture(path)?;
     let file_size = file.metadata()?.len();
     let mut parser = ParserBuilder::default()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
@@ -96,13 +96,15 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
 
     let dcmroot = DicomRoot::parse(&mut parser)?.expect("Parse file into DicomObject");
 
-    let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file().ts(parser.ts()).build(Vec::new());
+    let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file()
+        .ts(parser.ts())
+        .build(Vec::with_capacity(file_size as usize));
     writer.write_dcmroot(&dcmroot)?;
     let written_bytes: Vec<u8> = writer.into_dataset()?;
 
     // Read all bytes into memory.
     let mut file_bytes: Vec<u8> = Vec::with_capacity(file_size as usize);
-    let mut file: File = File::open(file_path)?;
+    let mut file: File = fixture(path)?;
     file.read_to_end(&mut file_bytes)?;
 
     assert_byte_chunks(&file_bytes, &written_bytes);
@@ -112,8 +114,8 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
 
 #[test]
 pub fn test_reencoded_values() -> Result<(), WriteError> {
-    let file_path: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
-    let file: File = File::open(file_path)?;
+    let file_path: &str = "./gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
+    let file: File = fixture(file_path)?;
     let mut parser = ParserBuilder::default()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build(file);
@@ -127,8 +129,8 @@ pub fn test_reencoded_values() -> Result<(), WriteError> {
 
 #[test]
 pub fn test_write_reencoded_values() -> Result<(), WriteError> {
-    let file_path: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
-    let file: File = File::open(file_path)?;
+    let file_path: &str = "gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
+    let file: File = fixture(file_path)?;
     let file_size = file.metadata()?.len();
     let mut parser = ParserBuilder::default()
         .dictionary(&STANDARD_DICOM_DICTIONARY)
@@ -147,7 +149,7 @@ pub fn test_write_reencoded_values() -> Result<(), WriteError> {
 
     // Read all bytes into memory.
     let mut file_bytes: Vec<u8> = Vec::with_capacity(file_size as usize);
-    let mut file: File = File::open(file_path)?;
+    let mut file: File = fixture(file_path)?;
     file.read_to_end(&mut file_bytes)?;
 
     assert_byte_chunks(&file_bytes, &written_bytes);
