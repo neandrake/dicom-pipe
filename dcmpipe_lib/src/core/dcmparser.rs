@@ -17,7 +17,6 @@ use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
 
-
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
 pub const DICOM_PREFIX_LENGTH: usize = 4;
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
