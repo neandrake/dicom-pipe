@@ -1,6 +1,6 @@
 //! This module is for defining the bare minimum constant values needed for parsing DICOM.
 
-/// The tags necessary for parsing a DICOM stream
+/// The tags necessary for parsing a DICOM dataset.
 pub mod tags {
     pub const FILE_META_INFORMATION_GROUP_LENGTH: u32 = 0x0002_0000;
     pub const TRANSFER_SYNTAX_UID: u32 = 0x0002_0010;
@@ -14,7 +14,7 @@ pub mod tags {
     pub const ITEM_DELIMITATION_ITEM: u32 = 0xFFFE_E00D;
 }
 
-/// The transfer syntaxes needed for parsing a DICOM stream
+/// The transfer syntaxes needed for parsing a DICOM dataset.
 pub mod ts {
     #![allow(non_upper_case_globals)]
 
@@ -65,7 +65,7 @@ pub mod ts {
     };
 }
 
-/// The UIDs needed for parsing a DICOM stream
+/// The UIDs needed for parsing a DICOM dataset.
 pub mod uids {
     #![allow(non_upper_case_globals)]
 
@@ -112,9 +112,8 @@ pub mod uids {
     };
 }
 
+/// The transfer syntax lookup for parsing a DICOM dataset.
 pub mod lookup {
-    #![allow(clippy::unreadable_literal)]
-
     use super::ts;
     use super::uids;
     use crate::defn::ts::TSRef;

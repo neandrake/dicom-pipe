@@ -1,4 +1,4 @@
-use crate::mock::MockDicomStream;
+use crate::mock::MockDicomDataset;
 use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::file_meta_elements as fme;
@@ -17,12 +17,12 @@ use std::io::{Error, ErrorKind};
 
 #[test]
 fn test_good_preamble() {
-    let mut parser: Parser<MockDicomStream> = MockDicomStream::standard_dicom_preamble();
+    let mut parser: Parser<MockDicomDataset> = MockDicomDataset::standard_dicom_preamble();
 
     // reads the preamble, prefix, and first element (mock has no first element)
     let _ = parser
         .next()
-        .expect("Should be able to iterate a valid dicom stream");
+        .expect("Should be able to iterate a valid dicom dataset");
 
     let is_dcm: bool = is_standard_dcm_file(&parser);
     assert_eq!(is_dcm, true);
@@ -30,12 +30,12 @@ fn test_good_preamble() {
 
 #[test]
 fn test_nonzero_preamble() {
-    let mut parser: Parser<MockDicomStream> = MockDicomStream::nonzero_preamble();
+    let mut parser: Parser<MockDicomDataset> = MockDicomDataset::nonzero_preamble();
 
     // reads the preamble, prefix, and first element (mock has no first element)
     let _ = parser
         .next()
-        .expect("Should be able to iterate a valid dicom stream with non-standard preamble");
+        .expect("Should be able to iterate a valid dicom dataset with non-standard preamble");
 
     let is_dcm: bool = is_standard_dcm_file(&parser);
     assert_eq!(is_dcm, false);
@@ -44,7 +44,7 @@ fn test_nonzero_preamble() {
 #[test]
 #[should_panic(expected = "Invalid DICOM Prefix")]
 fn test_bad_dicom_prefix_parser() {
-    let mut parser: Parser<MockDicomStream> = MockDicomStream::invalid_dicom_prefix();
+    let mut parser: Parser<MockDicomDataset> = MockDicomDataset::invalid_dicom_prefix();
 
     // reads the preamble, prefix, and first element
     let _ = parser
@@ -58,15 +58,15 @@ fn test_bad_dicom_prefix_parser() {
 #[test]
 #[should_panic(expected = "Invalid DICOM Prefix")]
 fn test_bad_dicom_prefix_reader() {
-    let mut parser: Parser<MockDicomStream> = MockDicomStream::invalid_dicom_prefix();
+    let mut parser: Parser<MockDicomDataset> = MockDicomDataset::invalid_dicom_prefix();
     parse_into_object(&mut parser).unwrap();
 }
 
 #[test]
 #[should_panic(expected = "failed to fill whole buffer")]
 fn test_failure_to_read_preamble() {
-    let mut parser: Parser<MockDicomStream> =
-        MockDicomStream::standard_dicom_preamble_diff_startpos_and_short_stream();
+    let mut parser: Parser<MockDicomDataset> =
+        MockDicomDataset::standard_dicom_preamble_diff_startpos_and_short_dataset();
 
     // reads the preamble, prefix, and first element
     let _first_elem = parser
@@ -110,7 +110,7 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
     assert_eq!(parser.get_parser_state(), ParseState::FileMeta);
 
     while let Some(_) = parser.next() {
-        // read through the entire stream
+        // read through the entire dataset
     }
 
     assert_eq!(parser.get_parser_state(), ParseState::Element);
@@ -366,7 +366,7 @@ fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     assert!(parser.get_file_preamble().is_none());
     assert!(parser.get_dicom_prefix().is_none());
 
-    // parse the rest of the stream into an object
+    // parse the rest of the dataset into an object
     let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
     assert_eq!(dcmroot.get_child_count(), 32);
     Ok(())
