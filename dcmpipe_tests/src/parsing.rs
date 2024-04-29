@@ -55,12 +55,14 @@ fn test_bad_dicom_prefix_parser() {
         .unwrap();
 }
 
-/// Test that reading the parser into a DICOM object properly propagates errors
+/// Test that failure to read a single element into a `DicomObject` results in a `None` result
+/// rather than an error.
 #[test]
-#[should_panic(expected = "Invalid DICOM Prefix")]
-fn test_bad_dicom_prefix_reader() {
+fn test_invalid_dicom_is_none() {
     let mut parser: Parser<'_, MockDicomDataset> = MockDicomDataset::invalid_dicom_prefix();
-    parse_into_object(&mut parser).unwrap();
+    let parse_result: Option<DicomRoot> =
+        parse_into_object(&mut parser).expect("Failed to parse DICOM");
+    assert!(parse_result.is_none());
 }
 
 #[test]
