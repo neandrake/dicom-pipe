@@ -25,7 +25,7 @@ fn make_app() -> Box<dyn CommandApplication> {
     let args: Arguments = Arguments::from_args();
 
     match args.command {
-        Command::Dump { stream, file } => {
+        Command::Show { stream, file } => {
             if stream {
                 Box::new(LowMemApp::new(file))
             } else {
@@ -33,8 +33,8 @@ fn make_app() -> Box<dyn CommandApplication> {
             }
         }
         Command::Edit { file } => Box::new(CursiveApp::new(file)),
-        Command::Scan { folder } => Box::new(ScanApp::new(folder)),
-        Command::Index { mongo, folder } => Box::new(IndexApp::new(mongo, folder)),
+        Command::Parse { folder } => Box::new(ScanApp::new(folder)),
+        Command::Index { db, cmd } => Box::new(IndexApp::new(db, cmd)),
         Command::Archive {
             source,
             destination,
