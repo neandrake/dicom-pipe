@@ -1,6 +1,6 @@
 //! Errors that can occur during parsing of a DICOM dataset.
 
-use crate::core::charset::CSRef;
+use crate::core::charset::{CSError, CSRef};
 use crate::core::DICOM_PREFIX_LENGTH;
 use crate::defn::tag::Tag;
 use crate::defn::vr::VRRef;
@@ -22,6 +22,13 @@ pub enum ParseError {
     /// dicom element.
     #[error("file/stream ended between dicom elements")]
     ExpectedEOF,
+
+    /// Wraper around `crate::core::charset::CSError`.
+    #[error("charset decoding error")]
+    CharsetError {
+        #[source]
+        source: CSError,
+    },
 
     /// Wrapper around `std::io::Error`.
     #[error("i/o error reading from stream")]

@@ -1161,13 +1161,11 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
 }
 
 #[test]
-#[ignore]
 fn test_dicomdir_with_std() -> Result<()> {
     test_dicomdir(true)
 }
 
 #[test]
-#[ignore]
 fn test_dicomdir_without_std() -> Result<()> {
     test_dicomdir(false)
 }
@@ -1242,13 +1240,11 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bo
 }
 
 #[test]
-#[ignore]
 fn test_explicit_implicit_bogus_iop_with_std() -> Result<()> {
     test_explicit_implicit_bogus_iop(true)
 }
 
 #[test]
-#[ignore]
 fn test_explicit_implicit_bogus_iop_without_std() -> Result<()> {
     test_explicit_implicit_bogus_iop(false)
 }

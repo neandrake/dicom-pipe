@@ -1,11 +1,8 @@
 //! DICOM Element Definition and Value Parsing
 
-use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
 use std::iter::once;
-
-use encoding::types::{DecoderTrap, EncoderTrap};
 
 use crate::core::charset::CSRef;
 use crate::core::dcmsqelem::SequenceElement;
@@ -201,22 +198,22 @@ impl DicomElement {
             }
             RawValue::Uid(uid) => self
                 .cs
-                .encode(&uid, EncoderTrap::Strict)
-                .map_err(|e: Cow<'static, str>| error(e.as_ref(), self))?,
+                .encode(&uid)
+                .map_err(|e| ParseError::CharsetError { source: e })?,
             RawValue::Strings(strings) => {
                 type MaybeBytes = Vec<Result<Vec<u8>>>;
                 let (values, errs): (MaybeBytes, MaybeBytes) = strings
                     .iter()
                     .map(|s| {
                         self.cs
-                            .encode(s, EncoderTrap::Strict)
+                            .encode(s)
                             // Add the separator after each encoded value. Below the last separator
                             // will be popped off.
                             .map(|mut v| {
                                 v.push(CHARACTER_STRING_SEPARATOR as u8);
                                 v
                             })
-                            .map_err(|e: Cow<'static, str>| error(e.as_ref(), self))
+                            .map_err(|e| ParseError::CharsetError { source: e })
                     })
                     .partition(Result::is_ok);
 
@@ -562,8 +559,8 @@ impl<'me> TryFrom<ElementWithVr<'me>> for String {
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
             .cs
-            .decode(data, DecoderTrap::Strict)
-            .map_err(|e: Cow<'static, str>| error(e.as_ref(), element))
+            .decode(data)
+            .map_err(|e| ParseError::CharsetError { source: e })
     }
 }
 
@@ -594,8 +591,8 @@ impl<'me> TryFrom<ElementWithVr<'me>> for Vec<String> {
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
             .cs
-            .decode(data, DecoderTrap::Strict)
-            .map_err(|e: Cow<'static, str>| error(e.as_ref(), element))
+            .decode(data)
+            .map_err(|e| ParseError::CharsetError { source: e })
             .map(|multivalue: String| {
                 if !vr.allows_backslash_text_value {
                     multivalue

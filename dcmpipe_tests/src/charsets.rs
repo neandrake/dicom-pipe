@@ -1,8 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
 
-use encoding::all;
-
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
@@ -28,63 +26,63 @@ fn test_parse_nested_charset_values() -> Result<()> {
     test_nested_charset(
         &dcmroot,
         1,
-        CSRef::of(all::ISO_8859_8),
+        CSRef::of(encoding_rs::ISO_8859_8),
         "ISO_IR 138",
         "שרון^דבורה",
     )?;
     test_nested_charset(
         &dcmroot,
         5,
-        CSRef::of(all::ISO_8859_5),
+        CSRef::of(encoding_rs::ISO_8859_5),
         "ISO_IR 144",
         "Люкceмбypг",
     )?;
     test_nested_charset(
         &dcmroot,
         9,
-        CSRef::of(all::ISO_8859_6),
+        CSRef::of(encoding_rs::ISO_8859_6),
         "ISO_IR 127",
         "قباني^لنزار",
     )?;
     test_nested_charset(
         &dcmroot,
         13,
-        CSRef::of(all::WINDOWS_1252),
+        CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO_IR 100",
         "Äneas^Rüdiger",
     )?;
     test_nested_charset(
         &dcmroot,
         17,
-        CSRef::of(all::WINDOWS_1252),
+        CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO_IR 100",
         "Buc^Jérôme",
     )?;
     test_nested_charset(
         &dcmroot,
         21,
-        CSRef::of(all::ISO_8859_7),
+        CSRef::of(encoding_rs::ISO_8859_7),
         "ISO_IR 126",
         "Διονυσιος",
     )?;
     test_nested_charset(
         &dcmroot,
         25,
-        CSRef::of(all::GB18030),
+        CSRef::of(encoding_rs::GB18030),
         "GB18030",
         "Wang^XiaoDong=王^小东=",
     )?;
     test_nested_charset(
         &dcmroot,
         29,
-        CSRef::of(all::UTF_8),
+        CSRef::of(encoding_rs::UTF_8),
         "ISO_IR 192",
         "Wang^XiaoDong=王^小東=",
     )?;
     test_nested_charset(
         &dcmroot,
         33,
-        CSRef::of(all::WINDOWS_1252),
+        CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO 2022 IR 149",
         "Hong^Gildong=\u{1b}$)Cûó^\u{1b}$)CÑÎÔ×=\u{1b}$)CÈ«^\u{1b}$)C±æµ¿",
     )?;
@@ -138,7 +136,7 @@ fn test_scs_arab() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSARAB",
-        CSRef::of(all::ISO_8859_6),
+        CSRef::of(encoding_rs::ISO_8859_6),
         "ISO_IR 127",
         "قباني^لنزار",
     )
@@ -149,7 +147,7 @@ fn test_scs_french() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSFREN",
-        CSRef::of(all::WINDOWS_1252),
+        CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO_IR 100",
         "Buc^Jérôme",
     )
@@ -160,7 +158,7 @@ fn test_scs_german() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSGERM",
-        CSRef::of(all::WINDOWS_1252),
+        CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO_IR 100",
         "Äneas^Rüdiger",
     )
@@ -171,7 +169,7 @@ fn test_scs_greek() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSGREEK",
-        CSRef::of(all::ISO_8859_7),
+        CSRef::of(encoding_rs::ISO_8859_7),
         "ISO_IR 126",
         "Διονυσιος",
     )
@@ -182,19 +180,20 @@ fn test_scs_h31() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSH31",
-        CSRef::of(all::ISO_2022_JP),
+        CSRef::of(encoding_rs::ISO_2022_JP),
         "ISO 2022 IR 87",
         "Yamada^Tarou=山田^太郎=やまだ^たろう",
     )
 }
 
+/// This uses multiple charsets, ISO-IR-13 and ISO-IR-87.
 #[test]
 #[ignore]
 fn test_scs_h32() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSH32",
-        CSRef::of(all::ISO_2022_JP),
+        CSRef::of(encoding_rs::SHIFT_JIS),
         "ISO 2022 IR 13",
         "",
     )
@@ -205,7 +204,7 @@ fn test_scs_hebrew() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSHBRW",
-        CSRef::of(all::ISO_8859_8),
+        CSRef::of(encoding_rs::ISO_8859_8),
         "ISO_IR 138",
         "שרון^דבורה",
     )
@@ -216,7 +215,7 @@ fn test_scs_i12() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSI2",
-        CSRef::of(all::WINDOWS_1252),
+        CSRef::of(encoding_rs::WINDOWS_1252),
         "ISO 2022 IR 149",
         "Hong^Gildong=\u{1b}$)Cûó^\u{1b}$)CÑÎÔ×=\u{1b}$)CÈ«^\u{1b}$)C±æµ¿",
     )
@@ -227,7 +226,7 @@ fn test_scs_russian() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSRUSS",
-        CSRef::of(all::ISO_8859_5),
+        CSRef::of(encoding_rs::ISO_8859_5),
         "ISO_IR 144",
         "Люкceмбypг",
     )
@@ -238,7 +237,7 @@ fn test_scs_x1() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSX1",
-        CSRef::of(all::UTF_8),
+        CSRef::of(encoding_rs::UTF_8),
         "ISO_IR 192",
         "Wang^XiaoDong=王^小東=",
     )
@@ -249,7 +248,7 @@ fn test_scs_x2() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSX2",
-        CSRef::of(all::GB18030),
+        CSRef::of(encoding_rs::GB18030),
         "GB18030",
         "Wang^XiaoDong=王^小东=",
     )
