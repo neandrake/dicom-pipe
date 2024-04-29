@@ -122,8 +122,8 @@ impl DicomElement {
             tag,
             vr,
             vl: ValueLength::UndefinedLength,
-            data: Vec::new(),
-            sq_path: Vec::new(),
+            data: Vec::with_capacity(0),
+            sq_path: Vec::with_capacity(0),
             ts,
             cs,
         }

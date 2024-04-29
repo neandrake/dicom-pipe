@@ -1,4 +1,4 @@
-use std::io::{BufWriter, IntoInnerError, Write};
+use std::io::Write;
 
 use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, RawValue};
@@ -100,48 +100,73 @@ impl<DatasetType: Write> Writer<DatasetType> {
         self
     }
 
-    pub fn into_dataset(
-        self,
-    ) -> std::result::Result<DatasetType, IntoInnerError<BufWriter<DatasetType>>> {
-        self.dataset.into_inner()
+    pub fn into_dataset(self) -> Result<DatasetType> {
+        self.dataset
+            .into_inner()
+            .map_err(|err| WriteError::IOError { source: err.into() })
     }
 
-    pub fn write_preamble(&mut self) -> Result<usize> {
+    pub fn write_dataset<'a, E>(&mut self, elements: E) -> Result<usize>
+    where
+        E: Iterator<Item = &'a DicomElement>,
+    {
         let mut bytes_written: usize = 0;
 
+        self.state = WriteState::Preamble;
         if let Some(preamble) = self.file_preamble {
             bytes_written += self.dataset.write(&preamble)?;
-            bytes_written += self.dataset.write(DICOM_PREFIX)?;
+        }
+        bytes_written += self.dataset.write(DICOM_PREFIX)?;
+
+        self.state = WriteState::FileMeta;
+        let mut fme_elements: Vec<&DicomElement> = Vec::new();
+        for element in elements {
+            // Collect all the FileMeta elements to write them in one go, as their total byte
+            // length is needed for the first element, FileMetaInformationGroupLength.
+            if self.state == WriteState::FileMeta {
+                if element.get_tag() <= tags::FILE_META_GROUP_END {
+                    // Ignore FileMetaInformationGroupLength in place of one made below.
+                    if element.get_tag() != tags::FILE_META_INFORMATION_GROUP_LENGTH {
+                        fme_elements.push(element);
+                    }
+                    continue;
+                }
+
+                // Write the collected FileMetaElements to an in-memory writer, count the total
+                // bytes and use that to create the FileMetaInformationGroupLength element.
+                let mut fme_writer: Writer<Vec<u8>> = Writer::new(Vec::new());
+                for fme in fme_elements.as_slice() {
+                    fme_writer.write_element(fme)?;
+                }
+                let fme_bytes: Vec<u8> = fme_writer.into_dataset()?;
+
+                let fme_length: u32 = fme_bytes.len() as u32;
+                let fme_length_elem = self.new_fme(
+                    tags::FILE_META_INFORMATION_GROUP_LENGTH,
+                    &vr::UL,
+                    RawValue::UnsignedIntegers(vec![fme_length]),
+                )?;
+
+                bytes_written += self.write_element(&fme_length_elem)?;
+                bytes_written += self.dataset.write(&fme_bytes)?;
+
+                // No longer need to keep this in memory
+                fme_elements.clear();
+
+                // Flip state to write standard elements, and fall-through. In the condition for
+                // getting to this state the `element` value is non-FileMeta and hasn't been
+                // written out yet.
+                self.state = WriteState::Element;
+            }
+
+            bytes_written += self.write_element(element)?;
         }
 
         Ok(bytes_written)
     }
 
-    pub fn write_file_meta(&mut self) -> Result<usize> {
-        let mut bytes_written: usize = 0;
-
-        let fme_length: u32 = 0;
-        let group_len_element: DicomElement = self.new_fme(
-            tags::FILE_META_INFORMATION_GROUP_LENGTH,
-            &vr::UL,
-            RawValue::UnsignedIntegers(vec![fme_length]),
-        )?;
-
-        bytes_written += self.write_element(&group_len_element)?;
-
-        Ok(bytes_written)
-    }
-
     fn new_fme(&self, tag: u32, vr: VRRef, value: RawValue) -> Result<DicomElement> {
-        let mut element = DicomElement::new(
-            tag,
-            vr,
-            ValueLength::UndefinedLength,
-            &ts::ExplicitVRLittleEndian,
-            DEFAULT_CHARACTER_SET,
-            Vec::with_capacity(0),
-            Vec::with_capacity(0),
-        );
+        let mut element = DicomElement::new_empty(tag, vr, &ts::ExplicitVRLittleEndian);
 
         element
             .encode_value(value)
@@ -150,7 +175,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(element)
     }
 
-    pub fn write_element(&mut self, element: &DicomElement) -> Result<usize> {
+    fn write_element(&mut self, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
 
         bytes_written += self.write_tag(element)?;
