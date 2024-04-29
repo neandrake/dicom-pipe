@@ -8,9 +8,9 @@ use core::uid::UID;
 use std::collections::hash_map::HashMap;
 
 pub struct TransferSyntaxLookup {
-	ident_to_ts: HashMap<&'static str, &'static TransferSyntax>,
-	id_to_ts: HashMap<&'static str, &'static TransferSyntax>,
-	uid_to_ts: HashMap<&'static UID, &'static TransferSyntax>,
+	pub ident_to_ts: HashMap<&'static str, &'static TransferSyntax>,
+	pub id_to_ts: HashMap<&'static str, &'static TransferSyntax>,
+	pub uid_to_ts: HashMap<&'static UID, &'static TransferSyntax>,
 }
 
 impl TransferSyntaxLookup {

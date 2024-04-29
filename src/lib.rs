@@ -5,4 +5,5 @@ extern crate walkdir;
 
 pub mod core;
 pub mod read;
+pub mod util;
 pub mod write;

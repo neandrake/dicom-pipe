@@ -56,6 +56,7 @@ mod tests {
     use core::dict::dir_structure_elements as dse;
     use core::dict::file_meta_elements as fme;
     use core::dict::transfer_syntaxes as ts;
+    use core::dict::ts_lookup::TransferSyntaxLookup;
     use core::dict::uids;
     use core::lookup::Lookup;
     use core::tag::Tag;
@@ -120,5 +121,42 @@ mod tests {
 
         let ctis_by_id: &UID = lookup.uid_by_id("1.2.840.10008.5.1.4.1.1.2").expect("UID not found");
         assert_eq!(ctis_by_id, &uids::CTImageStorage);
+    }
+
+    /// Sanity-check of the pre-defined TransferSyntax's to ensure
+    /// that their defined properties reflect the UID's name.
+    /// May catch issues with improperly copying over values from definitions.
+    #[test]
+    fn test_ts_name_vs_properties() {
+        let lookup: TransferSyntaxLookup = TransferSyntaxLookup::new();
+        for (_, ts) in lookup.uid_to_ts.iter() {
+            let contains_little: bool = ts.uid.get_ident().contains("LittleEndian");
+            let contains_big: bool = ts.uid.get_ident().contains("BigEndian");
+            let contains_explicit: bool = ts.uid.get_ident().contains("ExplicitVR");
+            let contains_implicit: bool = ts.uid.get_ident().contains("ImplicitVR");
+            let contains_deflate: bool = ts.uid.get_ident().contains("Deflate");
+            let contains_encapsulated: bool = ts.uid.get_ident().contains("Encapsulated");
+
+            if contains_little {
+                assert!(!ts.big_endian, "Name contains \"LittleEndian\" but is big_endian: {:?}", ts.uid);
+            } else if contains_big {
+                assert!(ts.big_endian, "Name contains \"BigEndian\" but is not big_endian: {:?}", ts.uid);
+            } else {
+                // Currently the defined/known TS's which don't have Big/Little in the name are LittleEndian
+                assert!(!ts.big_endian, "Name contains no endian but is not big_endian: {:?}", ts.uid);
+            }
+
+            if contains_explicit {
+                assert!(ts.explicit_vr, "Name contains \"ExplicitVR\" but is not explicit_vr: {:?}", ts.uid);
+            } else if contains_implicit {
+                assert!(!ts.explicit_vr, "Name contains \"ImplicitVR\" but is explicit_vr: {:?}", ts.uid);
+            } else {
+                // Currently the defined/known TS's which don't have Implicit/Explicit in the name are Implicit
+                assert!(!ts.explicit_vr, "Name contains no vr but is not explicit_vr: {:?}", ts.uid);
+            }
+
+            assert_eq!(contains_deflate, ts.deflated, "Name contains \"Deflate\" but is not deflated: {:?}", ts.uid);
+            assert_eq!(contains_encapsulated, ts.encapsulated, "Name contains \"Encapsulated\" but is not encapsulated: {:?}", ts.uid);
+        }
     }
 }
