@@ -26,10 +26,10 @@ use dcmpipe_lib::{
     dimse::{
         commands::{messages::CommandMessage, CommandStatus, CommandType},
         error::{AssocError, DimseError},
-        pduiter::{PduIter, PduIterItem},
+        pduiter::{DimseMsg, DimseMsgIter},
         pdus::{
             Abort, AssocAC, AssocACPresentationContext, AssocRQ, Pdu, PresentationDataItem,
-            PresentationDataValue, PresentationDataValueHeader, ReleaseRP, TransferSyntaxItem,
+            PresentationDataValue, ReleaseRP, TransferSyntaxItem,
             P_DATA_CMD_LAST, P_DATA_DCM_DATASET_LAST,
         },
         Syntax,
@@ -150,9 +150,9 @@ impl Association {
             .map_err(AssocError::ab_failure)
             .and_then(|rq| match rq {
                 Pdu::AssocRQ(rq) => Ok(rq),
-                pdu => Err(AssocError::ab_unexpected_pdu(DimseError::UnexpectedPDU(
-                    pdu.pdu_type(),
-                ))),
+                pdu => Err(AssocError::ab_unexpected_pdu(
+                    DimseError::UnexpectedPduType(pdu.pdu_type()),
+                )),
             });
 
         let rq = match rq {
@@ -291,7 +291,9 @@ impl Association {
                 let ab = Abort::new(2u8, 2u8);
                 println!("[info ->]: {:?}", ab.pdu_type());
                 self.write_pdu(Pdu::Abort(ab), bufwrite)?;
-                Err(AssocError::error(DimseError::UnexpectedPDU(pdu.pdu_type())))
+                Err(AssocError::error(DimseError::UnexpectedPduType(
+                    pdu.pdu_type(),
+                )))
             }
         }
     }
@@ -303,80 +305,36 @@ impl Association {
         mut bufread: &mut BufReader<&TcpStream>,
         bufwrite: &mut BufWriter<&TcpStream>,
     ) -> Result<(), AssocError> {
-        loop {
-            let mut last_dcm_pdvh: Option<PresentationDataValueHeader> = None;
-            let mut last_cmd_pdvh: Option<PresentationDataValueHeader> = None;
-            let mut last_cmd: Option<CommandMessage> = None;
-
-            let pdu_iter = PduIter::new(&mut bufread);
-            for iter_item in pdu_iter {
-                match iter_item {
-                    Ok(PduIterItem::Pdu(pdu)) => {
-                        return self.handle_disconnect(pdu, bufwrite);
-                    }
-                    Ok(PduIterItem::CmdMessage(pdvh, cmd)) => {
-                        println!("[info <-]: P-DATA COMMAND");
-                        let _ = cmd.message().dbg_dump();
-
-                        let has_dataset = cmd.has_dataset();
-
-                        last_cmd_pdvh = Some(pdvh);
-                        last_cmd = Some(cmd);
-
-                        // Continuing the loop here will read further data values, which should end
-                        // up being datasets.
-                        if !has_dataset {
-                            break;
-                        }
-                    }
-                    Ok(PduIterItem::Dataset(pdvh)) => {
-                        println!("[info <-]: P-DATA DICOM");
-                        last_dcm_pdvh = Some(pdvh);
-                        break;
-                    }
-                    Err(err) => {
-                        return Err(AssocError::ab_failure(err));
-                    }
-                };
-            }
-
-            let Some(cmd_pdvh) = last_cmd_pdvh else {
-                continue;
-            };
-            let Some(cmd) = last_cmd else {
-                continue;
+        let msg_iter = DimseMsgIter::new(bufread);
+        for item in msg_iter {
+            let msg = match item {
+                Err(DimseError::UnexpectedPdu(pdu)) => {
+                    return self.handle_disconnect(pdu, bufwrite);
+                }
+                Err(err) => {
+                    return Err(AssocError::ab_failure(err));
+                }
+                Ok(msg) => msg,
             };
 
-            if cmd.cmd_type() == &CommandType::CEchoReq {
-                let rsp = self.handle_c_echo(ts, cmd_pdvh, cmd)?;
+            if msg.cmd().cmd_type() == &CommandType::CEchoReq {
+                let rsp = self.handle_c_echo(ts, msg)?;
                 println!("[info ->]: {:?} COMMAND RSP", rsp.pdu_type());
                 self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
                 continue;
             }
 
-            // All services aside from C-ECHO require having received a DICOM dataset after the
-            // command.
-            let Some(dcm_pdvh) = last_dcm_pdvh else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(
-                    "No DICOM dataset after receiving command indicating dataset".to_string(),
-                )));
-            };
-
-            if cmd.cmd_type() == &CommandType::CFindReq {
-                self.handle_c_find(ts, &cmd, &cmd_pdvh, &dcm_pdvh, bufread, bufwrite)?
+            if msg.cmd().cmd_type() == &CommandType::CFindReq {
+                self.handle_c_find(ts, msg, bufread, bufwrite)?
             }
         }
+        Ok(())
     }
 
-    fn handle_c_echo(
-        &self,
-        _ts: TSRef,
-        pdvh: PresentationDataValueHeader,
-        cmd: CommandMessage,
-    ) -> Result<PresentationDataItem, AssocError> {
+    fn handle_c_echo(&self, _ts: TSRef, msg: DimseMsg) -> Result<PresentationDataItem, AssocError> {
         let rsp = CommandMessage::c_echo_rsp_from_req(
             &ImplicitVRLittleEndian,
-            cmd,
+            msg.cmd(),
             &CommandStatus::Success(0),
         )
         .map_err(AssocError::ab_invalid_pdu)?;
@@ -390,7 +348,7 @@ impl Association {
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::WriteError(e)))?;
         let data = writer.into_dataset();
         let rsp = PresentationDataItem::new(vec![PresentationDataValue::new(
-            pdvh.ctx_id(),
+            msg.ctx_id(),
             P_DATA_CMD_LAST,
             data,
         )]);
@@ -401,18 +359,14 @@ impl Association {
     fn handle_c_find(
         &self,
         ts: TSRef,
-        cmd: &CommandMessage,
-        cmd_pdvh: &PresentationDataValueHeader,
-        dcm_pdvh: &PresentationDataValueHeader,
+        msg: DimseMsg,
         bufread: &mut BufReader<&TcpStream>,
         bufwrite: &mut BufWriter<&TcpStream>,
     ) -> Result<(), AssocError> {
         let mut parser = ParserBuilder::default()
             .state(ParserState::ReadElement)
             .dataset_ts(ts)
-            .stop(ParseStop::AfterBytesRead(u64::from(
-                dcm_pdvh.length_of_data(),
-            )))
+            .stop(ParseStop::AfterBytesRead(u64::from(msg.dcm_len())))
             .build(bufread, &STANDARD_DICOM_DICTIONARY);
         let query = DicomRoot::parse(&mut parser)
             .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
@@ -440,7 +394,7 @@ impl Association {
         }
 
         for result in results {
-            match self.create_c_find_cmd(cmd_pdvh, cmd, &CommandStatus::Pending(0xFF00)) {
+            match self.create_c_find_cmd(&msg, &CommandStatus::Pending(0xFF00)) {
                 Ok(rsp) => {
                     println!("[info ->]: {:?} COMMAND RSP", rsp.pdu_type());
                     self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
@@ -448,7 +402,7 @@ impl Association {
                 Err(e) => return Err(e),
             }
 
-            match self.create_c_find_result(dcm_pdvh, &result) {
+            match self.create_c_find_result(&msg, &result) {
                 Ok(rsp) => {
                     println!("[info ->]: {:?} DICOM RSP", rsp.pdu_type());
                     self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)?;
@@ -457,7 +411,7 @@ impl Association {
             }
         }
 
-        match self.create_c_find_cmd(cmd_pdvh, cmd, &CommandStatus::Success(0)) {
+        match self.create_c_find_cmd(&msg, &CommandStatus::Success(0)) {
             Ok(rsp) => {
                 println!("[info ->]: {:?} COMMAND RSP", rsp.pdu_type());
                 self.write_pdu(Pdu::PresentationDataItem(rsp), bufwrite)
@@ -469,11 +423,10 @@ impl Association {
 
     fn create_c_find_cmd(
         &self,
-        pdvh: &PresentationDataValueHeader,
-        cmd: &CommandMessage,
+        msg: &DimseMsg,
         status: &CommandStatus,
     ) -> Result<PresentationDataItem, AssocError> {
-        let rsp = CommandMessage::c_find_rsp_from_req(&ImplicitVRLittleEndian, cmd, status)
+        let rsp = CommandMessage::c_find_rsp_from_req(&ImplicitVRLittleEndian, &msg.cmd(), status)
             .map_err(AssocError::ab_invalid_pdu)?;
 
         let mut writer = WriterBuilder::default()
@@ -485,7 +438,7 @@ impl Association {
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::WriteError(e)))?;
         let data = writer.into_dataset();
         let rsp = PresentationDataItem::new(vec![PresentationDataValue::new(
-            pdvh.ctx_id(),
+            msg.ctx_id(),
             P_DATA_CMD_LAST,
             data,
         )]);
@@ -495,7 +448,7 @@ impl Association {
 
     fn create_c_find_result(
         &self,
-        pdvh: &PresentationDataValueHeader,
+        msg: &DimseMsg,
         result: &DicomRoot,
     ) -> Result<PresentationDataItem, AssocError> {
         let mut writer = WriterBuilder::default()
@@ -508,7 +461,7 @@ impl Association {
 
         let result = writer.into_dataset();
         Ok(PresentationDataItem::new(vec![PresentationDataValue::new(
-            pdvh.ctx_id(),
+            msg.ctx_id(),
             P_DATA_DCM_DATASET_LAST,
             result,
         )]))

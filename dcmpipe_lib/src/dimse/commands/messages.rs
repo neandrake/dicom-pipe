@@ -148,7 +148,7 @@ impl CommandMessage {
 
     pub fn c_echo_rsp_from_req(
         ts: TSRef,
-        req: CommandMessage,
+        req: &CommandMessage,
         status: &CommandStatus,
     ) -> Result<Self, DimseError> {
         let aff_sop_uid = req
@@ -289,7 +289,7 @@ mod tests {
         let exp_bytes = 74usize;
 
         let req = CommandMessage::c_echo_req(&ImplicitVRLittleEndian, exp_msg_id, exp_affected_sop);
-        let rsp = CommandMessage::c_echo_rsp_from_req(&ImplicitVRLittleEndian, req, &exp_status)
+        let rsp = CommandMessage::c_echo_rsp_from_req(&ImplicitVRLittleEndian, &req, &exp_status)
             .expect("build response");
 
         let mut elem_iter = rsp.message().iter_child_nodes();

@@ -123,3 +123,91 @@ impl<R: Read> Iterator for PduIter<R> {
         }
     }
 }
+
+pub struct DimseMsg {
+    cmd: CommandMessage,
+    ctx_id: u8,
+    dcm_len: u32,
+}
+
+impl DimseMsg {
+    pub fn new(cmd: CommandMessage, ctx_id: u8) -> Self {
+        Self {
+            cmd,
+            ctx_id,
+            dcm_len: 0,
+        }
+    }
+
+    pub fn new_with_dcm(cmd: CommandMessage, ctx_id: u8, dcm_len: u32) -> Self {
+        Self {
+            cmd,
+            ctx_id,
+            dcm_len,
+        }
+    }
+
+    #[must_use]
+    pub fn cmd(&self) -> &CommandMessage {
+        &self.cmd
+    }
+
+    #[must_use]
+    pub fn ctx_id(&self) -> u8 {
+        self.ctx_id
+    }
+
+    #[must_use]
+    pub fn dcm_len(&self) -> u32 {
+        self.dcm_len
+    }
+}
+
+pub struct DimseMsgIter<R: Read> {
+    reader: R,
+}
+
+impl<R: Read> DimseMsgIter<R> {
+    pub fn new(reader: R) -> Self {
+        Self { reader }
+    }
+}
+
+impl<R: Read> Iterator for DimseMsgIter<R> {
+    type Item = Result<DimseMsg, DimseError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let mut last_cmd: Option<DimseMsg> = None;
+            let pdu_iter = PduIter::new(&mut self.reader);
+            for iter_item in pdu_iter {
+                match iter_item {
+                    Ok(PduIterItem::Pdu(pdu)) => {
+                        return Some(Err(DimseError::UnexpectedPdu(pdu)));
+                    }
+                    Ok(PduIterItem::CmdMessage(pdvh, cmd)) => {
+                        if !cmd.has_dataset() {
+                            return Some(Ok(DimseMsg::new(cmd, pdvh.ctx_id())));
+                        }
+                        last_cmd = Some(DimseMsg::new(cmd, pdvh.ctx_id()));
+                    }
+                    Ok(PduIterItem::Dataset(pdvh)) => {
+                        let Some(cmd) = last_cmd else {
+                            return Some(Err(DimseError::InvalidPduParseState(
+                                "DimseMsgIter expecting Dataset without prior Command.".to_owned(),
+                            )));
+                        };
+                        return Some(Ok(DimseMsg::new_with_dcm(
+                            cmd.cmd,
+                            cmd.ctx_id,
+                            pdvh.length_of_data(),
+                        )));
+                    }
+                    Err(err) => {
+                        return Some(Err(err));
+                    }
+                };
+            }
+        }
+    }
+}
