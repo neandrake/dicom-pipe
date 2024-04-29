@@ -146,7 +146,7 @@ impl DicomElement {
 
     /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence
     pub fn is_seq_like(&self) -> bool {
-        self.vr == &vr::SQ || dcmparser_util::should_parse_as_seq(self.tag, self.vr, self.vl)
+        self.vr == &vr::SQ || dcmparser_util::is_non_standard_seq(self.tag, self.vr, self.vl)
     }
 
     /// Returns whether the the size of the value for this element is zero
