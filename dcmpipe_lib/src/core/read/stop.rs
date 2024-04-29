@@ -43,53 +43,59 @@ impl ParseStop {
     }
 
     fn is_before_tag_value((target, current): (&TagNode, &TagNode)) -> bool {
-        if current.get_tag() < target.get_tag() {
+        let target_tag = target.get_tag();
+        match current.get_tag() {
             // The target tag has not yet been encountered, do not stop parsing.
-            false
-        } else if current.get_tag() == target.get_tag() {
-            // The target tag is encountered, compare target index.
-            if let Some(cur_idx) = current.get_item() {
-                match target.get_item() {
-                    // If at or past (shouldn't occur) the target index then stop parsing.
-                    Some(target_idx) => cur_idx >= target_idx,
+            current_tag if current_tag < target_tag => false,
 
-                    // Stop parsing if no index was specified for the target.
-                    None => true,
-                }
-            } else {
-                // The target tag matches but there's no index to compare.
-                true
-            }
-        } else {
             // The current tag has surpassed the target, the target is not present in the dataset.
-            true
+            current_tag if current_tag > target_tag => true,
+
+            _current_tag => {
+                // The target tag is encountered, compare target index.
+                if let Some(cur_idx) = current.get_item() {
+                    match target.get_item() {
+                        // If at or past (shouldn't occur) the target index then stop parsing.
+                        Some(target_idx) => cur_idx >= target_idx,
+
+                        // Stop parsing if no index was specified for the target.
+                        None => true,
+                    }
+                } else {
+                    // The target tag matches but there's no index to compare.
+                    true
+                }
+            }
         }
     }
 
     fn is_after_tag_value((target, current): (&TagNode, &TagNode)) -> bool {
-        if current.get_tag() <= target.get_tag() {
+        let target_tag = target.get_tag();
+        match current.get_tag() {
             // The target tag has not yet been encountered, do not stop parsing.
-            false
-        } else if current.get_tag() == target.get_tag() {
-            // The target tag is encountered, compare target index.
-            if let Some(cur_idx) = current.get_item() {
-                match target.get_item() {
-                    // If past the target index then stop parsing.
-                    Some(target_idx) => cur_idx > target_idx,
+            current_tag if current_tag < target_tag => false,
 
-                    // Do not stop parsing if no index was specified for target, assuming the
-                    // entire set of items should then be parsed.
-                    None => false,
-                }
-            } else {
-                // The target tag matches but there's no index for comparison. Do not stop parsing
-                // so all contents/items are parsed.
-                false
-            }
-        } else {
             // The current tag has surpassed the target, the target and its contents have been
             // parsed (or target was not in dataset).
-            true
+            current_tag if current_tag > target_tag => true,
+
+            _current_tag => {
+                // The target tag is encountered, compare target index.
+                if let Some(cur_idx) = current.get_item() {
+                    match target.get_item() {
+                        // If past the target index then stop parsing.
+                        Some(target_idx) => cur_idx > target_idx,
+
+                        // Do not stop parsing if no index was specified for target, assuming the
+                        // entire set of items should then be parsed.
+                        None => false,
+                    }
+                } else {
+                    // The target tag matches but there's no index for comparison. Do not stop parsing
+                    // so all contents/items are parsed.
+                    false
+                }
+            }
         }
     }
 }

@@ -1290,16 +1290,14 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bo
 
     let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?.expect("Parse into object");
     let sis_obj: &DicomObject = dcmroot
-        .get_child_by_tagnode(&tags::SourceImageSequence.tag.into())
+        .get_child_by_tagnode(&(&tags::SourceImageSequence).into())
         .expect("Parse SourceImageSequence");
 
     assert_eq!(sis_obj.get_item_count(), 1);
 
-    let tagpath: TagPath = vec![
-        TagNode::new(tags::SourceImageSequence.tag, Some(1)),
-        TagNode::new(tags::ReferencedSOPInstanceUID.tag, None),
-    ]
-    .into();
+    let tagpath: TagPath = vec![&tags::SourceImageSequence, &tags::ReferencedSOPInstanceUID]
+        .as_slice()
+        .into();
 
     let ref_sop_obj: &DicomObject = dcmroot
         .get_child_by_tagpath(&tagpath)

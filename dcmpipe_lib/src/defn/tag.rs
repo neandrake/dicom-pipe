@@ -163,12 +163,36 @@ impl From<u32> for TagNode {
     }
 }
 
+impl From<(u32, Option<usize>)> for TagNode {
+    fn from(tuple: (u32, Option<usize>)) -> Self {
+        TagNode {
+            tag: tuple.0,
+            item: tuple.1,
+        }
+    }
+}
+
 impl From<&u32> for TagNode {
     fn from(tag: &u32) -> Self {
         TagNode {
             tag: *tag,
             item: None,
         }
+    }
+}
+
+impl From<&Tag> for TagNode {
+    fn from(value: &Tag) -> Self {
+        TagNode {
+            tag: value.tag,
+            item: None,
+        }
+    }
+}
+
+impl From<SequenceElement> for TagNode {
+    fn from(value: SequenceElement) -> Self {
+        value.get_node().clone()
     }
 }
 
@@ -236,79 +260,83 @@ impl Display for TagPath {
     }
 }
 
-/// Allows for easily creating a path to a root-level element.
-impl From<u32> for TagPath {
-    fn from(tag: u32) -> Self {
-        vec![TagNode::from(tag)].into()
+impl<T: Into<TagNode>> From<T> for TagPath {
+    fn from(value: T) -> Self {
+        vec![value.into()].into()
     }
 }
 
 impl From<Vec<TagNode>> for TagPath {
     fn from(nodes: Vec<TagNode>) -> Self {
-        TagPath {
-            nodes
-        }
+        TagPath { nodes }
     }
 }
 
-/// Convenience to create a `TagPath` from a collection of tag numbers. All tag numbers will be
-/// given an item of `1` except the last tag number which will be given an item of `None`.
-impl From<Vec<u32>> for TagPath {
-    fn from(tags: Vec<u32>) -> Self {
-        let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
-
-        for i in 0..tags.len() {
-            let item = if i < tags.len() - 1 { Some(1) } else { None };
-            let tag: u32 = unsafe { *tags.get_unchecked(i) };
-            nodes.push(TagNode::new(tag, item));
-        }
-        nodes.into()
-    }
-}
-
-/// Convenience to create a `TagPath` from a collection of tag numbers. All tag numbers will be
-/// given an item of `1` except the last tag number which will be given an item of `None`.
 impl From<&[u32]> for TagPath {
     fn from(tags: &[u32]) -> Self {
+        let len = tags.len();
         let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
-
-        for i in 0..tags.len() {
-            let item = if i < tags.len() - 1 { Some(1) } else { None };
+        for i in 0..len {
             let tag: u32 = unsafe { *tags.get_unchecked(i) };
+            let item = if i == len - 1 { None } else { Some(1) };
             nodes.push(TagNode::new(tag, item));
         }
-        nodes.into()
+        TagPath { nodes }
+    }
+}
+
+impl From<&[Tag]> for TagPath {
+    fn from(tags: &[Tag]) -> Self {
+        let len = tags.len();
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
+        for i in 0..len {
+            let tag: &Tag = unsafe { tags.get_unchecked(i) };
+            let item = if i == len - 1 { None } else { Some(1) };
+            nodes.push(TagNode::new(tag.tag, item));
+        }
+        TagPath { nodes }
+    }
+}
+
+impl From<&[&Tag]> for TagPath {
+    fn from(tags: &[&Tag]) -> Self {
+        let len = tags.len();
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
+        for i in 0..len {
+            let tag: &Tag = unsafe { tags.get_unchecked(i) };
+            let item = if i == len - 1 { None } else { Some(1) };
+            nodes.push(TagNode::new(tag.tag, item));
+        }
+        TagPath { nodes }
     }
 }
 
 impl From<&[&SequenceElement]> for TagPath {
     fn from(elements: &[&SequenceElement]) -> Self {
-        let mut nodes: Vec<TagNode> = Vec::with_capacity(elements.len());
-        for elem in elements {
-            nodes.push((*elem).into());
-        }
-        nodes.into()
+        elements
+            .iter()
+            .map(|sq_el| sq_el.get_node().clone())
+            .collect::<Vec<TagNode>>()
+            .into()
     }
 }
 
 impl From<&[SequenceElement]> for TagPath {
     fn from(elements: &[SequenceElement]) -> Self {
-        let mut nodes: Vec<TagNode> = Vec::with_capacity(elements.len());
-        for elem in elements {
-            nodes.push(elem.into());
-        }
-        nodes.into()
-    }
-}
-
-impl From<Vec<SequenceElement>> for TagPath {
-    fn from(elements: Vec<SequenceElement>) -> Self {
-        elements.as_slice().into()
+        elements
+            .iter()
+            .map(|sq_el| sq_el.into())
+            .collect::<Vec<TagNode>>()
+            .into()
     }
 }
 
 impl From<&Vec<SequenceElement>> for TagPath {
     fn from(elements: &Vec<SequenceElement>) -> Self {
-        elements.as_slice().into()
+        elements
+            .iter()
+            .map(|sq_el| sq_el.into())
+            .collect::<Vec<TagNode>>()
+            .into()
     }
 }

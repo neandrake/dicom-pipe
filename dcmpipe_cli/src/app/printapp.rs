@@ -32,9 +32,16 @@ impl PrintApp {
 impl PrintApp {
     fn render_stream(
         &mut self,
+        path: &Path,
         mut parser: Parser<'_, File>,
         stdout: &mut StdoutLock<'_>,
     ) -> Result<()> {
+        stdout.write_all(format!(
+            "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
+            path,
+            parser.get_ts().uid.ident).as_ref()
+        )?;
+
         let mut prev_was_file_meta: bool = true;
 
         while let Some(elem) = parser.next() {
@@ -67,15 +74,8 @@ impl CommandApplication for PrintApp {
         let path: &Path = path_buf.as_path();
         let parser: Parser<'_, File> = parse_file(path)?;
 
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-        stdout.write_all(format!(
-            "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
-            path,
-            parser.get_ts().uid.ident).as_ref()
-        )?;
-
-        self.render_stream(parser, &mut stdout)?;
+        let mut stdout = io::stdout().lock();
+        self.render_stream(path, parser, &mut stdout)?;
 
         Ok(())
     }
