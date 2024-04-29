@@ -49,8 +49,11 @@ impl std::fmt::Display for BrowseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BrowseError::InvalidTagPath(tagpath) => {
-                let rendered =
-                    TagPath::format_tagpath_to_display(tagpath, Some(&STANDARD_DICOM_DICTIONARY));
+                let rendered = if tagpath.is_empty() {
+                    "<empty>".to_owned()
+                } else {
+                    TagPath::format_tagpath_to_display(tagpath, Some(&STANDARD_DICOM_DICTIONARY))
+                };
                 write!(f, "No model for path {rendered}")
             }
         }

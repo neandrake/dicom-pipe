@@ -129,13 +129,17 @@ impl DicomElement {
 
     /// Creates a `TagPath` for the current element
     pub fn get_tagpath(&self) -> TagPath {
-        self.sq_path
-            .iter()
-            .filter(|sq| sq.get_seq_tag() != tags::ITEM)
-            .map(|sq| sq.get_node().clone())
-            .chain(once(self.tag.into()))
-            .collect::<Vec<TagNode>>()
-            .into()
+        if self.tag == 0 {
+            TagPath::empty()
+        } else {
+            self.sq_path
+                .iter()
+                .filter(|sq| sq.get_seq_tag() != tags::ITEM)
+                .map(|sq| sq.get_node().clone())
+                .chain(once(self.tag.into()))
+                .collect::<Vec<TagNode>>()
+                .into()
+        }
     }
 
     /// Parses this element's data into native/raw value type.
