@@ -26,6 +26,11 @@ pub enum PduType {
     UserInformationItem = 0x50,
 
     MaxLengthItem = 0x51,
+
+    SOPClassExtendedNegotiationItem = 0x56,
+    SOPClassCommonExtendedNegotiationItem = 0x57,
+    UserIdentityItem = 0x58,
+    UserIdentityNegotiationItem = 0x59,
 }
 
 impl TryFrom<u8> for PduType {
@@ -53,6 +58,37 @@ impl TryFrom<u8> for PduType {
             0x50 => Ok(PduType::UserInformationItem),
 
             0x51 => Ok(PduType::MaxLengthItem),
+
+            0x56 => Ok(PduType::SOPClassExtendedNegotiationItem),
+            0x57 => Ok(PduType::SOPClassCommonExtendedNegotiationItem),
+            0x58 => Ok(PduType::UserIdentityItem),
+            0x59 => Ok(PduType::UserIdentityNegotiationItem),
+
+            _ => Err(()),
+        }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, PartialEq, Eq)]
+pub enum UserIdentityType {
+    Username = 1,
+    UsernameAndPasscode = 2,
+    KerberosServiceTicket = 3,
+    SAMLAssertion = 4,
+    JWT = 5,
+}
+
+impl TryFrom<u8> for UserIdentityType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(UserIdentityType::Username),
+            2 => Ok(UserIdentityType::UsernameAndPasscode),
+            3 => Ok(UserIdentityType::KerberosServiceTicket),
+            4 => Ok(UserIdentityType::SAMLAssertion),
+            5 => Ok(UserIdentityType::JWT),
 
             _ => Err(()),
         }
@@ -207,9 +243,129 @@ pub struct MaxLengthItem {
     max_length: u32,
 }
 
+#[derive(Debug)]
+pub struct SOPClassExtendedNegotiationItem {
+    /// The type of this PDU, `PduType::SOPClassExtendedNegotiationItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes from the first byte of the following field the last byte of the Service
+    /// Class Application Information field.
+    length: u16,
+
+    /// The number of bytes in the SOP Class UID field.
+    sop_class_uid_length: u16,
+
+    /// The SOP Class UID field.
+    sop_class_uid: Vec<u8>,
+
+    /// The Service Class Application Info field.
+    service_class_app_info: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct SOPClassCommonExtendedNegotiationItem {
+    /// The type of this PDU, `PduType::SOPClassCommonExtendedNegotiationItem`.
+    pdu_type: PduType,
+
+    /// The version of this item. The current standard version is 0.
+    version: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// Reserved field.
+    length: u16,
+
+    /// The number of bytes in the SOP Class UID field.
+    sop_class_length: u16,
+
+    /// The SOP Class UID field.
+    sop_class_uid: Vec<u8>,
+
+    /// The number of bytes in the Service Class UID field.
+    service_class_length: u16,
+
+    /// The Service Class UID field.
+    service_class_uid: Vec<u8>,
+
+    /// The number of bytes in the Related General SOP Class Identification field. May be zero if
+    /// that field is not present.
+    rel_gen_sop_class_length: u16,
+
+    /// The Related General SOP Class Identification fields.
+    rel_gen_sop_classes: Vec<RelatedGeneralSOPClassUID>,
+}
+
+#[derive(Debug)]
+pub struct RelatedGeneralSOPClassUID {
+    /// The number of bytes in the Related General SOP Class UID field.
+    length: u16,
+
+    /// The Related General SOP Class UID field.
+    rel_gen_sop_class: Vec<u8>,
+}
+
+pub struct UserIdentityItem {
+    /// The type of this PDU, `PduType::UserIdentityItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the last
+    /// field sent.
+    length: u16,
+
+    /// The user identity type.
+    identity_type: UserIdentityType,
+
+    /// Positive response requested.
+    ///
+    /// 0 - no response requested
+    /// 1 - positive response requested
+    pos_rsp_req: u8,
+
+    /// The length of the primary field.
+    pri_length: u16,
+
+    /// The primary field value.
+    pri_value: Vec<u8>,
+
+    /// The length of the secondary field. This field should only be non-zero if the identity type
+    /// is 2, `UserIdentityType::UsernameAndPasscode`.
+    sec_length: u16,
+
+    /// The secondary field. Only present if the identity type is 2,
+    /// `UserIdentityType::UsernameAndPasscode`.
+    sec_value: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct UserIdentityNegotiationItem {
+    /// The type of this PDU, `PduType::UserIdentityNegotiationItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// final field.
+    length: u16,
+
+    /// Server response length. This field should only be non-zero if the identity type is 3,
+    /// `UserIdentityType::KerberosServiceTicket`, or 4, `UserIdentityType::SAMLAssertion`.
+    server_rsp_length: u16,
+
+    /// Server response. If the identity type is 3, `UserIdentityType::KerberosServiceTicket`, then
+    /// this will be the Kerberos Service ticket encoded in accordance with RFC-1510. If the
+    /// identity type is 4, `UserIdentityType::SAMLAssertion`, then this will be the SAML response.
+    server_rsp: Vec<u8>,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::PduType;
+    use super::{PduType, UserIdentityType};
 
     #[test]
     fn test_pdu_type_roundtrip() {
@@ -278,6 +434,57 @@ mod tests {
         assert_eq!(
             PduType::MaxLengthItem,
             (PduType::MaxLengthItem as u8).try_into().unwrap()
+        );
+
+        assert_eq!(
+            PduType::SOPClassExtendedNegotiationItem,
+            (PduType::SOPClassExtendedNegotiationItem as u8)
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
+            PduType::SOPClassCommonExtendedNegotiationItem,
+            (PduType::SOPClassCommonExtendedNegotiationItem as u8)
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
+            PduType::UserIdentityItem,
+            (PduType::UserIdentityItem as u8).try_into().unwrap()
+        );
+        assert_eq!(
+            PduType::UserIdentityNegotiationItem,
+            (PduType::UserIdentityNegotiationItem as u8)
+                .try_into()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_user_identity_roundtrip() {
+        assert_eq!(
+            UserIdentityType::Username,
+            (UserIdentityType::Username as u8).try_into().unwrap()
+        );
+        assert_eq!(
+            UserIdentityType::UsernameAndPasscode,
+            (UserIdentityType::UsernameAndPasscode as u8)
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
+            UserIdentityType::KerberosServiceTicket,
+            (UserIdentityType::KerberosServiceTicket as u8)
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
+            UserIdentityType::SAMLAssertion,
+            (UserIdentityType::SAMLAssertion as u8).try_into().unwrap()
+        );
+        assert_eq!(
+            UserIdentityType::JWT,
+            (UserIdentityType::JWT as u8).try_into().unwrap()
         );
     }
 }
