@@ -36,29 +36,45 @@ pub struct BrowseApp {
     args: BrowseArgs,
 }
 
+/// The result of parsing all elements in a DICOM data set.
 struct DicomDocumentModel<'app> {
+    /// The file path the DICOM dataset was loaded from.
     path: &'app Path,
+    /// The mapping of some `TagPath` to that path's parsed child nodes. The empty path represents
+    /// the root of the DICOM data set, whose model contains all the top-level DICOM elements. If
+    /// the data set includes sequences then additional entries for each sequence element will be
+    /// present to include its parsed sub-elements.
     map: HashMap<TagPath, DicomElementModel<'app>>,
 }
 
+/// The data model for an element. This represents one "level" within a DICOM document model, where
+/// the rows for this model are the first-level child elements of some other `DicomNode`.
+/// This model only contains the data necessary for rendering, so all DICOM element values are
+/// parsed in order to build this struct.
 #[derive(Clone)]
-struct DicomElementModel<'m> {
-    rows: Vec<Row<'m>>,
+struct DicomElementModel<'model> {
+    /// The ordered values parsed from the DICOM elements at this level.
+    rows: Vec<Row<'model>>,
+    /// For each row, the maximum length of DICOM tag name, which aside from DICOM value will be
+    /// the only other column of variable width.
     max_name_width: u16,
 }
 
-#[derive(Clone)]
-struct BrowseAppState {
-    is_running: bool,
-    current: TagPath,
-}
-
+/// The ViewState of what's displayed on screen. This should remain minimal (i.e. not include the
+/// data model), as it will be cloned every frame render. This contains both view-level information
+/// about the current model being displayed as well as view state from user input.
 #[derive(Clone)]
 struct DicomElementViewState {
+    /// The number of rows of the current model.
     num_rows: usize,
+    /// The maximum width of all DICOM tag names of the current model.
     max_name_width: u16,
+    /// The Ratatui table state which contains offset and selection.
     table_state: TableState,
+    /// Whether the user has requested to quit/close.
     user_quit: bool,
+    /// The current path of elements to display.
+    current_root_element: TagPath,
 }
 
 impl<'app> CommandApplication for BrowseApp {
@@ -204,33 +220,37 @@ impl<'app> BrowseApp {
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
         doc_model: &'app mut DicomDocumentModel<'app>,
     ) -> Result<()> {
-        let mut state = BrowseAppState {
-            is_running: true,
-            current: TagPath {
+        let mut view_state = DicomElementViewState {
+            num_rows: 0,
+            max_name_width: 0,
+            table_state: TableState::new(),
+            user_quit: false,
+            current_root_element: TagPath {
                 nodes: Vec::with_capacity(0),
             },
         };
 
-        let Some(table_model) = doc_model.map.get(&state.current) else {
-            return Ok(());
-        };
-        let mut view_state = DicomElementViewState {
-            num_rows: table_model.rows.len(),
-            max_name_width: table_model.max_name_width,
-            table_state: TableState::new(),
-            user_quit: false,
-        };
+        let dataset_title = doc_model.path.to_str().unwrap_or_default();
 
         loop {
+            let Some(table_model) = doc_model.map.get(&view_state.current_root_element) else {
+                return Ok(());
+            };
+            view_state.num_rows = table_model.rows.len();
+            view_state.max_name_width = table_model.max_name_width;
+
+            // Ratatui's Table requires an iterator over owned Rows, so the model must be cloned
+            // every render, apparently. The render_stateful_widget() function requires moving a
+            // Table into it, so even if the Table was lifted up into view_state or similar, some
+            // sort of clone would have to be passed into rendering.
             let render_model = table_model.clone();
+            // The view_state is small and intended to be cloned every iteration.
             let render_view_state = view_state.clone();
 
-            terminal.draw(move |frame| self.render("", render_model, render_view_state, frame))?;
+            terminal.draw(move |frame| self.render(dataset_title, render_model, render_view_state, frame))?;
 
             view_state = self.update_state_from_user_input(view_state)?;
-            state.is_running = !view_state.user_quit;
-
-            if !state.is_running {
+            if view_state.user_quit {
                 break;
             }
         }
@@ -354,7 +374,7 @@ impl<'app> BrowseApp {
             Constraint::Max(1024),
         ];
 
-        let table = Table::new(model.rows.clone(), column_widths)
+        let table = Table::new(model.rows, column_widths)
             .header(
                 Row::new(vec!["+", "Tag", "Name", "VR", "Value"])
                     .style(Style::default().fg(Color::LightYellow)),
