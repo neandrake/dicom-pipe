@@ -446,12 +446,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 let mut buffer: Vec<u8> = vec![0; buffer_size];
                 let buffer_slice: &mut [u8] = &mut buffer.as_mut_slice()[0..value_length as usize];
                 let result: Result<()> = self.dataset.read_exact(buffer_slice).map_err(|e| {
-                    // Some datasets may end with this DataSetTrailingPadding tag and also have a
-                    // value length which does not match the actual value field's size. The standard
-                    // indicates that the content of the value field should hold no significance -
-                    // so it should be okay to consider this not an error.
+                    // Some datasets may end with this DataSetTrailingPadding tag (or just all
+                    // zeroes) and also have value length which does not match the actual value
+                    // field's size. The standard indicates that the content of the value field
+                    // should hold no significance - consider this not an error.
                     // See Part 10, Section 7.2
-                    if tag == tags::DATASET_TRAILING_PADDING && e.kind() == ErrorKind::UnexpectedEof
+                    if (tag == 0 || tag == tags::DATASET_TRAILING_PADDING)
+                        && e.kind() == ErrorKind::UnexpectedEof
                     {
                         // TODO: Take what values were read and return that as a byte array, so the
                         //       original contents of the dataset are retained if needed.

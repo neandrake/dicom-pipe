@@ -1,7 +1,5 @@
 use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 
-use crate::mockdata::{NULL_ELEMENT, STANDARD_HEADER};
-
 use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
 
@@ -79,9 +77,9 @@ impl MockDicomDataset {
         MockDicomDataset::create_parser(mockup, ParseStop::EndOfDataset)
     }
 
-    pub fn standard_dicom_header_bad_explicit_vr() -> Parser<'static, MockDicomDataset> {
+    pub fn build_mock_parser(element_bytes: &[&[u8]]) -> Parser<'static, MockDicomDataset> {
         let mockup: MockDicomDataset = MockDicomDataset {
-            data: [STANDARD_HEADER, NULL_ELEMENT].concat(),
+            data: element_bytes.concat(),
             pos: 0,
         };
         MockDicomDataset::create_parser(mockup, ParseStop::EndOfDataset)

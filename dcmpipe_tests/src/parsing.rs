@@ -16,6 +16,7 @@ use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 
 use crate::mock::MockDicomDataset;
+use crate::mockdata::{INVALID_VR_ELEMENT, NULL_ELEMENT, STANDARD_HEADER};
 use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file, parse_file_with_parsestop};
 
 #[test]
@@ -91,9 +92,9 @@ fn test_failure_to_read_preamble() {
 }
 
 #[test]
-fn test_unknown_explicit_vr_is_error() {
+fn test_unknown_explicit_vr_parses_as_invalid() {
     let parser: Parser<'_, MockDicomDataset> =
-        MockDicomDataset::standard_dicom_header_bad_explicit_vr();
+        MockDicomDataset::build_mock_parser(&[STANDARD_HEADER, INVALID_VR_ELEMENT]);
 
     // a test dataset that has a regular file-meta section (defines explicit vr) and the first
     // non-file-meta is the  specific character set, followed by zeros. this tests that parsing
@@ -110,6 +111,20 @@ fn test_unknown_explicit_vr_is_error() {
         .expect("Should have returned Ok(elem)");
 
     assert_eq!(first_elem.get_vr(), &vr::INVALID);
+}
+
+#[test]
+fn test_trailing_zeroes_does_not_error() {
+    let parser: Parser<'_, MockDicomDataset> =
+        MockDicomDataset::build_mock_parser(&[STANDARD_HEADER, NULL_ELEMENT]);
+
+    let first_non_fme: Option<std::result::Result<DicomElement, ParseError>> = parser
+        .skip_while(|x| {
+            x.is_ok() && x.as_ref().unwrap().get_tag() <= tags::SpecificCharacterSet.tag
+        })
+        .next();
+
+    assert_eq!(first_non_fme.is_none(), true);
 }
 
 #[test]
