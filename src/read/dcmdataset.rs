@@ -11,25 +11,43 @@ use std::io::{Error, ErrorKind};
 
 
 pub trait DicomDataSetContainer {
+    /// Retrieve a reference to the immediate child element associated with the given tag
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error>;
+    /// Retrieve a mutable reference to the immediate child element associated with the given tag
     fn get_element_mut(&mut self, tag: u32) -> Result<&mut DicomElement, Error>;
+
+    /// Retrieve the value for the given element as a string
     fn get_string(&mut self, tag: u32, cs: EncodingRef) -> Result<&String, Error>;
+    /// Retrieve the value for the given element as a list of strings
     fn get_strings(&mut self, tag: u32, cs: EncodingRef) -> Result<&Vec<String>, Error>;
+    /// Retrieve the value for the given element as a 32bit floating point
     fn get_f32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f32, Error>;
+    /// Retrieve the value for the given element as a list of 32bit floating point values
     fn get_f32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f32>, Error>;
+    /// Retrieve the value for the given element as a 64bit floating point
     fn get_f64<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&f64, Error>;
+    /// Retrieve the value for the given element as a list of 64bit floating point values
     fn get_f64s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<f64>, Error>;
+    /// Retrieve the value for the given element as a 16bit signed integer
     fn get_i16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i16, Error>;
+    /// Retrieve the value for the given element as a list of 16bit signed integer values
     fn get_i16s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i16>, Error>;
+    /// Retrieve the value for the given element as a 32bit signed integer
     fn get_i32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&i32, Error>;
+    /// Retrieve the value for the given element as a list of 32bit signed integer values
     fn get_i32s<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&Vec<i32>, Error>;
+    /// Retrieve the value for the given element as a 16bit unsigned integer
     fn get_u16<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u16, Error>;
+    /// Retrieve the value for the given element as a 32bit unsigned integer
     fn get_u32<Endian: ByteOrder>(&mut self, tag: u32) -> Result<&u32, Error>;
 
+    /// Sets the immediate child element
     fn put_element(&mut self, tag: u32, element: DicomElement) -> Option<DicomElement>;
 }
 
-
+/// A container of DicomElements
+/// Also provides a cache of the values parsed into native types -- the initial
+/// request to get a child element as a specific type will cache the value
 pub struct DicomDataSet {
     elements: HashMap<u32, DicomElement>,
 
@@ -78,6 +96,7 @@ impl DicomDataSet {
     }
 }
 
+/// Implements the parsing and caching of DicomElements to different native types
 impl DicomDataSetContainer for DicomDataSet {
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
         self.elements.get(&tag)
@@ -95,7 +114,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(ref mut elem) = self.elements.get_mut(&tag) {
-                    let value: String = elem.parse_string(cs)?;
+                    let value: String = elem.read_string(cs)?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -109,7 +128,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(ref mut elem) = self.elements.get_mut(&tag) {
-                    let value: Vec<String> = elem.parse_strings(cs)?;
+                    let value: Vec<String> = elem.read_strings(cs)?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -123,7 +142,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: f32 = elem.parse_f32::<Endian>()?;
+                    let value: f32 = elem.read_f32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -137,7 +156,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: Vec<f32> = elem.parse_f32s::<Endian>()?;
+                    let value: Vec<f32> = elem.read_f32s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -151,7 +170,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: f64 = elem.parse_f64::<Endian>()?;
+                    let value: f64 = elem.read_f64::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -165,7 +184,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: Vec<f64> = elem.parse_f64s::<Endian>()?;
+                    let value: Vec<f64> = elem.read_f64s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -179,7 +198,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: i16 = elem.parse_i16::<Endian>()?;
+                    let value: i16 = elem.read_i16::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -193,7 +212,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: Vec<i16> = elem.parse_i16s::<Endian>()?;
+                    let value: Vec<i16> = elem.read_i16s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -207,7 +226,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: i32 = elem.parse_i32::<Endian>()?;
+                    let value: i32 = elem.read_i32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -221,7 +240,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: Vec<i32> = elem.parse_i32s::<Endian>()?;
+                    let value: Vec<i32> = elem.read_i32s::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -235,7 +254,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: u16 = elem.parse_u16::<Endian>()?;
+                    let value: u16 = elem.read_u16::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
@@ -249,7 +268,7 @@ impl DicomDataSetContainer for DicomDataSet {
             Entry::Occupied(occ_entry) => return Ok(occ_entry.into_mut()),
             Entry::Vacant(vac_entry) => {
                 if let Some(mut elem) = self.elements.get_mut(&tag) {
-                    let value: u32 = elem.parse_u32::<Endian>()?;
+                    let value: u32 = elem.read_u32::<Endian>()?;
                     return Ok(vac_entry.insert(value));
                 }
             },
