@@ -2,7 +2,6 @@
 //! dcmdump tool.
 
 use std::{
-    fs::File,
     io::{self, Write},
     path::{Path, PathBuf},
 };
@@ -10,8 +9,7 @@ use std::{
 use anyhow::Result;
 
 use dcmpipe_lib::core::{
-    dcmelement::DicomElement, defn::constants::tags::FILE_META_GROUP_END,
-    inspect::FormattedElement, read::Parser,
+    dcmelement::DicomElement, defn::constants::tags::FILE_META_GROUP_END, inspect::FormattedElement,
 };
 
 use crate::{
@@ -33,7 +31,7 @@ impl CommandApplication for PrintApp {
     fn run(&mut self) -> Result<()> {
         let path_buf: PathBuf = self.args.file.clone();
         let path: &Path = path_buf.as_path();
-        let mut parser: Parser<'_, File> = parse_file(path, true)?;
+        let mut parser = parse_file(path, true)?;
 
         let mut stdout = io::stdout().lock();
         stdout.write_all(format!(

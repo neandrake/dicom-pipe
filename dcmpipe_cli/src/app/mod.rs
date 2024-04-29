@@ -1,11 +1,8 @@
-use std::{fs::File, iter::Peekable, path::Path};
+use std::{fs::File, io::BufReader, path::Path};
 
 use anyhow::{anyhow, Result};
 use dcmpipe_lib::{
-    core::{
-        dcmelement::DicomElement,
-        read::{ParseError, Parser, ParserBuilder},
-    },
+    core::read::{Parser, ParserBuilder},
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
 };
 
@@ -21,19 +18,20 @@ pub(crate) trait CommandApplication {
     fn run(&mut self) -> Result<()>;
 }
 
-fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, File>> {
+fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, BufReader<File>>> {
     if !path.is_file() {
         return Err(anyhow!("invalid file: {}", path.display()));
     }
 
-    let file: File = File::open(path)?;
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
+    let file = File::open(path)?;
+    let dataset = BufReader::new(file);
+    let mut parser = ParserBuilder::default()
         .allow_partial_object(allow_partial_object)
-        .build(file, &STANDARD_DICOM_DICTIONARY);
+        .build(dataset, &STANDARD_DICOM_DICTIONARY);
 
-    let mut peeker: Peekable<&mut Parser<'_, File>> = parser.by_ref().peekable();
+    let mut peeker = parser.by_ref().peekable();
 
-    let first: Option<&Result<DicomElement, ParseError>> = peeker.peek();
+    let first = peeker.peek();
     if let Some(Err(_)) = first {
         return Err(anyhow!("file is not dicom: {}", path.display()));
     } else if first.is_none() {

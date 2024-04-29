@@ -1,6 +1,5 @@
 use std::{
     convert::{TryFrom, TryInto},
-    fs::File,
     io::{Cursor, ErrorKind},
 };
 
@@ -169,7 +168,7 @@ fn test_parser_state(with_std: bool) -> ParseResult<()> {
     } else {
         &MINIMAL_DICOM_DICTIONARY
     };
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
+    let mut parser = ParserBuilder::default()
         .stop(ParseStop::before(stop))
         .build(
             fixture("gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?,
@@ -225,7 +224,7 @@ fn test_dicom_object(with_std: bool) -> ParseResult<()> {
         &MINIMAL_DICOM_DICTIONARY
     };
 
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
+    let mut parser = ParserBuilder::default()
         .stop(ParseStop::before(&PixelData))
         .build(
             fixture("gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?,
@@ -265,7 +264,7 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
         &MINIMAL_DICOM_DICTIONARY
     };
 
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
+    let mut parser = ParserBuilder::default()
         .stop(ParseStop::before(&PixelData))
         .build(
             fixture("gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?,
@@ -645,7 +644,7 @@ fn test_missing_preamble(with_std: bool) -> ParseResult<()> {
         &MINIMAL_DICOM_DICTIONARY
     };
 
-    let mut parser: Parser<'_, File> = ParserBuilder::default().build(
+    let mut parser = ParserBuilder::default().build(
         fixture("gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?,
         dict,
     );
@@ -1296,7 +1295,7 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(
         &MINIMAL_DICOM_DICTIONARY
     };
 
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
+    let mut parser = ParserBuilder::default()
         .stop(ParseStop::after(&SourceImageSequence))
         .build(
             fixture("gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm")?,
@@ -1372,13 +1371,13 @@ fn test_jpeg_lossless3a(with_std: bool) -> ParseResult<()> {
 
     let path: &str = "gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm";
     // Parse with default configuration, should result in error.
-    let mut parser: Parser<'_, File> = ParserBuilder::default().build(fixture(path)?, dict);
+    let mut parser = ParserBuilder::default().build(fixture(path)?, dict);
 
     let res: ParseResult<Option<DicomRoot>> = DicomRoot::parse(&mut parser);
     assert!(res.is_err());
 
     // Parse again but allow a partial DicomObject result. This dataset
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
+    let mut parser = ParserBuilder::default()
         .allow_partial_object(true)
         .build(fixture(path)?, dict);
 

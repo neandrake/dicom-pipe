@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -31,7 +32,7 @@ impl ScanApp {
             .filter(|path: &PathBuf| path.is_file())
     }
 
-    fn parse_all_element_values(&self, parser: Parser<'_, File>) -> ScanResult {
+    fn parse_all_element_values(&self, parser: Parser<'_, BufReader<File>>) -> ScanResult {
         let mut is_first_elem: bool = true;
         for elem_result in parser {
             match elem_result {
@@ -60,8 +61,9 @@ impl CommandApplication for ScanApp {
         let parser_builder: ParserBuilder = ParserBuilder::default();
 
         for path in self.get_files() {
-            let file: File = File::open(path.clone())?;
-            let parser: Parser<'_, File> = parser_builder.build(file, &STANDARD_DICOM_DICTIONARY);
+            let file = File::open(path.clone())?;
+            let dataset = BufReader::new(file);
+            let parser = parser_builder.build(dataset, &STANDARD_DICOM_DICTIONARY);
 
             let relative_path: &str = path
                 .strip_prefix(&self.args.folder)?
