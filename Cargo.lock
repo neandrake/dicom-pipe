@@ -406,6 +406,7 @@ name = "dcmpipe_lib"
 version = "0.1.0"
 dependencies = [
  "encoding 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thiserror 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -9,7 +9,7 @@ use walkdir::WalkDir;
 enum ParseResult {
     Success,
     NotDicom,
-    InvalidData(Error),
+    InvalidData(Box<dyn std::error::Error>),
 }
 
 pub struct ScanApp {
@@ -35,14 +35,14 @@ impl ScanApp {
                 Ok(elem) => {
                     match elem.parse_value() {
                         Ok(_) => {}
-                        Err(e) => return ParseResult::InvalidData(e),
+                        Err(e) => return ParseResult::InvalidData(Box::new(e)),
                     };
                 }
                 Err(e) => {
                     if is_first_elem {
                         return ParseResult::NotDicom;
                     }
-                    return ParseResult::InvalidData(e);
+                    return ParseResult::InvalidData(Box::new(e));
                 }
             };
             is_first_elem = false;
@@ -54,7 +54,7 @@ impl ScanApp {
 
 impl CommandApplication for ScanApp {
     fn run(&mut self) -> Result<(), Error> {
-        let parser_builder: ParserBuilder =
+        let parser_builder: ParserBuilder<'_> =
             ParserBuilder::default().dictionary(&STANDARD_DICOM_DICTIONARY);
 
         for path in self.get_files() {

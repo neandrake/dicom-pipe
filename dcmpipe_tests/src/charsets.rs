@@ -4,16 +4,15 @@ use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use encoding::all;
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
-use std::io::Error;
 
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]
-fn test_parse_nested_charset_values() -> Result<(), Error> {
+fn test_parse_nested_charset_values() -> Result<()> {
     let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
     let file: File = File::open(path_str)?;
     let mut parser: Parser<'_, File> = ParserBuilder::default()
@@ -66,7 +65,7 @@ fn test_nested_charset(
     cs: CSRef,
     scs: &str,
     pn: &str,
-) -> Result<(), Error> {
+) -> Result<()> {
     let item: &DicomObject = dcmroot
         .get_child(tags::DirectoryRecordSequence.tag)
         .expect("Should have DirectoryRecordSequence")
@@ -102,7 +101,7 @@ fn test_nested_charset(
 }
 
 #[test]
-fn test_scs_arab() -> Result<(), Error> {
+fn test_scs_arab() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSARAB",
@@ -113,7 +112,7 @@ fn test_scs_arab() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_french() -> Result<(), Error> {
+fn test_scs_french() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSFREN",
@@ -124,7 +123,7 @@ fn test_scs_french() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_german() -> Result<(), Error> {
+fn test_scs_german() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSGERM",
@@ -135,7 +134,7 @@ fn test_scs_german() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_greek() -> Result<(), Error> {
+fn test_scs_greek() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSGREEK",
@@ -146,7 +145,7 @@ fn test_scs_greek() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_h31() -> Result<(), Error> {
+fn test_scs_h31() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSH31",
@@ -157,7 +156,7 @@ fn test_scs_h31() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_h32() -> Result<(), Error> {
+fn test_scs_h32() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSH32",
@@ -168,7 +167,7 @@ fn test_scs_h32() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_hebrew() -> Result<(), Error> {
+fn test_scs_hebrew() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSHBRW",
@@ -179,7 +178,7 @@ fn test_scs_hebrew() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_i12() -> Result<(), Error> {
+fn test_scs_i12() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSI2",
@@ -190,7 +189,7 @@ fn test_scs_i12() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_russian() -> Result<(), Error> {
+fn test_scs_russian() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSRUSS",
@@ -201,7 +200,7 @@ fn test_scs_russian() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_x1() -> Result<(), Error> {
+fn test_scs_x1() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSX1",
@@ -212,7 +211,7 @@ fn test_scs_x1() -> Result<(), Error> {
 }
 
 #[test]
-fn test_scs_x2() -> Result<(), Error> {
+fn test_scs_x2() -> Result<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSX2",
@@ -222,7 +221,7 @@ fn test_scs_x2() -> Result<(), Error> {
     )
 }
 
-fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> Result<(), Error> {
+fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(path, with_std)?;
 
     assert_eq!(dcmroot.get_cs().name(), cs.name());

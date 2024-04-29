@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use bson::spec::BinarySubtype;
 use bson::{doc, Array, Bson, Document};
-use mongodb::options::{ClientOptions};
-use mongodb::{Client, Collection, Database, Cursor};
+use mongodb::options::ClientOptions;
+use mongodb::{Client, Collection, Cursor, Database};
 use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
@@ -70,7 +70,7 @@ impl IndexApp {
             .into_iter()
             .filter_map(|e| e.ok());
 
-        let parser_builder: ParserBuilder = ParserBuilder::default()
+        let parser_builder: ParserBuilder<'_> = ParserBuilder::default()
             .tagstop(TagStop::BeforeTag(tags::PixelData.tag))
             .dictionary(&STANDARD_DICOM_DICTIONARY);
         for entry in walkdir {
@@ -81,11 +81,16 @@ impl IndexApp {
             let file: File = File::open(entry.path())?;
             let mut parser: Parser<'_, File> = parser_builder.build(file);
 
-            let dcm_root: Option<DicomRoot> = parse_into_object(&mut parser)?;
+            let dcm_root: Option<DicomRoot<'_>> = parse_into_object(&mut parser).map_err(|e| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Error reading dicom element: {:?}", e),
+                )
+            })?;
             if dcm_root.is_none() {
                 continue;
             }
-            let dcm_root: DicomRoot = dcm_root.unwrap();
+            let dcm_root: DicomRoot<'_> = dcm_root.unwrap();
 
             let uid_obj: &DicomObject = dcm_root
                 .get_child(tags::SeriesInstanceUID.tag)
@@ -100,23 +105,21 @@ impl IndexApp {
                     )
                 })?;
             let uid_key: String = uid_obj.as_element().try_into()?;
-            let dicom_doc: &mut DicomDoc = self.uid_to_doc.entry(uid_key)
-                .or_insert_with(|| DicomDoc::new());
+            let dicom_doc: &mut DicomDoc =
+                self.uid_to_doc.entry(uid_key).or_insert_with(DicomDoc::new);
 
             let metadata_doc: &mut Document = dicom_doc
                 .doc
                 .entry("metadata".to_owned())
                 .or_insert_with(|| Document::new().into())
                 .as_document_mut()
-                .ok_or_else(|| {
-                    Error::new(ErrorKind::InvalidData, "Field failure: metadata")
-                })?;
+                .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Field failure: metadata"))?;
             let files_field: &mut Array = metadata_doc
                 .entry("files".to_owned())
                 .or_insert_with(|| Vec::<String>::new().into())
                 .as_array_mut()
                 .ok_or_else(|| {
-                    Error::new(ErrorKind::InvalidData,"Field failure: metadata.files")
+                    Error::new(ErrorKind::InvalidData, "Field failure: metadata.files")
                 })?;
             files_field.push(format!("{}", entry.path().display()).into());
 
@@ -175,8 +178,9 @@ impl IndexApp {
             }
             let doc_id: ObjectId = doc_id.unwrap().clone();
 
-            let doc_key = doc.get_str(&series_uid_key)
-                .or(doc.get_str(&sop_uid_key));
+            let doc_key = doc
+                .get_str(&series_uid_key)
+                .or_else(|_| doc.get_str(&sop_uid_key));
             if let Err(_e) = doc_key {
                 // TODO: log
                 continue;
@@ -192,7 +196,7 @@ impl IndexApp {
         // something like upsert_many. The update_many does take an option to specify upsert
         // behavior but it's unclear how that should be used, as the query for which documents
         // to update would need to match all existing? For now just do individual updates.
-        let keys: Vec<String> = self.uid_to_doc.keys().into_iter().map(|s| s.to_owned()).collect();
+        let keys: Vec<String> = self.uid_to_doc.keys().cloned().collect();
         for key in keys {
             if let Some(mut dicom_doc) = self.uid_to_doc.remove(&key) {
                 match dicom_doc.id {
@@ -208,23 +212,26 @@ impl IndexApp {
                         dicom_doc.doc.insert("_id", doc_id.clone());
                         let mut query: Document = Document::new();
                         query.insert("_id", doc_id);
-                        dicom_coll.update_one(query, dicom_doc.doc, None).map_err(|e| {
-                            Error::new(
-                                ErrorKind::InvalidData,
-                                format!("Error updating mongo: , {:?}", e),
-                            )
-                        })?;
+                        dicom_coll
+                            .update_one(query, dicom_doc.doc, None)
+                            .map_err(|e| {
+                                Error::new(
+                                    ErrorKind::InvalidData,
+                                    format!("Error updating mongo: , {:?}", e),
+                                )
+                            })?;
                     }
                 }
             }
         }
 
         if !missing_records.is_empty() {
-            let ids: Vec<ObjectId> = missing_records.iter()
+            let ids: Vec<ObjectId> = missing_records
+                .iter()
                 .filter_map(|doc| doc.get_object_id("_id").ok())
-                .map(|doc_id| doc_id.clone())
+                .cloned()
                 .collect();
-            let query = doc!{
+            let query = doc! {
                 "$or": ids,
             };
 
@@ -240,7 +247,7 @@ impl IndexApp {
     }
 }
 
-/// Builds a bson value from the given `DicomElement` and inserts it into the dicom element
+/// Builds a bson value from the given `DicomElement` and inserts it into the bson document
 fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<(), Error> {
     let key: String = Tag::format_tag_to_path_display(elem.tag);
     let raw_value: RawValue = elem.parse_value()?;

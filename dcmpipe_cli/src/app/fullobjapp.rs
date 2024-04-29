@@ -5,7 +5,7 @@ use dcmpipe_lib::core::dcmparser::Parser;
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::defn::ts::TSRef;
 use std::fs::File;
-use std::io::{self, Error, StdoutLock, Write};
+use std::io::{self, Error, ErrorKind, StdoutLock, Write};
 use std::path::{Path, PathBuf};
 
 pub struct FullObjApp {
@@ -74,8 +74,14 @@ impl CommandApplication for FullObjApp {
             parser.get_ts().uid.ident).as_ref()
         )?;
 
-        let dcmroot: DicomRoot<'_> =
-            parse_into_object(&mut parser)?.expect("Failed to parse any dicom elements");
+        let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)
+            .map_err(|e| {
+                Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Error reading dicom element: {:?}", e),
+                )
+            })?
+            .expect("Failed to parse any dicom elements");
         self.render_objects(&dcmroot, true, parser.get_ts(), &mut stdout)?;
         Ok(())
     }
