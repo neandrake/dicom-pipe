@@ -41,7 +41,7 @@ impl DicomElementColumn {
 impl TableViewItem<DicomElementColumn> for DicomElement {
     fn to_column(&self, column: DicomElementColumn) -> String {
         match column {
-            DicomElementColumn::Expand => if self.is_seq() { "+" } else { "" }.to_owned(),
+            DicomElementColumn::Expand => if self.is_seq_like() { "+" } else { "" }.to_owned(),
             DicomElementColumn::Tag => Tag::format_tag_to_display(self.tag),
             DicomElementColumn::Name => if let Some(tag) = TAG_BY_VALUE.get(&self.tag) {
                 tag.ident

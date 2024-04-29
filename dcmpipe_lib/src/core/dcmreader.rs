@@ -33,7 +33,7 @@ fn parse_stream_recurse<StreamType: Read>(
         // checking sequence or item tag should match dcmparser.read_dicom_element() which
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.
-        let dcmobj: DicomObject = if element.is_seq() || element.tag == tags::ITEM {
+        let dcmobj: DicomObject = if element.is_seq_like() || element.tag == tags::ITEM {
             let mut object: DicomObject = DicomObject::new_with_element(element);
             possible_next_elem = parse_stream_recurse(parser, &mut object);
             object
