@@ -108,10 +108,11 @@ fn render_element(
 
     let seq_path: &Vec<DicomSequencePosition> = element.get_sequence_path();
 
-    let mut indent_width: usize = seq_path.len() * 2;
-    if indent_width > 0 && element.tag != tags::Item.tag && element.vr != &vr::SQ {
-        indent_width = indent_width + 2;
+    let mut indent_width: usize = seq_path.len();
+    if indent_width > 0 && element.tag != tags::Item.tag {
+        indent_width = indent_width + 1;
     }
+    indent_width = indent_width * 2;
 
     if element.tag == tags::Item.tag {
         let path: String = seq_path
