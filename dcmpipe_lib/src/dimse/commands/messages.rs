@@ -24,7 +24,9 @@ use crate::{
     dict::tags::{
         AffectedSOPClassUID, AffectedSOPInstanceUID, CommandDataSetType, CommandField,
         CommandGroupLength, MessageID, MessageIDBeingRespondedTo,
-        MoveOriginatorApplicationEntityTitle, MoveOriginatorMessageID, Priority, Status,
+        MoveOriginatorApplicationEntityTitle, MoveOriginatorMessageID,
+        NumberofCompletedSuboperations, NumberofFailedSuboperations,
+        NumberofRemainingSuboperations, NumberofWarningSuboperations, Priority, Status,
     },
     dimse::{
         commands::{CommandPriority, CommandStatus, CommandType},
@@ -381,6 +383,52 @@ impl CommandMessage {
                     RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
                 ),
                 (&Status, RawValue::from(status)),
+            ],
+        )
+    }
+
+    /// Create a C-STORE response.
+    #[must_use]
+    pub fn c_move_rsp(
+        ctx_id: u8,
+        msg_id: u16,
+        aff_sop_class_uid: &str,
+        status: &CommandStatus,
+        num_remaining_ops: u16,
+        num_completed_ops: u16,
+        num_failed_ops: u16,
+        num_warning_ops: u16,
+    ) -> Self {
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CMoveRsp)),
+                ),
+                (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
+                ),
+                (&Status, RawValue::from(status)),
+                (
+                    &NumberofRemainingSuboperations,
+                    RawValue::of_ushort(num_remaining_ops),
+                ),
+                (
+                    &NumberofCompletedSuboperations,
+                    RawValue::of_ushort(num_completed_ops),
+                ),
+                (
+                    &NumberofFailedSuboperations,
+                    RawValue::of_ushort(num_failed_ops),
+                ),
+                (
+                    &NumberofWarningSuboperations,
+                    RawValue::of_ushort(num_warning_ops),
+                ),
             ],
         )
     }

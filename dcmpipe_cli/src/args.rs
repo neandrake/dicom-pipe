@@ -108,11 +108,14 @@ pub struct SvcProviderArgs {
     /// The AE Title to run as.
     pub aetitle: String,
 
-    #[arg(short, long)]
+    #[arg(short, long, value_parser = parse_key_val)]
     /// An allow-list of accepted AE Titles for associations.
     ///
     /// If not specified then all AE Titles are accepted.
-    pub accept_aets: Option<String>,
+    ///
+    /// The format for each accepted AE Title is `key=val` where `key` is a valid AE Title such as
+    /// `MY_AE`, and `val` is the IP + port such as `127.0.0.1:4001`.
+    pub accept_aets: Vec<(String, String)>,
 
     #[arg(short, long)]
     /// The maximum PDU size to receive.

@@ -141,7 +141,7 @@ impl CommonAssoc {
     ///
     /// # Errors
     /// - I/O errors may occur when writing to the writer or flushing the writer.
-    pub fn write_pdu<W: Write>(&self, pdu: &Pdu, mut writer: &mut W) -> Result<(), AssocError> {
+    pub fn write_pdu<W: Write>(pdu: &Pdu, mut writer: &mut W) -> Result<(), AssocError> {
         pdu.write(&mut writer).map_err(AssocError::error)?;
         writer
             .flush()
@@ -328,7 +328,7 @@ impl CommonAssoc {
     /// - Parsing/encoding errors may occur when serializing the given command to
     /// `PresentationDataItem`s.
     pub fn write_command<W: Write>(
-        &mut self,
+        &self,
         cmd: &CommandMessage,
         mut writer: &mut W,
     ) -> Result<(), AssocError> {
@@ -343,7 +343,7 @@ impl CommonAssoc {
         );
         for pdi in pdi_iter {
             match pdi {
-                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Ok(pdi) => Self::write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
                 Err(e) => return Err(AssocError::ab_failure(e)),
             }
         }
@@ -358,7 +358,7 @@ impl CommonAssoc {
     /// - Parsing/encoding errors may occur when serializing the given dataset to
     /// `PresentationDataItem`s.
     pub fn write_dataset<W: Write>(
-        &mut self,
+        &self,
         ctx_id: u8,
         dataset: &DicomRoot,
         mut writer: &mut W,
@@ -374,7 +374,7 @@ impl CommonAssoc {
         );
         for pdi in pdi_iter {
             match pdi {
-                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Ok(pdi) => CommonAssoc::write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
                 Err(e) => return Err(AssocError::ab_failure(e)),
             }
         }
@@ -382,11 +382,19 @@ impl CommonAssoc {
     }
 
     /// Handles a PDU that is not a `PresentationDataItem`, after the association is negotiated. In
-    /// this scenario the only valid PDUs are `ReleaseRQ` or `Abort`.
+    /// this scenario the only valid PDUs are `Release` or `Abort`.
+    ///
+    /// # Notes
+    /// If `pdu` is a `ReleaseRQ` then this will respond with `ReleaseRP`, and this function will
+    /// return `DimseMsg::ReleaseRQ` to indicate the initial `pdu`.
+    ///
+    /// # Return
+    /// A `DimseMsg` indicating which PDU was handled, or an error if `pdu` is not `Release` or
+    /// `Abort`.
     ///
     /// # Errors
     /// - I/O errors may occur when writing to the stream.
-    /// - `DimseError`s may occur if the response is unexpected.
+    /// - `DimseError`s may occur if `pdu` is not one the expected/valid PDUs.
     fn handle_disconnect<W: Write>(
         &self,
         pdu: Pdu,
@@ -394,13 +402,13 @@ impl CommonAssoc {
     ) -> Result<DimseMsg, AssocError> {
         match pdu {
             Pdu::ReleaseRQ(_rq) => {
-                self.write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
+                CommonAssoc::write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
                 Ok(DimseMsg::ReleaseRQ)
             }
             Pdu::ReleaseRP(_rp) => Ok(DimseMsg::ReleaseRP),
             Pdu::Abort(ab) => Ok(DimseMsg::Abort(ab)),
             other => {
-                self.write_pdu(&Pdu::Abort(Abort::new(2, 2)), writer)?;
+                CommonAssoc::write_pdu(&Pdu::Abort(Abort::new(2, 2)), writer)?;
                 Err(AssocError::error(DimseError::UnexpectedPduType(
                     other.pdu_type(),
                 )))

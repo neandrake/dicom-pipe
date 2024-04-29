@@ -21,11 +21,13 @@ use dcmpipe_lib::{
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
         uids::{
-            CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
-            NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
+            CTImageStorage, DeformableSpatialRegistrationStorage, MRImageStorage,
+            ModalityWorklistInformationModelFIND, NuclearMedicineImageStorage,
+            PatientRootQueryRetrieveInformationModelFIND,
             PatientRootQueryRetrieveInformationModelGET,
             PatientRootQueryRetrieveInformationModelMOVE, PositronEmissionTomographyImageStorage,
-            RTDoseStorage, RTPlanStorage, RTStructureSetStorage, SecondaryCaptureImageStorage,
+            RTDoseStorage, RTImageStorage, RTPlanStorage, RTStructureSetStorage, RawDataStorage,
+            SecondaryCaptureImageStorage, SpatialRegistrationStorage,
             StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
             StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
         },
@@ -184,12 +186,16 @@ impl CommandApplication for SvcUserApp {
             &StudyRootQueryRetrieveInformationModelGET,
             &CTImageStorage,
             &MRImageStorage,
+            &RTImageStorage,
             &PositronEmissionTomographyImageStorage,
             &NuclearMedicineImageStorage,
             &SecondaryCaptureImageStorage,
             &RTStructureSetStorage,
             &RTDoseStorage,
             &RTPlanStorage,
+            &RawDataStorage,
+            &SpatialRegistrationStorage,
+            &DeformableSpatialRegistrationStorage,
         ]);
         let supported_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
         let max_pdu_size = self

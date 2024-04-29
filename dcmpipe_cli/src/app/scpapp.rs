@@ -22,11 +22,12 @@ use anyhow::Result;
 use dcmpipe_lib::{
     core::defn::constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
     dict::uids::{
-        CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
-        NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
-        PatientRootQueryRetrieveInformationModelGET, PatientRootQueryRetrieveInformationModelMOVE,
-        PositronEmissionTomographyImageStorage, RTDoseStorage, RTPlanStorage,
-        RTStructureSetStorage, SecondaryCaptureImageStorage,
+        CTImageStorage, DeformableSpatialRegistrationStorage, MRImageStorage,
+        ModalityWorklistInformationModelFIND, NuclearMedicineImageStorage,
+        PatientRootQueryRetrieveInformationModelFIND, PatientRootQueryRetrieveInformationModelGET,
+        PatientRootQueryRetrieveInformationModelMOVE, PositronEmissionTomographyImageStorage,
+        RTDoseStorage, RTImageStorage, RTPlanStorage, RTStructureSetStorage, RawDataStorage,
+        SecondaryCaptureImageStorage, SpatialRegistrationStorage,
         StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
         StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
     },
@@ -36,12 +37,12 @@ use dcmpipe_lib::{
             DimseMsg,
         },
         commands::CommandType,
-        error::{AssocError, DimseError},
+        error::AssocError,
         pdus::PduType,
     },
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::{BufReader, BufWriter, Read, Write},
     net::TcpListener,
 };
@@ -73,12 +74,7 @@ impl CommandApplication for SvcProviderApp {
             self.args.host
         );
 
-        let accept_aets = if let Some(aets) = &self.args.accept_aets {
-            aets.split(',').map(str::to_owned).collect()
-        } else {
-            HashSet::<String>::with_capacity(0)
-        };
-
+        let accept_aets: HashMap<String, String> = self.args.accept_aets.iter().cloned().collect();
         let supported_abs = HashSet::from([
             &VerificationSOPClass,
             &PatientRootQueryRetrieveInformationModelFIND,
@@ -90,12 +86,16 @@ impl CommandApplication for SvcProviderApp {
             &StudyRootQueryRetrieveInformationModelGET,
             &CTImageStorage,
             &MRImageStorage,
+            &RTImageStorage,
             &PositronEmissionTomographyImageStorage,
             &NuclearMedicineImageStorage,
             &SecondaryCaptureImageStorage,
             &RTStructureSetStorage,
             &RTDoseStorage,
             &RTPlanStorage,
+            &RawDataStorage,
+            &SpatialRegistrationStorage,
+            &DeformableSpatialRegistrationStorage,
         ]);
         let supported_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
         let max_pdu_size = self
@@ -166,9 +166,8 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             let cmd = match msg {
                 DimseMsg::Cmd(cmd) => cmd,
                 DimseMsg::Dataset(_) => {
-                    return Err(AssocError::ab_failure(DimseError::GeneralError(
-                        "Received DICOM dataset without prior Command.".to_string(),
-                    )));
+                    println!("[warn <-]: Received dataset out of request handler, discarding.");
+                    continue;
                 }
                 other => return Ok(other),
             };

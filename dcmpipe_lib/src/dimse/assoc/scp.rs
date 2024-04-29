@@ -43,12 +43,25 @@ use crate::{
 /// Represents a single association, for a service-provider, SCP.
 pub struct ServiceAssoc {
     common: CommonAssoc,
-    accept_aets: HashSet<String>,
+    accept_aets: HashMap<String, String>,
 }
 
 impl ServiceAssoc {
-    pub fn common(&mut self) -> &mut CommonAssoc {
-        &mut self.common
+    /// Access the fields & functions that are common to both SCU and SCP associations.
+    #[must_use]
+    pub fn common(&self) -> &CommonAssoc {
+        &self.common
+    }
+
+    /// Check if the given AE title is known or should be accepted.
+    #[must_use]
+    pub fn accept_aet(&self, aet: &str) -> bool {
+        self.accept_aets.is_empty() || self.accept_aets.contains_key(aet)
+    }
+
+    #[must_use]
+    pub fn aet_host(&self, aet: &str) -> Option<&String> {
+        self.accept_aets.get(aet)
     }
 
     /// Accept the association request, negotiating the association parameters and leaving the
@@ -89,8 +102,7 @@ impl ServiceAssoc {
             }
         }
 
-        self.common
-            .write_pdu(&Pdu::AssocAC(assoc_ac), &mut writer)?;
+        CommonAssoc::write_pdu(&Pdu::AssocAC(assoc_ac), &mut writer)?;
 
         Ok(())
     }
@@ -212,7 +224,7 @@ impl ServiceAssoc {
     fn validate_ae_titles(
         rq: &AssocRQ,
         host_ae: &str,
-        accepted_calling: &HashSet<String>,
+        accepted_calling: &HashMap<String, String>,
     ) -> Result<(), AssocError> {
         let called_ae = DEFAULT_CHARACTER_SET
             .decode(rq.called_ae())
@@ -228,7 +240,7 @@ impl ServiceAssoc {
             .decode(rq.calling_ae())
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::from(e)))?;
-        if !accepted_calling.is_empty() && !accepted_calling.contains(&calling_ae) {
+        if !accepted_calling.is_empty() && !accepted_calling.contains_key(&calling_ae) {
             return Err(AssocError::rj_calling_aet(DimseError::GeneralError(
                 format!("Calling AE Title \"{calling_ae}\" not in accepted list"),
             )));
@@ -264,7 +276,7 @@ impl ServiceAssoc {
 pub struct ServiceAssocBuilder {
     id: usize,
     host_ae: String,
-    accept_aets: HashSet<String>,
+    accept_aets: HashMap<String, String>,
     supported_abs: HashSet<UIDRef>,
     supported_ts: HashSet<TSRef>,
     pdu_rcv_max_len: u32,
@@ -289,7 +301,7 @@ impl ServiceAssocBuilder {
     }
 
     #[must_use]
-    pub fn accept_aets(mut self, accept_aets: HashSet<String>) -> Self {
+    pub fn accept_aets(mut self, accept_aets: HashMap<String, String>) -> Self {
         self.accept_aets = accept_aets;
         self
     }

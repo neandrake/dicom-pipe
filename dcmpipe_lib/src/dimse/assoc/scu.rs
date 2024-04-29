@@ -62,6 +62,12 @@ pub struct UserAssoc {
 }
 
 impl UserAssoc {
+    /// Access the fields & functions that are common to both SCU and SCP associations.
+    #[must_use]
+    pub fn common(&self) -> &CommonAssoc {
+        &self.common
+    }
+
     /// Retrieve the accepted presentation context and its negotiated transfer syntax, by the given
     /// abstract syntax.
     ///
@@ -107,9 +113,15 @@ impl UserAssoc {
 
     /// Initiate the association.
     ///
+    /// # Return
+    /// This returns an `Option<DimseMsg>`, which, if the association is accepted/negotiated
+    /// successfully, will be `None`. If the association is rejected or aborted then this returns a
+    /// `Some(DimseMsg)` to indicate which response was received.
+    ///
     /// # Errors
     /// I/O errors may occur with the reader/writer.
-    /// An error will be returned if the association cannot be negotiated.
+    /// `DimseError` may be returned if: an unexpected PDU was received during negotiation, or if
+    /// no presentation contexts could be negotiated.
     pub fn request_association<R: Read, W: Write>(
         &mut self,
         reader: R,
@@ -156,7 +168,7 @@ impl UserAssoc {
             user_info,
         );
 
-        self.common.write_pdu(&Pdu::AssocRQ(rq), &mut writer)?;
+        CommonAssoc::write_pdu(&Pdu::AssocRQ(rq), &mut writer)?;
 
         let response = Pdu::read(reader).map_err(AssocError::ab_failure)?;
         let Pdu::AssocAC(ac) = response else {
@@ -201,8 +213,7 @@ impl UserAssoc {
         reader: &mut R,
         mut writer: &mut W,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        self.common
-            .write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
+        CommonAssoc::write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
         match self.common.next_msg(reader, &mut writer)? {
             DimseMsg::ReleaseRP => Ok(Some(DimseMsg::ReleaseRP)),
             other => Err(AssocError::error(DimseError::GeneralError(format!(
@@ -381,9 +392,7 @@ impl UserAssoc {
         );
         for pdi in pdi_iter {
             match pdi {
-                Ok(pdi) => self
-                    .common
-                    .write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Ok(pdi) => CommonAssoc::write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
                 Err(e) => return Err(AssocError::ab_failure(e)),
             }
         }
