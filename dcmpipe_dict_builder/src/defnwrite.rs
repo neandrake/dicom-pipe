@@ -1,3 +1,19 @@
+/*
+   Copyright 2024 Christopher Speck
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 #![allow(clippy::too_many_lines)]
 
 use std::fs::File;
@@ -10,7 +26,23 @@ use crate::xmlparser::{
     XmlDicomDefinition, XmlDicomDefinitionIterator, XmlDicomElement, XmlDicomUid,
 };
 
-static LOOKUP_PREAMBLE: &str = "//! This is an auto-generated file. Do not make modifications here.
+static LOOKUP_PREAMBLE: &str = "/*
+   Copyright 2024 Christopher Speck
+
+   Licensed under the Apache License, Version 2.0 (the \"License\");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an \"AS IS\" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+//! This is an auto-generated file. Do not make modifications here.
 //!
 //! This contains perfect-hashed maps for looking up DICOM Elements, Transfer Syntaxes, and DICOM
 //! UIDs based on their \"identity\" or their associated value. The \"identity\" is computed based
@@ -25,8 +57,23 @@ use crate::dict::{tags, transfer_syntaxes as ts, uids};
 
 ";
 
-static DICOM_ELEMENT_PREAMBLE: &str =
-    "//! This is an auto-generated file. Do not make modifications here.
+static DICOM_ELEMENT_PREAMBLE: &str = "/*
+   Copyright 2024 Christopher Speck
+
+   Licensed under the Apache License, Version 2.0 (the \"License\");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an \"AS IS\" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+//! This is an auto-generated file. Do not make modifications here.
 //!
 //! This contains definitions of DICOM Elements.
 
@@ -36,8 +83,23 @@ use crate::core::defn::{tag::Tag, vm::VM, vr};
 
 ";
 
-static TRANSFER_SYNTAX_PREAMBLE: &str =
-    "//! This is an auto-generated file. Do not make modifications here.
+static TRANSFER_SYNTAX_PREAMBLE: &str = "/*
+   Copyright 2024 Christopher Speck
+
+   Licensed under the Apache License, Version 2.0 (the \"License\");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an \"AS IS\" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+//! This is an auto-generated file. Do not make modifications here.
 //!
 //! This contains definitions of Transfer Syntaxes.
 
@@ -48,7 +110,23 @@ use crate::dict::uids;
 
 ";
 
-static UID_PREAMBLE: &str = "//! This is an auto-generated file. Do not make modifications here.
+static UID_PREAMBLE: &str = "/*
+   Copyright 2024 Christopher Speck
+
+   Licensed under the Apache License, Version 2.0 (the \"License\");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an \"AS IS\" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+//! This is an auto-generated file. Do not make modifications here.
 //!
 //! This contains definitions of DICOM UIDs.
 

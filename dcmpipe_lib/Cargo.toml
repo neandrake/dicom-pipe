@@ -2,6 +2,12 @@
 name = "dcmpipe_lib"
 version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
+description = "A library for reading and writing the DICOM format."
+repository = "https://github.com/neandrake/dicom-pipe"
+license = "Apache-2.0"
+readme = "readme.md"
+keywords = ["dicom", "dimse"]
+categories = ["encoding", "parser-implementations", "science"]
 build = "build/build.rs"
 edition = "2021"
 

@@ -1,3 +1,19 @@
+/*
+   Copyright 2024 Christopher Speck
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 // The integreation tests in /tests folder are treated as individual crates, which results in the
 // rust compiler not detecting that this common crate is used, throwing up a bunch of warnings.
 #![allow(unused)]
