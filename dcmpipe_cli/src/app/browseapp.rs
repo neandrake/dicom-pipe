@@ -139,9 +139,10 @@ impl<'app> DicomDocumentModel<'app> {
 
 impl<'model> DicomElementModel<'model> {
     fn parse<'dict>(dcmnode: &'dict dyn DicomNode) -> HashMap<TagPath, DicomElementModel<'model>> {
-        let mut map: HashMap<TagPath, DicomElementModel<'model>> = HashMap::new();
-
-        let mut rows: Vec<Row<'model>> = Vec::with_capacity(dcmnode.get_child_count());
+        let total_sub_items = dcmnode.get_item_count() + dcmnode.get_child_count();
+        let mut map: HashMap<TagPath, DicomElementModel<'model>> =
+            HashMap::with_capacity(total_sub_items);
+        let mut rows: Vec<Row<'model>> = Vec::with_capacity(total_sub_items);
         let mut max_name_width: u16 = 0;
         for item in dcmnode.iter_items() {
             let (row, child_map, name_len) = DicomElementModel::parse_dcmobj(item);
@@ -155,9 +156,6 @@ impl<'model> DicomElementModel<'model> {
             map.extend(child_map);
             max_name_width = max_name_width.max(name_len);
         }
-
-        let mut table_state = TableState::default();
-        table_state.select(Some(0));
 
         let elem_tbl = DicomElementModel {
             rows,
@@ -196,8 +194,14 @@ impl<'model> DicomElementModel<'model> {
 
         let mut cells: Vec<Cell> = Vec::with_capacity(5);
         cells.push(
-            Cell::from(if child.get_child_count() > 0 { "+" } else { "" })
-                .style(Style::default().fg(Color::DarkGray)),
+            Cell::from(
+                if child.get_child_count() > 0 || child.get_item_count() > 0 {
+                    "+"
+                } else {
+                    ""
+                },
+            )
+            .style(Style::default().fg(Color::DarkGray)),
         );
 
         cells.push(
@@ -373,29 +377,34 @@ impl<'app> BrowseApp {
         // Handle user navigation
         match view_state.user_nav {
             UserNav::None => {}
-            UserNav::IntoLevel(selected) => {
+            UserNav::IntoLevel(sel_idx) => {
                 let next_path = if view_state.current_root_element.nodes.is_empty() {
-                    get_nth_child(dcmroot, selected)
+                    get_nth_child(dcmroot, sel_idx)
                         .map(|o| o.as_element().get_tagpath())
                         .unwrap_or_else(|| view_state.current_root_element.clone())
                 } else {
+                    if let None = dcmroot.get_child_by_tagpath(&view_state.current_root_element) {
+                        return Err(
+                            BrowseError::InvalidTagPath(view_state.current_root_element).into()
+                        );
+                    }
                     dcmroot
                         .get_child_by_tagpath(&view_state.current_root_element)
                         .and_then(|c| {
                             // Check items first and children second. Sequences will have a
                             // single child which is the delimiter at the end.
                             if c.get_item_count() > 0 {
-                                if selected < c.get_item_count() {
-                                    c.get_item_by_index(selected + 1)
+                                if sel_idx < c.get_item_count() {
+                                    c.get_item_by_index(sel_idx + 1)
                                 } else if c.get_child_count() > 0 {
                                     // Subtract the # items because children appear after items
                                     // when both are present.
-                                    get_nth_child(c, selected - c.get_item_count())
+                                    get_nth_child(c, sel_idx - c.get_item_count())
                                 } else {
                                     None
                                 }
-                            } else if c.get_item_count() > 0 {
-                                c.get_item_by_index(selected + 1)
+                            } else if c.get_child_count() > 0 {
+                                get_nth_child(c, sel_idx)
                             } else {
                                 None
                             }
@@ -440,7 +449,7 @@ impl<'app> BrowseApp {
         match event.code {
             Char('q') => view_state.user_quit = true,
             KeyCode::Esc => view_state.user_quit = true,
-            KeyCode::Enter => {
+            Char('l') | KeyCode::Enter => {
                 if let Some(selected) = view_state.table_state.selected() {
                     view_state.user_nav = UserNav::IntoLevel(selected);
                 }
