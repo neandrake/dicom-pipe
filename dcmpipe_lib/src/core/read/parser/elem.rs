@@ -62,12 +62,12 @@ impl<'d, R: Read> Parser<'d, R> {
         // the sequence delimiter will not be parented properly
         if tag == SEQUENCE_DELIMITATION_ITEM {
             if let Some(seq_elem) = self.current_path.last() {
-                if seq_elem.seq_tag() == ITEM {
+                if seq_elem.sq_tag() == ITEM {
                     self.current_path.pop();
                 }
             }
         }
-        self.pop_sequence_items_base_on_byte_pos();
+        self.pop_sequence_items_based_on_byte_pos();
 
         // reading element clones the current path so update prior to reading element
         if tag == ITEM {
@@ -102,7 +102,7 @@ impl<'d, R: Read> Parser<'d, R> {
         if tag == SEQUENCE_DELIMITATION_ITEM || tag == ITEM_DELIMITATION_ITEM {
             if let Some(seq_elem) = self.current_path.last() {
                 // if the parent is item then pop at least once for end of item
-                if seq_elem.seq_tag() == ITEM {
+                if seq_elem.sq_tag() == ITEM {
                     self.current_path.pop();
                 }
             }
@@ -112,7 +112,7 @@ impl<'d, R: Read> Parser<'d, R> {
             }
         }
 
-        self.pop_sequence_items_base_on_byte_pos();
+        self.pop_sequence_items_based_on_byte_pos();
 
         if element.is_sq_like() || tag == ITEM {
             let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.vl() {

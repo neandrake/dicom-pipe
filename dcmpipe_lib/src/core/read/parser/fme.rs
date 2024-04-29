@@ -24,7 +24,12 @@ use std::io::Read;
 
 use crate::core::{
     dcmelement::DicomElement,
-    defn::{constants::tags, ts::TSRef},
+    defn::{
+        constants::tags::{
+            FILE_META_GROUP_END, FILE_META_INFORMATION_GROUP_LENGTH, TRANSFER_SYNTAX_UID,
+        },
+        ts::TSRef,
+    },
     read::parser::{ParseError, ParseResult, Parser, ParserState},
     values::ElementWithVr,
     DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
@@ -66,8 +71,8 @@ impl<'d, R: Read> Parser<'d, R> {
             return Ok(None);
         }
 
-        if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
-            if tag > tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
+        if tag != FILE_META_INFORMATION_GROUP_LENGTH {
+            if tag > FILE_META_INFORMATION_GROUP_LENGTH && tag < FILE_META_GROUP_END {
                 self.state = ParserState::ReadFileMeta;
             } else {
                 self.state = ParserState::ReadElement;
@@ -112,7 +117,7 @@ impl<'d, R: Read> Parser<'d, R> {
         }
 
         let element: DicomElement = self.read_dicom_element(tag, ts)?;
-        if element.tag() == tags::TRANSFER_SYNTAX_UID {
+        if element.tag() == TRANSFER_SYNTAX_UID {
             match self.parse_transfer_syntax(&element) {
                 Ok(Some(ts)) => {
                     self.dataset_ts = Some(ts);
@@ -125,7 +130,7 @@ impl<'d, R: Read> Parser<'d, R> {
         // if group length was read use the byte position to determine if we're out of file-meta
         if (self.fmi_grouplength > 0
             && (self.bytes_read >= self.fmi_start + u64::from(self.fmi_grouplength)))
-            || tag > tags::FILE_META_GROUP_END
+            || tag > FILE_META_GROUP_END
         {
             // if we exit file-meta without having parsed transfer-syntax or if the ts is unknown to
             // the dictionary used for parsing then flip to DetectState so the implicit vs. explicit

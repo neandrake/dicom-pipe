@@ -22,13 +22,14 @@ use crate::{
         read::ParseError,
         write::{builder::WriterBuilder, writer::WriterState},
     },
-    dict::transfer_syntaxes::ImplicitVRLittleEndian,
     dimse::{
         commands::messages::CommandMessage,
-        error::{AssocError, DimseError},
+        error::DimseError,
         pdus::mainpdus::{Abort, AssocRJ, PresentationDataValue},
     },
 };
+
+use super::error::AssocError;
 
 pub mod scp;
 pub mod scu;
@@ -95,17 +96,19 @@ impl FromStr for QueryLevel {
     }
 }
 
-/// Serialize the given `DicomRoot` into in-memory bytes, using IVRLE.
+/// Serialize the given `DicomRoot` to an in-memory buffer, using the `DicomRoot`'s transfer
+/// syntax.
 ///
 /// # Errors
-/// An I/O error may occur when writing to the in-memory `Vec`.
-pub fn serialize(dicom: &DicomRoot) -> Result<Vec<u8>, AssocError> {
+/// I/O errors may occur when serializing/writing the elements.
+pub fn serialize_in_mem(dcm_root: &DicomRoot) -> Result<Vec<u8>, AssocError> {
     let mut ds_writer = WriterBuilder::default()
-        .state(WriterState::Element)
-        .ts(&ImplicitVRLittleEndian)
-        .build(Vec::<u8>::new());
+        .state(WriterState::WriteElement)
+        .ts(dcm_root.ts())
+        .build(Vec::<u8>::with_capacity(dcm_root.byte_size()));
     ds_writer
-        .write_dcmroot(dicom)
-        .map_err(|e| AssocError::ab_invalid_pdu(DimseError::WriteError(e)))?;
+        .write_dcmroot(dcm_root)
+        .map_err(DimseError::from)
+        .map_err(AssocError::ab_failure)?;
     Ok(ds_writer.into_dataset())
 }

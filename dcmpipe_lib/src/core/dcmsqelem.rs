@@ -42,7 +42,7 @@ pub struct SequenceElement {
     /// The byte position where the parent sequence ends. This value is set as
     /// `bytes_read + value_length` during parsing. If the sequence has undefined length this is set
     /// to None.
-    seq_end_pos: Option<u64>,
+    sq_end_pos: Option<u64>,
 
     /// The VR of the sequence/item. This will typically be SQ for sequence element and UN for Item
     /// elements. For private sequence elements this should be UN.
@@ -70,7 +70,7 @@ impl SequenceElement {
     ) -> SequenceElement {
         SequenceElement {
             node: TagNode::new(seq_tag, None),
-            seq_end_pos,
+            sq_end_pos: seq_end_pos,
             vr,
             vl,
             cs,
@@ -83,7 +83,7 @@ impl SequenceElement {
     }
 
     #[must_use]
-    pub fn seq_tag(&self) -> u32 {
+    pub fn sq_tag(&self) -> u32 {
         self.node.tag()
     }
 
@@ -93,8 +93,8 @@ impl SequenceElement {
     }
 
     #[must_use]
-    pub fn seq_end_pos(&self) -> Option<u64> {
-        self.seq_end_pos
+    pub fn sq_end_pos(&self) -> Option<u64> {
+        self.sq_end_pos
     }
 
     #[must_use]
@@ -149,6 +149,6 @@ impl Display for SequenceElement {
 
 impl Debug for SequenceElement {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "node: {:?}, end: {:?}", self.node, self.seq_end_pos)
+        write!(f, "node: {:?}, end: {:?}", self.node, self.sq_end_pos)
     }
 }

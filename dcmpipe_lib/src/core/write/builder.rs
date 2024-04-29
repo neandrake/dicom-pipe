@@ -48,7 +48,7 @@ impl WriterBuilder {
     #[must_use]
     pub fn for_file() -> Self {
         Self::default()
-            .state(WriterState::Preamble)
+            .state(WriterState::WritePreamble)
             .file_preamble([0u8; FILE_PREAMBLE_LENGTH])
     }
 
@@ -84,7 +84,7 @@ impl WriterBuilder {
     pub fn build<DatasetType: Write>(&self, dataset: DatasetType) -> Writer<DatasetType> {
         Writer {
             dataset: Dataset::new(dataset),
-            state: self.state.unwrap_or(WriterState::Preamble),
+            state: self.state.unwrap_or(WriterState::WritePreamble),
             bytes_written: 0,
             ts: self.ts.unwrap_or(&ts::ExplicitVRLittleEndian),
             cs: self.cs.unwrap_or(DEFAULT_CHARACTER_SET),

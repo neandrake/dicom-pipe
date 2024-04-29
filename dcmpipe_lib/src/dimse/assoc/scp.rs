@@ -27,7 +27,7 @@ use crate::{
     },
     dict::{stdlookup::STANDARD_DICOM_DICTIONARY, uids::DICOMApplicationContextName},
     dimse::{
-        assoc::{serialize, DimseMsg},
+        assoc::DimseMsg,
         commands::{messages::CommandMessage, CommandStatus},
         error::{AssocError, DimseError},
         pdus::{
@@ -43,6 +43,8 @@ use crate::{
         Syntax,
     },
 };
+
+use super::serialize_in_mem;
 
 pub struct ServiceAssoc {
     /* Fields configured by this SCU. */
@@ -305,6 +307,40 @@ impl ServiceAssoc {
         }
     }
 
+    /// Continuously reads DICOM `PresentationDataValue` PDUs from the reader and writes the bytes
+    /// to the given `out_writer`, stopping after processing the last fragment.
+    ///
+    /// # Parameters
+    /// `reader` - The reader the `PresentationDataValue` PDUs will be read from.
+    /// `writer` - The protocol's corresponding writer for sending A-ABORT if encountering errors.
+    /// `out_writer` - The destination to write the `PresentationDataValue` data bytes to.
+    ///
+    /// # Errors
+    /// I/O errors may occur with the reader/writer.
+    pub fn read_dataset<R: Read, W: Write, OW: Write>(
+        &self,
+        mut reader: &mut R,
+        mut writer: &mut W,
+        out_writer: &mut OW,
+    ) -> Result<(), AssocError> {
+        let mut all_read = false;
+        while !all_read {
+            let dcm_msg = self.next_msg(&mut reader, &mut writer)?;
+            let DimseMsg::Dataset(pdv) = dcm_msg else {
+                return Err(AssocError::ab_failure(DimseError::GeneralError(
+                    "Expected DICOM dataset".to_string(),
+                )));
+            };
+
+            all_read = pdv.is_last_fragment();
+            out_writer
+                .write_all(pdv.data())
+                .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
+        }
+
+        Ok(())
+    }
+
     /// Handles a PDU that is not a `PresentationDataItem`, after the association is negotiated. In
     /// this scenario the only valid PDUs are `ReleaseRQ` or `Abort`.
     fn handle_disconnect<W: Write>(
@@ -313,10 +349,11 @@ impl ServiceAssoc {
         writer: &mut W,
     ) -> Result<DimseMsg, AssocError> {
         match pdu {
-            Pdu::ReleaseRQ(_) => {
+            Pdu::ReleaseRQ(_rq) => {
                 self.write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
                 Ok(DimseMsg::ReleaseRQ)
             }
+            Pdu::ReleaseRP(_rp) => Ok(DimseMsg::ReleaseRP),
             Pdu::Abort(ab) => Ok(DimseMsg::Abort(ab)),
             other => {
                 self.write_pdu(&Pdu::Abort(Abort::new(2, 2)), writer)?;
@@ -339,7 +376,7 @@ impl ServiceAssoc {
         let status = CommandStatus::success();
         let rsp_cmd = CommandMessage::c_echo_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
-        let cmd_rsp_data = serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -364,7 +401,7 @@ impl ServiceAssoc {
         let status = CommandStatus::pending();
         let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
-        let cmd_rsp_data = serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -372,7 +409,7 @@ impl ServiceAssoc {
                 cmd_rsp_data,
             )]));
 
-        let dcm_rsp_data = serialize(res)?;
+        let dcm_rsp_data = serialize_in_mem(res)?;
         let dcm_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -395,7 +432,7 @@ impl ServiceAssoc {
         let status = CommandStatus::success();
         let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
-        let cmd_rsp_data = serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -418,7 +455,7 @@ impl ServiceAssoc {
     ) -> Result<Pdu, AssocError> {
         let rsp_cmd = CommandMessage::c_store_rsp(ctx_id, msg_id, aff_sop_class, status);
 
-        let cmd_rsp_data = serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,

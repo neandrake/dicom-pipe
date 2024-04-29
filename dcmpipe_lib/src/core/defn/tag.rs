@@ -301,7 +301,7 @@ impl From<&Tag> for TagNode {
 impl From<&SequenceElement> for TagNode {
     fn from(element: &SequenceElement) -> Self {
         TagNode {
-            tag: element.seq_tag(),
+            tag: element.sq_tag(),
             item: element.item(),
         }
     }

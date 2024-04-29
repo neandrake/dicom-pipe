@@ -25,7 +25,7 @@ use std::{
 };
 
 use crate::{
-    core::defn::{ts::TSRef, uid::UIDRef},
+    core::defn::{ts::TSRef, uid::UIDRef, vr::UI},
     dimse::{
         pdus::{PduType, UserPdu},
         DimseError,
@@ -86,7 +86,7 @@ impl AssocRQ {
         pres_ctxs: Vec<AssocRQPresentationContext>,
         user_info: UserInformationItem,
     ) -> Self {
-        let length: usize = size_of::<u8>() + // version
+        let length: usize = size_of::<u16>() + // version
             size_of::<[u8; 2]>() + // reserved_2
             size_of::<[u8; 16]>() + // called_ae
             size_of::<[u8; 16]>() + // calling_ae
@@ -1244,6 +1244,15 @@ impl PresentationDataItemPartial {
         PduType::PresentationDataItemPartial
     }
 
+    /// Create a new `PresentationDataItemPartial`.
+    #[must_use]
+    pub fn new(length: u32) -> Self {
+        Self {
+            reserved: 0,
+            length,
+        }
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// variable field (Presentation Data values).
     #[must_use]
@@ -1318,7 +1327,11 @@ impl ApplicationContextItem {
 
     /// Create a new `ApplicationContextItem`.
     #[must_use]
-    pub fn new(app_context_name: Vec<u8>) -> Self {
+    pub fn new(mut app_context_name: Vec<u8>) -> Self {
+        if app_context_name.len() % 2 != 0 {
+            app_context_name.push(UI.padding);
+        }
+
         let length: u16 = app_context_name.len().try_into().unwrap_or_default();
 
         Self {
@@ -1730,7 +1743,11 @@ impl AbstractSyntaxItem {
 
     /// Create a new `AbstractSyntaxItem`.
     #[must_use]
-    pub fn new(abstract_syntax: Vec<u8>) -> Self {
+    pub fn new(mut abstract_syntax: Vec<u8>) -> Self {
+        if abstract_syntax.len() % 2 != 0 {
+            abstract_syntax.push(UI.padding);
+        }
+
         Self {
             reserved: 0u8,
             length: abstract_syntax.len().try_into().unwrap_or_default(),
@@ -1785,6 +1802,9 @@ impl AbstractSyntaxItem {
 
         let mut abstract_syntax: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut abstract_syntax)?;
+        if abstract_syntax.len() % 2 != 0 {
+            abstract_syntax.push(UI.padding);
+        }
 
         Ok(Self {
             reserved,
@@ -1796,7 +1816,11 @@ impl AbstractSyntaxItem {
 
 impl From<UIDRef> for AbstractSyntaxItem {
     fn from(value: UIDRef) -> Self {
-        Self::new(Vec::from(value.uid().as_bytes()))
+        let mut bytes = Vec::from(value.uid().as_bytes());
+        if bytes.len() % 2 != 0 {
+            bytes.push(UI.padding);
+        }
+        Self::new(bytes)
     }
 }
 
@@ -1817,7 +1841,11 @@ impl TransferSyntaxItem {
 
     /// Create a new `TransferSyntaxItem`.
     #[must_use]
-    pub fn new(transfer_syntaxes: Vec<u8>) -> Self {
+    pub fn new(mut transfer_syntaxes: Vec<u8>) -> Self {
+        if transfer_syntaxes.len() % 2 != 0 {
+            transfer_syntaxes.push(UI.padding);
+        }
+
         Self {
             reserved: 0u8,
             length: transfer_syntaxes.len().try_into().unwrap_or_default(),
@@ -1872,6 +1900,9 @@ impl TransferSyntaxItem {
 
         let mut transfer_syntaxes: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut transfer_syntaxes)?;
+        if transfer_syntaxes.len() % 2 != 0 {
+            transfer_syntaxes.push(UI.padding);
+        }
 
         Ok(Self {
             reserved,
@@ -1883,7 +1914,11 @@ impl TransferSyntaxItem {
 
 impl From<TSRef> for TransferSyntaxItem {
     fn from(value: TSRef) -> Self {
-        Self::new(Vec::from(value.uid().uid().as_bytes()))
+        let mut bytes = Vec::from(value.uid().uid().as_bytes());
+        if bytes.len() % 2 != 0 {
+            bytes.push(UI.padding);
+        }
+        Self::new(bytes)
     }
 }
 

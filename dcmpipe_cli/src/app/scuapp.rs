@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    fs::File,
     io::{stdout, BufReader, BufWriter, Write},
     net::TcpStream,
     path::PathBuf,
@@ -14,7 +15,7 @@ use dcmpipe_lib::{
             vr::LT,
         },
         inspect::FormattedElement,
-        read::valdecode::StringAndVr,
+        read::{valdecode::StringAndVr, ParserBuilder},
         RawValue,
     },
     dict::{
@@ -72,7 +73,7 @@ impl SvcUserApp {
         let mut query_vals_resolved: Vec<(&Tag, RawValue)> = Vec::with_capacity(query.len());
         for (tag, val) in query {
             let tag = TagNode::parse(tag, Some(&STANDARD_DICOM_DICTIONARY))
-                .map_err(|e| AssocError::error(DimseError::ParseError(e)))
+                .map_err(|e| AssocError::error(DimseError::from(e)))
                 .map(|t| STANDARD_DICOM_DICTIONARY.get_tag_by_number(t.tag()))?
                 .ok_or_else(|| {
                     AssocError::error(DimseError::GeneralError(format!(
@@ -80,7 +81,7 @@ impl SvcUserApp {
                     )))
                 })?;
             let val = RawValue::try_from(StringAndVr(val, tag.implicit_vr().unwrap_or(&LT)))
-                .map_err(|e| AssocError::error(DimseError::ParseError(e)))?;
+                .map_err(|e| AssocError::error(DimseError::from(e)))?;
             query_vals_resolved.push((tag, val.clone()));
         }
 
@@ -93,7 +94,7 @@ impl SvcUserApp {
             if let Some(dcm) = result.1 {
                 stdout
                     .write_all(format!("### Result {i}\n").as_ref())
-                    .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
+                    .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
                 let elems = dcm
                     .flatten()
                     .iter()
@@ -102,34 +103,38 @@ impl SvcUserApp {
                 for elem in elems {
                     stdout
                         .write_all(format!("{elem}\n").as_ref())
-                        .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
+                        .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
                 }
             }
             if !result.0.status().is_pending() {
                 stdout
                     .write_all(format!("### End Results: {:?}", result.0.status()).as_ref())
-                    .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
+                    .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
                 break;
             }
 
             stdout
                 .write_all("\n".to_owned().as_ref())
-                .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
+                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
         }
 
-        assoc.release_association(&mut reader, &mut writer)?;
-
-        Ok(None)
+        assoc.release_association(&mut reader, &mut writer)
     }
 
-    #[allow(unused_variables, unused_mut)]
     fn issue_c_store(
         assoc: &mut UserAssoc,
         mut reader: BufReader<&TcpStream>,
         mut writer: &mut BufWriter<&TcpStream>,
+        my_ae: &str,
         file: &[PathBuf],
     ) -> Result<Option<DimseMsg>, AssocError> {
-        Ok(None)
+        for f in file {
+            let f = File::open(f).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+            let parser = ParserBuilder::default().build(f, &STANDARD_DICOM_DICTIONARY);
+            assoc.c_store_req(&reader, &mut writer, parser, my_ae, 0)?;
+        }
+
+        assoc.release_association(&mut reader, &mut writer)
     }
 
     #[allow(unused_variables, unused_mut)]
@@ -141,7 +146,7 @@ impl SvcUserApp {
         query_level: QueryLevel,
         query: &[(String, String)],
     ) -> Result<Option<DimseMsg>, AssocError> {
-        Ok(None)
+        assoc.release_association(&mut reader, &mut writer)
     }
 
     #[allow(unused_variables, unused_mut)]
@@ -152,7 +157,7 @@ impl SvcUserApp {
         query_level: QueryLevel,
         query: &[(String, String)],
     ) -> Result<Option<DimseMsg>, AssocError> {
-        Ok(None)
+        assoc.release_association(&mut reader, &mut writer)
     }
 }
 
@@ -227,7 +232,9 @@ impl SvcUserApp {
             SvcUserCommand::Find { query_level, query } => {
                 Self::issue_c_find(assoc, reader, writer, *query_level, query)
             }
-            SvcUserCommand::Store { file } => Self::issue_c_store(assoc, reader, writer, file),
+            SvcUserCommand::Store { file } => {
+                Self::issue_c_store(assoc, reader, writer, &self.args.my_ae, file)
+            }
             SvcUserCommand::Move {
                 dest_ae,
                 query_level,

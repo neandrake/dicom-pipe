@@ -18,19 +18,41 @@ mod common;
 
 #[cfg(feature = "stddicom")]
 mod writing_tests {
-    use std::{fs::File, io::Read, path::PathBuf};
+    use std::{fs::File, io::Read, iter::once, path::PathBuf};
 
     use dcmpipe_lib::{
         core::{
-            charset,
+            charset::DEFAULT_CHARACTER_SET,
             dcmelement::DicomElement,
             dcmobject::DicomRoot,
-            defn::{tag::TagPath, vl::ValueLength, vr},
-            read::{Parser, ParserBuilder},
+            defn::{
+                constants::ts::{ExplicitVRLittleEndian, ImplicitVRBigEndian},
+                tag::TagPath,
+                vl::ValueLength,
+                vr::{
+                    AE, AT, CS, CS_SEPARATOR_BYTE, DS, FD, IS, LO, NULL_PADDING, OB, SH,
+                    SPACE_PADDING, UI, US, UV,
+                },
+            },
+            read::{Parser, ParserBuilder, ParserState},
             values::{Attribute, RawValue},
-            write::{builder::WriterBuilder, error::WriteError, writer::Writer},
+            write::{
+                builder::WriterBuilder,
+                error::WriteError,
+                writer::{Writer, WriterState},
+            },
         },
-        dict::{stdlookup::STANDARD_DICOM_DICTIONARY, tags, transfer_syntaxes as ts, uids},
+        dict::{
+            stdlookup::STANDARD_DICOM_DICTIONARY,
+            tags::{
+                FileMetaInformationVersion, FrameIncrementPointer, ImplementationClassUID,
+                ImplementationVersionName, MediaStorageSOPClassUID, MediaStorageSOPInstanceUID,
+                ReferencedWaveformChannels, SourceApplicationEntityTitle, SpecificCharacterSet,
+                StudyComments, TransferSyntaxUID,
+            },
+            transfer_syntaxes::{JPEGBaselineProcess1, RLELossless},
+            uids::CTImageStorage,
+        },
     };
 
     use super::common::{
@@ -43,56 +65,56 @@ mod writing_tests {
     #[test]
     fn test_write_mock_standard_header() -> Result<(), WriteError> {
         let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file()
-            .ts(&ts::ExplicitVRLittleEndian)
+            .ts(&ExplicitVRLittleEndian)
             .build(Vec::new());
 
         let mut elements: Vec<DicomElement> = Vec::new();
 
         elements.push(writer.create_element(
-            &tags::FileMetaInformationVersion,
-            &vr::OB,
+            &FileMetaInformationVersion,
+            &OB,
             RawValue::Bytes(vec![0x00, 0x01]),
         )?);
 
         elements.push(writer.create_element(
-            &tags::MediaStorageSOPClassUID,
-            &vr::UI,
-            RawValue::Uid(uids::CTImageStorage.uid().to_string()),
+            &MediaStorageSOPClassUID,
+            &UI,
+            RawValue::Uid(CTImageStorage.uid().to_string()),
         )?);
 
         elements.push(writer.create_element(
-            &tags::MediaStorageSOPInstanceUID,
-            &vr::UI,
+            &MediaStorageSOPInstanceUID,
+            &UI,
             RawValue::Uid("1.2.276.0.7230010.3.1.4.1787205428.2345.1071048146.1".to_string()),
         )?);
 
         elements.push(writer.create_element(
-            &tags::TransferSyntaxUID,
-            &vr::UI,
-            RawValue::Uid(uids::RLELossless.uid().to_string()),
+            &TransferSyntaxUID,
+            &UI,
+            RawValue::Uid(RLELossless.uid().uid().to_string()),
         )?);
 
         elements.push(writer.create_element(
-            &tags::ImplementationClassUID,
-            &vr::UI,
+            &ImplementationClassUID,
+            &UI,
             RawValue::Uid("1.2.826.0.1.3680043.2.1143.107.104.103.115.2.1.0".to_string()),
         )?);
 
         elements.push(writer.create_element(
-            &tags::ImplementationVersionName,
-            &vr::SH,
+            &ImplementationVersionName,
+            &SH,
             RawValue::of_string("GDCM 2.1.0".to_string()),
         )?);
 
         elements.push(writer.create_element(
-            &tags::SourceApplicationEntityTitle,
-            &vr::AE,
+            &SourceApplicationEntityTitle,
+            &AE,
             RawValue::of_string("gdcmconv".to_string()),
         )?);
 
         elements.push(writer.create_element(
-            &tags::SpecificCharacterSet,
-            &vr::CS,
+            &SpecificCharacterSet,
+            &CS,
             RawValue::of_string("ISO_IR 100".to_string()),
         )?);
 
@@ -104,7 +126,7 @@ mod writing_tests {
     }
 
     #[test]
-    pub fn test_write_same_object() -> Result<(), WriteError> {
+    fn test_write_same_object() -> Result<(), WriteError> {
         let path: &str = "gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
         let dataset = fixture(path)?;
         let file_size = dataset.get_ref().metadata()?.len();
@@ -133,7 +155,7 @@ mod writing_tests {
     }
 
     #[test]
-    pub fn test_reencoded_values() -> Result<(), WriteError> {
+    fn test_reencoded_values() -> Result<(), WriteError> {
         let file_path: &str = "./gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
         let dataset = fixture(file_path)?;
         let mut parser = ParserBuilder::default().build(dataset, &STANDARD_DICOM_DICTIONARY);
@@ -146,7 +168,7 @@ mod writing_tests {
     }
 
     #[test]
-    pub fn test_write_reencoded_values() -> Result<(), WriteError> {
+    fn test_write_reencoded_values() -> Result<(), WriteError> {
         let file_path: &str = "gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
         let dataset = fixture(file_path)?;
         let file_size = dataset.get_ref().metadata()?.len();
@@ -197,12 +219,9 @@ mod writing_tests {
     }
 
     #[test]
-    pub fn test_write_ushorts() -> Result<(), WriteError> {
-        let mut elem = DicomElement::new_empty(
-            &tags::ReferencedWaveformChannels,
-            &vr::US,
-            &ts::ExplicitVRLittleEndian,
-        );
+    fn test_write_ushorts() -> Result<(), WriteError> {
+        let mut elem =
+            DicomElement::new_empty(&ReferencedWaveformChannels, &US, &ExplicitVRLittleEndian);
 
         let value = vec![1u16, 1u16];
         elem.encode_val(RawValue::UShorts(value.clone()))?;
@@ -211,11 +230,11 @@ mod writing_tests {
         assert_eq!(&raw_data, elem.data());
 
         elem = DicomElement::new(
-            &tags::ReferencedWaveformChannels,
-            &vr::US,
+            &ReferencedWaveformChannels,
+            &US,
             ValueLength::Explicit(4),
-            &ts::ExplicitVRLittleEndian,
-            charset::DEFAULT_CHARACTER_SET,
+            &ExplicitVRLittleEndian,
+            DEFAULT_CHARACTER_SET,
             raw_data.clone(),
             Vec::with_capacity(0),
         );
@@ -232,9 +251,8 @@ mod writing_tests {
     }
 
     #[test]
-    pub fn test_write_attr() -> Result<(), WriteError> {
-        let mut elem =
-            DicomElement::new_empty(&tags::FrameIncrementPointer, &vr::AT, &ts::RLELossless);
+    fn test_write_attr() -> Result<(), WriteError> {
+        let mut elem = DicomElement::new_empty(&FrameIncrementPointer, &AT, &RLELossless);
 
         let value = vec![Attribute(0x0018_1063)];
         elem.encode_val(RawValue::Attributes(value.clone()))?;
@@ -243,11 +261,11 @@ mod writing_tests {
         assert_eq!(&raw_data, elem.data(), "encoding of attribute failed");
 
         elem = DicomElement::new(
-            &tags::FrameIncrementPointer,
-            &vr::AT,
+            &FrameIncrementPointer,
+            &AT,
             ValueLength::Explicit(4),
-            &ts::RLELossless,
-            charset::DEFAULT_CHARACTER_SET,
+            &RLELossless,
+            DEFAULT_CHARACTER_SET,
             raw_data.clone(),
             Vec::with_capacity(0),
         );
@@ -264,9 +282,9 @@ mod writing_tests {
     }
 
     #[test]
-    pub fn test_write_double() -> Result<(), WriteError> {
+    fn test_write_double() -> Result<(), WriteError> {
         let tag: u32 = 0x7fe1_1052;
-        let mut elem = DicomElement::new_empty(tag, &vr::FD, &ts::JPEGBaselineProcess1);
+        let mut elem = DicomElement::new_empty(tag, &FD, &JPEGBaselineProcess1);
 
         let value = vec![3499.9999999999995];
         elem.encode_val(RawValue::Doubles(value.clone()))?;
@@ -276,10 +294,10 @@ mod writing_tests {
 
         elem = DicomElement::new(
             tag,
-            &vr::FD,
+            &FD,
             ValueLength::Explicit(8),
-            &ts::JPEGBaselineProcess1,
-            charset::DEFAULT_CHARACTER_SET,
+            &JPEGBaselineProcess1,
+            DEFAULT_CHARACTER_SET,
             raw_data.clone(),
             Vec::with_capacity(0),
         );
@@ -295,9 +313,50 @@ mod writing_tests {
         Ok(())
     }
 
+    /// Encode a value using `ExplicitVRLittleEndian` but use a `Writer` configured to use
+    /// `ImplicitVRBigEndian`. Use a `Parser` configured to use `ImplicitVRBigEndian` and verify
+    /// that the value was written with `Writer`'s transfer syntax and not the original encoded
+    /// value set on the element.
+    #[test]
+    pub fn test_writer_converts_ts() -> Result<(), WriteError> {
+        let buffer: Vec<u8> = Vec::new();
+        let mut writer = WriterBuilder::default()
+            .ts(&ImplicitVRBigEndian)
+            .state(WriterState::WriteElement)
+            .build(buffer);
+
+        // `StudyComments` is used as an arbitrary tag and its implicit VR is ignored by explicitly
+        // configuring the `DicomElement` and the parsing below to use `UV`, which will
+        // encode/decode u64 values which are long enough to require endian-swapping of bytes.
+        let value = RawValue::of_ulong(123456789u64);
+        let mut element = DicomElement::new_empty(&StudyComments, &UV, &ExplicitVRLittleEndian);
+        element.encode_val(value)?;
+        let original_data = element.data().to_owned();
+
+        writer.write_elements(once(&element))?;
+        let written_element_bytes = writer.into_dataset();
+        let mut parser = ParserBuilder::default()
+            .state(ParserState::ReadElement)
+            .dataset_ts(&ImplicitVRBigEndian)
+            .build(written_element_bytes.as_slice(), &STANDARD_DICOM_DICTIONARY);
+
+        let read_elem = parser.next().unwrap().unwrap();
+        assert_eq!(&ImplicitVRBigEndian, read_elem.ts());
+        let read_data = read_elem.data();
+
+        // The byte representation should not be equal since they use different endian.
+        assert_ne!(&original_data, read_data);
+
+        let study_comments_val = read_elem.parse_value_as(&UV).unwrap();
+        let study_comments = study_comments_val.ulong().unwrap();
+        assert_eq!(123456789u64, study_comments);
+
+        Ok(())
+    }
+
     #[test]
     #[ignore]
-    pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
+    fn test_reencoded_values_all_files() -> Result<(), WriteError> {
         let mut any_failed = false;
         for path in get_dicom_file_paths() {
             if let Err(e) = reencode_file_elements(path.clone()) {
@@ -348,7 +407,7 @@ mod writing_tests {
         // great way to update the original data in a minimal way to adjust for the
         // writer always ensuring a minimum of a single digit of precision for all
         // values in this element.
-        if elem.vr() == &vr::DS {
+        if elem.vr() == &DS {
             return Ok(());
         }
 
@@ -359,12 +418,12 @@ mod writing_tests {
                 v.iter()
                     .rev()
                     .map(|b| b.to_owned())
-                    .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
+                    .skip_while(|&b| b == SPACE_PADDING || b == NULL_PADDING)
                     .collect::<Vec<u8>>()
                     .iter()
                     .rev()
                     .map(|b| b.to_owned())
-                    .skip_while(|&b| b == vr::SPACE_PADDING)
+                    .skip_while(|&b| b == SPACE_PADDING)
                     .collect::<Vec<u8>>()
             };
 
@@ -376,7 +435,7 @@ mod writing_tests {
             }
         }
 
-        if elem.vr() == &vr::IS || elem.vr() == &vr::LO {
+        if elem.vr() == &IS || elem.vr() == &LO {
             // Values may have originally had leading and trailing spaces which are lost
             // when parsed into RawValue. Additionally the same for leading zeros.
             let trimmer = |v: &Vec<u8>| {
@@ -390,14 +449,12 @@ mod writing_tests {
 
                 v.iter()
                     .map(|b| b.to_owned())
-                    .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
+                    .skip_while(|&b| b == SPACE_PADDING || b == b'0')
                     .collect::<Vec<u8>>()
                     .iter()
                     .rev()
                     .map(|b| b.to_owned())
-                    .skip_while(|&b| {
-                        b == vr::SPACE_PADDING || (remove_trailing_zeroes && b == b'0')
-                    })
+                    .skip_while(|&b| b == SPACE_PADDING || (remove_trailing_zeroes && b == b'0'))
                     .collect::<Vec<u8>>()
                     .iter()
                     .rev()
@@ -406,11 +463,11 @@ mod writing_tests {
             };
 
             let orig_pieces = orig_parsed_data
-                .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+                .split(|&b| b == CS_SEPARATOR_BYTE)
                 .map(|b| b.to_owned())
                 .collect::<Vec<Vec<u8>>>();
             let reencoded_pieces = reencoded_data
-                .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+                .split(|&b| b == CS_SEPARATOR_BYTE)
                 .map(|b| b.to_owned())
                 .collect::<Vec<Vec<u8>>>();
 

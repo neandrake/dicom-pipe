@@ -26,7 +26,7 @@ use crate::core::{
             tags::{ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM},
             ts::ExplicitVRLittleEndian,
         },
-        is_non_standard_sq,
+        is_non_standard_sq, is_sq_delim,
         tag::{Tag, TagNode, TagPath},
         ts::TSRef,
         vl::ValueLength,
@@ -34,11 +34,9 @@ use crate::core::{
         vr::{INVALID_VR, SQ},
     },
     read::parser::ParseResult,
-    values::RawValue,
+    values::{ElementWithVr, RawValue},
     write::valencode::ElemAndRawValue,
 };
-
-use super::values::ElementWithVr;
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
@@ -208,6 +206,12 @@ impl DicomElement {
         self.vr == &SQ || is_non_standard_sq(self.tag, self.vr, self.vl)
     }
 
+    /// Returns if this element is a sequence delimiter element.
+    #[must_use]
+    pub fn is_sq_delim(&self) -> bool {
+        is_sq_delim(self.tag)
+    }
+
     /// Returns whether the the size of the value field for this element is zero.
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -233,7 +237,7 @@ impl DicomElement {
         } else {
             self.sq_path
                 .iter()
-                .filter(|sq| sq.seq_tag() != ITEM)
+                .filter(|sq| sq.sq_tag() != ITEM)
                 .map(|sq| sq.node().clone())
                 .chain(once(self.tag.into()))
                 .collect::<Vec<TagNode>>()

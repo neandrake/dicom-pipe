@@ -26,14 +26,15 @@ use crate::core::{
         vl::ValueLength,
         vr::{INVALID_VR, UN},
     },
-    defn::{dcmdict::DicomDictionary, tag::Tag},
+    defn::{
+        dcmdict::{DicomDictionary, MultiDicomDictionary},
+        tag::Tag,
+    },
     RawValue,
 };
 
 #[cfg(feature = "stddicom")]
 use crate::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-
-use super::defn::dcmdict::MultiDicomDictionary;
 
 /// Convenience for coordinating a tag's type display.
 pub enum FormattedTagType {
@@ -395,11 +396,11 @@ impl<'e> fmt::Display for FormattedElement<'e> {
         let seq_path: &Vec<SequenceElement> = self.elem.sq_path();
         let non_item_parents = seq_path
             .iter()
-            .filter(|sq_el| sq_el.seq_tag() != ITEM)
+            .filter(|sq_el| sq_el.sq_tag() != ITEM)
             .count();
         let item_parents = seq_path
             .iter()
-            .filter(|sq_el| sq_el.seq_tag() == ITEM)
+            .filter(|sq_el| sq_el.sq_tag() == ITEM)
             .count();
         let mut indent_width = non_item_parents * 2 + item_parents;
         if self.elem.tag() == ITEM_DELIMITATION_ITEM {

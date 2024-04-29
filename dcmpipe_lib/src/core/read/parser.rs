@@ -260,7 +260,7 @@ impl<'d, R: Read> Parser<'d, R> {
 
     /// Checks if the stream should stop being parsed, only if the `self.stop` behavior is
     /// `ParseStop::AfterBytesRead`. This check is intended to be used prior to attempting to read
-    /// the net element from a stream, to avoid pulling additional bytes from the stream that would
+    /// the next element from a stream, to avoid pulling additional bytes from the stream that would
     /// go beyond the `AfterBytesRead` limit.
     fn is_at_bytes_read_parse_stop(&self) -> bool {
         if let ParseStop::AfterBytesRead(bytes_read) = self.behavior.stop() {
@@ -273,16 +273,16 @@ impl<'d, R: Read> Parser<'d, R> {
     /// Checks if the current path is within a pixeldata tag.
     fn is_in_pixeldata(&self) -> bool {
         for seq_elem in self.current_path.iter().rev() {
-            if seq_elem.seq_tag() == FLOAT_PIXEL_DATA
-                || seq_elem.seq_tag() == DOUBLE_PIXEL_DATA
-                || seq_elem.seq_tag() == PIXEL_DATA
+            if seq_elem.sq_tag() == FLOAT_PIXEL_DATA
+                || seq_elem.sq_tag() == DOUBLE_PIXEL_DATA
+                || seq_elem.sq_tag() == PIXEL_DATA
             {
                 return true;
             }
             // If the parent element is an ITEM then keep walking up the chain to check against the
             // actual sequence element -- if it's not ITEM and not a PixelData then it's something
             // else and we can assume to not be within PixelData.
-            if seq_elem.seq_tag() != ITEM {
+            if seq_elem.sq_tag() != ITEM {
                 break;
             }
         }
@@ -292,9 +292,9 @@ impl<'d, R: Read> Parser<'d, R> {
     /// Datasets don't always end their sequences/items with delimiters. This will pop items off
     /// `self.current_path` which have indicated their length and the `self.bytes_read` indicate
     /// the stream has already passed this position.
-    fn pop_sequence_items_base_on_byte_pos(&mut self) {
+    fn pop_sequence_items_based_on_byte_pos(&mut self) {
         while let Some(seq_elem) = self.current_path.last() {
-            if let Some(seq_end_pos) = seq_elem.seq_end_pos() {
+            if let Some(seq_end_pos) = seq_elem.sq_end_pos() {
                 if self.bytes_read >= seq_end_pos {
                     self.current_path.pop();
                 } else {

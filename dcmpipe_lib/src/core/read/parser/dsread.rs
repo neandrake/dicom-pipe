@@ -34,12 +34,10 @@ use crate::core::{
     dcmsqelem::SequenceElement,
     defn::{
         constants::{
-            tags::{
-                DATASET_TRAILING_PADDING, ITEM, ITEM_DELIMITATION_ITEM, SEQUENCE_DELIMITATION_ITEM,
-            },
+            tags::{DATASET_TRAILING_PADDING, ITEM},
             ts::{ImplicitVRBigEndian, ImplicitVRLittleEndian},
         },
-        is_non_standard_sq,
+        is_non_standard_sq, is_parent_priv_sq, is_sq_delim,
         tag::Tag,
         ts::TSRef,
         vl::ValueLength,
@@ -76,27 +74,9 @@ impl<'d, R: Read> Parser<'d, R> {
         tag: u32,
         elem_ts: TSRef,
     ) -> ParseResult<DicomElement> {
-        // Part 5, Section 7.5
-        // There are three special SQ related Data Elements that are not ruled by the VR encoding
-        // rules conveyed by the Transfer Syntax. They shall be encoded as Implicit VR. These
-        // special Data Elements are Item (FFFE,E000), Item Delimitation Item (FFFE,E00D), and
-        // Sequence Delimitation Item (FFFE,E0DD). However, the Data Set within the Value Field of
-        // the Data Element Item (FFFE,E000) shall be encoded according to the rules conveyed by the
-        // Transfer Syntax.
-        let is_seq_delim =
-            tag == SEQUENCE_DELIMITATION_ITEM || tag == ITEM_DELIMITATION_ITEM || tag == ITEM;
-        // See: Part 5, Section 6.2.2
-        // Elements within a Private Sequence with VR of UN should be in ImplicitVR.
-        // Elements within a Private Sequence with VR of SQ and VL of Undefined should use the
-        //   Dataset Transfer Syntax.
-        // XXX: ?? Elements within a Private Sequence with VR of SQ and VL of Explicit should be in
-        //   ImplicitVR.
-        let is_parent_priv_seq = self.current_path.iter().rev().any(|sq_el| {
-            Tag::is_private(sq_el.seq_tag())
-                && is_non_standard_sq(sq_el.seq_tag(), sq_el.vr(), sq_el.vl())
-        });
-
-        let ts: TSRef = if is_seq_delim || is_parent_priv_seq {
+        let is_sq_delim = is_sq_delim(tag);
+        let is_parent_priv_sq = is_parent_priv_sq(&self.current_path);
+        let ts: TSRef = if is_sq_delim || is_parent_priv_sq {
             if elem_ts.big_endian() {
                 &ImplicitVRBigEndian
             } else {
@@ -138,8 +118,8 @@ impl<'d, R: Read> Parser<'d, R> {
         };
         self.vl_last_used.replace(vl);
 
-        let parse_as_seq: bool = is_non_standard_sq(tag, vr, vl);
-        let ts: TSRef = if parse_as_seq {
+        let parse_as_sq: bool = is_non_standard_sq(tag, vr, vl);
+        let ts: TSRef = if parse_as_sq {
             if ts.big_endian() {
                 &ImplicitVRBigEndian
             } else {
@@ -157,7 +137,7 @@ impl<'d, R: Read> Parser<'d, R> {
 
         // Determine whether the value should be read in as byte values or instead should continue
         // being parsed as more elements.
-        let skip_bytes: bool = vr == &SQ || (tag == ITEM && !in_pixeldata) || parse_as_seq;
+        let skip_bytes: bool = vr == &SQ || (tag == ITEM && !in_pixeldata) || parse_as_sq;
 
         //eprintln!("{}", &self.current_debug_str());
 

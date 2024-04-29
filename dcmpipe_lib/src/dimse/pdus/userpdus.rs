@@ -29,7 +29,10 @@ use std::{
     mem::size_of,
 };
 
-use crate::dimse::{pdus::UserPduType, DimseError};
+use crate::{
+    core::defn::vr::UI,
+    dimse::{pdus::UserPduType, DimseError},
+};
 
 /// This is the current DICOM standard defined version for Common Extended Negotiation.
 /// See Part 7, Annex D.3.3.6.1
@@ -136,7 +139,11 @@ impl ImplementationClassUIDItem {
 
     /// Create a new `ImplementationClassUIDItem`.
     #[must_use]
-    pub fn new(impl_class_uid: Vec<u8>) -> Self {
+    pub fn new(mut impl_class_uid: Vec<u8>) -> Self {
+        if impl_class_uid.len() % 2 != 0 {
+            impl_class_uid.push(UI.padding);
+        }
+
         Self {
             reserved: 0u8,
             length: impl_class_uid.len().try_into().unwrap_or_default(),
@@ -186,10 +193,14 @@ impl ImplementationClassUIDItem {
     pub fn read<R: Read>(mut dataset: R, reserved: u8) -> Result<Self, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf)?;
-        let length = u16::from_be_bytes(buf);
+        let mut length = u16::from_be_bytes(buf);
 
         let mut impl_class_uid: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut impl_class_uid)?;
+        if length % 2 != 0 {
+            length += 1;
+            impl_class_uid.push(UI.padding);
+        }
 
         Ok(Self {
             reserved,
@@ -350,7 +361,11 @@ impl RoleSelectionItem {
     /// - 0: non-support of the SCU role.
     /// - 1: support of the SCU role.
     #[must_use]
-    pub fn new(sop_class_uid: Vec<u8>, sc_user_role: u8, sc_provider_role: u8) -> Self {
+    pub fn new(mut sop_class_uid: Vec<u8>, sc_user_role: u8, sc_provider_role: u8) -> Self {
+        if sop_class_uid.len() % 2 != 0 {
+            sop_class_uid.push(UI.padding);
+        }
+
         let length: usize = size_of::<u16>() // sop_class_uid_length
             + sop_class_uid.len()
             + size_of::<u8>() // sc_user_role
@@ -446,9 +461,13 @@ impl RoleSelectionItem {
         let length = u16::from_be_bytes(buf);
 
         dataset.read_exact(&mut buf)?;
-        let sop_class_uid_length = u16::from_be_bytes(buf);
+        let mut sop_class_uid_length = u16::from_be_bytes(buf);
         let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length.into()];
         dataset.read_exact(&mut sop_class_uid)?;
+        if sop_class_uid_length % 2 != 0 {
+            sop_class_uid_length += 1;
+            sop_class_uid.push(UI.padding);
+        }
 
         dataset.read_exact(&mut buf)?;
         let sc_user_role = buf[0];
@@ -564,7 +583,11 @@ impl SOPClassExtendedNegotiationItem {
 
     /// Create a new `SOPClassExtendedNegotiationItem`.
     #[must_use]
-    pub fn new(sop_class_uid: Vec<u8>, service_class_app_info: Vec<u8>) -> Self {
+    pub fn new(mut sop_class_uid: Vec<u8>, service_class_app_info: Vec<u8>) -> Self {
+        if sop_class_uid.len() % 2 != 0 {
+            sop_class_uid.push(UI.padding);
+        }
+
         let length: usize = size_of::<u16>() // sop_class_uid_length
             + sop_class_uid.len()
             + service_class_app_info.len();
@@ -643,6 +666,9 @@ impl SOPClassExtendedNegotiationItem {
         let sop_class_uid_length = u16::from_be_bytes(buf);
         let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length.into()];
         dataset.read_exact(&mut sop_class_uid)?;
+        if sop_class_uid.len() % 2 != 0 {
+            sop_class_uid.push(UI.padding);
+        }
 
         let length_field_bytesize: u16 = size_of::<u16>().try_into().unwrap_or_default();
         let service_class_app_info_length = length - length_field_bytesize - sop_class_uid_length;
@@ -682,10 +708,17 @@ impl SOPClassCommonExtendedNegotiationItem {
     /// Create a new `SOPClassCommonExtendedNegotiationItem`.
     #[must_use]
     pub fn new(
-        sop_class_uid: Vec<u8>,
-        service_class_uid: Vec<u8>,
+        mut sop_class_uid: Vec<u8>,
+        mut service_class_uid: Vec<u8>,
         rel_gen_sop_classes: Vec<RelatedGeneralSOPClassUID>,
     ) -> Self {
+        if sop_class_uid.len() % 2 != 0 {
+            sop_class_uid.push(UI.padding);
+        }
+        if service_class_uid.len() % 2 != 0 {
+            service_class_uid.push(UI.padding);
+        }
+
         let rel_gen_sop_classes_length: usize = rel_gen_sop_classes
             .iter()
             .map(RelatedGeneralSOPClassUID::byte_size)
@@ -817,11 +850,17 @@ impl SOPClassCommonExtendedNegotiationItem {
         let sop_class_uid_length = u16::from_be_bytes(buf);
         let mut sop_class_uid: Vec<u8> = vec![0u8; sop_class_uid_length.into()];
         dataset.read_exact(&mut sop_class_uid)?;
+        if sop_class_uid.len() % 2 != 0 {
+            sop_class_uid.push(UI.padding);
+        }
 
         dataset.read_exact(&mut buf)?;
         let service_class_length = u16::from_be_bytes(buf);
         let mut service_class_uid: Vec<u8> = vec![0u8; service_class_length.into()];
         dataset.read_exact(&mut service_class_uid)?;
+        if service_class_uid.len() % 2 != 0 {
+            service_class_uid.push(UI.padding);
+        }
 
         dataset.read_exact(&mut buf)?;
         let rel_gen_sop_class_length = u16::from_be_bytes(buf);
@@ -875,7 +914,11 @@ pub struct RelatedGeneralSOPClassUID {
 impl RelatedGeneralSOPClassUID {
     /// Create a new `RelatedGeneralSOPClassUID`.
     #[must_use]
-    pub fn new(rel_gen_sop_class: Vec<u8>) -> Self {
+    pub fn new(mut rel_gen_sop_class: Vec<u8>) -> Self {
+        if rel_gen_sop_class.len() % 2 != 0 {
+            rel_gen_sop_class.push(UI.padding);
+        }
+
         Self {
             length: rel_gen_sop_class.len().try_into().unwrap_or_default(),
             rel_gen_sop_class,
@@ -922,6 +965,9 @@ impl RelatedGeneralSOPClassUID {
 
         let mut rel_gen_sop_class: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut rel_gen_sop_class)?;
+        if rel_gen_sop_class.len() % 2 != 0 {
+            rel_gen_sop_class.push(UI.padding);
+        }
 
         Ok(Self {
             length,

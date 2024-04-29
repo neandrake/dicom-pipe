@@ -21,7 +21,11 @@ use crate::core::{
     dcmelement::DicomElement,
     dcmobject::DicomRoot,
     defn::{
-        constants::{tags, ts},
+        constants::{
+            tags::{FILE_META_GROUP_END, FILE_META_INFORMATION_GROUP_LENGTH},
+            ts::{ExplicitVRLittleEndian, ImplicitVRBigEndian, ImplicitVRLittleEndian},
+        },
+        is_parent_priv_sq, is_sq_delim,
         ts::TSRef,
         vl::{ValueLength, UNDEFINED_LENGTH},
         vr::{self, VRRef},
@@ -36,10 +40,10 @@ pub type WriteResult<T> = core::result::Result<T, WriteError>;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum WriterState {
-    Preamble,
-    GroupLength,
-    FileMeta,
-    Element,
+    WritePreamble,
+    WriteGroupLength,
+    WriteFileMeta,
+    WriteElement,
 }
 
 #[derive(Debug)]
@@ -95,6 +99,7 @@ impl<W: Write> Writer<W> {
         Ok(e)
     }
 
+    /// Consumes self and return the wrapped dataset field.
     pub fn into_dataset(self) -> W {
         self.dataset.into_inner()
     }
@@ -114,30 +119,30 @@ impl<W: Write> Writer<W> {
     ///
     /// # Errors
     /// Errors may occur writing to the dataset.
-    pub fn write_elements<'a, E>(&mut self, elements: E) -> WriteResult<usize>
+    pub fn write_elements<'a, I>(&mut self, elements: I) -> WriteResult<usize>
     where
-        E: Iterator<Item = &'a DicomElement>,
+        I: Iterator<Item = &'a DicomElement>,
     {
         let mut bytes_written: usize = 0;
 
-        if self.state == WriterState::Preamble {
+        if self.state == WriterState::WritePreamble {
             if let Some(preamble) = self.file_preamble {
                 self.dataset.write_all(&preamble)?;
                 bytes_written += preamble.len();
                 self.dataset.write_all(DICOM_PREFIX)?;
                 bytes_written += DICOM_PREFIX.len();
             }
-            self.state = WriterState::FileMeta;
+            self.state = WriterState::WriteFileMeta;
         }
 
         let mut fm_elements: Vec<&DicomElement> = Vec::new();
         for element in elements {
             // Collect all the FileMeta elements to write them in one go, as their total byte
             // length is needed for the first element, FileMetaInformationGroupLength.
-            if self.state == WriterState::FileMeta {
-                if element.tag() <= tags::FILE_META_GROUP_END {
+            if self.state == WriterState::WriteFileMeta {
+                if element.tag() <= FILE_META_GROUP_END {
                     // Ignore FileMetaInformationGroupLength in place of one made below.
-                    if element.tag() != tags::FILE_META_INFORMATION_GROUP_LENGTH {
+                    if element.tag() != FILE_META_INFORMATION_GROUP_LENGTH {
                         fm_elements.push(element);
                     }
                     continue;
@@ -150,16 +155,77 @@ impl<W: Write> Writer<W> {
                 // Flip state to write standard elements, and fall-through. In the condition for
                 // getting to this state the `element` value is non-FileMeta and hasn't been
                 // written out yet.
-                self.state = WriterState::Element;
+                self.state = WriterState::WriteElement;
             }
 
-            bytes_written += Writer::write_element(&mut self.dataset, element)?;
+            bytes_written += Writer::write_element(&mut self.dataset, self.ts, element)?;
         }
 
         // If the input elements only consist of FileMeta elements then the above loop will never
         // result in writing any elements as they're being collected into `fm_elements`.
-        if self.state == WriterState::FileMeta && !fm_elements.is_empty() {
+        if self.state == WriterState::WriteFileMeta && !fm_elements.is_empty() {
             bytes_written += self.write_fm_elements(fm_elements.as_slice())?;
+        }
+
+        Ok(bytes_written)
+    }
+
+    /// Write the iterator of `DicomElement` to the dataset. If the `WriteState` is set to any
+    /// valid state for file media, this will handle appropriate encoding for file meta group.
+    ///
+    /// # Notes
+    /// This is the same as `write_elements()` but takes an iterator over owned elements.
+    ///
+    /// This is an unfortunate copy/paste.
+    ///
+    /// # Errors
+    /// Errors may occur writing to the dataset.
+    pub fn write_owned_elements<I>(&mut self, elements: I) -> WriteResult<usize>
+    where
+        I: Iterator<Item = DicomElement>,
+    {
+        let mut bytes_written: usize = 0;
+
+        if self.state == WriterState::WritePreamble {
+            if let Some(preamble) = self.file_preamble {
+                self.dataset.write_all(&preamble)?;
+                bytes_written += preamble.len();
+                self.dataset.write_all(DICOM_PREFIX)?;
+                bytes_written += DICOM_PREFIX.len();
+            }
+            self.state = WriterState::WriteFileMeta;
+        }
+
+        let mut fm_elements: Vec<DicomElement> = Vec::new();
+        for element in elements {
+            // Collect all the FileMeta elements to write them in one go, as their total byte
+            // length is needed for the first element, FileMetaInformationGroupLength.
+            if self.state == WriterState::WriteFileMeta {
+                if element.tag() <= FILE_META_GROUP_END {
+                    // Ignore FileMetaInformationGroupLength in place of one made below.
+                    if element.tag() != FILE_META_INFORMATION_GROUP_LENGTH {
+                        fm_elements.push(element);
+                    }
+                    continue;
+                }
+
+                bytes_written += self.write_owned_fm_elements(fm_elements.as_slice())?;
+                // The list of FileMeta elements are no longer needed.
+                fm_elements.clear();
+
+                // Flip state to write standard elements, and fall-through. In the condition for
+                // getting to this state the `element` value is non-FileMeta and hasn't been
+                // written out yet.
+                self.state = WriterState::WriteElement;
+            }
+
+            bytes_written += Writer::write_element(&mut self.dataset, self.ts, &element)?;
+        }
+
+        // If the input elements only consist of FileMeta elements then the above loop will never
+        // result in writing any elements as they're being collected into `fm_elements`.
+        if self.state == WriterState::WriteFileMeta && !fm_elements.is_empty() {
+            bytes_written += self.write_owned_fm_elements(fm_elements.as_slice())?;
         }
 
         Ok(bytes_written)
@@ -175,17 +241,18 @@ impl<W: Write> Writer<W> {
         let mut bytes_written: usize = 0;
         let mut fm_dataset: Dataset<Vec<u8>> = Dataset::new(Vec::new());
         for fme in fm_elements {
-            Writer::write_element(&mut fm_dataset, fme)?;
+            Writer::write_element(&mut fm_dataset, &ExplicitVRLittleEndian, fme)?;
         }
         let fm_bytes: Vec<u8> = fm_dataset.into_inner();
 
         let fm_group_length = Writer::<W>::new_fme(
-            tags::FILE_META_INFORMATION_GROUP_LENGTH,
+            FILE_META_INFORMATION_GROUP_LENGTH,
             &vr::UL,
             RawValue::of_uint(u32::try_from(fm_bytes.len()).unwrap_or_default()),
         )?;
 
-        bytes_written += Writer::write_element(&mut self.dataset, &fm_group_length)?;
+        bytes_written +=
+            Writer::write_element(&mut self.dataset, &ExplicitVRLittleEndian, &fm_group_length)?;
         // The FileMeta elements have already been encoded, write the resulting bytes to
         // the Writer's dataset.
         self.dataset.write_all(&fm_bytes)?;
@@ -194,8 +261,22 @@ impl<W: Write> Writer<W> {
         Ok(bytes_written)
     }
 
+    /// Writes all the given `FileMeta` elements to an in-memory buffer, computes the length of the
+    /// resulting bytes, and generates a `FileMetaInformationGroupLength` element, writes it to the
+    /// dataset, then writes the in-memory buffer to the dataset as well.
+    ///
+    /// `fm_elements`: Slice of `&DicomElement`s which should all be elements with tag numbers in
+    /// the range for `FileMeta`, and SHOULD NOT include a `FileMetaInformationGroupLength` element.
+    ///
+    /// # Notes
+    /// Same as `write_fm_elements` but takes `&[DicomElement]`.
+    fn write_owned_fm_elements(&mut self, fm_elements: &[DicomElement]) -> WriteResult<usize> {
+        let fm_elem_refs = fm_elements.iter().collect::<Vec<&DicomElement>>();
+        self.write_fm_elements(fm_elem_refs.as_slice())
+    }
+
     fn new_fme(tag: u32, vr: VRRef, value: RawValue) -> WriteResult<DicomElement> {
-        let mut element = DicomElement::new_empty(tag, vr, &ts::ExplicitVRLittleEndian);
+        let mut element = DicomElement::new_empty(tag, vr, &ExplicitVRLittleEndian);
 
         element
             .encode_val(value)
@@ -204,8 +285,42 @@ impl<W: Write> Writer<W> {
         Ok(element)
     }
 
-    fn write_element(dataset: &mut Dataset<W>, element: &DicomElement) -> WriteResult<usize> {
+    fn write_element(
+        dataset: &mut Dataset<W>,
+        dataset_ts: TSRef,
+        element: &DicomElement,
+    ) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
+
+        // If the element is a sequence-delimiter, or is within a private sequence, then the
+        // elements should be written with Implicit VR.
+        let ts = if is_sq_delim(element.tag()) || is_parent_priv_sq(element.sq_path()) {
+            if dataset_ts.big_endian() {
+                &ImplicitVRBigEndian
+            } else {
+                &ImplicitVRLittleEndian
+            }
+        } else {
+            dataset_ts
+        };
+
+        // TODO: Make this behavior a preference on the writer.
+        // Re-encode the element if its current transfer syntax differs from what it should be
+        // written with.
+        #[allow(clippy::if_not_else)] // The intent here is more clear using not-eq.
+        let changed = if element.ts() != ts {
+            // TODO: Performance improvements:
+            // Check for a change to transfer syntax that doesn't modify the endianness and avoid
+            // re-encoding the data (except maybe PixelData?).
+            // Check for data encoded as Vec<u8> and avoid re-encoding (effective for PixelData).
+            let mut re_enc = DicomElement::new_empty(element.tag(), element.vr(), ts);
+            let value = element.parse_value()?;
+            re_enc.encode_val(value)?;
+            Some(re_enc)
+        } else {
+            None
+        };
+        let element = changed.as_ref().unwrap_or(element);
 
         bytes_written += Writer::write_tag(dataset, element)?;
         bytes_written += Writer::write_vr(dataset, element)?;
