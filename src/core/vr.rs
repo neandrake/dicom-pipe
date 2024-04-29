@@ -1,9 +1,14 @@
 //! Value Representation
 
+use encoding::all::WINDOWS_1252;
+use encoding::types::EncodingRef;
+
 use std::hash::{Hash, Hasher};
 
 /// The BACKSLASH used to delimit multi-value character string values, `\`
 pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
+
+pub static DEFAULT_CHARACTER_SET: EncodingRef = WINDOWS_1252 as EncodingRef;
 
 pub type VRRef = &'static VR;
 
@@ -38,6 +43,8 @@ pub struct VR {
 	/// set to 0000H and shall not be used or decoded.
 	pub has_explicit_2byte_pad: bool,
 
+	pub is_character_string: bool,
+
 	/// Part 5, Ch 6.1.2.3:
 	/// Data Elements of the following VR can have their character repertoire
 	/// replaced via the Specific Character Set element. Other textual VRs
@@ -60,6 +67,10 @@ pub struct VR {
 	/// shall only be used in character strings with Value Representations of UT, ST and LT.
 	/// Otherwise the character code 05/12 is used as a separator for multiple valued Data Elements 
 	pub allows_backslash_text_value: bool,
+
+	pub should_trim_leading_space: bool,
+
+	pub should_trim_trailing_space: bool,
 }
 
 impl PartialEq for VR {
@@ -111,6 +122,13 @@ impl VR {
 			_ => None,
 		}
 	}
+
+	pub fn get_proper_cs(&self, cs: EncodingRef) -> EncodingRef {
+		match self.decode_text_with_replaced_cs {
+            true => cs,
+            false => DEFAULT_CHARACTER_SET,
+        }
+	}
 }
 
 
@@ -136,8 +154,11 @@ pub static AE: VR = VR {
 	code: 0x4145,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Age String
@@ -169,8 +190,11 @@ pub static AS: VR = VR {
 	code: 0x4153,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Attribute Tag
@@ -203,8 +227,11 @@ pub static AT: VR = VR {
 	code: 0x4154,
 	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Code String
@@ -228,8 +255,11 @@ pub static CS: VR = VR {
 	code: 0x4353,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Date
@@ -280,8 +310,11 @@ pub static DA: VR = VR {
 	code: 0x4441,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Decimal String
@@ -316,8 +349,11 @@ pub static DS: VR = VR {
 	code: 0x4453,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Date Time
@@ -405,8 +441,11 @@ pub static DT: VR = VR {
 	code: 0x4454,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Floating Point Double
@@ -429,8 +468,11 @@ pub static FD: VR = VR {
 	code: 0x4644,
 	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Floating Point Single
@@ -452,8 +494,11 @@ pub static FL: VR = VR {
 	code: 0x464C,
 	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Integer String
@@ -481,8 +526,11 @@ pub static IS: VR = VR {
 	code: 0x4953,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Long String
@@ -509,8 +557,11 @@ pub static LO: VR = VR {
 	code: 0x4C4F,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: true,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Long Text
@@ -539,8 +590,11 @@ pub static LT: VR = VR {
 	code: 0x4C54,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: true,
 	allows_backslash_text_value: true,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: true,
 };
 
 /// Other Byte
@@ -566,8 +620,11 @@ pub static OB: VR = VR {
 	code: 0x4F42,
 	padding: 0x0,
 	has_explicit_2byte_pad: true,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Other Double
@@ -590,8 +647,11 @@ pub static OD: VR = VR {
 	code: 0x4F44,
 	padding: 0x0,
 	has_explicit_2byte_pad: true,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Other Float
@@ -615,8 +675,11 @@ pub static OF: VR = VR {
 	code: 0x4F46,
 	padding: 0x0,
 	has_explicit_2byte_pad: true,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Other Long
@@ -640,8 +703,11 @@ pub static OL: VR = VR {
 	code: 0x4F4C,
 	padding: 0x0,
 	has_explicit_2byte_pad: true,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Other Word
@@ -665,8 +731,11 @@ pub static OW: VR = VR {
 	code: 0x4F57,
 	padding: 0x0,
 	has_explicit_2byte_pad: true,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Person Name
@@ -727,8 +796,11 @@ pub static PN: VR = VR {
 	code: 0x504E,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: true,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Short String
@@ -755,8 +827,11 @@ pub static SH: VR = VR {
 	code: 0x5348,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string:true,
 	decode_text_with_replaced_cs: true,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Signed Long
@@ -778,10 +853,13 @@ pub static SL: VR = VR {
 	ident: "SL",
 	name: "Signed Long",
 	code: 0x534C,
-	padding: 0x20,
+	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Sequence of Items
@@ -803,8 +881,11 @@ pub static SQ: VR = VR {
 	code: 0x5351,
 	padding: 0x0,
 	has_explicit_2byte_pad: true,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Signed Short
@@ -828,8 +909,11 @@ pub static SS: VR = VR {
 	code: 0x5353,
 	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Short Text
@@ -858,8 +942,11 @@ pub static ST: VR = VR {
 	code: 0x5354,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: true,
 	allows_backslash_text_value: true,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: true,
 };
 
 /// Time
@@ -918,8 +1005,11 @@ pub static TM: VR = VR {
 	code: 0x544D,
 	padding: 0x20,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Unlimited Characters
@@ -947,8 +1037,11 @@ pub static UC: VR = VR {
 	code: 0x5443,
 	padding: 0x20,
 	has_explicit_2byte_pad: true,
+	is_character_string: true,
 	decode_text_with_replaced_cs: true,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: true,
 };
 
 /// Unique Identifier
@@ -974,8 +1067,11 @@ pub static UI: VR = VR {
 	code: 0x5549,
 	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Unsigned Long
@@ -998,8 +1094,11 @@ pub static UL: VR = VR {
 	code: 0x554C,
 	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Unknown
@@ -1022,8 +1121,11 @@ pub static UN: VR = VR {
 	code: 0x544E,
 	padding: 0x0,
 	has_explicit_2byte_pad: true,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Universal Resource Identifier / Universal Resource Locator
@@ -1061,8 +1163,11 @@ pub static UR: VR = VR {
 	code: 0x5452,
 	padding: 0x20,
 	has_explicit_2byte_pad: true,
+	is_character_string: true,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: true,
+	should_trim_trailing_space: true,
 };
 
 /// Unsigned Short
@@ -1083,10 +1188,13 @@ pub static US: VR = VR {
 	ident: "US",
 	name: "Unsigned Short",
 	code: 0x5553,
-	padding: 0,
+	padding: 0x0,
 	has_explicit_2byte_pad: false,
+	is_character_string: false,
 	decode_text_with_replaced_cs: false,
 	allows_backslash_text_value: false,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: false,
 };
 
 /// Unlimited Text
@@ -1115,6 +1223,9 @@ pub static UT: VR = VR {
 	code: 0x5554,
 	padding: 0x20,
 	has_explicit_2byte_pad: true,
+	is_character_string: true,
 	decode_text_with_replaced_cs: true,
 	allows_backslash_text_value: true,
+	should_trim_leading_space: false,
+	should_trim_trailing_space: true,
 };
