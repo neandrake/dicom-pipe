@@ -11,7 +11,6 @@ use crate::mockdata;
 
 #[test]
 fn test_basic_writing_against_mock() -> Result<(), std::io::Error> {
-    let mut writer: Writer<Vec<u8>> = Writer::new(Vec::new());
     let mut elements: Vec<DicomElement> = Vec::new();
 
     let mut element = DicomElement::new_empty(
@@ -20,7 +19,7 @@ fn test_basic_writing_against_mock() -> Result<(), std::io::Error> {
         &ts::ExplicitVRLittleEndian,
     );
     element
-        .encode_value(RawValue::Bytes(vec![0x00, 0x00, 0x00, 0x01]))
+        .encode_value(RawValue::Bytes(vec![0x00, 0x01]))
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     elements.push(element);
 
@@ -54,6 +53,48 @@ fn test_basic_writing_against_mock() -> Result<(), std::io::Error> {
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     elements.push(element);
 
+    element = DicomElement::new_empty(
+        tags::ImplementationClassUID.tag,
+        &vr::UI,
+        &ts::ExplicitVRLittleEndian,
+    );
+    element
+        .encode_value(RawValue::Uid("1.2.826.0.1.3680043.2.1143.107.104.103.115.2.1.0".to_string()))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    elements.push(element);
+
+    element = DicomElement::new_empty(
+        tags::ImplementationVersionName.tag,
+        &vr::SH,
+        &ts::ExplicitVRLittleEndian,
+    );
+    element
+        .encode_value(RawValue::Strings(vec!["GDCM 2.1.0".to_string()]))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    elements.push(element);
+
+    element = DicomElement::new_empty(
+        tags::SourceApplicationEntityTitle.tag,
+        &vr::AE,
+        &ts::ExplicitVRLittleEndian,
+    );
+    element
+        .encode_value(RawValue::Strings(vec!["gdcmconv".to_string()]))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    elements.push(element);
+
+    element = DicomElement::new_empty(
+        tags::SpecificCharacterSet.tag,
+        &vr::CS,
+        &ts::ExplicitVRLittleEndian,
+    );
+    element
+        .encode_value(RawValue::Strings(vec!["ISO_IR 100".to_string()]))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    elements.push(element);
+
+    let mut writer: Writer<Vec<u8>> = Writer::new(Vec::new());
+    writer.set_ts(&ts::ExplicitVRLittleEndian);
     writer
         .write_elements(elements.iter())
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;

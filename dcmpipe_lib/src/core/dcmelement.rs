@@ -185,8 +185,8 @@ impl DicomElement {
         let mut bytes: Vec<u8> = match value {
             RawValue::Attribute(Attribute(attr)) => {
                 let mut bytes: Vec<u8> = Vec::with_capacity(4);
-                let group_number: u16 = ((attr >> 16) | 0xFF) as u16;
-                let elem_number: u16 = (attr | 0xFF) as u16;
+                let group_number: u16 = ((attr >> 16) & 0xFF) as u16;
+                let elem_number: u16 = (attr & 0xFF) as u16;
                 if self.ts.is_big_endian() {
                     bytes[0..2].copy_from_slice(&group_number.to_be_bytes());
                     bytes[2..4].copy_from_slice(&elem_number.to_be_bytes());
@@ -395,12 +395,7 @@ impl DicomElement {
         }
 
         self.data = bytes;
-        self.vl = ValueLength::Explicit(
-            self.data
-                .len()
-                .try_into()
-                .map_err(|e: std::num::TryFromIntError| error(&e.to_string(), self))?,
-        );
+        self.vl = ValueLength::Explicit(self.data.len() as u32);
 
         Ok(())
     }

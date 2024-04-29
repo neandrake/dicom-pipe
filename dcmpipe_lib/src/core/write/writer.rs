@@ -186,15 +186,13 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
     fn write_tag(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
-        let element_number: u16 = (element.get_tag() | 0x00FF) as u16;
-        let group_number: u16 = ((element.get_tag() >> 4) | 0x00FF) as u16;
 
         if element.get_ts().is_big_endian() {
-            bytes_written += dataset.write(&group_number.to_be_bytes())?;
-            bytes_written += dataset.write(&element_number.to_be_bytes())?;
+            bytes_written += dataset.write(&u16::to_be_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
+            bytes_written += dataset.write(&u16::to_be_bytes((element.get_tag() & 0x00FF) as u16))?;
         } else {
-            bytes_written += dataset.write(&group_number.to_le_bytes())?;
-            bytes_written += dataset.write(&element_number.to_le_bytes())?;
+            bytes_written += dataset.write(&u16::to_le_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
+            bytes_written += dataset.write(&u16::to_le_bytes((element.get_tag() & 0x00FF) as u16))?;
         }
 
         Ok(bytes_written)
@@ -207,18 +205,25 @@ impl<DatasetType: Write> Writer<DatasetType> {
             bytes_written += dataset.write(element.get_vr().ident.as_bytes())?;
         }
 
+        // When using Explicit VR and the VR specifies a 2byte padding then write out 16bits of
+        // zeroes after the VR.
+        // See Part 5, Ch 7.1.2
+        if element.get_ts().is_explicit_vr() && element.get_vr().has_explicit_2byte_pad {
+            bytes_written += dataset.write(&[0u8, 0u8])?;
+        }
+
         Ok(bytes_written)
     }
 
     fn write_vl(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
 
-        let write_4bytes: bool =
+        let write_as_u32: bool =
             !element.get_ts().is_explicit_vr() || element.get_vr().has_explicit_2byte_pad;
 
         match element.get_vl() {
             ValueLength::UndefinedLength => {
-                if !write_4bytes {
+                if !write_as_u32 {
                     return Err(WriteError::InvalidUndefinedValueLengthError);
                 }
 
@@ -230,14 +235,14 @@ impl<DatasetType: Write> Writer<DatasetType> {
             }
 
             ValueLength::Explicit(length) => {
-                if write_4bytes {
+                if write_as_u32 {
                     if element.get_ts().is_big_endian() {
                         bytes_written += dataset.write(&length.to_be_bytes())?;
                     } else {
                         bytes_written += dataset.write(&length.to_le_bytes())?;
                     }
                 } else {
-                    let length: u16 = (length | 0x00FF) as u16;
+                    let length: u16 = (length & 0x00FF) as u16;
 
                     if element.get_ts().is_big_endian() {
                         bytes_written += dataset.write(&length.to_be_bytes())?;
