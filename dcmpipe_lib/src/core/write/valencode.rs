@@ -14,7 +14,6 @@ use crate::{
 
 /// Encodes a RawValue into the binary data for the given element, based on the element's currently
 /// set Value Representation, Character Set, and Transfer Syntax.
-
 pub struct ElemAndRawValue<'a>(pub &'a DicomElement, pub RawValue);
 impl<'a> TryFrom<ElemAndRawValue<'a>> for Vec<u8> {
     type Error = ParseError;

@@ -14,6 +14,7 @@ use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::ts::TSRef;
 
 /// A builder for constructing a `Parser`.
+#[derive(Debug)]
 pub struct ParserBuilder<'dict> {
     /// Initial parse state. Default is `ParseState::DetectTransferSyntax`.
     state: Option<ParserState>,
@@ -28,12 +29,12 @@ pub struct ParserBuilder<'dict> {
     /// The `DicomDictionary` to be used when parsing elements. Default is `MinimalDicomDictionary`.
     dictionary: &'dict dyn DicomDictionary,
 
-    /// The dataset will be wrapped in a `BufReader`, this lets the buffere size be set.
+    /// The dataset will be wrapped in a `BufReader`, this lets the buffer size be set.
     buffsize: usize,
 }
 
 impl<'dict> ParserBuilder<'dict> {
-    /// Sets the initial `ParseState` indicating how to start parsing the dataset.
+    /// Sets the initial `ParserState` indicating how to start parsing the dataset.
     pub fn state(mut self, state: ParserState) -> Self {
         self.state = Some(state);
         self
@@ -109,7 +110,7 @@ impl<'dict> Default for ParserBuilder<'dict> {
             behavior: ParseBehavior::default(),
             dataset_ts: None,
             dictionary: &MINIMAL_DICOM_DICTIONARY,
-            // BufReader's current default buffer size is 8k
+            // BufReader's current default buffer size is 8k.
             buffsize: 8 * 1024,
         }
     }

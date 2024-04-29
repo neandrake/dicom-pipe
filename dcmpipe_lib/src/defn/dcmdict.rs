@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::defn::tag::TagRef;
 use crate::defn::ts::TSRef;
 use crate::defn::uid::UIDRef;
@@ -19,6 +21,12 @@ pub trait DicomDictionary {
     fn get_uid_by_name(&self, name: &str) -> Option<UIDRef>;
     /// Look up a `UID` definition by its UID
     fn get_uid_by_uid(&self, uid: &str) -> Option<UIDRef>;
+}
+
+impl fmt::Debug for dyn DicomDictionary + '_ {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<DicomDictionary>")
+    }
 }
 
 /// Wraps a list of DICOM dictionaries to be used a single dictionary. The order of the

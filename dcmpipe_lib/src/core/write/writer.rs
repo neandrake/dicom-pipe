@@ -28,6 +28,7 @@ pub enum WriterState {
     Element,
 }
 
+#[derive(Debug)]
 pub struct Writer<DatasetType: Write> {
     pub(crate) dataset: Dataset<DatasetType>,
 

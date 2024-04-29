@@ -2,6 +2,7 @@
 
 use std::collections::btree_map;
 use std::collections::BTreeMap;
+use std::fmt;
 use std::io::Read;
 
 use crate::core::charset::CSRef;
@@ -244,9 +245,10 @@ impl std::fmt::Debug for DicomRoot<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<DicomRoot {} {}>",
+            "<DicomRoot {} {}> {:?}",
             self.ts().uid().name(),
-            self.cs.name()
+            self.cs.name(),
+            &self.facade
         )
     }
 }
@@ -350,5 +352,23 @@ impl DicomObject {
         }
 
         Ok(elements)
+    }
+}
+
+impl fmt::Debug for DicomObject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.element.tag() == 0 {
+            write!(f, "<facade>")
+        } else if self.element.is_empty() {
+            write!(f, "{:?}", &self.element)
+        } else {
+            write!(
+                f,
+                "{:?}, items:{}, child_nodes:{}",
+                &self.element,
+                self.items.len(),
+                self.child_nodes.len()
+            )
+        }
     }
 }

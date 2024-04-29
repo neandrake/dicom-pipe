@@ -5,6 +5,7 @@ pub(crate) mod dataset {
     use libflate::deflate::Decoder;
     use std::io::{BufReader, Read, Result};
 
+    #[derive(Debug)]
     pub(crate) struct Dataset<DatasetType: Read> {
         decoder: Decoder<BufReader<DatasetType>>,
         read_deflated: bool,
@@ -38,6 +39,7 @@ pub(crate) mod dataset {
 pub(crate) mod dataset {
     use std::io::{BufReader, Read, Result};
 
+    #[derive(Debug)]
     pub(crate) struct Dataset<DatasetType: Read> {
         dataset: BufReader<DatasetType>,
     }

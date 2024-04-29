@@ -5,6 +5,7 @@ pub(crate) mod dataset {
     use libflate::deflate::Encoder;
     use std::io::{BufWriter, Result, Write};
 
+    #[derive(Debug)]
     pub(crate) struct Dataset<DatasetType: Write> {
         encoder: Encoder<BufWriter<DatasetType>>,
         write_deflated: bool,
@@ -53,6 +54,7 @@ pub(crate) mod dataset {
 pub(crate) mod dataset {
     use std::io::{BufWriter, Result, Write};
 
+    #[derive(Debug)]
     pub(crate) struct Dataset<DatasetType: Write> {
         dataset: BufWriter<DatasetType>,
     }

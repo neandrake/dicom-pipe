@@ -2,7 +2,7 @@
 
 use super::stop::ParseStop;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ParseBehavior {
     /// Specifies when the parser should stop parsing the dataset.
     ///

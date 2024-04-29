@@ -55,6 +55,7 @@ pub enum ParserState {
 }
 
 /// Provides an iterator that parses through a dicom dataset returning dicom elements.
+#[derive(Debug)]
 pub struct Parser<'dict, DatasetType: Read> {
     /// The dataset to parse dicom from.
     pub(super) dataset: Dataset<DatasetType>,

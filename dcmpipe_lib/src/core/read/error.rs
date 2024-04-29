@@ -13,6 +13,7 @@ use thiserror::Error;
 
 const MAX_BYTES_IN_ERROR: usize = 16;
 
+#[derive(Debug)]
 pub(crate) struct ParseErrorInfo<'a>(
     pub &'a DicomElement,
     pub &'a str,

@@ -1,9 +1,11 @@
 use crate::{core::dcmelement::DicomElement, defn::vr::VRRef};
 
 /// Wrapper around `&[u8]` for getting a slice of the element value without the padding values.
+#[derive(Debug)]
 pub(crate) struct BytesWithoutPadding<'bytes>(pub &'bytes [u8]);
 
 /// For parsing an element value as a string with a specific VR.
+#[derive(Debug)]
 pub struct ElementWithVr<'elem>(pub &'elem DicomElement, pub VRRef);
 
 /// Wrapper around `u32` for parsing DICOM Attributes.
