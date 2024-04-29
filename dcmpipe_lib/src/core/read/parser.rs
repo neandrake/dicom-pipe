@@ -262,6 +262,29 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
     }
 
+    /// Builds a string containing debug state of parsing, for errors and spurious output while
+    /// debugging. Format is:
+    /// ```
+    /// ParseState @ 0xDEAD_BEEF ImplicitVRLittleEndian: ReferenceSequence[1].(00A1,0000) OB [128]
+    /// ```
+    fn get_debug_str(&self, ts: TSRef, tag: u32, vr: VRRef, vl: ValueLength) -> String {
+        // Render the full tag path
+        let mut full_path: TagPath = (&self.current_path).into();
+        full_path.0.push(tag.into());
+        let tagpath_display: String =
+            TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));
+        let vr_display = vr.ident;
+        // Format the bytes_read as 64bit hex value in "0x0000_0000" format.
+        let msb = self.bytes_read >> 16;
+        let lsb = self.bytes_read & 0x0000_FFFF;
+        let byte_str = format!("{:#06X}_{:04X}", msb, lsb);
+        let ts_str = ts.uid.ident;
+        format!(
+            "{:?} @ {byte_str} ts:{ts_str}: {tagpath_display} {vr_display} [{:?}]",
+            self.state, vl,
+        )
+    }
+
     /// Reads a tag attribute from the dataset, unless `self.partial_tag` is `Some`.
     fn read_tag(&mut self, ts: TSRef) -> Result<u32> {
         let tag: u32 = if let Some(partial_tag) = self.partial_tag {
@@ -291,22 +314,16 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             || tag == tags::ITEM_DELIMITATION_ITEM
             || tag == tags::ITEM;
         // See: Part 5, Section 6.2.2
-        // If a private tag ends up parsed as a sequence then all its items should be
-        // ImplicitVRLittleEndian. Find the first non-ITEM parent and confirm it's sequence-like.
-        let is_parent_priv_seq = self
-            .current_path
-            .iter()
-            .rev()
-            .find(|sq_el| sq_el.get_seq_tag() != tags::ITEM)
-            .filter(|sq_el| {
-                Tag::is_private(sq_el.get_seq_tag())
-                    && read::util::is_non_standard_seq(
-                        sq_el.get_seq_tag(),
-                        sq_el.get_vr(),
-                        sq_el.get_vl(),
-                    )
-            })
-            .is_some();
+        // Elements within a Private Sequence with VR of UN should be in ImplicitVR.
+        // Elements within a Private Sequence with VR of SQ should use the Dataset Transfer Syntax.
+        let is_parent_priv_seq = self.current_path.iter().rev().any(|sq_el| {
+            Tag::is_private(sq_el.get_seq_tag())
+                && read::util::is_non_standard_seq(
+                    sq_el.get_seq_tag(),
+                    sq_el.get_vr(),
+                    sq_el.get_vl(),
+                )
+        });
 
         let ts: TSRef = if is_seq_delim || is_parent_priv_seq {
             if elem_ts.is_big_endian() {
@@ -341,15 +358,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             }
         };
 
-        // See Part 5 Section 6.2.2
-        // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
-        // and in the case of Implicit VR the private tag will also not be known/lookup.
-        let vr = if Tag::is_private_creator(tag) {
-            &vr::LO
-        } else {
-            vr
-        };
-
         let vl: ValueLength = if let Some(partial_vl) = self.partial_vl {
             self.partial_vl.take();
             partial_vl
@@ -377,22 +385,12 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let skip_bytes: bool =
             vr == &vr::SQ || (tag == tags::ITEM && !in_pixeldata) || parse_as_seq;
 
-        /*
-        eprintln!(
-            "{:?}: Tag: {}, VR: {:?}, VL: {:?}, ts: {}, bytesread: {}",
-            self.state,
-            Tag::format_tag_to_display(tag),
-            vr,
-            vl,
-            ts.uid.ident,
-            self.bytes_read
-        );
-        */
+        //eprintln!("{}", &self.get_debug_str(ts, tag, vr, vl));
 
         let bytes: Vec<u8> = if skip_bytes {
             Vec::with_capacity(0)
         } else {
-            self.read_value_field(tag, vl, vr)?
+            self.read_value_field(tag, vl, vr, ts)?
         };
 
         let ancestors: Vec<SequenceElement> = self.current_path.clone();
@@ -454,7 +452,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads the value field of the dicom element into a byte array. If the `ValueLength` is
     /// undefined then this returns an empty array as elements with undefined length should have
     /// their contents parsed as dicom elements.
-    fn read_value_field(&mut self, tag: u32, vl: ValueLength, vr: VRRef) -> Result<Vec<u8>> {
+    fn read_value_field(
+        &mut self,
+        tag: u32,
+        vl: ValueLength,
+        vr: VRRef,
+        ts: TSRef,
+    ) -> Result<Vec<u8>> {
         match vl {
             // Undefined length means that the contents of the element are other dicom elements to
             // be parsed. Don't read data from the dataset in this case.
@@ -483,22 +487,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                         //       original contents of the dataset are retained if needed.
                         ParseError::ExpectedEOF
                     } else {
-                        let mut full_path: TagPath = (&self.current_path).into();
-                        full_path.0.push(tag.into());
-                        let tagpath_display: String =
-                            TagPath::format_tagpath_to_display(&full_path, Some(self.dictionary));
-                        let vr_display = if &vr::INVALID == vr {
-                            vr.name
-                        } else {
-                            vr.ident
-                        };
-                        ParseError::DetailedIOError {
-                            source: e,
-                            detail: format!(
-                                "reading tag at byte {:#06X}, {}, vr: {}, vl: {}",
-                                self.bytes_read, tagpath_display, vr_display, value_length
-                            ),
-                        }
+                        let detail = self.get_debug_str(ts, tag, vr, vl);
+                        ParseError::DetailedIOError { source: e, detail }
                     }
                 });
 

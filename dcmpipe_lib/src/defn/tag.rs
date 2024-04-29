@@ -64,6 +64,20 @@ impl Tag {
         (0x0010..=0x00FF).contains(&tag_elem)
     }
 
+    /// Detects if the given tag is a private group length. These tags are deprecated according to
+    /// the dicom standard.
+    pub fn is_private_group_length(tag: u32) -> bool {
+        if !Tag::is_private(tag) {
+            return false;
+        }
+        Tag::is_group_length(tag)
+    }
+
+    /// Detects if the given tag is a group length tag, defined to have an element value of 0.
+    pub fn is_group_length(tag: u32) -> bool {
+        (tag & 0x0000_FFFF) == 0
+    }
+
     /// Detects if the given tag is a private tag. This is only a basic/rudimentary check and is
     /// not based on previously registered private creators.
     pub fn is_private(tag: u32) -> bool {

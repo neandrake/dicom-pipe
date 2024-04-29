@@ -496,6 +496,12 @@ impl TryFrom<&DicomElement> for RawValue {
                 _ => vec![],
             };
             Ok(RawValue::UnsignedIntegers(uints))
+        } else if value.vr == &vr::UN && Tag::is_private_creator(value.get_tag()) {
+            // See Part 5 Section 6.2.2
+            // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
+            // and in the case of Implicit VR the private tag will also not be known/lookup.
+            let uid: String = String::try_from(value)?;
+            Ok(RawValue::Uid(uid))
         } else {
             let bytes: Vec<u8> = value.get_data().clone();
             Ok(RawValue::Bytes(bytes))

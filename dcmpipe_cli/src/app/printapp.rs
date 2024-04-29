@@ -119,13 +119,17 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
         if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
             tag.ident
         } else if Tag::is_private_creator(element.get_tag()) {
-            "<Private Creator>"
+            "<PrivateCreator>"
         } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
-            "<Private Sequence>"
+            "<PrivateSequence>"
+        } else if Tag::is_private_group_length(element.get_tag()) {
+            "<PrivateGroupLength>"
         } else if Tag::is_private(element.get_tag()) {
-            "<Private Tag>"
+            "<PrivateTag>"
+        } else if Tag::is_group_length(element.get_tag()) {
+            "<GroupLength>"
         } else {
-            "<Unknown Tag>"
+            "<UnknownTag>"
         };
 
     let vr: &str = element.get_vr().ident;
@@ -135,17 +139,24 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
         ValueLength::UndefinedLength => "[u/l]".to_string(),
     };
 
+    // Sequence path will nest tags under ITEM elements. Double the indentation level for the
+    // number of nested sequences (non-ITEM), and each ITEM element should be nested one level.
+    // If the current element is a delimiter then reduce the associated indentation level.
     let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
-
-    let mut indent_width: usize = seq_path.len();
-    if indent_width > 0
-        && element.get_tag() != tags::SequenceDelimitationItem.tag
-        && element.get_tag() != tags::ItemDelimitationItem.tag
-        && element.get_tag() != tags::Item.tag
-    {
-        indent_width += 1;
+    let non_item_parents = seq_path
+        .iter()
+        .filter(|sq_el| sq_el.get_seq_tag() != tags::Item.tag)
+        .count();
+    let item_parents = seq_path
+        .iter()
+        .filter(|sq_el| sq_el.get_seq_tag() == tags::Item.tag)
+        .count();
+    let mut indent_width = non_item_parents * 2 + item_parents;
+    if element.get_tag() == tags::ItemDelimitationItem.tag {
+        indent_width -= 1;
+    } else if element.get_tag() == tags::SequenceDelimitationItem.tag {
+        indent_width -= 2;
     }
-    indent_width *= 2;
 
     if element.get_tag() == tags::Item.tag {
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
@@ -204,69 +215,51 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
         return Ok(String::new());
     }
 
-    let mut ellipses: bool = false;
-    let mut sep: &str = ", ";
-    let mut str_vals: Vec<String> = Vec::new();
-
-    match elem.parse_value()? {
-        RawValue::Attribute(attr) => {
-            str_vals.push(Tag::format_tag_to_display(attr.0));
-        }
-        RawValue::Uid(mut uid_str) => {
-            if uid_str.len() > 64 {
-                uid_str = String::from_utf8(uid_str.as_bytes()[0..64].to_vec())
+    let (add_ellipses, mut str_vals) = match elem.parse_value()? {
+        RawValue::Attribute(attr) => (false, vec![Tag::format_tag_to_display(attr.0)]),
+        RawValue::Uid(uid_str) => {
+            let uid_lookup = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
+            let uid_display = if uid_str.len() > 64 {
+                String::from_utf8(uid_str.as_bytes()[0..64].to_vec())
                     .unwrap_or_else(|_| "<Unviewable>".to_string());
-                uid_str = format!("[>64bytes] {}", uid_str);
-            }
-            if let Some(uid) = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str) {
-                str_vals.push(format!("{} ({})", uid_str, uid.name));
+                format!("[>64bytes] {}", uid_str)
             } else {
-                str_vals.push(uid_str);
+                uid_str
+            };
+            if let Some(uid) = uid_lookup {
+                let name = if let Some((name, _detail)) = uid.name.split_once(':') {
+                    name
+                } else {
+                    uid.name
+                };
+                (false, vec![format!("{} => {}", uid_display, name)])
+            } else {
+                (false, vec![uid_display])
             }
         }
-        RawValue::Strings(strings) => {
-            ellipses = format_vec_to_strings(strings, &mut str_vals, |val: String| {
-                if val.is_empty() {
-                    String::new()
-                } else {
-                    let formatted: String = val.replace("\r\n", " / ").replace('\n', " / ");
-                    format!("\"{}\"", formatted)
-                }
-            });
-        }
-        RawValue::Floats(floats) => {
-            sep = " / ";
-            ellipses =
-                format_vec_to_strings(floats, &mut str_vals, |val: f32| format!("{:.2}", val));
-        }
+        RawValue::Strings(strings) => format_vec_to_strings(strings, |val: String| {
+            if val.is_empty() {
+                String::new()
+            } else {
+                val.replace("\r\n", " / ").replace('\n', " / ")
+            }
+        }),
+        RawValue::Floats(floats) => format_vec_to_strings(floats, |val: f32| format!("{:.2}", val)),
         RawValue::Doubles(doubles) => {
-            sep = " / ";
-            ellipses =
-                format_vec_to_strings(doubles, &mut str_vals, |val: f64| format!("{:.2}", val));
+            format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
         }
-        RawValue::Shorts(shorts) => {
-            sep = " / ";
-            ellipses = format_vec_to_strings(shorts, &mut str_vals, |val: i16| format!("{}", val));
-        }
+        RawValue::Shorts(shorts) => format_vec_to_strings(shorts, |val: i16| format!("{}", val)),
         RawValue::UnsignedShorts(ushorts) => {
-            sep = " / ";
-            ellipses = format_vec_to_strings(ushorts, &mut str_vals, |val: u16| format!("{}", val));
+            format_vec_to_strings(ushorts, |val: u16| format!("{}", val))
         }
-        RawValue::Integers(ints) => {
-            sep = " / ";
-            ellipses = format_vec_to_strings(ints, &mut str_vals, |val: i32| format!("{}", val));
-        }
+        RawValue::Integers(ints) => format_vec_to_strings(ints, |val: i32| format!("{}", val)),
         RawValue::UnsignedIntegers(uints) => {
-            sep = " / ";
-            ellipses = format_vec_to_strings(uints, &mut str_vals, |val: u32| format!("{}", val));
+            format_vec_to_strings(uints, |val: u32| format!("{}", val))
         }
-        RawValue::Bytes(bytes) => {
-            ellipses =
-                format_vec_to_strings(bytes, &mut str_vals, |val: u8| format!("{:02x}", val));
-        }
-    }
+        RawValue::Bytes(bytes) => format_vec_to_strings(bytes, |val: u8| format!("{:02x}", val)),
+    };
 
-    if ellipses {
+    if add_ellipses {
         str_vals.push("..".to_string());
     }
 
@@ -275,21 +268,21 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
         return Ok(str_vals.remove(0));
     }
 
+    let sep: &str = "\\";
     Ok(format!(
-        "[{}]",
+        "{}",
         str_vals.into_iter().collect::<Vec<String>>().join(sep)
     ))
 }
 
-fn format_vec_to_strings<T, F: Fn(T) -> String>(
-    vec: Vec<T>,
-    str_vals: &mut Vec<String>,
-    func: F,
-) -> bool {
+/// Formats `vec` converting each element to a String based on the given `func`.
+/// Returns true if the input `vec` had more items than rendered, based on `MAX_ITEMS_DISPLAYED`.
+fn format_vec_to_strings<T, F: Fn(T) -> String>(vec: Vec<T>, func: F) -> (bool, Vec<String>) {
     let vec_len: usize = vec.len();
-    vec.into_iter()
+    let formatted: Vec<String> = vec
+        .into_iter()
         .take(MAX_ITEMS_DISPLAYED)
         .map(func)
-        .for_each(|val: String| str_vals.push(val));
-    vec_len > str_vals.len()
+        .collect::<Vec<String>>();
+    (formatted.len() < vec_len, formatted)
 }
