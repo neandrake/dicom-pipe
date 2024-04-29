@@ -12,6 +12,7 @@ pub static STANDARD_DICOM_DICTIONARY: StandardDicomDictionary = StandardDicomDic
 
 /// The Standard DICOM Dictionary
 pub struct StandardDicomDictionary {}
+
 impl DicomDictionary for StandardDicomDictionary {
     fn get_ts_by_uid(&self, uid: &str) -> Option<TSRef> {
         TS_BY_UID.get(uid).copied()

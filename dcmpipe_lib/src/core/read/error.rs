@@ -1,6 +1,6 @@
 //! Errors that can occur during parsing of a DICOM dataset.
 
-use super::parser::DICOM_PREFIX_LENGTH;
+use crate::core::DICOM_PREFIX_LENGTH;
 use crate::defn::tag::Tag;
 use crate::defn::vr::VRRef;
 use thiserror::Error;

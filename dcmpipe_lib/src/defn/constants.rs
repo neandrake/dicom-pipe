@@ -157,7 +157,6 @@ pub mod lookup {
     /// minimal set of `get_ts_by_uid`, all other functions return `None`.
     pub struct MinimalDicomDictionary {}
     impl DicomDictionary for MinimalDicomDictionary {
-
         fn get_ts_by_name(&self, _name: &str) -> Option<TSRef> {
             None
         }
@@ -183,7 +182,6 @@ pub mod lookup {
         fn get_tag_by_number(&self, _number: u32) -> Option<TagRef> {
             None
         }
-
 
         fn get_uid_by_name(&self, _name: &str) -> Option<UIDRef> {
             None

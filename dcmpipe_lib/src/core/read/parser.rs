@@ -8,6 +8,7 @@ use crate::core::read;
 use crate::core::read::ds::dataset::Dataset;
 use crate::core::read::error::ParseError;
 use crate::core::read::stop::ParseStop;
+use crate::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use crate::defn::constants::{tags, ts};
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::tag::Tag;
@@ -15,11 +16,7 @@ use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
 
-pub const FILE_PREAMBLE_LENGTH: usize = 128;
-pub const DICOM_PREFIX_LENGTH: usize = 4;
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
-
-pub static DICOM_PREFIX: &[u8; DICOM_PREFIX_LENGTH] = b"DICM";
 
 /// The `Result` type of the parser
 pub type Result<T> = core::result::Result<T, ParseError>;

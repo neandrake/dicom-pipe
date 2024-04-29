@@ -6,14 +6,14 @@ pub(crate) mod dataset {
     use std::io::{BufReader, Read, Result};
 
     pub(crate) struct Dataset<DatasetType: Read> {
-        deflated: Decoder<BufReader<DatasetType>>,
+        decoder: Decoder<BufReader<DatasetType>>,
         read_deflated: bool,
     }
 
     impl<DatasetType: Read> Dataset<DatasetType> {
         pub fn new(dataset: DatasetType, buffsize: usize) -> Dataset<DatasetType> {
             Dataset {
-                deflated: Decoder::new(BufReader::with_capacity(buffsize, dataset)),
+                decoder: Decoder::new(BufReader::with_capacity(buffsize, dataset)),
                 read_deflated: false,
             }
         }
@@ -26,9 +26,9 @@ pub(crate) mod dataset {
     impl<DatasetType: Read> Read for Dataset<DatasetType> {
         fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
             if self.read_deflated {
-                self.deflated.read(buf)
+                self.decoder.read(buf)
             } else {
-                self.deflated.as_inner_mut().read(buf)
+                self.decoder.as_inner_mut().read(buf)
             }
         }
     }

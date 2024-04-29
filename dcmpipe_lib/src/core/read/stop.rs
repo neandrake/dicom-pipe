@@ -57,7 +57,8 @@ impl ParseStop {
         //       As it's currently implemented the entire sequence will be parsed regardless of
         //       desired item number stopping point.
 
-        tagpath.0
+        tagpath
+            .0
             .iter()
             .map(TagNode::get_tag)
             .zip(full_current_path)

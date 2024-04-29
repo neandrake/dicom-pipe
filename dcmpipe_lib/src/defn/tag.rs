@@ -24,7 +24,7 @@ pub struct Tag {
 
     /// The value multiplicity indicating how many values might be encoded in the element.
     pub vm: VMRef,
-    
+
     /// A longer name or description of the tag.
     pub desc: &'static str,
 }
@@ -121,10 +121,7 @@ impl Debug for TagNode {
 
 impl From<u32> for TagNode {
     fn from(tag: u32) -> Self {
-        TagNode {
-            tag,
-            item: None
-        }
+        TagNode { tag, item: None }
     }
 }
 
@@ -187,11 +184,7 @@ impl From<Vec<u32>> for TagPath {
         let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
 
         for i in 0..tags.len() {
-            let item = if i < tags.len() - 1 {
-                Some(1)
-            } else {
-                None
-            };
+            let item = if i < tags.len() - 1 { Some(1) } else { None };
             let tag: u32 = unsafe { *tags.get_unchecked(i) };
             nodes.push(TagNode::new(tag, item));
         }
@@ -206,11 +199,7 @@ impl From<&[u32]> for TagPath {
         let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
 
         for i in 0..tags.len() {
-            let item = if i < tags.len() - 1 {
-                Some(1)
-            } else {
-                None
-            };
+            let item = if i < tags.len() - 1 { Some(1) } else { None };
             let tag: u32 = unsafe { *tags.get_unchecked(i) };
             nodes.push(TagNode::new(tag, item));
         }

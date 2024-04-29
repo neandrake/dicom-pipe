@@ -3,7 +3,7 @@
 pub type VMRef = &'static VM;
 
 /// Value Multiplicity Definition
-/// 
+///
 /// Part 5, Ch 6.4:
 /// Data Elements with a VR of OB, OD, OF, OL, OW, OB, SQ, UN or UR
 /// shall always have a Value Multiplicity of one.

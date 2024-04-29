@@ -19,11 +19,7 @@ pub struct UID {
 
 impl UID {
     pub fn new(uid: &'static str, ident: &'static str, name: &'static str) -> UID {
-        UID {
-            ident,
-            uid,
-            name
-        }
+        UID { ident, uid, name }
     }
 
     /// Get the identifier or name for this UID.
