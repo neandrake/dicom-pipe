@@ -8,14 +8,11 @@ use cursive::views::{Dialog, TextView};
 use cursive::{Cursive, CursiveExt};
 use cursive_table_view::{TableView, TableViewItem};
 
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::read::Parser;
-use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 
-use crate::app::printapp::render_value;
-use crate::app::{parse_file, CommandApplication};
+use crate::app::CommandApplication;
 
 pub struct EditApp {
     openpath: PathBuf,
@@ -42,15 +39,9 @@ pub struct DicomElementValue {
 impl DicomElementValue {
     fn new(element: DicomElement) -> DicomElementValue {
         let seq: String = if element.is_seq_like() { "+" } else { "" }.to_owned();
-        let name: String =
-            if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
-                tag.ident
-            } else {
-                "<Private Tag>"
-            }
-            .to_owned();
+        let name: String = super::render_tag_name(&element).to_owned();
 
-        let value: String = if let Ok(value) = render_value(&element) {
+        let value: String = if let Ok(value) = super::render_value(&element) {
             value
         } else {
             "<Error Parsing Value>".to_owned()
@@ -117,24 +108,15 @@ impl EditApp {
 impl CommandApplication for EditApp {
     fn run(&mut self) -> Result<()> {
         let path: &Path = self.openpath.as_path();
-        let parser: Parser<'_, File> = parse_file(path)?;
+        let parser: Parser<'_, File> = super::parse_file(path)?;
 
         let mut items: Vec<DicomElementValue> = Vec::new();
         let mut total_name_size: usize = 0;
         for elem in parser {
             let elem: DicomElement = elem?;
             if elem.get_sequence_path().is_empty() {
-                let name: String = if let Some(tag) =
-                    STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.get_tag())
-                {
-                    tag.ident
-                } else {
-                    "<Unknown Tag>"
-                }
-                .to_owned();
-
+                let name: &str = super::render_tag_name(&elem);
                 total_name_size = name.len().max(total_name_size);
-
                 items.push(DicomElementValue::new(elem));
             }
         }

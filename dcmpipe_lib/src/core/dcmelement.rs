@@ -424,19 +424,25 @@ impl TryFrom<&DicomElement> for RawValue {
         } else if value.vr == &vr::DS {
             Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
         } else if value.vr == &vr::IS {
-            Ok(RawValue::Integers(Vec::<i32>::try_from(value)?))
+            let i32s: Result<Vec<i32>> = Vec::<i32>::try_from(value);
+            if let Ok(i32s) = i32s {
+                Ok(RawValue::Integers(i32s))
+            } else {
+                // Sometimes non-integers are encoded with VR of IS.
+                Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
+            }
         } else if value.vr.is_character_string {
             let strings: Vec<String> = Vec::<String>::try_from(value)?;
             Ok(RawValue::Strings(strings))
         } else if value.vr == &vr::FD
-            || value.vr == &vr::OF
             || value.vr == &vr::OD
             || value.vr == &vr::FL
+            || value.vr == &vr::OF
         {
-            // XXX: This isn't right for OF or OD!!
+            // XXX: This isn't right for OF or OD, which require byte-swapped words.
             let doubles: Vec<f64> = match value.vl {
                 ValueLength::Explicit(len)
-                    if (value.vr == &vr::OD || value.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
+                    if (value.vr == &vr::OD || value.vr == &vr::FD) && len > 0 && len % 8 == 0 =>
                 {
                     Vec::<f64>::try_from(value)?
                 }
@@ -476,13 +482,13 @@ impl TryFrom<&DicomElement> for RawValue {
             Ok(RawValue::Integers(ints))
         } else if value.vr == &vr::UL
             || value.vr == &vr::OL
-            || value.vr == &vr::OW
             || value.vr == &vr::US
+            || value.vr == &vr::OW
         {
-            // XXX: This isn't right for OL or OW!!
+            // XXX: This isn't right for OL or OW which require byte-swapped words.
             let uints: Vec<u32> = match value.vl {
                 ValueLength::Explicit(len)
-                    if (value.vr == &vr::UL || value.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
+                    if (value.vr == &vr::OL || value.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
                 {
                     Vec::<u32>::try_from(value)?
                 }
@@ -500,8 +506,9 @@ impl TryFrom<&DicomElement> for RawValue {
             // See Part 5 Section 6.2.2
             // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
             // and in the case of Implicit VR the private tag will also not be known/lookup.
-            let uid: String = String::try_from(value)?;
+let uid: String = String::try_from(value)?;
             Ok(RawValue::Uid(uid))
+
         } else {
             let bytes: Vec<u8> = value.get_data().clone();
             Ok(RawValue::Bytes(bytes))

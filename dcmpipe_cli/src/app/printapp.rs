@@ -4,14 +4,13 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
-use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
+use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmsqelem::SequenceElement;
 use dcmpipe_lib::core::read::Parser;
 use dcmpipe_lib::defn::constants::tags::FILE_META_GROUP_END;
-use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::ts::TSRef;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 
@@ -19,7 +18,6 @@ use crate::app::{parse_file, CommandApplication};
 
 static HIDE_GROUP_TAGS: bool = false;
 static HIDE_DELIMITATION_TAGS: bool = false;
-static MAX_ITEMS_DISPLAYED: usize = 16;
 
 pub struct PrintApp {
     file: PathBuf,
@@ -53,7 +51,7 @@ impl PrintApp {
                 prev_was_file_meta = false;
             }
 
-            let printed: Option<String> = render_element(&elem)?;
+            let printed: Option<String> = render_element(parser.get_ts(), &elem)?;
 
             if let Some(printed) = printed {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
@@ -92,7 +90,7 @@ impl CommandApplication for PrintApp {
 /// (gggg,eeee) VR TagName [0] <empty>
 /// ```
 /// Names for unknown tags will render as `<UnknownTag>`
-fn render_element(element: &DicomElement) -> Result<Option<String>> {
+fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
     // Group Length tags are deprecated, see note on Part 5 Section 7.2
     if HIDE_GROUP_TAGS && element.get_tag().trailing_zeros() >= 16 {
         return Ok(None);
@@ -108,34 +106,25 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
 
     // Some (malformed?) datasets have a bunch of zeroes between elements.
     if element.get_tag() == 0
-        && element.get_vr() == &vr::INVALID
+        && ((ts.is_explicit_vr() && element.get_vr() == &vr::INVALID)
+            || (!ts.is_explicit_vr() && element.get_vr() == &vr::UN))
         && element.get_vl() == ValueLength::Explicit(0)
     {
         return Ok(None);
     }
 
     let tag_num: String = Tag::format_tag_to_display(element.get_tag());
-    let tag_name: &str =
-        if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
-            tag.ident
-        } else if Tag::is_private_creator(element.get_tag()) {
-            "<PrivateCreator>"
-        } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
-            "<PrivateSequence>"
-        } else if Tag::is_private_group_length(element.get_tag()) {
-            "<PrivateGroupLength>"
-        } else if Tag::is_private(element.get_tag()) {
-            "<PrivateTag>"
-        } else if Tag::is_group_length(element.get_tag()) {
-            "<GroupLength>"
-        } else {
-            "<UnknownTag>"
-        };
-
+    let tag_name: &str = super::render_tag_name(element);
     let vr: &str = element.get_vr().ident;
 
     let vl: String = match element.get_vl() {
-        ValueLength::Explicit(_) => format!("[{:?}]", element.get_vl()),
+        ValueLength::Explicit(len) => {
+            if len % 2 != 0 {
+                format!("[*{:?}]", element.get_vl())
+            } else {
+                format!("[{:?}]", element.get_vl())
+            }
+        },
         ValueLength::UndefinedLength => "[u/l]".to_string(),
     };
 
@@ -186,7 +175,7 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
     } else if element.is_empty() {
         "<empty>".to_owned()
     } else {
-        render_value(element)?
+        super::render_value(element)?
     };
 
     if !tag_value.is_empty() {
@@ -207,82 +196,4 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
         vl = vl,
         tag_value = tag_value,
     )))
-}
-
-/// Formats the value of this element as a string based on the VR
-pub fn render_value(elem: &DicomElement) -> Result<String> {
-    if elem.is_seq_like() {
-        return Ok(String::new());
-    }
-
-    let (add_ellipses, mut str_vals) = match elem.parse_value()? {
-        RawValue::Attribute(attr) => (false, vec![Tag::format_tag_to_display(attr.0)]),
-        RawValue::Uid(uid_str) => {
-            let uid_lookup = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
-            let uid_display = if uid_str.len() > 64 {
-                String::from_utf8(uid_str.as_bytes()[0..64].to_vec())
-                    .unwrap_or_else(|_| "<Unviewable>".to_string());
-                format!("[>64bytes] {}", uid_str)
-            } else {
-                uid_str
-            };
-            if let Some(uid) = uid_lookup {
-                let name = if let Some((name, _detail)) = uid.name.split_once(':') {
-                    name
-                } else {
-                    uid.name
-                };
-                (false, vec![format!("{} => {}", uid_display, name)])
-            } else {
-                (false, vec![uid_display])
-            }
-        }
-        RawValue::Strings(strings) => format_vec_to_strings(strings, |val: String| {
-            if val.is_empty() {
-                String::new()
-            } else {
-                val.replace("\r\n", " / ").replace('\n', " / ")
-            }
-        }),
-        RawValue::Floats(floats) => format_vec_to_strings(floats, |val: f32| format!("{:.2}", val)),
-        RawValue::Doubles(doubles) => {
-            format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
-        }
-        RawValue::Shorts(shorts) => format_vec_to_strings(shorts, |val: i16| format!("{}", val)),
-        RawValue::UnsignedShorts(ushorts) => {
-            format_vec_to_strings(ushorts, |val: u16| format!("{}", val))
-        }
-        RawValue::Integers(ints) => format_vec_to_strings(ints, |val: i32| format!("{}", val)),
-        RawValue::UnsignedIntegers(uints) => {
-            format_vec_to_strings(uints, |val: u32| format!("{}", val))
-        }
-        RawValue::Bytes(bytes) => format_vec_to_strings(bytes, |val: u8| format!("{:02x}", val)),
-    };
-
-    if add_ellipses {
-        str_vals.push("..".to_string());
-    }
-
-    let num_vals: usize = str_vals.len();
-    if num_vals == 1 {
-        return Ok(str_vals.remove(0));
-    }
-
-    let sep: &str = "\\";
-    Ok(format!(
-        "{}",
-        str_vals.into_iter().collect::<Vec<String>>().join(sep)
-    ))
-}
-
-/// Formats `vec` converting each element to a String based on the given `func`.
-/// Returns true if the input `vec` had more items than rendered, based on `MAX_ITEMS_DISPLAYED`.
-fn format_vec_to_strings<T, F: Fn(T) -> String>(vec: Vec<T>, func: F) -> (bool, Vec<String>) {
-    let vec_len: usize = vec.len();
-    let formatted: Vec<String> = vec
-        .into_iter()
-        .take(MAX_ITEMS_DISPLAYED)
-        .map(func)
-        .collect::<Vec<String>>();
-    (formatted.len() < vec_len, formatted)
 }

@@ -16,6 +16,8 @@ use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
 
+use super::util::is_non_standard_seq;
+
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
 
 /// The `Result` type of the parser
@@ -278,7 +280,11 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let msb = self.bytes_read >> 16;
         let lsb = self.bytes_read & 0x0000_FFFF;
         let byte_str = format!("{:#06X}_{:04X}", msb, lsb);
-        let ts_str = ts.uid.ident;
+        // Display "dataset_ts" if it's the same as the dataset's, otherwise show the ident name.
+        let ts_str = self
+            .dataset_ts
+            .filter(|ds_ts| *ds_ts == ts)
+            .map_or(ts.uid.ident, |_| "dataset_ts");
         format!(
             "{:?} @ {byte_str} ts:{ts_str}: {tagpath_display} {vr_display} [{:?}]",
             self.state, vl,
@@ -315,14 +321,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             || tag == tags::ITEM;
         // See: Part 5, Section 6.2.2
         // Elements within a Private Sequence with VR of UN should be in ImplicitVR.
-        // Elements within a Private Sequence with VR of SQ should use the Dataset Transfer Syntax.
+        // Elements within a Private Sequence with VR of SQ and VL of Undefined should use the
+        //   Dataset Transfer Syntax.
+        // XXX: ?? Elements within a Private Sequence with VR of SQ and VL of Explicit should be in
+        //   ImplicitVR.
         let is_parent_priv_seq = self.current_path.iter().rev().any(|sq_el| {
             Tag::is_private(sq_el.get_seq_tag())
-                && read::util::is_non_standard_seq(
-                    sq_el.get_seq_tag(),
-                    sq_el.get_vr(),
-                    sq_el.get_vl(),
-                )
+                && is_non_standard_seq(sq_el.get_seq_tag(), sq_el.get_vr(), sq_el.get_vl())
         });
 
         let ts: TSRef = if is_seq_delim || is_parent_priv_seq {
