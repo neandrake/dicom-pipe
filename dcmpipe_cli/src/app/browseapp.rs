@@ -29,6 +29,7 @@ use dcmpipe_lib::{
             constants::tags::ITEM,
             tag::{Tag, TagNode, TagPath},
         },
+        inspect::{FormattedElement, FormattedTagType, FormattedTagValue},
         read::Parser,
     },
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
@@ -43,8 +44,6 @@ use ratatui::{
 };
 
 use crate::{app::CommandApplication, args::BrowseArgs};
-
-use super::{ElementWithLineFmt, TagCategory, TagValue};
 
 pub struct BrowseApp {
     args: BrowseArgs,
@@ -72,6 +71,30 @@ impl std::fmt::Display for BrowseError {
 
 impl std::error::Error for BrowseError {}
 
+/// Options for display/formatting.
+struct DisplayOpts {
+    multiline: bool,
+    max_items: usize,
+    hide_delims: bool,
+    hide_groups: bool,
+}
+
+impl DisplayOpts {
+    fn for_obj<'app>(&'app self, obj: &'app DicomObject) -> FormattedElement {
+        FormattedElement {
+            elem: obj.element(),
+            multiline: self.multiline,
+            max_items: self.max_items,
+            hide_delims: self.hide_delims,
+            hide_groups: self.hide_groups,
+        }
+    }
+
+    fn should_omit(&self, obj: &DicomObject) -> bool {
+        self.for_obj(obj).should_omit()
+    }
+}
+
 /// The result of parsing all elements in a DICOM data set.
 struct DicomDocumentModel<'app> {
     /// The file path the DICOM dataset was loaded from.
@@ -87,9 +110,9 @@ struct DicomDocumentModel<'app> {
 /// This model only contains the data necessary for rendering, so all DICOM element values are
 /// rendered in order to build this struct.
 #[derive(Clone)]
-struct DicomNodeModel<'model> {
+struct DicomNodeModel<'m> {
     /// The ordered values parsed from the DICOM elements at this level.
-    rows: Vec<Row<'model>>,
+    rows: Vec<Row<'m>>,
     /// For each row, the maximum length of DICOM tag name, which aside from DICOM value will be
     /// the only other column of variable width.
     max_name_width: u16,
@@ -130,11 +153,18 @@ impl CommandApplication for BrowseApp {
             Err(err) => return Err(anyhow!(err)),
         };
 
-        let doc_model = DicomDocumentModel::parse(path, &dcmroot);
+        let display_opts = DisplayOpts {
+            multiline: false,
+            max_items: 16,
+            hide_delims: true,
+            hide_groups: true,
+        };
+
+        let doc_model = DicomDocumentModel::parse(path, &dcmroot, &display_opts);
 
         let mut terminal = self.init()?;
 
-        let app_result = self.run_loop(&mut terminal, &dcmroot, doc_model);
+        let app_result = self.run_loop(&mut terminal, &dcmroot, doc_model, &display_opts);
 
         self.close(terminal)?;
 
@@ -145,35 +175,48 @@ impl CommandApplication for BrowseApp {
 }
 
 impl<'app> DicomDocumentModel<'app> {
-    fn parse(path: &'app Path, dcmroot: &DicomRoot) -> DicomDocumentModel<'app> {
-        let node_models = DicomNodeModel::parse(dcmroot.as_obj());
+    fn parse(
+        file_path: &'app Path,
+        dcmroot: &DicomRoot,
+        display_opts: &DisplayOpts,
+    ) -> DicomDocumentModel<'app> {
+        let node_models = DicomNodeModel::parse(dcmroot.as_obj(), display_opts);
         let count = node_models.len();
         DicomDocumentModel {
-            file_path: path,
+            file_path,
             node_models,
             node_views: HashMap::with_capacity(count),
         }
     }
 }
 
-impl<'model> DicomNodeModel<'model> {
-    fn parse(dcmobj: &DicomObject) -> HashMap<TagPath, DicomNodeModel<'model>> {
+impl<'m> DicomNodeModel<'m> {
+    fn parse(
+        dcmobj: &DicomObject,
+        display_opts: &DisplayOpts,
+    ) -> HashMap<TagPath, DicomNodeModel<'m>> {
         let total_sub_items = dcmobj.item_count() + dcmobj.child_count();
-        let mut map: HashMap<TagPath, DicomNodeModel<'model>> =
-            HashMap::with_capacity(total_sub_items);
-        let mut rows: Vec<Row<'model>> = Vec::with_capacity(total_sub_items);
+        let mut map: HashMap<TagPath, DicomNodeModel<'m>> = HashMap::with_capacity(total_sub_items);
+        let mut rows: Vec<Row<'m>> = Vec::with_capacity(total_sub_items);
         let mut max_name_width: u16 = 0;
+
         for item in dcmobj.iter_items() {
-            let (row, child_map, name_len) = DicomNodeModel::parse_dcmobj(item);
-            rows.push(row);
-            map.extend(child_map);
-            max_name_width = max_name_width.max(name_len);
+            if let Some((row, child_map, name_len)) =
+                DicomNodeModel::parse_dcmobj(item, display_opts)
+            {
+                rows.push(row);
+                map.extend(child_map);
+                max_name_width = max_name_width.max(name_len);
+            }
         }
         for (_child_tag, child) in dcmobj.iter_child_nodes() {
-            let (row, child_map, name_len) = DicomNodeModel::parse_dcmobj(child);
-            rows.push(row);
-            map.extend(child_map);
-            max_name_width = max_name_width.max(name_len);
+            if let Some((row, child_map, name_len)) =
+                DicomNodeModel::parse_dcmobj(child, display_opts)
+            {
+                rows.push(row);
+                map.extend(child_map);
+                max_name_width = max_name_width.max(name_len);
+            }
         }
 
         let elem_tbl = DicomNodeModel {
@@ -189,18 +232,31 @@ impl<'model> DicomNodeModel<'model> {
 
     fn parse_dcmobj(
         child: &DicomObject,
-    ) -> (Row<'model>, HashMap<TagPath, DicomNodeModel<'model>>, u16) {
-        let mut map: HashMap<TagPath, DicomNodeModel<'model>> = HashMap::new();
+        display_opts: &DisplayOpts,
+    ) -> Option<(Row<'m>, HashMap<TagPath, DicomNodeModel<'m>>, u16)> {
+        let mut map: HashMap<TagPath, DicomNodeModel<'m>> = HashMap::new();
         let child_tag = child.element().tag();
         if child.item_count() > 0 || child.child_count() > 0 {
-            let child_map = DicomNodeModel::parse(child);
+            let child_map = DicomNodeModel::parse(child, display_opts);
             map.extend(child_map);
         }
 
-        let tag_render: TagCategory = child.element().into();
-        let elem_name = tag_render.to_string();
+        let formatted_elem = FormattedElement {
+            elem: child.element(),
+            multiline: display_opts.multiline,
+            max_items: display_opts.max_items,
+            hide_delims: display_opts.hide_delims,
+            hide_groups: display_opts.hide_groups,
+        };
+        if formatted_elem.should_omit() {
+            return None;
+        }
+
+        let fmt_elem_type: FormattedTagType = formatted_elem.get_tag_type();
+        let fmt_elem_val: FormattedTagValue = formatted_elem.get_tag_value();
+
+        let elem_name = fmt_elem_type.to_string();
         let name_len = u16::try_from(elem_name.len()).unwrap_or(u16::MAX);
-        let elem_value: TagValue = ElementWithLineFmt(child.element(), false).into();
 
         let mut cells: Vec<Cell> = Vec::with_capacity(5);
         cells.push(
@@ -217,8 +273,8 @@ impl<'model> DicomNodeModel<'model> {
                 .style(Style::default().fg(Color::DarkGray)),
         );
 
-        match tag_render {
-            TagCategory::Known(_, _) => {
+        match fmt_elem_type {
+            FormattedTagType::Known(_, _) => {
                 cells.push(Cell::from(elem_name));
             }
             _ => {
@@ -236,23 +292,23 @@ impl<'model> DicomNodeModel<'model> {
             Cell::from(child.element().vr().ident).style(Style::default().fg(Color::DarkGray)),
         );
 
-        let cell = match elem_value {
-            TagValue::Sequence => Cell::from(""),
-            TagValue::Error(_err_str) => {
+        let cell = match fmt_elem_val {
+            FormattedTagValue::Sequence => Cell::from(""),
+            FormattedTagValue::Error(_err_str) => {
                 Cell::from("<InvalidValue>").style(Style::default().fg(Color::Red))
             }
-            TagValue::Uid(uid, name) => Cell::from(Line::from(vec![
+            FormattedTagValue::Uid(uid, name) => Cell::from(Line::from(vec![
                 Span::styled(uid, Style::default()),
                 Span::styled(
                     format!(" {}", name),
                     Style::default().fg(Color::LightYellow),
                 ),
             ])),
-            TagValue::Stringified(str_val) => Cell::from(str_val),
+            FormattedTagValue::Stringified(str_val) => Cell::from(str_val),
         };
         cells.push(cell);
 
-        (Row::new(cells), map, name_len)
+        Some((Row::new(cells), map, name_len))
     }
 }
 
@@ -282,6 +338,7 @@ impl<'app> BrowseApp {
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
         dcmroot: &'d DicomRoot,
         mut doc_model: DicomDocumentModel<'app>,
+        display_opts: &DisplayOpts,
     ) -> Result<()> {
         let root_path = TagPath::empty();
         let default_table_state = TableState::new().with_selected(Some(0));
@@ -347,6 +404,7 @@ impl<'app> BrowseApp {
                 &doc_model,
                 &user_action,
                 current_tagpath,
+                display_opts,
             )?;
         }
         Ok(())
@@ -385,6 +443,7 @@ impl<'app> BrowseApp {
         doc_model: &'app DicomDocumentModel<'app>,
         user_action: &'app UserAction,
         current_tagpath: TagPath,
+        display_opts: &DisplayOpts,
     ) -> Result<TagPath> {
         // Handle user navigation
         match user_action {
@@ -393,7 +452,7 @@ impl<'app> BrowseApp {
             UserAction::NavIntoLevel(sel_idx) => {
                 let sel_idx = *sel_idx;
                 let next_path = if current_tagpath.is_empty() {
-                    get_nth_child(dcmroot.as_obj(), sel_idx)
+                    get_nth_child(dcmroot.as_obj(), sel_idx, display_opts)
                         .map(|o| o.element().create_tagpath())
                         .unwrap_or_else(|| current_tagpath.clone())
                 } else {
@@ -407,16 +466,16 @@ impl<'app> BrowseApp {
                             // single child which is the delimiter at the end.
                             if c.item_count() > 0 {
                                 if sel_idx < c.item_count() {
-                                    c.get_item_by_index(sel_idx + 1)
+                                    get_nth_item(c, sel_idx + 1, display_opts)
                                 } else if c.child_count() > 0 {
                                     // Subtract the # items because children appear after items
                                     // when both are present.
-                                    get_nth_child(c, sel_idx - c.item_count())
+                                    get_nth_child(c, sel_idx - c.item_count(), display_opts)
                                 } else {
                                     None
                                 }
                             } else if c.child_count() > 0 {
-                                get_nth_child(c, sel_idx)
+                                get_nth_child(c, sel_idx, display_opts)
                             } else {
                                 None
                             }
@@ -599,10 +658,49 @@ impl<'app> BrowseApp {
     }
 }
 
-/// Treates a DICOM element's children as an ordered list to get a child node based on index. This
+/// Creates a DICOM element's children as an ordered list to get a child node based on index. This
 /// is only useful for mapping the view-index to the model-index.
-fn get_nth_child(dcmobj: &DicomObject, index: usize) -> Option<&DicomObject> {
-    dcmobj.iter_child_nodes().skip(index).map(|e| e.1).next()
+///
+/// # Arguments
+///
+/// `dcmobj` The element whose items to index into.
+/// `index` The 1-based index into the items.
+/// `display_opts` The display options, used to determine whether items are actually displayed,
+/// affecting how the index is interpreted.
+fn get_nth_child<'app>(
+    dcmobj: &'app DicomObject,
+    index: usize,
+    display_opts: &'app DisplayOpts,
+) -> Option<&'app DicomObject> {
+    dcmobj
+        .iter_child_nodes()
+        .map(|o| o.1)
+        // Filter out items that aren't displayed, as the displayed table model will not match
+        // indexes directly with the parsed dicom result. This needs done before `index` is used.
+        .filter(|o| !display_opts.should_omit(o))
+        .nth(index)
+}
+
+/// Creates a DICOM element's items as an ordered list to get an item node based on a 1-based
+/// index. This is only useful for mapping the view-index to the model-index.
+///
+/// # Arguments
+///
+/// `dcmobj` The element whose items to index into.
+/// `index` The 1-based index into the items.
+/// `display_opts` The display options, used to determine whether items are actually displayed,
+/// affecting how the index is interpreted.
+fn get_nth_item<'app>(
+    dcmobj: &'app DicomObject,
+    index: usize,
+    display_opts: &'app DisplayOpts,
+) -> Option<&'app DicomObject> {
+    dcmobj
+        .iter_items()
+        // Filter out items that aren't displayed, as the displayed table model will not match
+        // indexes directly with the parsed dicom result. This needs done before `index` is used.
+        .filter(|o| !display_opts.should_omit(o))
+        .nth(index - 1)
 }
 
 /// Computes the `TagPath` for a given node within a DICOM document. This uses
