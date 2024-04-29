@@ -6,7 +6,7 @@
 //! look-ups. The associated value is the common value for the item, such as tag number for DICOM
 //! Elements, and the stringified UID for Transfer Syntaxes and DICOM UIDs.
 
-#![allow(clippy::unreadable_literal)]
+#![allow(clippy::unreadable_literal, clippy::doc_markdown)]
 
 use crate::core::defn::{tag::TagRef, ts::TSRef, uid::UIDRef};
 use crate::dict::{tags, transfer_syntaxes as ts, uids};

@@ -18,7 +18,7 @@ static LOOKUP_PREAMBLE: &str = "//! This is an auto-generated file. Do not make 
 //! look-ups. The associated value is the common value for the item, such as tag number for DICOM
 //! Elements, and the stringified UID for Transfer Syntaxes and DICOM UIDs.
 
-#![allow(clippy::unreadable_literal)]
+#![allow(clippy::unreadable_literal, clippy::doc_markdown)]
 
 use crate::core::defn::{tag::TagRef, ts::TSRef, uid::UIDRef};
 use crate::dict::{tags, transfer_syntaxes as ts, uids};
@@ -30,7 +30,7 @@ static DICOM_ELEMENT_PREAMBLE: &str =
 //!
 //! This contains definitions of DICOM Elements.
 
-#![allow(non_upper_case_globals)]
+#![allow(non_upper_case_globals, clippy::doc_markdown)]
 
 use crate::core::defn::{tag::Tag, vm::VM, vr};
 
@@ -41,7 +41,7 @@ static TRANSFER_SYNTAX_PREAMBLE: &str =
 //!
 //! This contains definitions of Transfer Syntaxes.
 
-#![allow(non_upper_case_globals)]
+#![allow(non_upper_case_globals, clippy::doc_markdown)]
 
 use crate::core::defn::ts::TransferSyntax;
 use crate::dict::uids;
@@ -52,7 +52,7 @@ static UID_PREAMBLE: &str = "//! This is an auto-generated file. Do not make mod
 //!
 //! This contains definitions of DICOM UIDs.
 
-#![allow(non_upper_case_globals)]
+#![allow(non_upper_case_globals, clippy::doc_markdown)]
 
 use crate::core::defn::uid::UID;
 

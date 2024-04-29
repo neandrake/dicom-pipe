@@ -2,7 +2,7 @@
 //!
 //! This contains definitions of DICOM UIDs.
 
-#![allow(non_upper_case_globals)]
+#![allow(non_upper_case_globals, clippy::doc_markdown)]
 
 use crate::core::defn::uid::UID;
 

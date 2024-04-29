@@ -2,7 +2,7 @@
 //!
 //! This contains definitions of Transfer Syntaxes.
 
-#![allow(non_upper_case_globals)]
+#![allow(non_upper_case_globals, clippy::doc_markdown)]
 
 use crate::core::defn::ts::TransferSyntax;
 use crate::dict::uids;

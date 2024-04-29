@@ -2,7 +2,7 @@
 //!
 //! This contains definitions of DICOM Elements.
 
-#![allow(non_upper_case_globals)]
+#![allow(non_upper_case_globals, clippy::doc_markdown)]
 
 use crate::core::defn::{tag::Tag, vm::VM, vr};
 
