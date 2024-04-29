@@ -297,8 +297,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             .current_path
             .iter()
             .rev()
-            .filter(|sq_el| sq_el.get_seq_tag() != tags::ITEM)
-            .next()
+            .find(|sq_el| sq_el.get_seq_tag() != tags::ITEM)
             .filter(|sq_el| {
                 Tag::is_private(sq_el.get_seq_tag())
                     && read::util::is_non_standard_seq(

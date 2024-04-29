@@ -1,6 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
-use std::io::{ErrorKind, Cursor};
+use std::io::{Cursor, ErrorKind};
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
@@ -583,7 +583,6 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
         .expect("Parse of sequence contents should not error")
         .expect("Parse of sequence contents should result in parsed dicom root");
 
-    eprintln!("SQ has {} elements and {} items", sq_contents_root.get_child_count(), sq_contents_root.get_item_count());
     let item_obj: &DicomObject = sq_contents_root
         .get_item_by_index(1)
         .expect("Should be able to get child object");

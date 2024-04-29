@@ -122,7 +122,7 @@ pub(crate) fn read_value_length_from_dataset(
             u16::from_le_bytes(buf) as u32
         }
     };
-    Ok(vl::from_value_length(value_length as u32))
+    Ok(vl::from_value_length(value_length))
 }
 
 /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.

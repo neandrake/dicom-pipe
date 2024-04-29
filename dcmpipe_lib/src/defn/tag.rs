@@ -57,16 +57,21 @@ impl Tag {
     /// Detects if the given tag is a private creator, which is defined to be an odd-numbered group
     /// number with an element number between 0x0010-0x00FF.
     pub fn is_private_creator(tag: u32) -> bool {
-        let tag_group: u32 = tag >> 16;
+        if !Tag::is_private(tag) {
+            return false;
+        }
         let tag_elem: u32 = tag & 0x0000_FFFF;
-        return tag_group % 2 == 1 && tag_elem >= 0x0010 && tag_elem <= 0x00FF;
+        (0x0010..=0x00FF).contains(&tag_elem)
     }
 
     /// Detects if the given tag is a private tag. This is only a basic/rudimentary check and is
     /// not based on previously registered private creators.
     pub fn is_private(tag: u32) -> bool {
         let tag_group: u32 = tag >> 16;
-        return tag_group % 2 == 1;
+        // See Part 5, Section 7.1:
+        // Private Data Elements have an odd Group Number that is not (0001,eeee), (0003,eeee),
+        // (0005,eeee), (0007,eeee), or (FFFF,eeee).
+        tag_group > 0x0008 && tag_group != 0xFFFF && tag_group % 2 == 1
     }
 
     /// Renders the tag number as `(gggg,eeee)`.
