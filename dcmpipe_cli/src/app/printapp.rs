@@ -79,7 +79,7 @@ impl CommandApplication for PrintApp {
     }
 }
 
-/// Renders an element on a single line, includes indentation based on depth in sequences
+/// Renders an element on a single line, includes indentation based on depth in sequences.
 /// ```
 /// (gggg,eeee) VR TagName [VL] | TagValue
 /// ```
@@ -87,7 +87,6 @@ impl CommandApplication for PrintApp {
 /// ```
 /// (gggg,eeee) VR TagName [0] <empty>
 /// ```
-/// Names for unknown tags will render as `<UnknownTag>`
 fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
     // Group Length tags are deprecated, see note on Part 5 Section 7.2
     if HIDE_GROUP_TAGS && element.tag().trailing_zeros() >= 16 {

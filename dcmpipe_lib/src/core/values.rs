@@ -13,7 +13,7 @@ pub struct ElementWithVr<'e>(pub &'e DicomElement, pub VRRef);
 pub struct Attribute(pub u32);
 
 /// Wrapper around an element's value parsed into a native/raw type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RawValue {
     Attribute(Vec<Attribute>),
     Uid(String),

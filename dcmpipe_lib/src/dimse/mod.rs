@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::core::read::ParseError;
+
 pub mod commands;
 pub mod pdus;
 
@@ -38,16 +40,25 @@ pub enum DimseError {
     #[error("invalid pdu type: {0:04X}")]
     InvalidPduType(u8),
 
+    #[error("invalid ae title: {0:?}")]
+    InvalidAeTitle(Vec<u8>),
+
+    #[error("unexpected end of byte stream")]
+    UnexpectedEOF,
+
+    #[error("element missing from request: {0}")]
+    ElementMissingFromRequest(String),
+
+    #[error("error parsing value from request")]
+    ParseError {
+        #[from]
+        source: ParseError,
+    },
+
     /// Wrapper around `std::io::Error`.
     #[error("i/o error reading from dataset")]
     IOError {
         #[from]
         source: std::io::Error,
     },
-
-    #[error("invalid ae title: {0:?}")]
-    InvalidAeTitle(Vec<u8>),
-
-    #[error("unexpected end of byte stream")]
-    UnexpectedEOF,
 }
