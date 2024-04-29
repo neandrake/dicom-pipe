@@ -1,4 +1,6 @@
+//! This is an auto-generated file. Do not make modifications here.
 
+use core::uid::UID;
 /// Verification SOP Class
 /// 
 /// - **UID:** 1.2.840.10008.1.1
@@ -223,8 +225,8 @@ pub static JPEGLosslessHierarchicalProcess29_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.1.2.4.70
 /// - **UID Type:** Transfer Syntax
-pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14[SelectionValue1]_DefaultTransferSyntaxforLosslessJPEGImageCompression: UID = UID {
-    ident: "JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14[SelectionValue1]_DefaultTransferSyntaxforLosslessJPEGImageCompression",
+pub static JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1_DefaultTransferSyntaxforLosslessJPEGImageCompression: UID = UID {
+    ident: "JPEGLosslessNonHierarchicalFirstOrderPredictionProcess14SelectionValue1_DefaultTransferSyntaxforLosslessJPEGImageCompression",
     uid: "1.2.840.10008.1.2.4.70",
     name: "JPEG Lossless, Non-Hierarchical, First-Order Prediction (Process 14 [Selection Value 1]): Default Transfer Syntax for Lossless JPEG Image Compression",
 };
@@ -1613,8 +1615,8 @@ pub static WaveformStorageTrial_Retired: UID = UID {
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.9.1.1
 /// - **UID Type:** SOP Class
-pub static 12leadECGWaveformStorage: UID = UID {
-    ident: "12leadECGWaveformStorage",
+pub static Tag_12leadECGWaveformStorage: UID = UID {
+    ident: "Tag_12leadECGWaveformStorage",
     uid: "1.2.840.10008.5.1.4.1.1.9.1.1",
     name: "12-lead ECG Waveform Storage",
 };
@@ -1839,16 +1841,6 @@ pub static XRayAngiographicBiPlaneImageStorage_Retired: UID = UID {
     name: "X-Ray Angiographic Bi-Plane Image Storage (Retired)",
 };
 
-/// (Retired)
-/// 
-/// - **UID:** 1.2.840.10008.5.1.4.1.1.12.77
-/// - **UID Type:** SOP Class
-pub static _Retired: UID = UID {
-    ident: "_Retired",
-    uid: "1.2.840.10008.5.1.4.1.1.12.77",
-    name: "(Retired)",
-};
-
 /// X-Ray 3D Angiographic Image Storage
 /// 
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.13.1.1
@@ -1937,16 +1929,6 @@ pub static ParametricMapStorage: UID = UID {
     ident: "ParametricMapStorage",
     uid: "1.2.840.10008.5.1.4.1.1.30",
     name: "Parametric Map Storage",
-};
-
-/// (Retired)
-/// 
-/// - **UID:** 1.2.840.10008.5.1.4.1.1.40
-/// - **UID Type:** SOP Class
-pub static _Retired: UID = UID {
-    ident: "_Retired",
-    uid: "1.2.840.10008.5.1.4.1.1.40",
-    name: "(Retired)",
 };
 
 /// Raw Data Storage

@@ -1,5 +1,6 @@
-#![allow(dead_code)]
 #![allow(non_camel_case_types)]
+
+//! Value Representation
 
 use std::hash::{Hash, Hasher};
 
@@ -12,6 +13,18 @@ pub struct VR {
 
 	/// Part 5, 7.1.2 -- Total bytes for Tag, VR, and VL
 	pub explicit_vr_header_bytes: u32,
+}
+
+impl PartialEq for VR {
+	fn eq(&self, other: &VR) -> bool {
+		self.code.eq(&other.code)
+	}
+}
+
+impl Hash for VR {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		self.code.hash(state)
+	}
 }
 
 impl VR {
@@ -50,18 +63,6 @@ impl VR {
 			0x5554 => Some(&UT),
 			_ => None,
 		}
-	}
-}
-
-impl PartialEq for VR {
-	fn eq(&self, other: &VR) -> bool {
-		self.code.eq(&other.code)
-	}
-}
-
-impl Hash for VR {
-	fn hash<H: Hasher>(&self, state: &mut H) {
-		self.code.hash(state)
 	}
 }
 
