@@ -1,6 +1,7 @@
 use crate::core::charset::CSRef;
 use crate::core::dict::lookup::TAG_BY_VALUE;
 use crate::core::tag::Tag;
+use crate::core::ts::TSRef;
 use crate::core::vl::ValueLength;
 use crate::core::vr;
 use crate::core::vr::{VRRef, CHARACTER_STRING_SEPARATOR};
@@ -63,8 +64,8 @@ pub struct DicomElement {
     data: Cursor<Vec<u8>>,
     sequence_path: Vec<DicomSequencePosition>,
 
+    ts: TSRef,
     cs: CSRef,
-    be: bool,
 }
 
 /// A nice user-readable display of the element such as
@@ -88,8 +89,8 @@ impl DicomElement {
         tag: u32,
         vr: VRRef,
         vl: ValueLength,
+        ts: TSRef,
         cs: CSRef,
-        be: bool,
         data: Vec<u8>,
         sequence_path: Vec<DicomSequencePosition>,
     ) -> DicomElement {
@@ -98,8 +99,8 @@ impl DicomElement {
             tag,
             vr,
             vl,
+            ts,
             cs,
-            be,
 
             data: Cursor::new(data),
             sequence_path,
@@ -227,12 +228,12 @@ impl DicomElement {
     /// Associated VRs: AT
     pub fn parse_attribute(&mut self) -> Result<u32, Error> {
         self.reset_data_read();
-        let first: u32 = if self.be {
+        let first: u32 = if self.ts.is_big_endian() {
             u32::from(self.data.read_u16::<BigEndian>()?) << 16
         } else {
             u32::from(self.data.read_u16::<LittleEndian>()?) << 16
         };
-        let second: u32 = if self.be {
+        let second: u32 = if self.ts.is_big_endian() {
             u32::from(self.data.read_u16::<BigEndian>()?)
         } else {
             u32::from(self.data.read_u16::<LittleEndian>()?)
@@ -245,7 +246,7 @@ impl DicomElement {
     /// Associated VRs: FL
     pub fn parse_f32(&mut self) -> Result<f32, Error> {
         self.reset_data_read();
-        let result: f32 = if self.be {
+        let result: f32 = if self.ts.is_big_endian() {
             self.data.read_f32::<BigEndian>()?
         } else {
             self.data.read_f32::<LittleEndian>()?
@@ -261,7 +262,7 @@ impl DicomElement {
         let num_floats: usize = num_bytes / 4;
         let mut result: Vec<f32> = Vec::with_capacity(num_floats);
         for _ in 0..num_floats {
-            let val: f32 = if self.be {
+            let val: f32 = if self.ts.is_big_endian() {
                 self.data.read_f32::<BigEndian>()?
             } else {
                 self.data.read_f32::<LittleEndian>()?
@@ -275,7 +276,7 @@ impl DicomElement {
     /// Associated VRs: FD
     pub fn parse_f64(&mut self) -> Result<f64, Error> {
         self.reset_data_read();
-        let result: f64 = if self.be {
+        let result: f64 = if self.ts.is_big_endian() {
             self.data.read_f64::<BigEndian>()?
         } else {
             self.data.read_f64::<LittleEndian>()?
@@ -291,7 +292,7 @@ impl DicomElement {
         let num_doubles: usize = num_bytes / 8;
         let mut result: Vec<f64> = Vec::with_capacity(num_doubles);
         for _ in 0..num_doubles {
-            let val: f64 = if self.be {
+            let val: f64 = if self.ts.is_big_endian() {
                 self.data.read_f64::<BigEndian>()?
             } else {
                 self.data.read_f64::<LittleEndian>()?
@@ -306,7 +307,7 @@ impl DicomElement {
     pub fn parse_i16(&mut self) -> Result<i16, Error> {
         self.reset_data_read();
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
-        let result: i16 = if self.be {
+        let result: i16 = if self.ts.is_big_endian() {
             self.data.read_i16::<BigEndian>()?
         } else {
             self.data.read_i16::<LittleEndian>()?
@@ -322,7 +323,7 @@ impl DicomElement {
         let num_words: usize = num_bytes / 4;
         let mut result: Vec<i16> = Vec::with_capacity(num_words);
         for _ in 0..num_words {
-            let val: i16 = if self.be {
+            let val: i16 = if self.ts.is_big_endian() {
                 self.data.read_i16::<BigEndian>()?
             } else {
                 self.data.read_i16::<LittleEndian>()?
@@ -337,7 +338,7 @@ impl DicomElement {
     pub fn parse_i32(&mut self) -> Result<i32, Error> {
         self.reset_data_read();
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
-        let result: i32 = if self.be {
+        let result: i32 = if self.ts.is_big_endian() {
             self.data.read_i32::<BigEndian>()?
         } else {
             self.data.read_i32::<LittleEndian>()?
@@ -353,7 +354,7 @@ impl DicomElement {
         let num_longs: usize = num_bytes / 4;
         let mut result: Vec<i32> = Vec::with_capacity(num_longs);
         for _ in 0..num_longs {
-            let val: i32 = if self.be {
+            let val: i32 = if self.ts.is_big_endian() {
                 self.data.read_i32::<BigEndian>()?
             } else {
                 self.data.read_i32::<LittleEndian>()?
@@ -367,7 +368,7 @@ impl DicomElement {
     /// Associated VRs: UL
     pub fn parse_u32(&mut self) -> Result<u32, Error> {
         self.reset_data_read();
-        let result: u32 = if self.be {
+        let result: u32 = if self.ts.is_big_endian() {
             self.data.read_u32::<BigEndian>()?
         } else {
             self.data.read_u32::<LittleEndian>()?
@@ -379,7 +380,7 @@ impl DicomElement {
     /// Associated VRs: US
     pub fn parse_u16(&mut self) -> Result<u16, Error> {
         self.reset_data_read();
-        let result: u16 = if self.be {
+        let result: u16 = if self.ts.is_big_endian() {
             self.data.read_u16::<BigEndian>()?
         } else {
             self.data.read_u16::<LittleEndian>()?

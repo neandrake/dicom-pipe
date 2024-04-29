@@ -1,5 +1,6 @@
 use crate::core::dcmelement::DicomElement;
-use std::collections::hash_map::HashMap;
+use std::collections::BTreeMap;
+use std::collections::btree_map::IterMut;
 use std::io::{Error, ErrorKind};
 
 pub struct DicomObject {
@@ -7,26 +8,30 @@ pub struct DicomObject {
     /// element itself.
     element: Option<DicomElement>,
     /// Child nodes which may be elements of sub-sequences
-    child_nodes: HashMap<u32, DicomObject>,
+    child_nodes: BTreeMap<u32, DicomObject>,
 }
 
 impl DicomObject {
     pub fn new_root() -> DicomObject {
         DicomObject {
             element: None,
-            child_nodes: HashMap::new(),
+            child_nodes: BTreeMap::new(),
         }
     }
 
     pub fn new_with_element(element: DicomElement) -> DicomObject {
         DicomObject {
             element: Some(element),
-            child_nodes: HashMap::new(),
+            child_nodes: BTreeMap::new(),
         }
     }
 
     pub fn as_element(&mut self) -> Option<&mut DicomElement> {
         self.element.as_mut()
+    }
+
+    pub fn get_object_count(&self) -> usize {
+        self.child_nodes.len()
     }
 
     pub fn get_object(&mut self, tag: u32) -> Option<&mut DicomObject> {
@@ -41,5 +46,9 @@ impl DicomObject {
             return Err(Error::new(ErrorKind::InvalidData, "Attempting to insert root node as child"));
         }
         Ok(self.child_nodes.insert(tag, object))
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<u32, DicomObject> {
+        self.child_nodes.iter_mut()
     }
 }
