@@ -199,7 +199,7 @@ impl TagNode {
         let mut tag_id = value;
         if let Some((name_part, index_part)) = value.rsplit_once('[') {
             if let Some((index_part, _bracket)) = index_part.rsplit_once(']') {
-                if let Ok(parsed) = usize::from_str_radix(index_part, 10) {
+                if let Ok(parsed) = index_part.parse::<usize>() {
                     index = Some(parsed);
                 }
             }
@@ -209,22 +209,19 @@ impl TagNode {
         let lookup = dict.and_then(|d| d.get_tag_by_name(tag_id));
         if let Some(tag) = lookup {
             Ok(TagNode::new(tag.tag, index))
+        } else if let Some((group, tag)) = value.trim_matches(&['(', ')']).split_once(',') {
+            let group = u16::from_str_radix(group, 16).map_err(|e| ParseError::InvalidTagPath {
+                string_path: e.to_string(),
+            })?;
+            let tag = u16::from_str_radix(tag, 16).map_err(|e| ParseError::InvalidTagPath {
+                string_path: e.to_string(),
+            })?;
+            let full_tag: u32 = ((group as u32) << 16) + ((tag as u32) & 0x0000_FFFF);
+            Ok(TagNode::new(full_tag, index))
         } else {
-            if let Some((group, tag)) = value.trim_matches(&['(', ')']).split_once(',') {
-                let group =
-                    u16::from_str_radix(group, 16).map_err(|e| ParseError::InvalidTagPath {
-                        string_path: e.to_string(),
-                    })?;
-                let tag = u16::from_str_radix(tag, 16).map_err(|e| ParseError::InvalidTagPath {
-                    string_path: e.to_string(),
-                })?;
-                let full_tag: u32 = ((group as u32) << 16) + ((tag as u32) & 0x0000_FFFF);
-                Ok(TagNode::new(full_tag, index))
-            } else {
-                Err(ParseError::InvalidTagPath {
-                    string_path: value.to_string(),
-                })
-            }
+            Err(ParseError::InvalidTagPath {
+                string_path: value.to_string(),
+            })
         }
     }
 }

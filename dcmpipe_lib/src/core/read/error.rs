@@ -100,7 +100,5 @@ pub enum ParseError {
 
     /// An error when a text/string representation of a tagpath is unable to be parsed/resolved.
     #[error("unable to resolve tagpath: {string_path}")]
-    InvalidTagPath {
-        string_path: String,
-    }
+    InvalidTagPath { string_path: String },
 }

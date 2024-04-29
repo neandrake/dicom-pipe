@@ -132,7 +132,7 @@ impl CommandApplication for BrowseApp {
 }
 
 impl<'app> DicomDocumentModel<'app> {
-    fn parse<'dict>(path: &'app Path, dcmroot: &DicomRoot) -> DicomDocumentModel<'app> {
+    fn parse(path: &'app Path, dcmroot: &DicomRoot) -> DicomDocumentModel<'app> {
         let node_models = DicomNodeModel::parse(dcmroot.as_obj());
         let count = node_models.len();
         DicomDocumentModel {
@@ -411,7 +411,7 @@ impl<'app> BrowseApp {
                                 None
                             }
                         })
-                        .map(|selected| get_tagpath(selected))
+                        .map(get_tagpath)
                         .unwrap_or_else(|| current_tagpath.clone())
                 };
 
