@@ -107,6 +107,8 @@ impl<StreamType: Read> ParserBuilder<StreamType> {
             fmi_grouplength: 0,
             tag_last_read: 0,
             partial_tag: None,
+            partial_vr: None,
+            partial_vl: None,
             ts: &ts::ExplicitVRLittleEndian,
             cs: DEFAULT_CHARACTER_SET,
             current_path: Vec::new(),
@@ -169,6 +171,9 @@ pub struct Parser<StreamType: Read> {
     /// may be only partially parsed either due to IO errors or `TagStop`.
     partial_tag: Option<u32>,
 
+    partial_vr: Option<VRRef>,
+    partial_vl: Option<ValueLength>,
+
     /// The transfer syntax used for this stream. This defaults to `ExplicitVRLittleEndian` which is
     /// the transfer syntax used for parsing File Meta section despite the default DICOM transfer
     /// syntax being `ImplicitVRLittleEndian`.
@@ -191,6 +196,76 @@ pub struct Parser<StreamType: Read> {
     /// to read from the stream. This is used to track when the iterator should be considered fully
     /// consumed in those cases and prevent further attempts at reading from the stream.
     iterator_ended: bool,
+}
+
+/// Reads a tag attribute from a given stream
+fn read_tag_from_stream(
+    stream: &mut impl Read,
+    ts: TSRef,
+) -> Result<u32, Error> {
+    let mut buf: [u8; 2] = [0; 2];
+
+    stream.read_exact(&mut buf)?;
+    let group_number: u32 = if ts.is_big_endian() {
+        u32::from(u16::from_be_bytes(buf)) << 16
+    } else {
+        u32::from(u16::from_le_bytes(buf)) << 16
+    };
+
+    stream.read_exact(&mut buf)?;
+    let element_number: u32 = if ts.is_big_endian() {
+        u32::from(u16::from_be_bytes(buf))
+    } else {
+        u32::from(u16::from_le_bytes(buf))
+    };
+
+    let tag: u32 = group_number + element_number;
+    Ok(tag)
+}
+
+/// Reads a VR from a given stream
+fn read_vr_from_stream(stream: &mut impl Read) -> Result<VRRef, Error> {
+    let mut buf: [u8; 2] = [0; 2];
+    stream.read_exact(&mut buf)?;
+    let first_char: u8 = buf[0];
+    let second_char: u8 = buf[1];
+
+    let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
+    let vr: VRRef = match VR::from_code(code) {
+        Some(found_vr) => {
+            if found_vr.has_explicit_2byte_pad {
+                stream.read_exact(&mut buf)?;
+            }
+            found_vr
+        },
+        None => &vr::UN,
+    };
+
+    Ok(vr)
+}
+
+/// Reads a Value Length from a given stream
+fn read_value_length_from_stream(stream: &mut impl Read, read_4bytes: bool, big_endian: bool) -> Result<ValueLength, Error> {
+    let value_length: u32 = if read_4bytes {
+        let mut buf: [u8; 4] = [0; 4];
+        stream.read_exact(&mut buf)?;
+
+        if big_endian {
+            u32::from_be_bytes(buf)
+        } else {
+            u32::from_le_bytes(buf)
+        }
+    } else {
+        let mut buf: [u8; 2] = [0; 2];
+        stream.read_exact(&mut buf)?;
+
+        if big_endian {
+            u32::from(u16::from_be_bytes(buf))
+        } else {
+            u32::from(u16::from_le_bytes(buf))
+        }
+    };
+    Ok(vl::from_value_length(value_length))
 }
 
 impl<StreamType: Read> Parser<StreamType> {
@@ -242,52 +317,11 @@ impl<StreamType: Read> Parser<StreamType> {
 
     /// Reads a tag attribute from the stream
     fn read_tag(&mut self, ts: TSRef) -> Result<u32, Error> {
-        let mut buf: [u8; 2] = [0; 2];
-        self.stream.read_exact(&mut buf)?;
-        self.bytes_read += 2;
-
-        let group_number: u32 = if ts.is_big_endian() {
-            u32::from(u16::from_be_bytes(buf)) << 16
-        } else {
-            u32::from(u16::from_le_bytes(buf)) << 16
-        };
-
-        self.stream.read_exact(&mut buf)?;
-        self.bytes_read += 2;
-        let element_number: u32 = if ts.is_big_endian() {
-            u32::from(u16::from_be_bytes(buf))
-        } else {
-            u32::from(u16::from_le_bytes(buf))
-        };
-
-        let tag: u32 = group_number + element_number;
-        Ok(tag)
-    }
-
-    /// Reads a tag attribute from a given buffer instead of the parser's stream
-    fn read_tag_from_stream(
-        &mut self,
-        stream: &mut Cursor<&[u8]>,
-        ts: TSRef,
-    ) -> Result<u32, Error> {
-        let mut buf: [u8; 2] = [0; 2];
-
-        stream.read_exact(&mut buf)?;
-        let group_number: u32 = if ts.is_big_endian() {
-            u32::from(u16::from_be_bytes(buf)) << 16
-        } else {
-            u32::from(u16::from_le_bytes(buf)) << 16
-        };
-
-        stream.read_exact(&mut buf)?;
-        let element_number: u32 = if ts.is_big_endian() {
-            u32::from(u16::from_be_bytes(buf))
-        } else {
-            u32::from(u16::from_le_bytes(buf))
-        };
-
-        let tag: u32 = group_number + element_number;
-        Ok(tag)
+        let result: Result<u32, Error> = read_tag_from_stream(&mut self.stream, ts);
+        if let Ok(_) = result {
+            self.bytes_read += 4;
+        }
+        result
     }
 
     /// Reads the remainder of the dicom element from the stream. This assumes `self.read_tag()` was
@@ -309,12 +343,23 @@ impl<StreamType: Read> Parser<StreamType> {
             ts
         };
 
-        let vr_ts: (VRRef, TSRef) = self.read_vr(tag, ts)?;
+        let vr_ts: (VRRef, TSRef) = if let Some(partial_vr) = self.partial_vr {
+            self.partial_vr.take();
+            (partial_vr, ts)
+        } else {
+            self.read_vr(tag, ts)?
+        };
+
         let vr: VRRef = vr_ts.0;
         // If VR is explicitly UN but we can tell it's SQ then the inner elements are encoded as
         // IVRLE -- but only the contents should be parsed as such, do not switch transfer syntax
         // prior to reading in the value length.
-        let vl: ValueLength = self.read_value_length(vr, ts)?;
+        let vl: ValueLength = if let Some(partial_vl) = self.partial_vl {
+            self.partial_vl.take();
+            partial_vl
+        } else {
+            self.read_value_length(vr, ts)?
+        };
 
         let parse_as_seq: bool = should_parse_as_seq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
@@ -349,19 +394,14 @@ impl<StreamType: Read> Parser<StreamType> {
             return Ok((self.lookup_vr(tag)?, ts));
         }
 
-        let mut buf: [u8; 2] = [0; 2];
-        self.stream.read_exact(&mut buf)?;
-        self.bytes_read += 2;
-        let first_char: u8 = buf[0];
-        let second_char: u8 = buf[1];
-
-        let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
-        let mut vr: VRRef = VR::from_code(code).unwrap_or(&vr::UN);
-
-        if vr.has_explicit_2byte_pad {
-            self.stream.read_exact(&mut buf)?;
+        let result: Result<VRRef, Error> = read_vr_from_stream(&mut self.stream);
+        if let Ok(vr) = result {
             self.bytes_read += 2;
+            if vr.has_explicit_2byte_pad {
+                self.bytes_read += 2;
+            }
         }
+        let mut vr: VRRef = result?;
 
         // Part 5 Section 6.2.2 Note 2
         // If at some point an application knows the actual VR for an Attribute of VR UN
@@ -392,28 +432,16 @@ impl<StreamType: Read> Parser<StreamType> {
 
     /// Reads a Value Length attribute from the stream using the given transfer syntax.
     fn read_value_length(&mut self, vr: VRRef, ts: TSRef) -> Result<ValueLength, Error> {
-        let value_length: u32 = if !ts.explicit_vr || vr.has_explicit_2byte_pad {
-            let mut buf: [u8; 4] = [0; 4];
-            self.stream.read_exact(&mut buf)?;
-            self.bytes_read += 4;
-
-            if ts.is_big_endian() {
-                u32::from_be_bytes(buf)
+        let read_4bytes: bool = !ts.explicit_vr || vr.has_explicit_2byte_pad;
+        let result: Result<ValueLength, Error> = read_value_length_from_stream(&mut self.stream, read_4bytes, ts.big_endian);
+        if let Ok(_) = result {
+            if !ts.explicit_vr || vr.has_explicit_2byte_pad {
+                self.bytes_read += 4;
             } else {
-                u32::from_le_bytes(buf)
+                self.bytes_read += 2;
             }
-        } else {
-            let mut buf: [u8; 2] = [0; 2];
-            self.stream.read_exact(&mut buf)?;
-            self.bytes_read += 2;
-
-            if ts.is_big_endian() {
-                u32::from(u16::from_be_bytes(buf))
-            } else {
-                u32::from(u16::from_le_bytes(buf))
-            }
-        };
-        Ok(vl::from_value_length(value_length))
+        }
+        result
     }
 
     /// Reads the value field of the dicom element into a byte array. If the given `ValueLength` is
@@ -522,60 +550,118 @@ impl<StreamType: Read> Parser<StreamType> {
 
     /// Performs the `ParserState::DetectState` iteration
     fn iterate_detect_state(&mut self) -> Result<(), Error> {
+        // start off assuming IVRLE
+        let mut ts: TSRef = &ts::ImplicitVRLittleEndian;
+
+        let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
+        let mut bytes_read: usize = 0;
+
         // Read in enough bytes to determine if we're reading valid dicom.
         // Right now this is determined by reading a tag using the default transfer
         // syntax and verifying we know it's VR in the VR lookup table.
         let mut buf: [u8; 4] = [0; 4];
         self.stream.read_exact(&mut buf)?;
+
+        // copy the read bytes into preamble in case we determine there is a preamble
+        file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
+        bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
-        let tag: u32 = self.read_tag_from_stream(&mut cursor, &ts::ImplicitVRLittleEndian)?;
+        let mut tag: u32 = read_tag_from_stream(&mut cursor, ts)?;
+
+        eprintln!("DETECTIVE 1");
+        // quick check for common case of being zeroed-out data
         if tag == 0 {
-            // quick check for common case of being zeroed-out data
-            self.finalize_preamble(&buf)?;
+            self.stream.read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
+            self.bytes_read += file_preamble.len() as u64;
+            self.file_preamble = Some(file_preamble);
+            self.state = ParseState::Prefix;
             return Ok(());
         }
 
-        if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
-            // quick check if we're reading beginning of file meta, continue from there
+        eprintln!("DETECTIVE 2");
+        // quick check if we're reading beginning of file meta, continue from there
+        if tag >= tags::FILE_META_GROUP_START && tag < tags::FILE_META_GROUP_END {
             self.partial_tag = Some(tag);
+            self.bytes_read += bytes_read as u64;
             self.state = ParseState::GroupLength;
             return Ok(());
-        } else if tag >= tags::STANDARD_GROUP && tag <= tags::SOP_INSTANCE_UID {
-
-        } else {
-            let vr: VRRef = self.lookup_vr(tag)?;
-
-            // unknown tag and not a group-length tag then assume it's not dicom encoded
-            if vr == &vr::UN && tag.trailing_zeros() < 16 {
-                self.finalize_preamble(&buf)?;
-                return Ok(());
-            }
         }
 
-        cursor.set_position(0);
+        eprintln!("DETECTIVE 3");
+        // if not an expected non-file-meta tag then try big-endian
+        if tag > tags::SOP_INSTANCE_UID {
+            cursor.set_position(0);
+            ts = &ts::ExplicitVRBigEndian;
+            tag = read_tag_from_stream(&mut cursor, ts)?;
+        }
 
+        eprintln!("DETECTIVE 4");
+        // doesn't appear to be a valid tag in either big or little endian, assume it's preamble
+        if tag > tags::SOP_INSTANCE_UID {
+            self.stream.read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
+            self.bytes_read += file_preamble.len() as u64;
+            self.file_preamble = Some(file_preamble);
+            self.state = ParseState::Prefix;
+            return Ok(());
+        }
 
-        // known tag that's not file meta, use DICOM default transfer syntax
+        eprintln!("DETECTIVE 5");
         self.partial_tag = Some(tag);
-        self.ts = &ts::ImplicitVRLittleEndian;
-        self.state = ParseState::Element;
-        Ok(())
-    }
+        let mut buf: [u8; 4] = [0; 4];
+        self.stream.read_exact(&mut buf)?;
 
-    /// Used when detecting if the stream has a file preamble. In the event the parser detects that
-    /// there is a preamble then this takes the currently parsed bytes as input, copies them into
-    /// the preamble field and reads in the remainder of the preamble from the stream.
-    fn finalize_preamble(&mut self, buf: &[u8]) -> Result<(), Error> {
-        let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
-        file_preamble[..buf.len()].copy_from_slice(&buf);
-        let file_preamble_len: usize = file_preamble.len();
-        self.stream
-            .read_exact(&mut file_preamble[buf.len()..file_preamble_len])?;
+        eprintln!("DETECTIVE 6");
+        file_preamble[bytes_read..(bytes_read + buf.len())].copy_from_slice(&buf);
+        bytes_read += buf.len();
+        let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
+
+        eprintln!("DETECTIVE 7");
+        // Read value length and if it has a reasonably low number assume implicit VR
+        let vl: ValueLength = read_value_length_from_stream(&mut cursor, true, ts.big_endian)?;
+        match vl {
+            ValueLength::Explicit(len) => if len < 100 {
+                self.ts = ts;
+                self.partial_vr = Some(self.lookup_vr(tag)?);
+                self.partial_vl = Some(vl);
+                self.bytes_read += bytes_read as u64;
+                self.state = ParseState::Element;
+                return Ok(());
+            },
+            _ => {}
+        }
+
+        eprintln!("DETECTIVE 8");
+        // otherwise backtrack and try to parse a vr and then vl
+        cursor.set_position(0);
+        let vr: VRRef = read_vr_from_stream(&mut cursor)?;
+
+        eprintln!("DETECTIVE 9");
+        let vl: ValueLength = read_value_length_from_stream(&mut cursor, false, ts.big_endian)?;
+        match vl {
+            // if value length is "reasonable" for an early tag
+            ValueLength::Explicit(len) => if len < 100 {
+                self.ts = if ts.big_endian {
+                    &ts::ExplicitVRBigEndian
+                } else {
+                    &ts::ExplicitVRLittleEndian
+                };
+                self.partial_vr = Some(vr);
+                self.partial_vl = Some(vl);
+                self.bytes_read += bytes_read as u64;
+                self.state = ParseState::Element;
+                return Ok(());
+            },
+            _ => {}
+        }
+
+        eprintln!("DETECTIVE 10");
+        // garbage data, assume preamble
+        self.stream.read_exact(&mut file_preamble[bytes_read..FILE_PREAMBLE_LENGTH])?;
         self.bytes_read += file_preamble.len() as u64;
         self.file_preamble = Some(file_preamble);
         self.state = ParseState::Prefix;
-        Ok(())
+        return Ok(());
     }
 
     /// Performs the `ParserState::Preamble` iteration
@@ -597,7 +683,7 @@ impl<StreamType: Read> Parser<StreamType> {
             if dicom_prefix[n] != *prefix_item {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
-                    format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix),
+                    format!("Invalid DICOM Prefix: {:?}", dicom_prefix),
                 ));
             }
         }
