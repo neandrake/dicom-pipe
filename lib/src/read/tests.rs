@@ -2,16 +2,13 @@ extern crate byteorder;
 extern crate walkdir;
 
 use byteorder::ReadBytesExt;
-
 use core::dict::dicom_elements as tags;
-use read::dcmiterator::{DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
+use read::dcmparser::{DicomStreamParser, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::mock::MockDicomStream;
 use read::tagstop::TagStop;
-
 use std::fs::File;
 use std::io::Seek;
 use std::path::Path;
-
 use self::walkdir::{DirEntry, WalkDir};
 
 static FIXTURE_DATASET1_FOLDER: &'static str = "../fixtures/dataset1";

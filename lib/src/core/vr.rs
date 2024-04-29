@@ -2,7 +2,6 @@
 
 use encoding::all::WINDOWS_1252;
 use encoding::types::EncodingRef;
-
 use std::hash::{Hash, Hasher};
 use std::fmt;
 

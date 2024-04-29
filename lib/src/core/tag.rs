@@ -2,7 +2,6 @@
 
 use core::vm::VMRef;
 use core::vr::VRRef;
-
 use std::hash::{Hash, Hasher};
 use std::fmt::{Formatter, LowerHex, Result as FmtResult, UpperHex};
 

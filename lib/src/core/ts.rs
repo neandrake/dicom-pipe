@@ -1,7 +1,6 @@
 //! Transfer Syntax UIDs
 
 use core::uid::UIDRef;
-
 use std::hash::{Hash, Hasher};
 
 pub type TSRef = &'static TransferSyntax;
