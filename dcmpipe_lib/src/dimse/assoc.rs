@@ -14,9 +14,17 @@
    limitations under the License.
 */
 
-use crate::dimse::{
-    commands::messages::CommandMessage,
-    pdus::mainpdus::{Abort, PresentationDataValue},
+use crate::{
+    core::{
+        dcmobject::DicomRoot,
+        write::{builder::WriterBuilder, writer::WriterState},
+    },
+    dict::transfer_syntaxes::ImplicitVRLittleEndian,
+    dimse::{
+        commands::messages::CommandMessage,
+        error::{AssocError, DimseError},
+        pdus::mainpdus::{Abort, PresentationDataValue},
+    },
 };
 
 pub mod scp;
@@ -28,4 +36,19 @@ pub enum DimseMsg {
     Dataset(PresentationDataValue),
     ReleaseRQ,
     Abort(Abort),
+}
+
+/// Serialize the given `DicomRoot` into in-memory bytes, using IVRLE.
+///
+/// # Errors
+/// An I/O error may occur when writing to the in-memory `Vec`.
+pub fn serialize(dicom: &DicomRoot) -> Result<Vec<u8>, AssocError> {
+    let mut ds_writer = WriterBuilder::default()
+        .state(WriterState::Element)
+        .ts(&ImplicitVRLittleEndian)
+        .build(Vec::<u8>::new());
+    ds_writer
+        .write_dcmroot(dicom)
+        .map_err(|e| AssocError::ab_invalid_pdu(DimseError::WriteError(e)))?;
+    Ok(ds_writer.into_dataset())
 }

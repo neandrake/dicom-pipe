@@ -28,6 +28,7 @@ pub(crate) mod browseapp;
 pub(crate) mod indexapp;
 pub(crate) mod printapp;
 pub(crate) mod scpapp;
+pub(crate) mod scuapp;
 
 pub(crate) trait CommandApplication {
     fn run(&mut self) -> Result<()>;

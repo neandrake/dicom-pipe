@@ -87,7 +87,7 @@ impl CommandApplication for SvcProviderApp {
             HashSet::<String>::with_capacity(0)
         };
 
-        let accept_abs = HashSet::from([
+        let supported_abs = HashSet::from([
             &VerificationSOPClass,
             &PatientRootQueryRetrieveInformationModelFIND,
             &StudyRootQueryRetrieveInformationModelFIND,
@@ -105,7 +105,7 @@ impl CommandApplication for SvcProviderApp {
             &RTDoseStorage,
             &RTPlanStorage,
         ]);
-        let accept_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
+        let supported_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
         for (stream_id, stream) in listener.incoming().enumerate() {
             let stream = stream?;
             let db = self.args.db.clone();
@@ -113,8 +113,8 @@ impl CommandApplication for SvcProviderApp {
                 .id(stream_id)
                 .host_ae(self.args.aetitle.clone())
                 .accept_aets(accept_aets.clone())
-                .accept_abs(accept_abs.clone())
-                .accept_ts(accept_ts.clone())
+                .supported_abs(supported_abs.clone())
+                .supported_ts(supported_ts.clone())
                 .build();
             pool.execute(move || {
                 let reader = BufReader::new(&stream);

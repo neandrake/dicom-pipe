@@ -17,7 +17,7 @@
 use std::{fmt::Display, io::Write};
 
 use crate::{
-    core::{charset::CSError, read::ParseError, write::error::WriteError},
+    core::{charset::CSError, defn::uid::UIDRef, read::ParseError, write::error::WriteError},
     dimse::pdus::{
         mainpdus::{Abort, AssocRJ},
         PduType,
@@ -63,6 +63,9 @@ pub enum DimseError {
     /// Wrapper around `std::io::Error`.
     #[error("i/o error reading from dataset")]
     IOError(#[from] std::io::Error),
+
+    #[error("unsupported abstract syntax {0:?}")]
+    UnsupportedAbstractSyntax(UIDRef),
 
     /// Catch-all for error-states while interpreting the DIMSE stream.
     #[error("{0}")]

@@ -49,6 +49,9 @@ pub enum Command {
 
     /// Starts an SCP service.
     Scp(SvcProviderArgs),
+
+    /// Issue commands as an SCU.
+    Scu(SvcUserArgs),
 }
 
 #[derive(Args, Debug)]
@@ -120,4 +123,29 @@ pub struct SvcProviderArgs {
     /// If not specified then Query/Retrieve will not return results, and Store will not persist
     /// received series.
     pub db: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct SvcUserArgs {
+    /// The host/port to connect to.
+    #[arg(short, long)]
+    pub host: String,
+
+    /// The AE Title to represent this SCU.
+    #[arg(short, long)]
+    pub my_ae: String,
+
+    /// The target AE Title on the host.
+    #[arg(short, long)]
+    pub host_ae: String,
+
+    /// The SCU command to issue.
+    #[clap(subcommand)]
+    pub cmd: SvcUserCommand,
+}
+
+#[derive(Parser, Debug)]
+pub enum SvcUserCommand {
+    /// Issue a C-ECHO command.
+    Echo,
 }

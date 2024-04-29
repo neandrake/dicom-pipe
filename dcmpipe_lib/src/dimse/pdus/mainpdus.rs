@@ -1091,6 +1091,18 @@ pub struct PresentationDataValue {
 
 impl PresentationDataValue {
     /// Create a new `PresentationDataValue`.
+    ///
+    /// # Notes
+    /// `msg_header`, indicates the type of message. Use the `P_DATA_` constants.
+    /// LSB 0,
+    ///   0: The message contains a DICOM Data Set.
+    ///   1: The message contains a Command.
+    ///
+    /// LSB 1,
+    ///   0: The message fragment is not the last fragment.
+    ///   1: The message fragment is the last fragment.
+    ///
+    /// The other bits shall be zeros, but unchecked.
     #[must_use]
     pub fn new(ctx_id: u8, msg_header: u8, data: Vec<u8>) -> Self {
         let length: usize = size_of::<u8>() // ctx_id

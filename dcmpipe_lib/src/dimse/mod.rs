@@ -47,6 +47,14 @@ impl TryFrom<&[u8]> for AeTitle {
     }
 }
 
+impl TryFrom<&str> for AeTitle {
+    type Error = DimseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        AeTitle::try_from(value.as_bytes())
+    }
+}
+
 impl From<AeTitle> for [u8; 16] {
     fn from(value: AeTitle) -> Self {
         value.0

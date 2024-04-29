@@ -24,14 +24,10 @@ use crate::{
         charset::DEFAULT_CHARACTER_SET as CS,
         dcmobject::DicomRoot,
         defn::{dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef},
-        write::{builder::WriterBuilder, writer::WriterState},
     },
-    dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian,
-        uids::DICOMApplicationContextName,
-    },
+    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, uids::DICOMApplicationContextName},
     dimse::{
-        assoc::DimseMsg,
+        assoc::{serialize, DimseMsg},
         commands::{messages::CommandMessage, CommandStatus},
         error::{AssocError, DimseError},
         pdus::{
@@ -53,8 +49,8 @@ pub struct ServiceAssoc {
     _id: usize,
     host_ae: String,
     accept_aets: HashSet<String>,
-    accept_abs: HashSet<UIDRef>,
-    accept_ts: HashSet<TSRef>,
+    supported_abs: HashSet<UIDRef>,
+    supported_ts: HashSet<TSRef>,
     my_user_data: Vec<UserPdu>,
 
     /* Fields negotiated with other SCU. */
@@ -63,21 +59,6 @@ pub struct ServiceAssoc {
 }
 
 impl ServiceAssoc {
-    /// Serialize the given `DicomRoot` into in-memory bytes.
-    ///
-    /// # Errors
-    /// An I/O error may occur when writing to the in-memory `Vec`.
-    pub fn serialize(dicom: &DicomRoot) -> Result<Vec<u8>, AssocError> {
-        let mut ds_writer = WriterBuilder::default()
-            .state(WriterState::Element)
-            .ts(&ImplicitVRLittleEndian)
-            .build(Vec::<u8>::new());
-        ds_writer
-            .write_dcmroot(dicom)
-            .map_err(|e| AssocError::ab_invalid_pdu(DimseError::WriteError(e)))?;
-        Ok(ds_writer.into_dataset())
-    }
-
     /// Write the given PDU to the given writer.
     ///
     /// # Errors
@@ -103,6 +84,7 @@ impl ServiceAssoc {
                 return mli.max_length();
             }
         }
+        // 0 means no limit specified.
         0
     }
 
@@ -113,6 +95,7 @@ impl ServiceAssoc {
                 return mli.max_length();
             }
         }
+        // 0 means no limit specified.
         0
     }
 
@@ -184,6 +167,28 @@ impl ServiceAssoc {
     /// # Errors
     /// If the result of the request is to reject or abort, those are propagated as an `AssocError`.
     fn validate_assoc_rq(&mut self, rq: &AssocRQ) -> Result<AssocAC, AssocError> {
+        let host_ae = self.host_ae.trim();
+
+        let calling_ae = CS
+            .decode(rq.calling_ae())
+            .map(|ae| ae.trim().to_owned())
+            .map_err(|e| AssocError::ab_invalid_pdu(DimseError::from(e)))?;
+        if !self.accept_aets.is_empty() && !self.accept_aets.contains(&calling_ae) {
+            return Err(AssocError::rj_calling_aet(DimseError::GeneralError(
+                format!("Calling AE Title \"{calling_ae}\" not in accepted list"),
+            )));
+        }
+
+        let called_ae = CS
+            .decode(rq.called_ae())
+            .map(|ae| ae.trim().to_owned())
+            .map_err(|e| AssocError::ab_invalid_pdu(DimseError::CharsetError(e)))?;
+        if called_ae != host_ae {
+            return Err(AssocError::rj_called_aet(DimseError::GeneralError(
+                format!("Called AE \"{called_ae}\" is not host AE \"{host_ae}\""),
+            )));
+        }
+
         // There's only a single DICOM Standard defined Application Context Name. Private
         // Application Context Names are allowed by the standard.
         let app_ctx = String::try_from(&Syntax(rq.app_ctx().app_context_name()))
@@ -207,41 +212,11 @@ impl ServiceAssoc {
             )));
         }
 
-        let host_ae = self.host_ae.trim();
-
-        let calling_ae = CS
-            .decode(rq.calling_ae())
-            .map(|ae| ae.trim().to_owned())
-            .map_err(|e| AssocError::ab_invalid_pdu(DimseError::from(e)))?;
-        if !self.accept_aets.is_empty() && !self.accept_aets.contains(&calling_ae) {
-            return Err(AssocError::rj_calling_aet(DimseError::GeneralError(
-                format!("Calling AE Title \"{calling_ae}\" not in accepted list"),
-            )));
-        }
-
-        let called_ae = CS
-            .decode(rq.called_ae())
-            .map(|ae| ae.trim().to_owned())
-            .map_err(|e| AssocError::ab_invalid_pdu(DimseError::CharsetError(e)))?;
-        if called_ae != host_ae {
-            return Err(AssocError::rj_called_aet(DimseError::GeneralError(
-                format!("Called AE \"{called_ae}\" is not host AE \"{host_ae}\""),
-            )));
-        }
-
+        self.their_user_data.clear();
         self.their_user_data
             .append(rq.user_info().user_data().clone().as_mut());
-        /*
-        for user_pdu in rq.user_info().user_data() {
-            match user_pdu {
-                UserPdu::SOPClassExtendedNegotiationItem(_)
-                | UserPdu::SOPClassCommonExtendedNegotiationItem(_)
-                | UserPdu::UserIdentityItem(_)
-                | UserPdu::UserIdentityNegotiationItem(_) => {}
-                _ => {}
-            }
-        }
-        */
+
+        // TODO: Do things with SOPClassCommonExtendedNegotiationItem, UserIdentityItem, etc.
 
         // Check the proposed presentation contexts and create responses for each.
         let mut rsp_pres_ctx: Vec<AssocACPresentationContext> =
@@ -252,7 +227,7 @@ impl ServiceAssoc {
                 .iter()
                 .filter_map(|ts| String::try_from(&Syntax(ts.transfer_syntaxes())).ok())
                 .filter_map(|ts| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&ts))
-                .find(|ts| self.accept_ts.contains(ts));
+                .find(|ts| self.supported_ts.contains(ts));
 
             let Some(ts) = ts else {
                 let deny_pres_ctx = AssocACPresentationContext::new(
@@ -267,7 +242,7 @@ impl ServiceAssoc {
             let ab = String::try_from(&Syntax(req_pres_ctx.abstract_syntax().abstract_syntax()))
                 .ok()
                 .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&ab))
-                .filter(|ab| self.accept_abs.contains(ab));
+                .filter(|ab| self.supported_abs.contains(ab));
 
             if ab.is_none() {
                 let deny_pres_ctx = AssocACPresentationContext::new(
@@ -352,7 +327,7 @@ impl ServiceAssoc {
         let status = CommandStatus::success();
         let rsp_cmd = CommandMessage::c_echo_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
-        let cmd_rsp_data = ServiceAssoc::serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -376,7 +351,7 @@ impl ServiceAssoc {
         let status = CommandStatus::pending();
         let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
-        let cmd_rsp_data = ServiceAssoc::serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -384,7 +359,7 @@ impl ServiceAssoc {
                 cmd_rsp_data,
             )]));
 
-        let dcm_rsp_data = ServiceAssoc::serialize(res)?;
+        let dcm_rsp_data = serialize(res)?;
         let dcm_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -407,7 +382,7 @@ impl ServiceAssoc {
         let status = CommandStatus::success();
         let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
 
-        let cmd_rsp_data = ServiceAssoc::serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -430,7 +405,7 @@ impl ServiceAssoc {
     ) -> Result<Pdu, AssocError> {
         let rsp_cmd = CommandMessage::c_store_rsp(ctx_id, msg_id, aff_sop_class, status);
 
-        let cmd_rsp_data = ServiceAssoc::serialize(rsp_cmd.message())?;
+        let cmd_rsp_data = serialize(rsp_cmd.message())?;
         let cmd_rsp_pdi =
             Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
                 ctx_id,
@@ -447,8 +422,8 @@ pub struct ServiceAssocBuilder {
     id: usize,
     host_ae: String,
     accept_aets: HashSet<String>,
-    accept_abs: HashSet<UIDRef>,
-    accept_ts: HashSet<TSRef>,
+    supported_abs: HashSet<UIDRef>,
+    supported_ts: HashSet<TSRef>,
     pdu_rcv_max_len: u32,
 }
 
@@ -477,14 +452,14 @@ impl ServiceAssocBuilder {
     }
 
     #[must_use]
-    pub fn accept_abs(mut self, accept_abs: HashSet<UIDRef>) -> Self {
-        self.accept_abs = accept_abs;
+    pub fn supported_abs(mut self, accept_abs: HashSet<UIDRef>) -> Self {
+        self.supported_abs = accept_abs;
         self
     }
 
     #[must_use]
-    pub fn accept_ts(mut self, accept_ts: HashSet<TSRef>) -> Self {
-        self.accept_ts = accept_ts;
+    pub fn supported_ts(mut self, accept_ts: HashSet<TSRef>) -> Self {
+        self.supported_ts = accept_ts;
         self
     }
 
@@ -496,7 +471,10 @@ impl ServiceAssocBuilder {
 
     #[must_use]
     pub fn build(self) -> ServiceAssoc {
-        let mut my_user_data = Vec::<UserPdu>::new();
+        let num_abs = self.supported_abs.len();
+        // MaxLengthItem + AsyncOperationsWindowItem + RoleSelectionItem * supported_abs.len()
+        let num_user_data = 2 + self.supported_abs.len();
+        let mut my_user_data = Vec::<UserPdu>::with_capacity(num_user_data);
         my_user_data.push(UserPdu::MaxLengthItem(MaxLengthItem::new(
             self.pdu_rcv_max_len,
         )));
@@ -509,7 +487,7 @@ impl ServiceAssocBuilder {
         // TODO: Double-check how roles should be set up. Based on behavior it seems like this is
         // indicating which roles to accept from incoming associations, and not what roles this
         // device enacts?
-        for ab in &self.accept_abs {
+        for ab in &self.supported_abs {
             my_user_data.push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
                 ab.uid().into(),
                 1,
@@ -521,12 +499,12 @@ impl ServiceAssocBuilder {
             _id: self.id,
             host_ae: self.host_ae,
             accept_aets: self.accept_aets,
-            accept_abs: self.accept_abs,
-            accept_ts: self.accept_ts,
+            supported_abs: self.supported_abs,
+            supported_ts: self.supported_ts,
             my_user_data,
 
-            their_user_data: Vec::new(),
-            negotiated_pres_ctx: HashMap::new(),
+            their_user_data: Vec::with_capacity(num_user_data),
+            negotiated_pres_ctx: HashMap::with_capacity(num_abs),
         }
     }
 }

@@ -21,11 +21,10 @@ use std::process;
 use clap::Parser;
 
 #[cfg(feature = "index")]
-use crate::app::indexapp::IndexApp;
 use crate::{
     app::{
-        archiveapp::ArchiveApp, browseapp::BrowseApp, printapp::PrintApp, scpapp::SvcProviderApp,
-        CommandApplication,
+        archiveapp::ArchiveApp, browseapp::BrowseApp, indexapp::IndexApp, printapp::PrintApp,
+        scpapp::SvcProviderApp, scuapp::SvcUserApp, CommandApplication,
     },
     args::{Arguments, Command},
 };
@@ -52,5 +51,6 @@ fn make_app() -> Box<dyn CommandApplication> {
         Command::Index(args) => Box::new(IndexApp::new(args)),
         Command::Archive(args) => Box::new(ArchiveApp::new(args)),
         Command::Scp(args) => Box::new(SvcProviderApp::new(args)),
+        Command::Scu(args) => Box::new(SvcUserApp::new(args)),
     }
 }
