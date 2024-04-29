@@ -10,7 +10,7 @@ mod tests;
 /// Values of the `CommandField` (0000,0100) field of messages.
 ///
 /// See Part 7, Appendix E.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 pub enum CommandType {
     CStoreReq,
     CStoreRsp,

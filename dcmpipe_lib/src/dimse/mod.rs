@@ -1,5 +1,6 @@
 use crate::{core::charset::DEFAULT_CHARACTER_SET, dimse::error::DimseError};
 
+pub mod assoc;
 pub mod commands;
 pub mod error;
 pub mod pduiter;

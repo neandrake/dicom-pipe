@@ -2,7 +2,7 @@ use std::{fmt::Display, io::Write};
 
 use crate::{
     core::{charset::CSError, read::ParseError, write::error::WriteError},
-    dimse::pdus::{Abort, AssocRJ, Pdu, PduType},
+    dimse::pdus::{Abort, AssocRJ, PduType},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -24,9 +24,6 @@ pub enum DimseError {
 
     #[error("unexpected pdu type {0:?}")]
     UnexpectedPduType(PduType),
-
-    #[error("unexepected pdu: {0:?}")]
-    UnexpectedPdu(Pdu),
 
     #[error("error parsing value from request")]
     ParseError(#[from] ParseError),

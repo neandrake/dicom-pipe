@@ -183,7 +183,7 @@ impl<R: Read> Iterator for DimseMsgIter<R> {
             for iter_item in pdu_iter {
                 match iter_item {
                     Ok(PduIterItem::Pdu(pdu)) => {
-                        return Some(Err(DimseError::UnexpectedPdu(pdu)));
+                        return Some(Err(DimseError::UnexpectedPduType(pdu.pdu_type())));
                     }
                     Ok(PduIterItem::CmdMessage(pdvh, cmd)) => {
                         if !cmd.has_dataset() {
