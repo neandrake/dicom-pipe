@@ -80,6 +80,8 @@ struct DicomElementModel<'model> {
 /// about the current model being displayed as well as view state from user input.
 #[derive(Clone)]
 struct ViewState {
+    /// Title to show in top-left of table
+    dataset_title: String,
     /// The number of rows of the current model.
     num_rows: usize,
     /// The maximum width of all DICOM tag names of the current model.
@@ -89,7 +91,7 @@ struct ViewState {
     /// Whether the user has requested to quit/close.
     user_quit: bool,
     /// The user selected a row to dive deeper into.
-    user_selected: UserNav,
+    user_nav: UserNav,
     /// The current path of elements to display.
     current_root_element: TagPath,
 }
@@ -114,11 +116,11 @@ impl CommandApplication for BrowseApp {
             Err(err) => return Err(anyhow!(err)),
         };
 
-        let mut doc_model = DicomDocumentModel::parse(path, &dcmroot);
+        let doc_model = DicomDocumentModel::parse(path, &dcmroot);
 
         let mut terminal = self.init()?;
 
-        let app_result = self.run_loop(&mut terminal, &dcmroot, &mut doc_model);
+        let app_result = self.run_loop(&mut terminal, &dcmroot, &doc_model);
 
         self.close(terminal)?;
 
@@ -184,7 +186,7 @@ impl<'model> DicomElementModel<'model> {
         let child_tag = child.as_element().get_tag();
         if child.get_item_count() > 0 || child.get_child_count() > 0 {
             let child_map = DicomElementModel::parse(child);
-            map.extend(child_map.into_iter());
+            map.extend(child_map);
         }
 
         let tag_render: TagName = child.as_element().into();
@@ -266,17 +268,28 @@ impl<'app> BrowseApp {
         &self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
         dcmroot: &'dict DicomRoot,
-        doc_model: &'app mut DicomDocumentModel<'app>,
+        doc_model: &'app DicomDocumentModel<'app>,
     ) -> Result<()> {
+        let root_path = TagPath {
+            nodes: Vec::with_capacity(0),
+        };
+        let default_table_state = TableState::new().with_selected(Some(0));
+
+        // Track table state per-path, to match DicomDocumentModel's layout. This allows navigation
+        // of elements to retain their own offset + selection.
+        let mut table_state_map: HashMap<TagPath, TableState> = HashMap::new();
+
         let mut view_state = ViewState {
+            dataset_title: doc_model.path.to_str().unwrap_or_default().to_owned(),
             num_rows: 0,
             max_name_width: 0,
-            table_state: TableState::new().with_selected(Some(0)),
+            table_state: table_state_map
+                .entry(root_path.clone())
+                .or_insert_with(|| default_table_state.clone())
+                .clone(),
             user_quit: false,
-            user_selected: UserNav::None,
-            current_root_element: TagPath {
-                nodes: Vec::with_capacity(0),
-            },
+            user_nav: UserNav::None,
+            current_root_element: root_path.clone(),
         };
 
         loop {
@@ -287,14 +300,21 @@ impl<'app> BrowseApp {
             // Apply state from current model.
             view_state.num_rows = table_model.rows.len();
             view_state.max_name_width = table_model.max_name_width;
+            view_state.table_state = table_state_map
+                .entry(view_state.current_root_element.clone())
+                .or_insert_with(|| default_table_state.clone())
+                .clone();
             // Reset user-input state.
             view_state.user_quit = false;
-            view_state.user_selected = UserNav::None;
+            view_state.user_nav = UserNav::None;
 
-            let dataset_title = if view_state.current_root_element.nodes.is_empty() {
+            view_state.dataset_title = if view_state.current_root_element.nodes.is_empty() {
                 doc_model.path.to_str().unwrap_or_default().to_string()
             } else {
-                TagPath::format_tagpath_to_display(&view_state.current_root_element, Some(dcmroot.get_dictionary()))
+                TagPath::format_tagpath_to_display(
+                    &view_state.current_root_element,
+                    Some(dcmroot.get_dictionary()),
+                )
             };
 
             // Ratatui's Table requires an iterator over owned Rows, so the model must be cloned
@@ -305,81 +325,30 @@ impl<'app> BrowseApp {
             // The view_state is small and intended to be cloned every iteration.
             let render_view_state = view_state.clone();
 
-            terminal.draw(move |frame| {
-                self.render(&dataset_title, render_model, render_view_state, frame)
-            })?;
+            let current_path = view_state.current_root_element.clone();
 
-            view_state = self.update_state_from_user_input(view_state)?;
+            terminal.draw(|frame| self.render(render_model, render_view_state, frame))?;
 
-            // Enact user-input state.
+            view_state = self.update_state_from_user_input(dcmroot, doc_model, view_state)?;
+
+            // Update the previous table state to ensure the offset+selection actually persists.
+            // This must use the path prior to `update_state_from_user_input()` which will modify
+            // the path based on user navigation.
+            table_state_map.insert(current_path, view_state.table_state.clone());
+
             if view_state.user_quit {
                 break;
-            }
-            match view_state.user_selected {
-                UserNav::None => {}
-                UserNav::IntoLevel(selected) => {
-                    let next_path = if view_state.current_root_element.nodes.is_empty() {
-                        get_nth_child(dcmroot, selected)
-                            .map(|o| o.as_element().get_tagpath())
-                            .unwrap_or_else(|| view_state.current_root_element.clone())
-                    } else {
-                        dcmroot
-                            .get_child_by_tagpath(&view_state.current_root_element)
-                            .and_then(|c| {
-                                // Check items first and children second. Sequences will have a
-                                // single child which is the delimiter at the end.
-                                if c.get_item_count() > 0 {
-                                    if selected < c.get_item_count() {
-                                        c.get_item_by_index(selected + 1)
-                                    } else if c.get_child_count() > 0 {
-                                        // Subtract the # items because children appear after items
-                                        // when both are present.
-                                        get_nth_child(c, selected - c.get_item_count())
-                                    } else {
-                                        None
-                                    }
-                                } else if c.get_item_count() > 0 {
-                                    c.get_item_by_index(selected + 1)
-                                } else {
-                                    None
-                                }
-                            })
-                            .map(|o| o.as_element().get_tagpath())
-                            .unwrap_or_else(|| view_state.current_root_element.clone())
-                    };
-
-                    if doc_model.map.contains_key(&next_path) {
-                        view_state.current_root_element = next_path;
-                    }
-                }
-                UserNav::UpLevel => {
-                    if !view_state.current_root_element.nodes.is_empty() {
-                        let mut nodes = view_state
-                            .current_root_element
-                            .nodes
-                            .drain(
-                                ..view_state
-                                    .current_root_element
-                                    .nodes
-                                    .len()
-                                    .saturating_sub(1),
-                            )
-                            .collect::<Vec<TagNode>>();
-
-                        // Remove item # from the last element of the path as the model map uses a
-                        // key of the TagPath with no index specified.
-                        if let Some(last) = nodes.last_mut() {
-                            last.get_item_mut().take();
-                        }
-                        view_state.current_root_element = nodes.into();
-                    }
-                }
             }
         }
         Ok(())
     }
 
-    fn update_state_from_user_input(&self, mut view_state: ViewState) -> Result<ViewState> {
+    fn update_state_from_user_input(
+        &self,
+        dcmroot: &DicomRoot,
+        doc_model: &'app DicomDocumentModel<'app>,
+        mut view_state: ViewState,
+    ) -> Result<ViewState> {
         if event::poll(Duration::from_millis(50))? {
             match event::read()? {
                 Key(key) => match key.kind {
@@ -400,6 +369,68 @@ impl<'app> BrowseApp {
                 _ => {}
             }
         }
+
+        // Handle user navigation
+        match view_state.user_nav {
+            UserNav::None => {}
+            UserNav::IntoLevel(selected) => {
+                let next_path = if view_state.current_root_element.nodes.is_empty() {
+                    get_nth_child(dcmroot, selected)
+                        .map(|o| o.as_element().get_tagpath())
+                        .unwrap_or_else(|| view_state.current_root_element.clone())
+                } else {
+                    dcmroot
+                        .get_child_by_tagpath(&view_state.current_root_element)
+                        .and_then(|c| {
+                            // Check items first and children second. Sequences will have a
+                            // single child which is the delimiter at the end.
+                            if c.get_item_count() > 0 {
+                                if selected < c.get_item_count() {
+                                    c.get_item_by_index(selected + 1)
+                                } else if c.get_child_count() > 0 {
+                                    // Subtract the # items because children appear after items
+                                    // when both are present.
+                                    get_nth_child(c, selected - c.get_item_count())
+                                } else {
+                                    None
+                                }
+                            } else if c.get_item_count() > 0 {
+                                c.get_item_by_index(selected + 1)
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|o| o.as_element().get_tagpath())
+                        .unwrap_or_else(|| view_state.current_root_element.clone())
+                };
+
+                if doc_model.map.contains_key(&next_path) {
+                    view_state.current_root_element = next_path;
+                }
+            }
+            UserNav::UpLevel => {
+                if !view_state.current_root_element.nodes.is_empty() {
+                    let mut nodes = view_state
+                        .current_root_element
+                        .nodes
+                        .drain(
+                            ..view_state
+                                .current_root_element
+                                .nodes
+                                .len()
+                                .saturating_sub(1),
+                        )
+                        .collect::<Vec<TagNode>>();
+
+                    // Remove item # from the last element of the path as the model map uses a
+                    // key of the TagPath with no index specified.
+                    if let Some(last) = nodes.last_mut() {
+                        last.get_item_mut().take();
+                    }
+                    view_state.current_root_element = nodes.into();
+                }
+            }
+        }
         Ok(view_state)
     }
 
@@ -411,11 +442,11 @@ impl<'app> BrowseApp {
             KeyCode::Esc => view_state.user_quit = true,
             KeyCode::Enter => {
                 if let Some(selected) = view_state.table_state.selected() {
-                    view_state.user_selected = UserNav::IntoLevel(selected);
+                    view_state.user_nav = UserNav::IntoLevel(selected);
                 }
             }
             Char('h') | KeyCode::Left | KeyCode::Backspace => {
-                view_state.user_selected = UserNav::UpLevel
+                view_state.user_nav = UserNav::UpLevel
             }
             Char('j') | KeyCode::Down => self.table_select_next(view_state, 1),
             Char('k') | KeyCode::Up => self.table_select_next(view_state, -1),
@@ -478,13 +509,7 @@ impl<'app> BrowseApp {
         view_state.table_state.select(Some(i));
     }
 
-    fn render(
-        &self,
-        title: &str,
-        model: DicomElementModel,
-        view_state: ViewState,
-        frame: &mut Frame,
-    ) {
+    fn render(&self, model: DicomElementModel, view_state: ViewState, frame: &mut Frame) {
         let column_widths = [
             Constraint::Length(1),
             Constraint::Length(11),
@@ -509,7 +534,7 @@ impl<'app> BrowseApp {
                     )
                     .title(
                         Title::from(Line::from(Span::styled(
-                            format!("[{}]", title),
+                            format!("[{}]", &view_state.dataset_title),
                             Style::default().fg(Color::LightBlue),
                         )))
                         .alignment(Alignment::Right),
