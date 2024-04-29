@@ -67,6 +67,9 @@ pub enum DimseError {
     #[error("unsupported abstract syntax {0:?}")]
     UnsupportedAbstractSyntax(UIDRef),
 
+    #[error("maximum pdu size exceeded, PDU is {0} bytes")]
+    MaxPduSizeExceeded(usize),
+
     /// Catch-all for error-states while interpreting the DIMSE stream.
     #[error("{0}")]
     GeneralError(String),

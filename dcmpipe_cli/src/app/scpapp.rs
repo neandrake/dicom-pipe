@@ -20,22 +20,15 @@ use crate::{
 };
 use anyhow::Result;
 use dcmpipe_lib::{
-    core::{
-        dcmobject::DicomRoot,
-        defn::constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
-        read::{ParserBuilder, ParserState},
-    },
-    dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY,
-        uids::{
-            CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
-            NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
-            PatientRootQueryRetrieveInformationModelGET,
-            PatientRootQueryRetrieveInformationModelMOVE, PositronEmissionTomographyImageStorage,
-            RTDoseStorage, RTPlanStorage, RTStructureSetStorage, SecondaryCaptureImageStorage,
-            StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
-            StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
-        },
+    core::defn::constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
+    dict::uids::{
+        CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
+        NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
+        PatientRootQueryRetrieveInformationModelGET, PatientRootQueryRetrieveInformationModelMOVE,
+        PositronEmissionTomographyImageStorage, RTDoseStorage, RTPlanStorage,
+        RTStructureSetStorage, SecondaryCaptureImageStorage,
+        StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
+        StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
     },
     dimse::{
         assoc::{
@@ -49,7 +42,7 @@ use dcmpipe_lib::{
 };
 use std::{
     collections::HashSet,
-    io::{BufReader, BufWriter, Cursor, Read, Write},
+    io::{BufReader, BufWriter, Read, Write},
     net::TcpListener,
 };
 
@@ -105,6 +98,11 @@ impl CommandApplication for SvcProviderApp {
             &RTPlanStorage,
         ]);
         let supported_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
+        let max_pdu_size = self
+            .args
+            .max_pdu_size
+            .and_then(|s| u32::try_from(s).ok())
+            .unwrap_or(0);
         for (stream_id, stream) in listener.incoming().enumerate() {
             let stream = stream?;
             let db = self.args.db.clone();
@@ -114,6 +112,7 @@ impl CommandApplication for SvcProviderApp {
                 .accept_aets(accept_aets.clone())
                 .supported_abs(supported_abs.clone())
                 .supported_ts(supported_ts.clone())
+                .pdu_rcv_max_len(max_pdu_size)
                 .build();
             pool.execute(move || {
                 let reader = BufReader::new(&stream);
@@ -160,7 +159,10 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         println!("[info ->]: {:?}", PduType::AssocAC);
 
         loop {
-            let msg = self.assoc.next_msg(&mut self.reader, &mut self.writer)?;
+            let msg = self
+                .assoc
+                .common()
+                .next_msg(&mut self.reader, &mut self.writer)?;
             let cmd = match msg {
                 DimseMsg::Cmd(cmd) => cmd,
                 DimseMsg::Dataset(_) => {
@@ -172,8 +174,6 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             };
             println!("[info <-]: {:?}", cmd.cmd_type());
 
-            let (_pres_ctx, ts) = self.assoc.get_pres_ctx_and_ts(cmd.ctx_id())?;
-
             if cmd.cmd_type() == &CommandType::CCancelReq {
                 // TODO: After implementing async PDU handling this should cancel in-flight
                 // operations.
@@ -181,71 +181,22 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 continue;
             }
 
-            if !cmd.has_dataset() {
-                if cmd.cmd_type() == &CommandType::CEchoReq {
-                    self.handle_c_echo_req(&cmd)?;
-                    println!("[info ->]: {:?}", CommandType::CEchoRsp);
-                }
-                continue;
-            }
-
-            // XXX: For C-STORE this will result in loading the entire received dataset into memory
-            // at once.
-            let mut buffer = Vec::<u8>::new();
-            self.read_dataset(&mut buffer)?;
-            let buffer = Cursor::new(buffer);
-
-            let mut dcm_parser = ParserBuilder::default()
-                .dataset_ts(ts)
-                .state(ParserState::ReadElement)
-                .build(buffer, &STANDARD_DICOM_DICTIONARY);
-
-            let dcm = DicomRoot::parse(&mut dcm_parser)
-                .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-                .ok_or_else(|| {
-                    AssocError::ab_failure(DimseError::GeneralError(
-                        "Parsing DICOM dataset failed".to_string(),
-                    ))
-                })?;
-
-            if cmd.cmd_type() == &CommandType::CFindReq {
-                self.handle_c_find_req(&cmd, &dcm)?;
+            if cmd.cmd_type() == &CommandType::CEchoReq {
+                self.handle_c_echo_req(&cmd)?;
+                println!("[info ->]: {:?}", CommandType::CEchoRsp);
+            } else if cmd.cmd_type() == &CommandType::CFindReq {
+                self.handle_c_find_req(&cmd)?;
                 println!("[info ->]: {:?}", CommandType::CFindRsp);
             } else if cmd.cmd_type() == &CommandType::CStoreReq {
-                self.handle_c_store_req(&cmd, &dcm)?;
+                self.handle_c_store_req(&cmd)?;
                 println!("[info ->]: {:?}", CommandType::CStoreRsp);
             } else if cmd.cmd_type() == &CommandType::CMoveReq {
-                self.handle_c_move_req(&cmd, &dcm)?;
+                self.handle_c_move_req(&cmd)?;
                 println!("[info ->]: {:?}", CommandType::CMoveRsp);
             } else if cmd.cmd_type() == &CommandType::CGetReq {
-                self.handle_c_get_req(&cmd, &dcm)?;
+                self.handle_c_get_req(&cmd)?;
                 println!("[info ->]: {:?}", CommandType::CGetRsp);
             }
         }
-    }
-
-    /// Continuously reads DICOM `PresentationDataValue` PDUs from the stream and writes the bytes
-    /// to the given writer, stopping after processing the last fragment.
-    ///
-    /// # Errors
-    /// I/O errors may occur reading from `self.reader`, writing a failure response to
-    /// `self.writer`, or writing the DICOM PDV bytes to the given `writer`.
-    pub(crate) fn read_dataset(&mut self, writer: &mut dyn Write) -> Result<(), AssocError> {
-        let mut all_read = false;
-        while !all_read {
-            let dcm_msg = self.assoc.next_msg(&mut self.reader, &mut self.writer)?;
-            let DimseMsg::Dataset(pdv) = dcm_msg else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(
-                    "Expected DICOM dataset".to_string(),
-                )));
-            };
-
-            all_read = pdv.is_last_fragment();
-            writer
-                .write_all(pdv.data())
-                .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
-        }
-
-        Ok(())
     }
 }

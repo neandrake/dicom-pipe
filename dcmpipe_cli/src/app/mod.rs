@@ -75,8 +75,16 @@ fn handle_assoc_result<W: Write>(
     match result {
         Ok(DimseMsg::ReleaseRQ) => vec![Ok(format!("[info <-]: {:?}", PduType::ReleaseRQ))],
         Ok(DimseMsg::ReleaseRP) => vec![Ok(format!("[info <-]: {:?}", PduType::ReleaseRP))],
-        Ok(DimseMsg::Reject(rj)) => vec![Ok(format!("[warn <-]: {}", rj.get_reason_desc()))],
-        Ok(DimseMsg::Abort(ab)) => vec![Ok(format!("[warn <-]: {}", ab.get_reason_desc()))],
+        Ok(DimseMsg::Reject(rj)) => vec![Ok(format!(
+            "[warn <-]: {:?}: {}",
+            PduType::AssocRJ,
+            rj.get_reason_desc()
+        ))],
+        Ok(DimseMsg::Abort(ab)) => vec![Ok(format!(
+            "[warn <-]: {:?}: {}",
+            PduType::Abort,
+            ab.get_reason_desc()
+        ))],
         Ok(other) => vec![Err(format!(
             "[ err xx]: Unexpected ending state: {other:?}"
         ))],

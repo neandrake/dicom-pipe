@@ -21,7 +21,6 @@ use std::{
 };
 
 use dcmpipe_lib::{
-    core::dcmobject::DicomRoot,
     dict::tags::{AffectedSOPClassUID, MessageID, MoveDestination},
     dimse::{commands::messages::CommandMessage, error::AssocError},
 };
@@ -30,11 +29,7 @@ use crate::app::{indexapp::DicomDoc, scpapp::AssociationDevice};
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     #[allow(unused_variables)] // This is in development
-    pub(crate) fn handle_c_move_req(
-        &mut self,
-        cmd: &CommandMessage,
-        query: &DicomRoot,
-    ) -> Result<(), AssocError> {
+    pub(crate) fn handle_c_move_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
         let ctx_id = cmd.ctx_id();
         let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
         let aff_sop_class = cmd
@@ -44,7 +39,14 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&MoveDestination)
             .map_err(AssocError::ab_failure)?;
 
-        let query_results = self.query_database(query)?;
+        let (pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;
+
+        let dcm_query =
+            self.assoc
+                .common()
+                .read_dataset_in_mem(&mut self.reader, &mut self.writer, ts)?;
+
+        let query_results = self.query_database(&dcm_query)?;
 
         let path_map = Self::resolve_to_files(query_results.group_map);
 

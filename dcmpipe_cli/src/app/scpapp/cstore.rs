@@ -17,7 +17,6 @@
 use std::io::{Read, Write};
 
 use dcmpipe_lib::{
-    core::dcmobject::DicomRoot,
     dict::tags::{AffectedSOPClassUID, MessageID},
     dimse::{
         commands::{messages::CommandMessage, CommandStatus},
@@ -28,20 +27,21 @@ use dcmpipe_lib::{
 use crate::app::scpapp::AssociationDevice;
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_store_req(
-        &mut self,
-        cmd: &CommandMessage,
-        _dcm: &DicomRoot,
-    ) -> Result<(), AssocError> {
+    pub(crate) fn handle_c_store_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
         let ctx_id = cmd.ctx_id();
         let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
         let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
+        let mut empty = std::io::empty();
+        self.assoc
+            .common()
+            .read_dataset(&mut self.reader, &mut self.writer, &mut empty)?;
+
         let cmd =
             CommandMessage::c_store_rsp(ctx_id, msg_id, &aff_sop_class, &CommandStatus::success());
-        self.assoc.write_command(&cmd, &mut self.writer)?;
+        self.assoc.common().write_command(&cmd, &mut self.writer)?;
 
         Ok(())
     }

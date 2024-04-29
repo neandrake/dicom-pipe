@@ -115,6 +115,13 @@ pub struct SvcProviderArgs {
     pub accept_aets: Option<String>,
 
     #[arg(short, long)]
+    /// The maximum PDU size to receive.
+    ///
+    /// Size is specified in bytes and should be no more than u32::MAX. If not specified then no
+    /// maximum is configured.
+    pub max_pdu_size: Option<usize>,
+
+    #[arg(short, long)]
     /// The maximum number of concurrent associations.
     pub max_assoc: usize,
 
@@ -139,6 +146,13 @@ pub struct SvcUserArgs {
     /// The target AE Title on the host.
     #[arg(short, long)]
     pub host_ae: String,
+
+    #[arg(short, long)]
+    /// The maximum PDU size to receive.
+    ///
+    /// Size is specified in bytes and should be no more than u32::MAX. If not specified then no
+    /// maximum is configured.
+    pub max_pdu_size: Option<usize>,
 
     /// The SCU command to issue.
     #[clap(subcommand)]

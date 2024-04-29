@@ -39,7 +39,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             &CommandStatus::success(),
         );
 
-        self.assoc.write_command(&cmd, &mut self.writer)?;
+        self.assoc.common().write_command(&cmd, &mut self.writer)?;
         Ok(())
     }
 }

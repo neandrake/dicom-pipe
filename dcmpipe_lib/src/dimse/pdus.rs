@@ -202,6 +202,7 @@ impl Pdu {
     /// The total number of bytes that this PDU will require to write to a dataset.
     ///
     /// # Notes
+    ///
     /// See `PresentationDataItemPartial` which exists for more flexible memory management when
     /// dealing with potentially large `PresentationDataValue`s. Regardless of that, this will
     /// still return the total number of bytes for this entire PDU.
@@ -228,7 +229,7 @@ impl Pdu {
     /// Write this PDU to the given dataset.
     ///
     /// # Errors
-    /// I/O errors writing to the dataset.
+    /// - I/O errors writing to the dataset.
     pub fn write<W: Write>(&self, dataset: W) -> Result<(), DimseError> {
         match self {
             Pdu::AssocRQ(pdu) => pdu.write(dataset),
@@ -251,7 +252,7 @@ impl Pdu {
     /// Read a PDU from the given dataset.
     ///
     /// # Errors
-    /// I/O errors reading from the dataset.
+    /// - I/O errors reading from the dataset.
     pub fn read<R: Read>(mut dataset: R) -> Result<Pdu, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf).map_err(DimseError::IOError)?;
@@ -399,7 +400,7 @@ impl UserPdu {
     /// Write this User PDU to the given dataset.
     ///
     /// # Errors
-    /// I/O errors writing to the dataset.
+    /// - I/O errors writing to the dataset.
     pub fn write<W: Write>(&self, dataset: W) -> Result<(), DimseError> {
         match self {
             UserPdu::MaxLengthItem(pdu) => pdu.write(dataset),
@@ -417,7 +418,7 @@ impl UserPdu {
     /// Read a User PDU from the given dataset.
     ///
     /// # Errors
-    /// I/O errors reading from the dataset.
+    /// - I/O errors reading from the dataset.
     pub fn read<R: Read>(mut dataset: R) -> Result<UserPdu, DimseError> {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset.read_exact(&mut buf).map_err(DimseError::IOError)?;

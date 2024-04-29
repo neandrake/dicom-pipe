@@ -123,21 +123,24 @@ pub(crate) struct QueryResults {
 }
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_find_req(
-        &mut self,
-        cmd: &CommandMessage,
-        dcm_query: &DicomRoot,
-    ) -> Result<(), AssocError> {
+    pub(crate) fn handle_c_find_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
         let ctx_id = cmd.ctx_id();
         let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
         let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
-        let query_results = &self.query_database(dcm_query)?;
+        let (_pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;
+
+        let dcm_query =
+            self.assoc
+                .common()
+                .read_dataset_in_mem(&mut self.reader, &mut self.writer, ts)?;
+
+        let query_results = &self.query_database(&dcm_query)?;
 
         let dcm_results = Self::create_results(
-            dcm_query,
+            &dcm_query,
             &query_results.query.include_keys,
             &query_results.query.meta_keys,
             &query_results.group_map,
@@ -150,14 +153,15 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 &aff_sop_class,
                 &CommandStatus::pending(),
             );
-            self.assoc.write_command(&cmd, &mut self.writer)?;
+            self.assoc.common().write_command(&cmd, &mut self.writer)?;
             self.assoc
+                .common()
                 .write_dataset(ctx_id, &result, &mut self.writer)?;
         }
 
         let cmd =
             CommandMessage::c_find_rsp(ctx_id, msg_id, &aff_sop_class, &CommandStatus::success());
-        self.assoc.write_command(&cmd, &mut self.writer)?;
+        self.assoc.common().write_command(&cmd, &mut self.writer)?;
 
         Ok(())
     }

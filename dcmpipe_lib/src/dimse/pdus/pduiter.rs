@@ -44,8 +44,11 @@ use crate::{
     },
 };
 
-pub fn read_next_pdu<R: Read>(reader: R) -> Option<Result<PduIterItem, DimseError>> {
-    PduIter::new(reader).next()
+pub fn read_next_pdu<R: Read>(
+    reader: R,
+    max_pdu_size: usize,
+) -> Option<Result<PduIterItem, DimseError>> {
+    PduIter::new(reader, max_pdu_size).next()
 }
 
 #[derive(Debug)]
@@ -61,11 +64,15 @@ pub enum PduIterItem {
 /// `read_next_pdu()` function above was created to encapsulate this iterator implementation.
 pub struct PduIter<R: Read> {
     stream: R,
+    max_pdu_size: usize,
 }
 
 impl<R: Read> PduIter<R> {
-    pub fn new(stream: R) -> Self {
-        Self { stream }
+    pub fn new(stream: R, max_pdu_size: usize) -> Self {
+        Self {
+            stream,
+            max_pdu_size,
+        }
     }
 }
 
@@ -80,6 +87,11 @@ impl<R: Read> Iterator for PduIter<R> {
             Ok(other) => return Some(Ok(PduIterItem::Pdu(other))),
             Err(e) => return Some(Err(e)),
         };
+
+        let pdu_size = usize::try_from(pres_data_item.length()).unwrap_or_default();
+        if pdu_size > self.max_pdu_size {
+            return Some(Err(DimseError::MaxPduSizeExceeded(pdu_size)));
+        }
 
         let pres_data_val = PresentationDataValue::read(&mut self.stream);
         if let Err(e) = pres_data_val {
@@ -152,10 +164,10 @@ pub struct CommandIter<R: Read> {
 }
 
 impl<R: Read> CommandIter<R> {
-    pub fn new(ts: TSRef, reader: R) -> Self {
+    pub fn new(reader: R, ts: TSRef, max_pdu_size: usize) -> Self {
         Self {
             ts,
-            reader: PduIter::new(reader),
+            reader: PduIter::new(reader, max_pdu_size),
         }
     }
 }
@@ -243,7 +255,7 @@ where
     ///
     /// # Params
     /// `ctx_id` - The `ctx_id` that each resulting `PresentationDataItem` will be assocaited with.
-    /// `max_pdu_size` - The maximum size of each `PresentationDataItem`.
+    /// `max_pdu_size` - The maximum size of each `PresentationDataItem`, in bytes.
     /// `is_command` - Whether this is for command messages or for DICOM datasets.
     /// `elements` - The iterator over elements to convert.
     /// `ts` - The transfer syntax that the elements should be written with.

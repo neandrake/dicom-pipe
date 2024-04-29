@@ -24,10 +24,7 @@ use crate::{
         charset::{lookup_charset, DEFAULT_CHARACTER_SET},
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
-        defn::{
-            constants::ts::ImplicitVRLittleEndian, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
-            uid::UIDRef, vr::UI,
-        },
+        defn::{dcmdict::DicomDictionary, tag::Tag, ts::TSRef, uid::UIDRef, vr::UI},
         read::Parser,
         RawValue,
     },
@@ -40,16 +37,15 @@ use crate::{
         },
     },
     dimse::{
-        assoc::{DimseMsg, QueryLevel},
+        assoc::{CommonAssoc, DimseMsg, QueryLevel},
         commands::{messages::CommandMessage, CommandPriority},
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
-                Abort, AbstractSyntaxItem, ApplicationContextItem, AssocACPresentationContext,
-                AssocRQ, AssocRQPresentationContext, ReleaseRP, ReleaseRQ, TransferSyntaxItem,
-                UserInformationItem,
+                AbstractSyntaxItem, ApplicationContextItem, AssocACPresentationContext, AssocRQ,
+                AssocRQPresentationContext, ReleaseRQ, TransferSyntaxItem, UserInformationItem,
             },
-            pduiter::{read_next_pdu, CommandIter, PduIterItem, PresDataIter},
+            pduiter::{CommandIter, PresDataIter},
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
             Pdu, PduType, UserPdu,
         },
@@ -58,35 +54,14 @@ use crate::{
 };
 
 pub struct UserAssoc {
-    /* Fields configured by this SCU. */
-    _id: usize,
-    my_ae: String,
+    common: CommonAssoc,
     service_ae: String,
-    supported_abs: HashSet<UIDRef>,
-    supported_ts: HashSet<TSRef>,
-    my_user_data: Vec<UserPdu>,
     ctx_id_counter: u8,
     msg_id_counter: u16,
     requested_pres_ctx: HashMap<UIDRef, AssocRQPresentationContext>,
-
-    /* Fields negotiated with other SCU. */
-    their_user_data: Vec<UserPdu>,
-    negotiated_pres_ctx: HashMap<u8, AssocACPresentationContext>,
 }
 
 impl UserAssoc {
-    /// Write the given PDU to the given writer.
-    ///
-    /// # Errors
-    /// I/O errors may occur when writing to the writer or flushing the writer.
-    pub fn write_pdu<W: Write>(&self, pdu: &Pdu, mut writer: &mut W) -> Result<(), AssocError> {
-        pdu.write(&mut writer).map_err(AssocError::error)?;
-        writer
-            .flush()
-            .map_err(|e| AssocError::error(DimseError::IOError(e)))?;
-        Ok(())
-    }
-
     /// Retrieve the accepted presentation context and its negotiated transfer syntax, by the given
     /// abstract syntax.
     ///
@@ -104,7 +79,7 @@ impl UserAssoc {
             ))));
         };
 
-        let Some(pres_ctx) = self.negotiated_pres_ctx.get(&pres_ctx.ctx_id()) else {
+        let Some(pres_ctx) = self.common.negotiated_pres_ctx.get(&pres_ctx.ctx_id()) else {
             return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
                 "Negotiated Presentation Context not found by ctx_id: {}",
                 pres_ctx.ctx_id()
@@ -121,28 +96,6 @@ impl UserAssoc {
             })?;
 
         Ok((pres_ctx, ts))
-    }
-
-    #[must_use]
-    pub fn get_pdu_max_snd_size(&self) -> usize {
-        for user_pdu in &self.their_user_data {
-            if let UserPdu::MaxLengthItem(mli) = user_pdu {
-                return usize::try_from(mli.max_length()).unwrap_or_default();
-            }
-        }
-        // 0 means no limit specified.
-        0
-    }
-
-    #[must_use]
-    pub fn get_pdu_max_rcv_size(&self) -> usize {
-        for user_pdu in &self.my_user_data {
-            if let UserPdu::MaxLengthItem(mli) = user_pdu {
-                return usize::try_from(mli.max_length()).unwrap_or_default();
-            }
-        }
-        // 0 means no limit specified.
-        0
     }
 
     #[must_use]
@@ -164,7 +117,7 @@ impl UserAssoc {
     ) -> Result<Option<DimseMsg>, AssocError> {
         let called_ae = AeTitle::try_from(self.service_ae.trim())
             .map_err(|e| AssocError::error(DimseError::OtherError(e.into())))?;
-        let calling_ae = AeTitle::try_from(self.my_ae.trim())
+        let calling_ae = AeTitle::try_from(self.common.this_ae.trim())
             .map_err(|e| AssocError::error(DimseError::OtherError(e.into())))?;
 
         let mut app_ctx = DICOMApplicationContextName.uid().as_bytes().to_vec();
@@ -174,14 +127,15 @@ impl UserAssoc {
         let app_ctx = ApplicationContextItem::new(app_ctx);
 
         let transfer_syntaxes = self
+            .common
             .supported_ts
             .iter()
             .map(|ts| TransferSyntaxItem::new(ts.uid().uid().as_bytes().to_vec()))
             .collect::<Vec<TransferSyntaxItem>>();
 
         let mut pres_ctxs: Vec<AssocRQPresentationContext> =
-            Vec::with_capacity(self.supported_abs.len());
-        for ab in &self.supported_abs {
+            Vec::with_capacity(self.common.supported_abs.len());
+        for ab in &self.common.supported_abs {
             let ctx_id = self.ctx_id_counter;
             self.ctx_id_counter += 2;
 
@@ -192,7 +146,7 @@ impl UserAssoc {
             pres_ctxs.push(pc);
         }
 
-        let user_info = UserInformationItem::new(self.my_user_data.clone());
+        let user_info = UserInformationItem::new(self.common.this_user_data.clone());
 
         let rq = AssocRQ::new(
             called_ae.into(),
@@ -202,150 +156,38 @@ impl UserAssoc {
             user_info,
         );
 
-        self.write_pdu(&Pdu::AssocRQ(rq), &mut writer)?;
+        self.common.write_pdu(&Pdu::AssocRQ(rq), &mut writer)?;
 
         let response = Pdu::read(reader).map_err(AssocError::ab_failure)?;
         let Pdu::AssocAC(ac) = response else {
-            return self.handle_disconnect(response, &mut writer).map(Some);
+            return self
+                .common
+                .handle_disconnect(response, &mut writer)
+                .map(Some);
         };
 
-        self.their_user_data.clear();
-        self.their_user_data
+        self.common.their_user_data.clear();
+        self.common
+            .their_user_data
             .append(ac.user_info().user_data().clone().as_mut());
 
         // TODO: Do things with SOPClassCommonExtendedNegotiationItem, UserIdentityItem, etc.
 
         for pres_ctx in ac.pres_ctxs() {
             if pres_ctx.is_accepted() {
-                self.negotiated_pres_ctx
+                self.common
+                    .negotiated_pres_ctx
                     .insert(pres_ctx.ctx_id(), pres_ctx.to_owned());
             }
         }
 
-        if self.negotiated_pres_ctx.is_empty() {
+        if self.common.negotiated_pres_ctx.is_empty() {
             return Err(AssocError::ab_failure(DimseError::GeneralError(
                 "No presentation contexts negotiated".to_owned(),
             )));
         }
 
         Ok(None)
-    }
-
-    /// Parse the next message, either a Command, DICOM Dataset, release/abort, or unexpected PDU.
-    ///
-    /// # Errors
-    /// I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
-    /// disconnect response to the writer.
-    pub fn next_msg<R: Read, W: Write>(
-        &self,
-        reader: &mut R,
-        writer: &mut W,
-    ) -> Result<DimseMsg, AssocError> {
-        match read_next_pdu(reader) {
-            Some(Ok(PduIterItem::Pdu(Pdu::ReleaseRP(_rp)))) => Ok(DimseMsg::ReleaseRP),
-            Some(Ok(PduIterItem::Pdu(pdu))) => self.handle_disconnect(pdu, writer),
-            Some(Ok(PduIterItem::CmdMessage(cmd))) => Ok(DimseMsg::Cmd(cmd)),
-            Some(Ok(PduIterItem::Dataset(dataset))) => Ok(DimseMsg::Dataset(dataset)),
-            Some(Err(err)) => Err(AssocError::ab_failure(err)),
-            None => Err(AssocError::ab_failure(DimseError::GeneralError(
-                "No DIMSE message received".to_owned(),
-            ))),
-        }
-    }
-
-    /// Continuously reads DICOM `PresentationDataValue` PDUs from the reader and writes the bytes
-    /// to the given `out_writer`, stopping after processing the last fragment.
-    ///
-    /// # Parameters
-    /// `reader` - The reader the `PresentationDataValue` PDUs will be read from.
-    /// `writer` - The protocol's corresponding writer for sending A-ABORT if encountering errors.
-    /// `out_writer` - The destination to write the `PresentationDataValue` data bytes to.
-    ///
-    /// # Errors
-    /// I/O errors may occur with the reader/writer.
-    pub fn read_dataset<R: Read, W: Write, OW: Write>(
-        &self,
-        mut reader: &mut R,
-        mut writer: &mut W,
-        out_writer: &mut OW,
-    ) -> Result<(), AssocError> {
-        let mut all_read = false;
-        while !all_read {
-            let dcm_msg = self.next_msg(&mut reader, &mut writer)?;
-            let DimseMsg::Dataset(pdv) = dcm_msg else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(
-                    "Expected DICOM dataset".to_string(),
-                )));
-            };
-
-            all_read = pdv.is_last_fragment();
-            out_writer
-                .write_all(pdv.data())
-                .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
-        }
-
-        Ok(())
-    }
-
-    /// Writes the given command, chunking into `PresentationDataItem`s based on the SCU's
-    /// indicated `MaxLengthItem`.
-    ///
-    /// # Errors
-    /// - I/O errors may occur when writing to the stream.
-    /// - Parsing/encoding errors may occur when serializing the given command to
-    /// `PresentationDataItem`s.
-    pub fn write_command<W: Write>(
-        &mut self,
-        cmd: &CommandMessage,
-        mut writer: &mut W,
-    ) -> Result<(), AssocError> {
-        let elements = cmd.message().flatten();
-        let pdi_iter = PresDataIter::new(
-            cmd.ctx_id(),
-            self.get_pdu_max_snd_size(),
-            true,
-            elements.iter().copied(),
-            &ImplicitVRLittleEndian,
-            DEFAULT_CHARACTER_SET,
-        );
-        for pdi in pdi_iter {
-            match pdi {
-                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
-                Err(e) => return Err(AssocError::ab_failure(e)),
-            }
-        }
-        Ok(())
-    }
-
-    /// Writes the given dataset, chunking into `PresentationDataItem`s based on the SCU's
-    /// indicated `MaxLengthItem`.
-    ///
-    /// # Errors
-    /// - I/O errors may occur when writing to the stream.
-    /// - Parsing/encoding errors may occur when serializing the given dataset to
-    /// `PresentationDataItem`s.
-    pub fn write_dataset<W: Write>(
-        &mut self,
-        ctx_id: u8,
-        dcm: &DicomRoot,
-        mut writer: &mut W,
-    ) -> Result<(), AssocError> {
-        let elements = dcm.flatten();
-        let pdi_iter = PresDataIter::new(
-            ctx_id,
-            self.get_pdu_max_snd_size(),
-            false,
-            elements.iter().copied(),
-            dcm.ts(),
-            dcm.cs(),
-        );
-        for pdi in pdi_iter {
-            match pdi {
-                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
-                Err(e) => return Err(AssocError::ab_failure(e)),
-            }
-        }
-        Ok(())
     }
 
     /// Release the association and confirm the RELEASE-RP
@@ -359,37 +201,14 @@ impl UserAssoc {
         reader: &mut R,
         mut writer: &mut W,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        self.write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
-        match self.next_msg(reader, &mut writer)? {
+        self.common
+            .write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
+        match self.common.next_msg(reader, &mut writer)? {
             DimseMsg::ReleaseRP => Ok(Some(DimseMsg::ReleaseRP)),
             other => Err(AssocError::error(DimseError::GeneralError(format!(
                 "Did not get response for {:?}: {other:?}",
                 PduType::ReleaseRQ
             )))),
-        }
-    }
-
-    /// Handles a PDU that is not a `PresentationDataItem`, after the association is negotiated. In
-    /// this scenario the only valid PDUs are `ReleaseRQ` or `Abort`.
-    fn handle_disconnect<W: Write>(
-        &self,
-        pdu: Pdu,
-        writer: &mut W,
-    ) -> Result<DimseMsg, AssocError> {
-        match pdu {
-            Pdu::AssocRJ(rj) => Ok(DimseMsg::Reject(rj)),
-            Pdu::ReleaseRQ(_rq) => {
-                self.write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
-                Ok(DimseMsg::ReleaseRQ)
-            }
-            Pdu::ReleaseRP(_rp) => Ok(DimseMsg::ReleaseRP),
-            Pdu::Abort(ab) => Ok(DimseMsg::Abort(ab)),
-            other => {
-                self.write_pdu(&Pdu::Abort(Abort::new(2, 2)), writer)?;
-                Err(AssocError::error(DimseError::UnexpectedPduType(
-                    other.pdu_type(),
-                )))
-            }
         }
     }
 
@@ -409,9 +228,9 @@ impl UserAssoc {
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
         let cmd = CommandMessage::c_echo_req(ctx_id, msg_id, VerificationSOPClass.uid());
-        self.write_command(&cmd, &mut writer)?;
+        self.common.write_command(&cmd, &mut writer)?;
 
-        let rsp_cmd = self.next_msg(&mut reader, &mut writer)?;
+        let rsp_cmd = self.common.next_msg(&mut reader, &mut writer)?;
         if let DimseMsg::Dataset(_ds) = rsp_cmd {
             return Err(AssocError::ab_failure(DimseError::GeneralError(
                 "Got dataset instead of command".to_owned(),
@@ -457,7 +276,7 @@ impl UserAssoc {
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
         let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
-        self.write_command(&cmd, &mut writer)?;
+        self.common.write_command(&cmd, &mut writer)?;
 
         let mut dcm_root = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
         dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
@@ -465,9 +284,13 @@ impl UserAssoc {
             dcm_root.add_child_with_val(tag, val);
         }
 
-        self.write_dataset(ctx_id, &dcm_root, &mut writer)?;
+        self.common.write_dataset(ctx_id, &dcm_root, &mut writer)?;
 
-        Ok(CommandIter::new(ts, reader))
+        Ok(CommandIter::new(
+            reader,
+            ts,
+            self.common.get_pdu_max_rcv_size(),
+        ))
     }
 
     /// Issue a C-STORE request.
@@ -546,11 +369,11 @@ impl UserAssoc {
             origin_ae,
             orig_msg_id,
         );
-        self.write_command(&cmd, &mut writer)?;
+        self.common.write_command(&cmd, &mut writer)?;
 
         let pdi_iter = PresDataIter::new(
             ctx_id,
-            self.get_pdu_max_snd_size(),
+            self.common.get_pdu_max_snd_size(),
             false,
             stitched_elems,
             ts,
@@ -558,12 +381,14 @@ impl UserAssoc {
         );
         for pdi in pdi_iter {
             match pdi {
-                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Ok(pdi) => self
+                    .common
+                    .write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
                 Err(e) => return Err(AssocError::ab_failure(e)),
             }
         }
 
-        let rsp = self.next_msg(&mut reader, &mut writer)?;
+        let rsp = self.common.next_msg(&mut reader, &mut writer)?;
         Ok(Some(rsp))
     }
 }
@@ -622,18 +447,18 @@ impl UserAssocBuilder {
 
     #[must_use]
     pub fn build(self) -> UserAssoc {
-        let mut my_user_data = Vec::<UserPdu>::new();
-        my_user_data.push(UserPdu::MaxLengthItem(MaxLengthItem::new(
+        let mut this_user_data = Vec::<UserPdu>::new();
+        this_user_data.push(UserPdu::MaxLengthItem(MaxLengthItem::new(
             self.pdu_rcv_max_len,
         )));
 
         // Require synchronous transfers, until async is incorporated.
-        my_user_data.push(UserPdu::AsyncOperationsWindowItem(
+        this_user_data.push(UserPdu::AsyncOperationsWindowItem(
             AsyncOperationsWindowItem::new(1, 1),
         ));
 
         for ab in &self.supported_abs {
-            my_user_data.push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
+            this_user_data.push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
                 ab.uid().into(),
                 1,
                 0,
@@ -641,21 +466,24 @@ impl UserAssocBuilder {
         }
 
         let num_abs = self.supported_abs.len();
-        let num_user_data = my_user_data.len();
+        let num_user_data = this_user_data.len();
 
-        UserAssoc {
+        let common = CommonAssoc {
             _id: self.id,
-            my_ae: self.my_ae,
-            service_ae: self.service_ae,
+            this_ae: self.my_ae,
             supported_abs: self.supported_abs,
             supported_ts: self.supported_ts,
-            my_user_data,
+            this_user_data,
+            their_user_data: Vec::with_capacity(num_user_data),
+            negotiated_pres_ctx: HashMap::with_capacity(num_abs),
+        };
+
+        UserAssoc {
+            common,
+            service_ae: self.service_ae,
             ctx_id_counter: 1,
             msg_id_counter: 0,
             requested_pres_ctx: HashMap::with_capacity(num_abs),
-
-            their_user_data: Vec::with_capacity(num_user_data),
-            negotiated_pres_ctx: HashMap::with_capacity(num_abs),
         }
     }
 }

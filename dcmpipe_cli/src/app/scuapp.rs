@@ -192,13 +192,18 @@ impl CommandApplication for SvcUserApp {
             &RTPlanStorage,
         ]);
         let supported_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
-
+        let max_pdu_size = self
+            .args
+            .max_pdu_size
+            .and_then(|s| u32::try_from(s).ok())
+            .unwrap_or(0);
         let mut assoc = UserAssocBuilder::default()
             .id(0)
             .my_ae(self.args.my_ae.clone())
             .service_ae(self.args.host_ae.clone())
             .supported_abs(supported_abs)
             .supported_ts(supported_ts)
+            .pdu_rcv_max_len(max_pdu_size)
             .build();
 
         let stream = TcpStream::connect(&self.args.host)?;

@@ -416,6 +416,18 @@ impl RoleSelectionItem {
         self.sc_provider_role
     }
 
+    /// Checks if this role indicates it acts as a user.
+    #[must_use]
+    pub fn is_user(&self) -> bool {
+        self.sc_user_role != 0
+    }
+
+    /// Checks if this role indicates it acts as a provider.
+    #[must_use]
+    pub fn is_provider(&self) -> bool {
+        self.sc_provider_role != 0
+    }
+
     /// The total number of bytes that this PDU will require to write to a dataset.
     #[must_use]
     pub fn byte_size(&self) -> usize {
