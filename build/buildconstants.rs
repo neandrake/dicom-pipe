@@ -85,6 +85,7 @@ fn print_rerun_if_changed(files: &[DirEntry]) -> Result<(), Error> {
 fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
     let mut tag_lookup_content: String = String::new();
     let mut uid_lookup_content: String = String::new();
+    let mut transfer_syntax_lookup_content: String = String::new();
     let mut transfer_syntaxes: String = String::new();
     for entry in files {
         let path: &Path = entry.path();
@@ -131,6 +132,9 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
                     if let Some(code) = table_type.process_transfer_syntax(&uid) {
                         transfer_syntaxes.push_str(&code);
                     }
+                    if let Some(code) = table_type.process_transfer_syntax_lookup(&uid) {
+                        transfer_syntax_lookup_content.push_str(&code);
+                    }
                 }
             }
         }
@@ -153,6 +157,14 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
     if !uid_lookup_content.is_empty() {
         let code: String = get_uid_lookup(&uid_lookup_content);
         let mut out_rs_file: File = File::create("src/core/dict/uid_lookup.rs")?;
+        out_rs_file.write_all(code.as_bytes())?;
+        out_rs_file.flush()?;
+        out_rs_file.sync_all()?;
+    }
+
+    if !transfer_syntax_lookup_content.is_empty() {
+        let code: String = get_transfer_syntax_lookup(&transfer_syntax_lookup_content);
+        let mut out_rs_file: File = File::create("src/core/dict/ts_lookup.rs")?;
         out_rs_file.write_all(code.as_bytes())?;
         out_rs_file.flush()?;
         out_rs_file.sync_all()?;
@@ -242,6 +254,52 @@ impl UidLookup {{
 \t\tUidLookup {{
 \t\t\tident_to_uid: ident_to_uid,
 \t\t\tid_to_uid: id_to_uid,
+\t\t}}
+\t}}
+}}
+",
+    content)
+}
+
+fn get_transfer_syntax_lookup(content: &str) -> String {
+    format!("//! This is an auto-generated file. Do not make modifications here.
+
+use core::dict::transfer_syntaxes as ts;
+use core::dict::uids;
+use core::ts::TransferSyntax;
+use core::uid::UID;
+
+use std::collections::hash_map::HashMap;
+
+pub struct TransferSyntaxLookup {{
+\tident_to_ts: HashMap<&'static str, &'static TransferSyntax>,
+\tid_to_ts: HashMap<&'static str, &'static TransferSyntax>,
+\tuid_to_ts: HashMap<&'static UID, &'static TransferSyntax>,
+}}
+
+impl TransferSyntaxLookup {{
+\tpub fn by_ident(&self, ident: &str) -> Option<&'static TransferSyntax> {{
+\t\tident_to_ts.get(ident).map(|ts| *ts)
+\t}}
+
+\tpub fn by_id(&self, id: &str) -> Option<&'static TransferSyntax> {{
+\t\tid_to_ts.get(id).map(|ts| *ts)
+\t}}
+
+\tpub fn by_uid(&self, uid: &UID) -> Option<&'static TransferSyntax> {{
+\t\tuid_to_ts.get(uid).map(|ts| *ts)
+\t}}
+
+\tpub fn new() -> TransferSyntaxLookup {{
+\t\tlet mut ident_to_ts: HashMap<&'static str, &'static TransferSyntax> = HashMap::new();
+\t\tlet mut id_to_ts: HashMap<&'static str, &'static TransferSyntax> = HashMap::new();
+\t\tlet mut uid_to_ts: HashMap<&'static UID, &'static TransferSyntax> = HashMap::new();
+{}
+
+\t\tTransferSyntax {{
+\t\t\tident_to_ts: ident_to_ts,
+\t\t\tid_to_ts: id_to_ts,
+\t\t\tuid_to_ts: uid_to_ts,
 \t\t}}
 \t}}
 }}
@@ -471,6 +529,26 @@ pub static {}: TransferSyntax = TransferSyntax {{
 ",
             var_name, var_name,
             uid.value, var_name,
+        );
+
+        Some(code)
+    }
+
+    pub fn process_transfer_syntax_lookup(&self, uid: &Uid) -> Option<String> {
+        let var_name: String = TableType::sanitize_var_name(&uid.name);
+        if var_name.is_empty() {
+            return None;
+        }
+
+        let code: String = format!(
+"
+\t\tident_to_ts.insert(\"{}\", &ts::{});
+\t\tid_to_ts.insert(\"{}\", &ts::{});
+\t\tuid_to_ts.insert(&uids::{}, &ts::{});
+",
+            var_name, var_name,
+            uid.value, var_name,
+            var_name, var_name,
         );
 
         Some(code)
