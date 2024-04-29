@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-pub type Result<T> = core::result::Result<T, WriteError>;
+pub type WriteResult<T> = core::result::Result<T, WriteError>;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum WriteState {
@@ -88,7 +88,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         self
     }
 
-    pub fn create_element<T>(&self, tag: T, vr: VRRef, value: RawValue) -> Result<DicomElement>
+    pub fn create_element<T>(&self, tag: T, vr: VRRef, value: RawValue) -> WriteResult<DicomElement>
     where
         T: Into<u32>,
     {
@@ -98,18 +98,18 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(e)
     }
 
-    pub fn into_dataset(self) -> Result<DatasetType> {
+    pub fn into_dataset(self) -> WriteResult<DatasetType> {
         self.dataset
             .into_inner()
             .map_err(|err| WriteError::IOError { source: err })
     }
 
-    pub fn write_dcmroot(&mut self, dcmroot: &DicomRoot) -> Result<usize> {
+    pub fn write_dcmroot(&mut self, dcmroot: &DicomRoot) -> WriteResult<usize> {
         let elements = dcmroot.flatten()?;
         self.write_elements(elements.into_iter())
     }
 
-    pub fn write_elements<'a, E>(&mut self, elements: E) -> Result<usize>
+    pub fn write_elements<'a, E>(&mut self, elements: E) -> WriteResult<usize>
     where
         E: Iterator<Item = &'a DicomElement>,
     {
@@ -164,7 +164,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
     ///
     /// `fm_elements`: Slice of `&DicomElement`s which should all be elements with tag numbers in
     /// the range for FileMeta, and SHOULD NOT include a FileMetaInformationGroupLength element.
-    fn write_fm_elements(&mut self, fm_elements: &[&DicomElement]) -> Result<usize> {
+    fn write_fm_elements(&mut self, fm_elements: &[&DicomElement]) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
         let mut fm_dataset: Dataset<Vec<u8>> = Dataset::new(Vec::new(), 8 * 1024);
         for fme in fm_elements {
@@ -186,7 +186,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn new_fme(tag: u32, vr: VRRef, value: RawValue) -> Result<DicomElement> {
+    fn new_fme(tag: u32, vr: VRRef, value: RawValue) -> WriteResult<DicomElement> {
         let mut element = DicomElement::new_empty(tag, vr, &ts::ExplicitVRLittleEndian);
 
         element
@@ -196,7 +196,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(element)
     }
 
-    fn write_element(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
+    fn write_element(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         bytes_written += Writer::write_tag(dataset, element)?;
@@ -207,7 +207,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_tag(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
+    fn write_tag(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         if element.get_ts().is_big_endian() {
@@ -227,7 +227,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_vr(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
+    fn write_vr(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         if element.get_ts().is_explicit_vr() {
@@ -244,7 +244,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_vl(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
+    fn write_vl(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         let write_as_u32: bool =
@@ -285,7 +285,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         Ok(bytes_written)
     }
 
-    fn write_data(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
+    fn write_data(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
         #[cfg(feature = "compress")]

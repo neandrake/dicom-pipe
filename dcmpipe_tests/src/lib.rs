@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::{Parser, ParserBuilder, Result};
+use dcmpipe_lib::core::read::{Parser, ParserBuilder, ParseResult};
 use dcmpipe_lib::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 
 #[cfg(test)]
@@ -23,7 +23,7 @@ mod parsing;
 mod writing;
 
 /// Parses the given file into a `DicomObject`
-pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
+pub fn parse_file(path: &str, with_std: bool) -> ParseResult<DicomRoot<'_>> {
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
     } else {
@@ -40,7 +40,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
 
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
 /// whether the standard dicom dictionary should be reigstered with the parser.
-pub fn parse_all_dicom_files(with_std: bool) -> Result<usize> {
+pub fn parse_all_dicom_files(with_std: bool) -> ParseResult<usize> {
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
     } else {
@@ -126,7 +126,7 @@ where
     true
 }
 
-pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<()> {
+pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> ParseResult<()> {
     // This should always do nothing as the root should never have items.
     for dcmobj in dcmroot.iter_items() {
         parse_all_dcmobj_values(dcmobj)?;
@@ -137,7 +137,7 @@ pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<()> {
     Ok(())
 }
 
-fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<()> {
+fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> ParseResult<()> {
     // Parse current element value before moving on to items/children.
     dcmobj.as_element().parse_value()?;
     for item_dcmobj in dcmobj.iter_items() {
@@ -149,7 +149,7 @@ fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<()> {
     Ok(())
 }
 
-pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Result<()> {
+pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> ParseResult<()> {
     for elem_result in parser {
         match elem_result {
             Ok(elem) => {

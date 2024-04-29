@@ -7,7 +7,7 @@ use crate::{
     core::{
         charset::{CSRef, DEFAULT_CHARACTER_SET},
         dcmsqelem::SequenceElement,
-        read::{self, parser::Result},
+        read::{self, parser::ParseResult},
         write::valencode,
         values::RawValue,
     },
@@ -138,7 +138,7 @@ impl DicomElement {
     }
 
     /// Parses this element's data into native/raw value type.
-    pub fn parse_value(&self) -> Result<RawValue> {
+    pub fn parse_value(&self) -> ParseResult<RawValue> {
         RawValue::try_from(self)
     }
 
@@ -155,7 +155,7 @@ impl DicomElement {
     /// `ValueLength::Explicit` will be assigned to `self.vl`. Unconditionally, `self.vl` will be
     /// assigned `ValueLength::Explicit(0)` if this element is `Item`, `ItemDelimitationItem`, or
     /// `SequenceDelimitationItem`.
-    pub fn encode_value(&mut self, value: RawValue, vl: Option<ValueLength>) -> Result<()> {
+    pub fn encode_value(&mut self, value: RawValue, vl: Option<ValueLength>) -> ParseResult<()> {
         self.data = valencode::encode_value(&self, value)?;
 
         self.vl = if vl.is_some() && self.is_seq_like() || self.tag == tags::ITEM {

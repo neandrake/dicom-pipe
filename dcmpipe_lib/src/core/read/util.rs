@@ -1,6 +1,6 @@
 use std::io::{ErrorKind, Read};
 
-use super::parser::Result;
+use super::parser::ParseResult;
 use crate::core::read::error::ParseError;
 use crate::defn::constants::tags;
 use crate::defn::ts::TSRef;
@@ -24,7 +24,7 @@ where
 
 /// This is a variation of `Read::read_exact` however if zero bytes are read instead of returning
 /// an error with `ErrorKind::UnexpectedEof` it will return an error with `ParseError::ExpectedEOF`.
-fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<()> {
+fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> ParseResult<()> {
     let mut bytes_read: usize = 0;
     while !buf.is_empty() {
         match dataset.read(buf) {
@@ -55,7 +55,7 @@ fn read_exact_expect_eof(dataset: &mut impl Read, mut buf: &mut [u8]) -> Result<
 }
 
 /// Reads a tag attribute from a given dataset
-pub(crate) fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> Result<u32> {
+pub(crate) fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -> ParseResult<u32> {
     let mut buf: [u8; 2] = [0; 2];
 
     read_exact_expect_eof(dataset, &mut buf)?;
@@ -77,7 +77,7 @@ pub(crate) fn read_tag_from_dataset(dataset: &mut impl Read, big_endian: bool) -
 }
 
 /// Reads a VR from a given dataset.
-pub(crate) fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
+pub(crate) fn read_vr_from_dataset(dataset: &mut impl Read) -> ParseResult<VRRef> {
     let mut buf: [u8; 2] = [0; 2];
     dataset.read_exact(&mut buf)?;
     let first_char: u8 = buf[0];
@@ -105,7 +105,7 @@ pub(crate) fn read_value_length_from_dataset(
     dataset: &mut impl Read,
     ts: TSRef,
     vr: VRRef,
-) -> Result<ValueLength> {
+) -> ParseResult<ValueLength> {
     let value_length: u32 = if !ts.is_explicit_vr() || vr.has_explicit_2byte_pad {
         let mut buf: [u8; 4] = [0; 4];
         dataset.read_exact(&mut buf)?;

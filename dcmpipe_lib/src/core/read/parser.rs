@@ -24,7 +24,7 @@ mod elem;
 mod fme;
 
 /// The `Result` type of the parser
-pub type Result<T> = core::result::Result<T, ParseError>;
+pub type ParseResult<T> = core::result::Result<T, ParseError>;
 
 /// The different parsing behaviors of the dataset.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
@@ -279,14 +279,14 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Parses the value of the given element as the transfer syntax return. If the transfer syntax
     /// cannot be resolved then this sets it to the default DICOM transfer syntax which is IVRLE.
-    fn parse_transfer_syntax(&mut self, element: &DicomElement) -> Result<Option<TSRef>> {
+    fn parse_transfer_syntax(&mut self, element: &DicomElement) -> ParseResult<Option<TSRef>> {
         let ts_uid: String = String::try_from(element)?;
         Ok(self.dictionary.get_ts_by_uid(ts_uid.as_ref()))
     }
 
     /// Parses the value of the given element as the specific character set and sets the `cs` value
     /// on this iterator to affect the parsing of further text-type element values.
-    fn parse_specific_character_set(&mut self, element: &DicomElement) -> Result<CSRef> {
+    fn parse_specific_character_set(&mut self, element: &DicomElement) -> ParseResult<CSRef> {
         let new_cs: Option<String> = Vec::<String>::try_from(element)?
             .into_iter()
             .find(|cs_entry: &String| !cs_entry.is_empty());
@@ -349,7 +349,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Performs the primary iteration for the parser but the return type is consistent for error
     /// handling and not iteration. This should be called once for each invocation of `next()`.
-    pub(super) fn iterate(&mut self) -> Result<Option<DicomElement>> {
+    pub(super) fn iterate(&mut self) -> ParseResult<Option<DicomElement>> {
         // The earlier parse states will read non-elements from the dataset and move to another
         // state. A loop is used so once those succeed they continue the loop and move to next
         // states which will eventually return a dicom element.

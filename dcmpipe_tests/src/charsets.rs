@@ -6,13 +6,13 @@ use dcmpipe_dict::dict::tags;
 use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::{Parser, ParserBuilder, Result};
+use dcmpipe_lib::core::read::{Parser, ParserBuilder, ParseResult};
 
 use crate::parse_file;
 
 /// This DICOMDIR has sequences with nested elements that change charsets
 #[test]
-fn test_parse_nested_charset_values() -> Result<()> {
+fn test_parse_nested_charset_values() -> ParseResult<()> {
     let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
     let file: File = File::open(path_str)?;
     let mut parser: Parser<'_, File> = ParserBuilder::default()
@@ -95,7 +95,7 @@ fn test_nested_charset(
     cs: CSRef,
     scs: &str,
     pn: &str,
-) -> Result<()> {
+) -> ParseResult<()> {
     let item: &DicomObject = dcmroot
         .get_child_by_tag(tags::DirectoryRecordSequence.tag)
         .expect("Should have DirectoryRecordSequence")
@@ -131,7 +131,7 @@ fn test_nested_charset(
 }
 
 #[test]
-fn test_scs_arab() -> Result<()> {
+fn test_scs_arab() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSARAB",
@@ -142,7 +142,7 @@ fn test_scs_arab() -> Result<()> {
 }
 
 #[test]
-fn test_scs_french() -> Result<()> {
+fn test_scs_french() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSFREN",
@@ -153,7 +153,7 @@ fn test_scs_french() -> Result<()> {
 }
 
 #[test]
-fn test_scs_german() -> Result<()> {
+fn test_scs_german() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSGERM",
@@ -164,7 +164,7 @@ fn test_scs_german() -> Result<()> {
 }
 
 #[test]
-fn test_scs_greek() -> Result<()> {
+fn test_scs_greek() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSGREEK",
@@ -175,7 +175,7 @@ fn test_scs_greek() -> Result<()> {
 }
 
 #[test]
-fn test_scs_h31() -> Result<()> {
+fn test_scs_h31() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSH31",
@@ -188,7 +188,7 @@ fn test_scs_h31() -> Result<()> {
 /// This uses multiple charsets, ISO-IR-13 and ISO-IR-87.
 #[test]
 #[ignore]
-fn test_scs_h32() -> Result<()> {
+fn test_scs_h32() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSH32",
@@ -199,7 +199,7 @@ fn test_scs_h32() -> Result<()> {
 }
 
 #[test]
-fn test_scs_hebrew() -> Result<()> {
+fn test_scs_hebrew() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSHBRW",
@@ -210,7 +210,7 @@ fn test_scs_hebrew() -> Result<()> {
 }
 
 #[test]
-fn test_scs_i12() -> Result<()> {
+fn test_scs_i12() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSI2",
@@ -221,7 +221,7 @@ fn test_scs_i12() -> Result<()> {
 }
 
 #[test]
-fn test_scs_russian() -> Result<()> {
+fn test_scs_russian() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSRUSS",
@@ -232,7 +232,7 @@ fn test_scs_russian() -> Result<()> {
 }
 
 #[test]
-fn test_scs_x1() -> Result<()> {
+fn test_scs_x1() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSX1",
@@ -243,7 +243,7 @@ fn test_scs_x1() -> Result<()> {
 }
 
 #[test]
-fn test_scs_x2() -> Result<()> {
+fn test_scs_x2() -> ParseResult<()> {
     test_scs_file(
         true,
         "./fixtures/dclunie/charsettests/SCSX2",
@@ -253,7 +253,7 @@ fn test_scs_x2() -> Result<()> {
     )
 }
 
-fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> Result<()> {
+fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(path, with_std)?;
 
     assert_eq!(cs.name(), dcmroot.get_cs().name());

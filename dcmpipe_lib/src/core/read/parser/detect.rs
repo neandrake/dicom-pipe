@@ -17,7 +17,7 @@ use crate::{
     core::read::{
         self,
         parser::{
-            ParseError, ParseState, Parser, Result, FILE_PREAMBLE_LENGTH,
+            ParseError, ParseState, Parser, ParseResult, FILE_PREAMBLE_LENGTH,
         },
     },
     defn::{
@@ -54,7 +54,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     ///    library also uses this same value comparison.
     /// 4. Otherwise it's assumed the start of the file is proprietary file preamble. These bytes
     ///    are then skipped and detection begins again.
-    pub(super) fn iterate_detect_state(&mut self) -> Result<()> {
+    pub(super) fn iterate_detect_state(&mut self) -> ParseResult<()> {
         // start off assuming EVRLE, the default for File-Meta
         let mut ts: TSRef = &ts::ExplicitVRLittleEndian;
 

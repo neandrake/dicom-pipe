@@ -10,7 +10,7 @@ use crate::{
     core::{
         dcmelement::DicomElement,
         read::parser::{
-            ParseError, ParseState, Parser, Result, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
+            ParseError, ParseState, Parser, ParseResult, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
             FILE_PREAMBLE_LENGTH,
         },
     },
@@ -19,7 +19,7 @@ use crate::{
 
 impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Performs the `ParserState::Preamble` iteration
-    pub(super) fn iterate_preamble(&mut self) -> Result<()> {
+    pub(super) fn iterate_preamble(&mut self) -> ParseResult<()> {
         let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
         self.dataset.read_exact(&mut file_preamble)?;
         self.bytes_read += file_preamble.len() as u64;
@@ -29,7 +29,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Performs the `ParserState::Prefix` iteration
-    pub(super) fn iterate_prefix(&mut self) -> Result<()> {
+    pub(super) fn iterate_prefix(&mut self) -> ParseResult<()> {
         let mut dicom_prefix: [u8; DICOM_PREFIX_LENGTH] = [0; DICOM_PREFIX_LENGTH];
         self.dataset.read_exact(&mut dicom_prefix)?;
         self.bytes_read += dicom_prefix.len() as u64;
@@ -44,7 +44,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Performs the `ParserState::GroupLength` iteration
-    pub(super) fn iterate_group_length(&mut self) -> Result<Option<DicomElement>> {
+    pub(super) fn iterate_group_length(&mut self) -> ParseResult<Option<DicomElement>> {
         // See comment on `detected_ts` for further details on why this is being used as to
         // hard-coded to ExplicitVRLittleEndian, as the standard defines File Meta to use.
         let ts: TSRef = self.detected_ts;
@@ -73,7 +73,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     }
 
     /// Performs the `ParserState::FileMeta` iteration
-    pub(super) fn iterate_file_meta(&mut self) -> Result<Option<DicomElement>> {
+    pub(super) fn iterate_file_meta(&mut self) -> ParseResult<Option<DicomElement>> {
         // check if we're about to read an element which is outside the file meta section, if so
         // then change states outside of this one.
         if self.fmi_grouplength > 0

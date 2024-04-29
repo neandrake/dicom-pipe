@@ -10,7 +10,7 @@ use crate::{
         charset::CSRef,
         dcmelement::DicomElement,
         dcmsqelem::SequenceElement,
-        read::parser::{Parser, Result},
+        read::parser::{Parser, ParseResult},
     },
     defn::{
         constants::{tags, ts},
@@ -21,7 +21,7 @@ use crate::{
 
 impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Performs the `ParserState::Element` iteration
-    pub(crate) fn iterate_element(&mut self) -> Result<Option<DicomElement>> {
+    pub(crate) fn iterate_element(&mut self) -> ParseResult<Option<DicomElement>> {
         // use the transfer syntax defined by the dataset, or if not specified or not yet seen then
         // use the one initialized/detected.
         let ts: TSRef = self.dataset_ts.unwrap_or(self.detected_ts);

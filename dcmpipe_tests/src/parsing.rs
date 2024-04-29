@@ -9,7 +9,7 @@ use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::{DicomElement};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
-use dcmpipe_lib::core::read::{ParseError, ParseState, Parser, ParserBuilder, Result};
+use dcmpipe_lib::core::read::{ParseError, ParseState, Parser, ParserBuilder, ParseResult};
 use dcmpipe_lib::core::values::{ElementWithVr, RawValue};
 use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
@@ -134,16 +134,16 @@ fn test_trailing_zeroes_does_not_error() {
 }
 
 #[test]
-fn test_parser_state_with_std() -> Result<()> {
+fn test_parser_state_with_std() -> ParseResult<()> {
     test_parser_state(true)
 }
 
 #[test]
-fn test_parser_state_without_std() -> Result<()> {
+fn test_parser_state_without_std() -> ParseResult<()> {
     test_parser_state(false)
 }
 
-fn test_parser_state(with_std: bool) -> Result<()> {
+fn test_parser_state(with_std: bool) -> ParseResult<()> {
     let stop = &tags::PixelData;
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
@@ -176,7 +176,7 @@ fn test_parser_state(with_std: bool) -> Result<()> {
     // this test file uses implicit VR (FMI is encoded as explicit)
 
     // subsequent item should not advance reading elements
-    let next_elem: Option<Result<DicomElement>> = parser.next();
+    let next_elem: Option<ParseResult<DicomElement>> = parser.next();
     assert!(next_elem.is_none());
 
     // the iterator state should be just after having parsed the stop tag
@@ -190,16 +190,16 @@ fn test_parser_state(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_dicom_object_with_std() -> Result<()> {
+fn test_dicom_object_with_std() -> ParseResult<()> {
     test_dicom_object(true)
 }
 
 #[test]
-fn test_dicom_object_without_std() -> Result<()> {
+fn test_dicom_object_without_std() -> ParseResult<()> {
     test_dicom_object(false)
 }
 
-fn test_dicom_object(with_std: bool) -> Result<()> {
+fn test_dicom_object(with_std: bool) -> ParseResult<()> {
     let file: &str = "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm";
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
@@ -229,16 +229,16 @@ fn test_dicom_object(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_dicom_object_sequences_with_std() -> Result<()> {
+fn test_dicom_object_sequences_with_std() -> ParseResult<()> {
     test_dicom_object_sequences(true)
 }
 
 #[test]
-fn test_dicom_object_sequences_without_std() -> Result<()> {
+fn test_dicom_object_sequences_without_std() -> ParseResult<()> {
     test_dicom_object_sequences(false)
 }
 
-fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
+fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
     let file: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
@@ -436,19 +436,19 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_empty_seq_undefined_length_with_std() -> Result<()> {
+fn test_empty_seq_undefined_length_with_std() -> ParseResult<()> {
     test_empty_seq_undefined_length(true)
 }
 
 #[test]
-fn test_empty_seq_undefined_length_without_std() -> Result<()> {
+fn test_empty_seq_undefined_length_without_std() -> ParseResult<()> {
     test_empty_seq_undefined_length(false)
 }
 
 /// In this file the `ReferencedStudySequence` and `ReferencedPatientSequence` tags are both `SQ`
 /// elements defined with `UndefinedLength` and contain no data - the first element they have as
 /// contents are `SequenceDelimitationItem` which ends the sequence.
-fn test_empty_seq_undefined_length(with_std: bool) -> Result<()> {
+fn test_empty_seq_undefined_length(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/DX_GE_FALCON_SNOWY-VOI.dcm",
         with_std,
@@ -475,18 +475,18 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_private_tag_un_sq_with_std() -> Result<()> {
+fn test_private_tag_un_sq_with_std() -> ParseResult<()> {
     test_private_tag_un_sq(true)
 }
 
 #[test]
-fn test_private_tag_un_sq_without_std() -> Result<()> {
+fn test_private_tag_un_sq_without_std() -> ParseResult<()> {
     test_private_tag_un_sq(false)
 }
 
 /// Private tags with UN VR and UndefinedLength should be parsed as sequences. This file uses tags
 /// which are not known to the dictionaries we're parsing with.
-fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
+fn test_private_tag_un_sq(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm", with_std)?;
 
@@ -541,12 +541,12 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_seq_switch_to_ivrle_with_std() -> Result<()> {
+fn test_seq_switch_to_ivrle_with_std() -> ParseResult<()> {
     test_seq_switch_to_ivrle(true)
 }
 
 #[test]
-fn test_seq_switch_to_ivrle_without_std() -> Result<()> {
+fn test_seq_switch_to_ivrle_without_std() -> ParseResult<()> {
     test_seq_switch_to_ivrle(false)
 }
 
@@ -554,7 +554,7 @@ fn test_seq_switch_to_ivrle_without_std() -> Result<()> {
 /// despite what the transfer syntax is. This dataset encodes SourceImageSequence with an explicit
 /// VR of UN rather than SQ which requires using a parser on the sequence's data field to decode
 /// its contents.
-fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
+fn test_seq_switch_to_ivrle(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
         with_std,
@@ -609,17 +609,17 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_missing_preamble_with_std() -> Result<()> {
+fn test_missing_preamble_with_std() -> ParseResult<()> {
     test_missing_preamble(true)
 }
 
 #[test]
-fn test_missing_preamble_without_std() -> Result<()> {
+fn test_missing_preamble_without_std() -> ParseResult<()> {
     test_missing_preamble(false)
 }
 
 /// This file has no preamble or file meta - should parse as the DICOM default IVRLE
-fn test_missing_preamble(with_std: bool) -> Result<()> {
+fn test_missing_preamble(with_std: bool) -> ParseResult<()> {
     let file: &str = "./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm";
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
@@ -650,17 +650,17 @@ fn test_missing_preamble(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_undefined_charset_with_std() -> Result<()> {
+fn test_undefined_charset_with_std() -> ParseResult<()> {
     test_undefined_charset(true)
 }
 
 #[test]
-fn test_undefined_charset_without_std() -> Result<()> {
+fn test_undefined_charset_without_std() -> ParseResult<()> {
     test_undefined_charset(false)
 }
 
 /// This file has no Specific Character Set defined and tests the behavior of parsing string values.
-fn test_undefined_charset(with_std: bool) -> Result<()> {
+fn test_undefined_charset(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/UndefinedValueLengthIllegalNonEncapsulatedTS.dcm",
         with_std,
@@ -713,17 +713,17 @@ fn test_undefined_charset(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_rle_with_std() -> Result<()> {
+fn test_rle_with_std() -> ParseResult<()> {
     test_rle(true)
 }
 
 #[test]
-fn test_rle_without_std() -> Result<()> {
+fn test_rle_without_std() -> ParseResult<()> {
     test_rle(false)
 }
 
 /// This file is RLE encoded. Eventually test the data can be decompressed properly.
-fn test_rle(with_std: bool) -> Result<()> {
+fn test_rle(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_RLE_FRAGS.dcm",
         with_std,
@@ -733,16 +733,16 @@ fn test_rle(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_deflated_evrle_with_std() -> Result<()> {
+fn test_deflated_evrle_with_std() -> ParseResult<()> {
     test_deflated_evrle(true)
 }
 
 #[test]
-fn test_deflated_evrle_without_std() -> Result<()> {
+fn test_deflated_evrle_without_std() -> ParseResult<()> {
     test_deflated_evrle(false)
 }
 
-fn test_deflated_evrle(with_std: bool) -> Result<()> {
+fn test_deflated_evrle(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
@@ -750,16 +750,16 @@ fn test_deflated_evrle(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_illegal_cp246_with_std() -> Result<()> {
+fn test_illegal_cp246_with_std() -> ParseResult<()> {
     test_illegal_cp246(true)
 }
 
 #[test]
-fn test_illegal_cp246_without_std() -> Result<()> {
+fn test_illegal_cp246_without_std() -> ParseResult<()> {
     test_illegal_cp246(false)
 }
 
-fn test_illegal_cp246(with_std: bool) -> Result<()> {
+fn test_illegal_cp246(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246_corrected.dcm",
         with_std,
@@ -811,18 +811,18 @@ fn test_illegal_cp246(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_incomplete_dicom_file_with_std() -> Result<()> {
+fn test_incomplete_dicom_file_with_std() -> ParseResult<()> {
     test_incomplete_dicom_file(true)
 }
 
 #[test]
-fn test_incomplete_dicom_file_without_std() -> Result<()> {
+fn test_incomplete_dicom_file_without_std() -> ParseResult<()> {
     test_incomplete_dicom_file(false)
 }
 
 /// This dataset defines an item in (5200,9229)[1].(2005,140E)[1].(0700,0300) which specifies a
 /// very large explicit value length (~50mb) which is not actually present in the dicom file.
-fn test_incomplete_dicom_file(with_std: bool) -> Result<()> {
+fn test_incomplete_dicom_file(with_std: bool) -> ParseResult<()> {
     let result = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm",
         with_std,
@@ -845,17 +845,17 @@ fn test_incomplete_dicom_file(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_no_preamble_start_with_0005_with_std() -> Result<()> {
+fn test_no_preamble_start_with_0005_with_std() -> ParseResult<()> {
     test_no_preamble_start_with_0005(true)
 }
 
 #[test]
-fn test_no_preamble_start_with_0005_without_std() -> Result<()> {
+fn test_no_preamble_start_with_0005_without_std() -> ParseResult<()> {
     test_no_preamble_start_with_0005(false)
 }
 
 /// File has no preamble/prefix and also no File Meta Info header, should default to IVRLE
-fn test_no_preamble_start_with_0005(with_std: bool) -> Result<()> {
+fn test_no_preamble_start_with_0005(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/US-IRAD-NoPreambleStartWith0005.dcm",
         with_std,
@@ -885,17 +885,17 @@ fn test_no_preamble_start_with_0005(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_no_dicomv3_preamble_with_std() -> Result<()> {
+fn test_no_dicomv3_preamble_with_std() -> ParseResult<()> {
     test_no_dicomv3_preamble(true)
 }
 
 #[test]
-fn test_no_dicomv3_preamble_without_std() -> Result<()> {
+fn test_no_dicomv3_preamble_without_std() -> ParseResult<()> {
     test_no_dicomv3_preamble(false)
 }
 
 /// File has no preamble/prefix
-fn test_no_dicomv3_preamble(with_std: bool) -> Result<()> {
+fn test_no_dicomv3_preamble(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/PICKER-16-MONO2-No_DicomV3_Preamble.dcm",
         with_std,
@@ -914,16 +914,16 @@ fn test_no_dicomv3_preamble(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_private_ge_ts_with_std() -> Result<()> {
+fn test_private_ge_ts_with_std() -> ParseResult<()> {
     test_private_ge_ts(true)
 }
 
 #[test]
-fn test_private_ge_ts_without_std() -> Result<()> {
+fn test_private_ge_ts_without_std() -> ParseResult<()> {
     test_private_ge_ts(false)
 }
 
-fn test_private_ge_ts(with_std: bool) -> Result<()> {
+fn test_private_ge_ts(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/PrivateGEImplicitVRBigEndianTransferSyntax16Bits.dcm",
         with_std,
@@ -934,18 +934,18 @@ fn test_private_ge_ts(with_std: bool) -> Result<()> {
 
 #[test]
 #[ignore]
-fn test_secured_dicomdir_with_std() -> Result<()> {
+fn test_secured_dicomdir_with_std() -> ParseResult<()> {
     test_secured_dicomdir(true)
 }
 
 #[test]
 #[ignore]
-fn test_secured_dicomdir_without_std() -> Result<()> {
+fn test_secured_dicomdir_without_std() -> ParseResult<()> {
     test_secured_dicomdir(false)
 }
 
 /// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
-fn test_secured_dicomdir(with_std: bool) -> Result<()> {
+fn test_secured_dicomdir(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/DICOMDIR",
         with_std,
@@ -956,18 +956,18 @@ fn test_secured_dicomdir(with_std: bool) -> Result<()> {
 
 #[test]
 #[ignore]
-fn test_secured_image_with_std() -> Result<()> {
+fn test_secured_image_with_std() -> ParseResult<()> {
     test_secured_image(true)
 }
 
 #[test]
 #[ignore]
-fn test_secured_image_without_std() -> Result<()> {
+fn test_secured_image_without_std() -> ParseResult<()> {
     test_secured_image(false)
 }
 
 /// See Part 10, Section 7.4 on Secure DICOM File Format. File is encrypted with RFC3369
-fn test_secured_image(with_std: bool) -> Result<()> {
+fn test_secured_image(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/securedicomfileset/IMAGES/IMAGE1",
         with_std,
@@ -977,16 +977,16 @@ fn test_secured_image(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_private_ge_dlx_ts_with_std() -> Result<()> {
+fn test_private_ge_dlx_ts_with_std() -> ParseResult<()> {
     test_private_ge_dlx_ts(true)
 }
 
 #[test]
-fn test_private_ge_dlx_ts_without_std() -> Result<()> {
+fn test_private_ge_dlx_ts_without_std() -> ParseResult<()> {
     test_private_ge_dlx_ts(false)
 }
 
-fn test_private_ge_dlx_ts(with_std: bool) -> Result<()> {
+fn test_private_ge_dlx_ts(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/GE_DLX-8-MONO2-PrivateSyntax.dcm",
         with_std,
@@ -996,16 +996,16 @@ fn test_private_ge_dlx_ts(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_undefined_item_wrong_vl_with_std() -> Result<()> {
+fn test_undefined_item_wrong_vl_with_std() -> ParseResult<()> {
     test_undefined_item_wrong_vl(true)
 }
 
 #[test]
-fn test_undefined_item_wrong_vl_without_std() -> Result<()> {
+fn test_undefined_item_wrong_vl_without_std() -> ParseResult<()> {
     test_undefined_item_wrong_vl(false)
 }
 
-fn test_undefined_item_wrong_vl(with_std: bool) -> Result<()> {
+fn test_undefined_item_wrong_vl(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/BugGDCM2_UndefItemWrongVL.dcm",
         with_std,
@@ -1015,16 +1015,16 @@ fn test_undefined_item_wrong_vl(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_uncompressed_even_length_tag_with_std() -> Result<()> {
+fn test_uncompressed_even_length_tag_with_std() -> ParseResult<()> {
     test_uncompressed_even_length_tag(true)
 }
 
 #[test]
-fn test_uncompressed_even_length_tag_without_std() -> Result<()> {
+fn test_uncompressed_even_length_tag_without_std() -> ParseResult<()> {
     test_uncompressed_even_length_tag(false)
 }
 
-fn test_uncompressed_even_length_tag(with_std: bool) -> Result<()> {
+fn test_uncompressed_even_length_tag(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/THERALYS-12-MONO2-Uncompressed-Even_Length_Tag.dcm",
         with_std,
@@ -1034,17 +1034,17 @@ fn test_uncompressed_even_length_tag(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_dicomdir_with_embedded_icons_with_std() -> Result<()> {
+fn test_dicomdir_with_embedded_icons_with_std() -> ParseResult<()> {
     test_dicomdir_with_embedded_icons(true)
 }
 
 #[test]
-fn test_dicomdir_with_embedded_icons_without_std() -> Result<()> {
+fn test_dicomdir_with_embedded_icons_without_std() -> ParseResult<()> {
     test_dicomdir_with_embedded_icons(false)
 }
 
 /// High number of items in a sequence
-fn test_dicomdir_with_embedded_icons(with_std: bool) -> Result<()> {
+fn test_dicomdir_with_embedded_icons(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/dicomdir_With_embedded_icons",
         with_std,
@@ -1054,16 +1054,16 @@ fn test_dicomdir_with_embedded_icons(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_radbw_lossless_with_std() -> Result<()> {
+fn test_radbw_lossless_with_std() -> ParseResult<()> {
     test_radbw_lossless(true)
 }
 
 #[test]
-fn test_radbw_lossless_without_std() -> Result<()> {
+fn test_radbw_lossless_without_std() -> ParseResult<()> {
     test_radbw_lossless(false)
 }
 
-fn test_radbw_lossless(with_std: bool) -> Result<()> {
+fn test_radbw_lossless(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmData/RadBWLossLess.dcm", with_std)?;
 
@@ -1071,16 +1071,16 @@ fn test_radbw_lossless(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_derma_color_lossless_with_std() -> Result<()> {
+fn test_derma_color_lossless_with_std() -> ParseResult<()> {
     test_derma_color_lossless(true)
 }
 
 #[test]
-fn test_derma_color_lossless_without_std() -> Result<()> {
+fn test_derma_color_lossless_without_std() -> ParseResult<()> {
     test_derma_color_lossless(false)
 }
 
-fn test_derma_color_lossless(with_std: bool) -> Result<()> {
+fn test_derma_color_lossless(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> =
         parse_file("./fixtures/gdcm/gdcmData/DermaColorLossLess.dcm", with_std)?;
 
@@ -1088,16 +1088,16 @@ fn test_derma_color_lossless(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_libido_16_acr_nema_volume_with_std() -> Result<()> {
+fn test_libido_16_acr_nema_volume_with_std() -> ParseResult<()> {
     test_libido_16_acr_nema_volume(true)
 }
 
 #[test]
-fn test_libido_16_acr_nema_volume_without_std() -> Result<()> {
+fn test_libido_16_acr_nema_volume_without_std() -> ParseResult<()> {
     test_libido_16_acr_nema_volume(false)
 }
 
-fn test_libido_16_acr_nema_volume(with_std: bool) -> Result<()> {
+fn test_libido_16_acr_nema_volume(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/LIBIDO-16-ACR_NEMA-Volume.dcm",
         with_std,
@@ -1107,16 +1107,16 @@ fn test_libido_16_acr_nema_volume(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_jpeg_lossless_zerolength_sq_with_std() -> Result<()> {
+fn test_jpeg_lossless_zerolength_sq_with_std() -> ParseResult<()> {
     test_jpeg_lossless_zerolength_sq(true)
 }
 
 #[test]
-fn test_jpeg_lossless_zerolength_sq_without_std() -> Result<()> {
+fn test_jpeg_lossless_zerolength_sq_without_std() -> ParseResult<()> {
     test_jpeg_lossless_zerolength_sq(false)
 }
 
-fn test_jpeg_lossless_zerolength_sq(with_std: bool) -> Result<()> {
+fn test_jpeg_lossless_zerolength_sq(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/MARCONI_MxTWin-12-MONO2-JpegLossless-ZeroLengthSQ.dcm",
         with_std,
@@ -1126,16 +1126,16 @@ fn test_jpeg_lossless_zerolength_sq(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_illegal_group2_implicit_ts_with_std() -> Result<()> {
+fn test_illegal_group2_implicit_ts_with_std() -> ParseResult<()> {
     test_illegal_group2_implicit_ts(true)
 }
 
 #[test]
-fn test_illegal_group2_implicit_ts_without_std() -> Result<()> {
+fn test_illegal_group2_implicit_ts_without_std() -> ParseResult<()> {
     test_illegal_group2_implicit_ts(false)
 }
 
-fn test_illegal_group2_implicit_ts(with_std: bool) -> Result<()> {
+fn test_illegal_group2_implicit_ts(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/IllegalGroup2ImplicitTS.dcm",
         with_std,
@@ -1158,7 +1158,7 @@ fn test_ul_is_2bytes_without_std() {
 
 /// Contains tags (0009,1130), (0009,1131), (0009,1140) with explicit VR of UL but value length is
 /// actually only 2 bytes instead of 4.
-fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
+fn test_ul_is_2bytes(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/SIEMENS_GBS_III-16-ACR_NEMA_1-ULis2Bytes.dcm",
         with_std,
@@ -1212,61 +1212,61 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_dicomdir_with_std() -> Result<()> {
+fn test_dicomdir_with_std() -> ParseResult<()> {
     test_dicomdir(true)
 }
 
 #[test]
-fn test_dicomdir_without_std() -> Result<()> {
+fn test_dicomdir_without_std() -> ParseResult<()> {
     test_dicomdir(false)
 }
 
-fn test_dicomdir(with_std: bool) -> Result<()> {
+fn test_dicomdir(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/dclunie/charsettests/DICOMDIR", with_std)?;
 
     Ok(())
 }
 
 #[test]
-fn test_sq_with_undefined_length_converted_to_defined_length_with_std() -> Result<()> {
+fn test_sq_with_undefined_length_converted_to_defined_length_with_std() -> ParseResult<()> {
     test_sq_with_undefined_length_converted_to_defined_length(true)
 }
 
 #[test]
-fn test_sq_with_undefined_length_converted_to_defined_length_without_std() -> Result<()> {
+fn test_sq_with_undefined_length_converted_to_defined_length_without_std() -> ParseResult<()> {
     test_sq_with_undefined_length_converted_to_defined_length(false)
 }
 
-fn test_sq_with_undefined_length_converted_to_defined_length(with_std: bool) -> Result<()> {
+fn test_sq_with_undefined_length_converted_to_defined_length(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthConvertedToDefinedLength.dcm", with_std)?;
 
     Ok(())
 }
 
 #[test]
-fn test_sq_with_undefined_length_unconvertable_to_defined_length_with_std() -> Result<()> {
+fn test_sq_with_undefined_length_unconvertable_to_defined_length_with_std() -> ParseResult<()> {
     test_sq_with_undefined_length_unconvertable_to_defined_length(true)
 }
 
 #[test]
-fn test_sq_with_undefined_length_unconvertable_to_defined_length_without_std() -> Result<()> {
+fn test_sq_with_undefined_length_unconvertable_to_defined_length_without_std() -> ParseResult<()> {
     test_sq_with_undefined_length_unconvertable_to_defined_length(false)
 }
 
 /// This is a deflated dataset
-fn test_sq_with_undefined_length_unconvertable_to_defined_length(with_std: bool) -> Result<()> {
+fn test_sq_with_undefined_length_unconvertable_to_defined_length(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file("./fixtures/gdcm/gdcmConformanceTests/SequenceWithUndefinedLengthNotConvertibleToDefinedLength.dcm", with_std)?;
 
     Ok(())
 }
 
 #[test]
-fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_with_std() -> Result<()> {
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_with_std() -> ParseResult<()> {
     test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(true)
 }
 
 #[test]
-fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std() -> Result<()> {
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std() -> ParseResult<()> {
     test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(false)
 }
 
@@ -1281,7 +1281,7 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements_without_std(
 /// >code that would "guess" the transfer syntax for every sequence item and would even
 /// >handle implicit VR big endian encoding. However, the heuristics created more problems
 /// >then they solved.
-fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bool) -> Result<()> {
+fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bool) -> ParseResult<()> {
     let file: &str =
         "./fixtures/gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm";
     let dict: &dyn DicomDictionary = if with_std {
@@ -1326,18 +1326,18 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bo
 }
 
 #[test]
-fn test_explicit_implicit_bogus_iop_with_std() -> Result<()> {
+fn test_explicit_implicit_bogus_iop_with_std() -> ParseResult<()> {
     test_explicit_implicit_bogus_iop(true)
 }
 
 #[test]
-fn test_explicit_implicit_bogus_iop_without_std() -> Result<()> {
+fn test_explicit_implicit_bogus_iop_without_std() -> ParseResult<()> {
     test_explicit_implicit_bogus_iop(false)
 }
 
 /// This dataset also randomly switches between implicit and explicit transfer syntax. This one
 /// switches to implicit after Modality, and seems to switch back shortly after SeriesDescription.
-fn test_explicit_implicit_bogus_iop(with_std: bool) -> Result<()> {
+fn test_explicit_implicit_bogus_iop(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/DMCPACS_ExplicitImplicit_BogusIOP.dcm",
         with_std,
@@ -1347,19 +1347,19 @@ fn test_explicit_implicit_bogus_iop(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_jpeg_lossless3a_with_std() -> Result<()> {
+fn test_jpeg_lossless3a_with_std() -> ParseResult<()> {
     test_jpeg_lossless3a(true)
 }
 
 #[test]
-fn test_jpeg_lossless3a_without_std() -> Result<()> {
+fn test_jpeg_lossless3a_without_std() -> ParseResult<()> {
     test_jpeg_lossless3a(false)
 }
 
 /// This dataset has a few extra bytes after the second item/frame in PixelData, which don't parse
 /// as a valid DicomElement. This test verifies the parser can be configured to return a partial
 /// result, which enables parsing objects which end in garbage data.
-fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
+fn test_jpeg_lossless3a(with_std: bool) -> ParseResult<()> {
     let file: &str = "./fixtures/gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm";
     let dict: &dyn DicomDictionary = if with_std {
         &STANDARD_DICOM_DICTIONARY
@@ -1372,7 +1372,7 @@ fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
         .dictionary(dict)
         .build(File::open(file)?);
 
-    let res: Result<Option<DicomRoot<'_>>> = DicomRoot::parse(&mut parser);
+    let res: ParseResult<Option<DicomRoot<'_>>> = DicomRoot::parse(&mut parser);
     assert!(res.is_err());
 
     // Parse again but allow a partial DicomObject result. This dataset
@@ -1390,19 +1390,19 @@ fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_kodak_compressed_icon_with_std() -> Result<()> {
+fn test_kodak_compressed_icon_with_std() -> ParseResult<()> {
     test_kodak_compressed_icon(true)
 }
 
 #[test]
-fn test_kodak_compressed_icon_without_std() -> Result<()> {
+fn test_kodak_compressed_icon_without_std() -> ParseResult<()> {
     test_kodak_compressed_icon(false)
 }
 
 /// This dataset has a pixel data inside IconImageSqeuence - the pixel data itself having 2 items.
 /// This pixel data is undefined length and its items are defined so do not have item delimiters,
 /// but does have a sequence delimiter which should pop off the inner item.
-fn test_kodak_compressed_icon(with_std: bool) -> Result<()> {
+fn test_kodak_compressed_icon(with_std: bool) -> ParseResult<()> {
     let _dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/KODAK_CompressedIcon.dcm",
         with_std,
@@ -1412,16 +1412,16 @@ fn test_kodak_compressed_icon(with_std: bool) -> Result<()> {
 }
 
 #[test]
-fn test_empty_string_parsed_as_number_with_std() -> Result<()> {
+fn test_empty_string_parsed_as_number_with_std() -> ParseResult<()> {
     test_empty_string_parsed_as_number(true)
 }
 
 #[test]
-fn test_empty_string_parsed_as_number_without_std() -> Result<()> {
+fn test_empty_string_parsed_as_number_without_std() -> ParseResult<()> {
     test_empty_string_parsed_as_number(false)
 }
 
-fn test_empty_string_parsed_as_number(with_std: bool) -> Result<()> {
+fn test_empty_string_parsed_as_number(with_std: bool) -> ParseResult<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmData/SignedShortLosslessBug.dcm",
         with_std,
@@ -1446,7 +1446,7 @@ fn test_empty_string_parsed_as_number(with_std: bool) -> Result<()> {
 
 #[test]
 #[ignore]
-fn test_parse_all_dicom_files_with_std() -> Result<()> {
+fn test_parse_all_dicom_files_with_std() -> ParseResult<()> {
     // Known to fail:
     // - fixtures\gdcm\gdcmConformanceTests\Enhanced_MR_Image_Storage_Illegal_CP246.dcm
     //   | SharedFunctionalGroupsSequence[1].(2005,140E)[1].(0700,0300) has too big ValueLength.
@@ -1494,7 +1494,7 @@ fn test_parse_all_dicom_files_with_std() -> Result<()> {
 
 #[test]
 #[ignore]
-fn test_parse_all_dicom_files_without_std() -> Result<()> {
+fn test_parse_all_dicom_files_without_std() -> ParseResult<()> {
     let num_failed: usize = parse_all_dicom_files(false)?;
     if num_failed > 0 {
         Err(ParseError::IOError {

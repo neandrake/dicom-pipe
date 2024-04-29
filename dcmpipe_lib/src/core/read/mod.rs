@@ -2,7 +2,7 @@ pub use builder::ParserBuilder;
 pub use error::ParseError;
 pub use parser::ParseState;
 pub use parser::Parser;
-pub use parser::Result;
+pub use parser::ParseResult;
 
 mod ds;
 mod iter;

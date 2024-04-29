@@ -19,7 +19,7 @@ use crate::{
         dcmsqelem::SequenceElement,
         read::{
             self,
-            parser::{Parser, Result},
+            parser::{Parser, ParseResult},
             util::is_non_standard_seq,
             ParseError,
         },
@@ -35,7 +35,7 @@ use crate::{
 
 impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads a tag attribute from the dataset, unless `self.partial_tag` is `Some`.
-    pub(super) fn read_tag(&mut self, ts: TSRef) -> Result<u32> {
+    pub(super) fn read_tag(&mut self, ts: TSRef) -> ParseResult<u32> {
         let tag: u32 = if let Some(partial_tag) = self.partial_tag {
             partial_tag
         } else {
@@ -51,7 +51,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Reads the remainder of the dicom element from the dataset. This assumes `self.read_tag()`
     /// was called just prior and its result passed as the tag parameter here.
-    pub(super) fn read_dicom_element(&mut self, tag: u32, elem_ts: TSRef) -> Result<DicomElement> {
+    pub(super) fn read_dicom_element(&mut self, tag: u32, elem_ts: TSRef) -> ParseResult<DicomElement> {
         // Part 5, Section 7.5
         // There are three special SQ related Data Elements that are not ruled by the VR encoding
         // rules conveyed by the Transfer Syntax. They shall be encoded as Implicit VR. These
@@ -87,7 +87,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             // The `partial_vr` may be populated as part of initial dataset parsing when attempting
             // to detect the transfer syntax. The UnknownExplicitVR error used here is only
             // transient error to transition to the `self.read_vr()`.
-            let vr_res: Result<VRRef> = self
+            let vr_res: ParseResult<VRRef> = self
                 .partial_vr
                 .take()
                 .ok_or(ParseError::UnknownExplicitVR(0))
@@ -160,7 +160,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// If the VR read from the dataset indicates it contains additional 2-byte-padding for
     /// explicit VRs then those bytes are also read (and thrown away). If the bytes do not
     /// correspond to a valid/known VR then `ParseError::UnknownExplicitVR` is returned.
-    fn read_vr(&mut self) -> Result<VRRef> {
+    fn read_vr(&mut self) -> ParseResult<VRRef> {
         match read::util::read_vr_from_dataset(&mut self.dataset) {
             Ok(vr) => {
                 self.bytes_read += 2;
@@ -186,8 +186,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads a Value Length attribute from the dataset using the given transfer syntax. The number
     /// of bytes representing the value length depends on transfer syntax. If the VR has a 2-byte
     /// padding then those bytes are also read from the dataset.
-    fn read_value_length(&mut self, ts: TSRef, vr: VRRef) -> Result<ValueLength> {
-        let result: Result<ValueLength> =
+    fn read_value_length(&mut self, ts: TSRef, vr: VRRef) -> ParseResult<ValueLength> {
+        let result: ParseResult<ValueLength> =
             read::util::read_value_length_from_dataset(&mut self.dataset, ts, vr);
         if result.is_ok() {
             // For Implicit VR or Explicit w/ 2-byte pad then Value Length is read as a u32,
@@ -204,7 +204,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads the value field of the dicom element into a byte array. If the `ValueLength` is
     /// undefined then this returns an empty array as elements with undefined length should have
     /// their contents parsed as dicom elements.
-    fn read_value_field(&mut self, tag: u32, vl: ValueLength) -> Result<Vec<u8>> {
+    fn read_value_field(&mut self, tag: u32, vl: ValueLength) -> ParseResult<Vec<u8>> {
         match vl {
             // Undefined length means that the contents of the element are other dicom elements to
             // be parsed. Don't read data from the dataset in this case.
@@ -220,7 +220,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 };
                 let mut buffer: Vec<u8> = vec![0; buffer_size];
                 let buffer_slice: &mut [u8] = &mut buffer.as_mut_slice()[0..value_length as usize];
-                let result: Result<()> = self.dataset.read_exact(buffer_slice).map_err(|e| {
+                let result: ParseResult<()> = self.dataset.read_exact(buffer_slice).map_err(|e| {
                     // Some datasets may end with this DataSetTrailingPadding tag (or just all
                     // zeroes) and also have value length which does not match the actual value
                     // field's size. The standard indicates that the content of the value field

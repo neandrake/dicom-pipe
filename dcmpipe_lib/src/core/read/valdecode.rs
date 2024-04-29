@@ -1,10 +1,10 @@
-//! This module contains implementations for parsing values from a DICOM element's value field
+//! This module contains implementations for decodign values from a DICOM element's value field
 //! bytes, based on the element's value representation and transfer syntax.
 
 use crate::{
     core::{
         dcmelement::DicomElement,
-        read::{ParseError, Result},
+        read::{ParseError, ParseResult},
         values::{Attribute, BytesWithoutPadding, ElementWithVr, RawValue},
     },
     defn::{
@@ -45,7 +45,7 @@ impl TryFrom<&DicomElement> for RawValue {
     type Error = ParseError;
 
     /// Based on the VR of this element, parses the binary data into a RawValue.
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_data().is_empty() {
             Ok(RawValue::Bytes(Vec::with_capacity(0)))
         } else if value.get_vr() == &vr::AT {
@@ -109,7 +109,7 @@ impl TryFrom<&DicomElement> for Vec<Attribute> {
 
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_data().len() % U32_SIZE != 0 {
             return Err(error("value is not a multiple of 4 bytes", value));
         }
@@ -147,7 +147,7 @@ impl TryFrom<&DicomElement> for String {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         String::try_from(ElementWithVr(value, value.get_vr()))
     }
 }
@@ -161,7 +161,7 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for String {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr<'_>) -> Result<Self> {
+    fn try_from(value: ElementWithVr<'_>) -> ParseResult<Self> {
         let element: &DicomElement = value.0;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
@@ -178,7 +178,7 @@ impl TryFrom<&DicomElement> for Vec<String> {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         Vec::<String>::try_from(ElementWithVr(value, value.get_vr()))
     }
 }
@@ -192,7 +192,7 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for Vec<String> {
     /// Associated VRs:
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
-    fn try_from(value: ElementWithVr<'_>) -> Result<Self> {
+    fn try_from(value: ElementWithVr<'_>) -> ParseResult<Self> {
         let element: &DicomElement = value.0;
         let vr: VRRef = value.1;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
@@ -275,7 +275,7 @@ impl TryFrom<&DicomElement> for f32 {
 
     /// Parses the value for this element as a 32bit floating point
     /// Associated VRs: FL
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         Vec::<f32>::try_from(value)?
             .into_iter()
             .next()
@@ -288,7 +288,7 @@ impl TryFrom<&DicomElement> for i16 {
 
     /// Parses the value for this element as a signed 16bit integer
     /// Associated VRs: SS
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         Vec::<i16>::try_from(value)?
             .into_iter()
             .next()
@@ -301,9 +301,9 @@ impl TryFrom<&DicomElement> for Vec<i16> {
 
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: SS
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeShorts = Vec<Result<i16>>;
+            type MaybeShorts = Vec<ParseResult<i16>>;
             let (values, errors): (MaybeShorts, MaybeShorts) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -312,11 +312,11 @@ impl TryFrom<&DicomElement> for Vec<i16> {
                         .parse::<i16>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<i16> = values.into_iter().map(Result::unwrap).collect::<Vec<i16>>();
+            let values: Vec<i16> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<i16>>();
             return Ok(values);
         }
 
@@ -351,7 +351,7 @@ impl TryFrom<&DicomElement> for u16 {
 
     /// Parses the value for this element as an unsigned 16bit integer
     /// Associated VRs: US
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         Vec::<u16>::try_from(value)?
             .into_iter()
             .next()
@@ -364,9 +364,9 @@ impl TryFrom<&DicomElement> for Vec<u16> {
 
     /// Parses the value for this element as a list of unsigned 16bit integer values
     /// Associated VRs: US, OW
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeUshorts = Vec<Result<u16>>;
+            type MaybeUshorts = Vec<ParseResult<u16>>;
             let (values, errors): (MaybeUshorts, MaybeUshorts) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -375,11 +375,11 @@ impl TryFrom<&DicomElement> for Vec<u16> {
                         .parse::<u16>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<u16> = values.into_iter().map(Result::unwrap).collect::<Vec<u16>>();
+            let values: Vec<u16> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<u16>>();
             return Ok(values);
         }
 
@@ -413,7 +413,7 @@ impl TryFrom<&DicomElement> for i32 {
 
     /// Parses the value for this element as a signed 32bit integer
     /// Associated VRs: SL
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         Vec::<i32>::try_from(value)?
             .into_iter()
             .next()
@@ -426,9 +426,9 @@ impl TryFrom<&DicomElement> for Vec<i32> {
 
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: IS, SL
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeInts = Vec<Result<i32>>;
+            type MaybeInts = Vec<ParseResult<i32>>;
             let (values, errors): (MaybeInts, MaybeInts) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -437,11 +437,11 @@ impl TryFrom<&DicomElement> for Vec<i32> {
                         .parse::<i32>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<i32> = values.into_iter().map(Result::unwrap).collect::<Vec<i32>>();
+            let values: Vec<i32> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<i32>>();
             return Ok(values);
         }
 
@@ -475,7 +475,7 @@ impl TryFrom<&DicomElement> for u32 {
 
     /// Parses the value for this element as an unsigned 32bit integer
     /// Associated VRs: UL
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         Vec::<u32>::try_from(value)?
             .into_iter()
             .next()
@@ -488,9 +488,9 @@ impl TryFrom<&DicomElement> for Vec<u32> {
 
     /// Parses the value for this element as a list of unsigned 32bit integer values
     /// Associated VRs: UL, OL
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeUints = Vec<Result<u32>>;
+            type MaybeUints = Vec<ParseResult<u32>>;
             let (values, errors): (MaybeUints, MaybeUints) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -499,11 +499,11 @@ impl TryFrom<&DicomElement> for Vec<u32> {
                         .parse::<u32>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<u32> = values.into_iter().map(Result::unwrap).collect::<Vec<u32>>();
+            let values: Vec<u32> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<u32>>();
             return Ok(values);
         }
 
@@ -537,9 +537,9 @@ impl TryFrom<&DicomElement> for Vec<i64> {
 
     /// Parses the value for this element as a list of signed 64bit integer values
     /// Associated VRs: SV
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeLongs = Vec<Result<i64>>;
+            type MaybeLongs = Vec<ParseResult<i64>>;
             let (values, errors): (MaybeLongs, MaybeLongs) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -548,11 +548,11 @@ impl TryFrom<&DicomElement> for Vec<i64> {
                         .parse::<i64>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<i64> = values.into_iter().map(Result::unwrap).collect::<Vec<i64>>();
+            let values: Vec<i64> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<i64>>();
             return Ok(values);
         }
 
@@ -586,9 +586,9 @@ impl TryFrom<&DicomElement> for Vec<u64> {
 
     /// Parses the value for this element as a list of unsigned 64bit integer values
     /// Associated VRs: UV
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeUlongs = Vec<Result<u64>>;
+            type MaybeUlongs = Vec<ParseResult<u64>>;
             let (values, errors): (MaybeUlongs, MaybeUlongs) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -597,11 +597,11 @@ impl TryFrom<&DicomElement> for Vec<u64> {
                         .parse::<u64>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<u64> = values.into_iter().map(Result::unwrap).collect::<Vec<u64>>();
+            let values: Vec<u64> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<u64>>();
             return Ok(values);
         }
 
@@ -635,9 +635,9 @@ impl TryFrom<&DicomElement> for Vec<f32> {
 
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: FD, OF
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeFloats = Vec<Result<f32>>;
+            type MaybeFloats = Vec<ParseResult<f32>>;
             let (values, errors): (MaybeFloats, MaybeFloats) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -646,11 +646,11 @@ impl TryFrom<&DicomElement> for Vec<f32> {
                         .parse::<f32>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<f32> = values.into_iter().map(Result::unwrap).collect::<Vec<f32>>();
+            let values: Vec<f32> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<f32>>();
             return Ok(values);
         }
 
@@ -685,7 +685,7 @@ impl TryFrom<&DicomElement> for f64 {
 
     /// Parses the value for this element as a 64bit floating point
     /// Associated VRs: FD
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         Vec::<f64>::try_from(value)?
             .into_iter()
             .next()
@@ -698,9 +698,9 @@ impl TryFrom<&DicomElement> for Vec<f64> {
 
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: DS, OD, FL -- and a fallback for IS.
-    fn try_from(value: &DicomElement) -> Result<Self> {
+    fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeDoubles = Vec<Result<f64>>;
+            type MaybeDoubles = Vec<ParseResult<f64>>;
             let (values, errors): (MaybeDoubles, MaybeDoubles) = Vec::<String>::try_from(value)?
                 .into_iter()
                 .filter(|s| !s.trim().is_empty())
@@ -709,11 +709,11 @@ impl TryFrom<&DicomElement> for Vec<f64> {
                         .parse::<f64>()
                         .map_err(|e| error(&e.to_string(), value))
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
             }
-            let values: Vec<f64> = values.into_iter().map(Result::unwrap).collect::<Vec<f64>>();
+            let values: Vec<f64> = values.into_iter().map(ParseResult::unwrap).collect::<Vec<f64>>();
             return Ok(values);
         }
 

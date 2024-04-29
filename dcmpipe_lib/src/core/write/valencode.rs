@@ -1,9 +1,12 @@
+//! This module contains implementations for encoding values for a DICOM element's value field
+//! bytes, based on the element's value representation and transfer syntax.
+
 use std::iter::once;
 
 use crate::{
     core::{
         dcmelement::DicomElement,
-        read::{valdecode::U32_SIZE, ParseError, Result},
+        read::{valdecode::U32_SIZE, ParseError, ParseResult},
         values::{Attribute, RawValue},
     },
     defn::vr::{CS_SEPARATOR, CS_SEPARATOR_BYTE},
@@ -11,7 +14,7 @@ use crate::{
 
 /// Encodes a RawValue into the binary data for the given element, based on the element's currently
 /// set Value Representation, Character Set, and Transfer Syntax.
-pub fn encode_value(elem: &DicomElement, value: RawValue) -> Result<Vec<u8>> {
+pub fn encode_value(elem: &DicomElement, value: RawValue) -> ParseResult<Vec<u8>> {
     let mut bytes: Vec<u8> = match value {
         RawValue::Attribute(attrs) => {
             let num_attrs = attrs.len();
@@ -36,7 +39,7 @@ pub fn encode_value(elem: &DicomElement, value: RawValue) -> Result<Vec<u8>> {
             .encode(&uid)
             .map_err(|e| ParseError::CharsetError { source: e })?,
         RawValue::Strings(strings) => {
-            type MaybeBytes = Vec<Result<Vec<u8>>>;
+            type MaybeBytes = Vec<ParseResult<Vec<u8>>>;
             let (values, errs): (MaybeBytes, MaybeBytes) = strings
                 .iter()
                 .map(|s| {
@@ -50,7 +53,7 @@ pub fn encode_value(elem: &DicomElement, value: RawValue) -> Result<Vec<u8>> {
                         })
                         .map_err(|e| ParseError::CharsetError { source: e })
                 })
-                .partition(Result::is_ok);
+                .partition(ParseResult::is_ok);
 
             if let Some(Err(e)) = errs.into_iter().last() {
                 return Err(e);
@@ -59,7 +62,7 @@ pub fn encode_value(elem: &DicomElement, value: RawValue) -> Result<Vec<u8>> {
             // Flatten the bytes for all strings.
             let mut bytes: Vec<u8> = values
                 .into_iter()
-                .flat_map(Result::unwrap)
+                .flat_map(ParseResult::unwrap)
                 .collect::<Vec<u8>>();
             // Remove last separator.
             bytes.pop();
