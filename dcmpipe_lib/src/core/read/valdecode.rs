@@ -17,67 +17,74 @@ use crate::{
 
 use super::error::ParseErrorInfo;
 
+impl<'elem> TryFrom<ElementWithVr<'elem>> for RawValue {
+    type Error = ParseError;
+
+    fn try_from(value: ElementWithVr<'elem>) -> Result<Self, Self::Error> {
+        let elem = value.0;
+        let vr = value.1;
+        if elem.get_data().is_empty() {
+            Ok(RawValue::Bytes(Vec::with_capacity(0)))
+        } else if vr == &vr::AT {
+            Ok(RawValue::Attribute(Vec::<Attribute>::try_from(elem)?))
+        } else if vr == &vr::UI {
+            Ok(RawValue::Uid(String::try_from(elem)?))
+        } else if vr == &vr::SS {
+            Ok(RawValue::Shorts(Vec::<i16>::try_from(elem)?))
+        } else if vr == &vr::US {
+            Ok(RawValue::UnsignedShorts(Vec::<u16>::try_from(elem)?))
+        } else if vr == &vr::SL {
+            Ok(RawValue::Integers(Vec::<i32>::try_from(elem)?))
+        } else if vr == &vr::UL {
+            Ok(RawValue::UnsignedIntegers(Vec::<u32>::try_from(elem)?))
+        } else if vr == &vr::SV {
+            Ok(RawValue::Longs(Vec::<i64>::try_from(elem)?))
+        } else if vr == &vr::UV {
+            Ok(RawValue::UnsignedLongs(Vec::<u64>::try_from(elem)?))
+        } else if vr == &vr::OW {
+            Ok(RawValue::Words(Vec::<u16>::try_from(elem)?))
+        } else if vr == &vr::OL {
+            Ok(RawValue::DoubleWords(Vec::<u32>::try_from(elem)?))
+        } else if vr == &vr::OV {
+            Ok(RawValue::QuadWords(Vec::<u64>::try_from(elem)?))
+        } else if vr == &vr::IS {
+            let possible_i32s = Vec::<i32>::try_from(elem);
+            if let Ok(i32s) = possible_i32s {
+                Ok(RawValue::Integers(i32s))
+            } else {
+                // Sometimes decimal elems are (incorrectly) encoded with VR of IS.
+                Ok(RawValue::Doubles(Vec::<f64>::try_from(elem)?))
+            }
+        } else if vr == &vr::OF || vr == &vr::FL {
+            Ok(RawValue::Floats(Vec::<f32>::try_from(elem)?))
+        } else if vr == &vr::DS || vr == &vr::OD || vr == &vr::FD {
+            Ok(RawValue::Doubles(Vec::<f64>::try_from(elem)?))
+        } else if vr.is_character_string {
+            // Check is_character_string last, as that will be true for a number of VRs above which
+            // whose try_from will attempt to parse stringified numeric elems into native values.
+            Ok(RawValue::Strings(Vec::<String>::try_from(elem)?))
+        } else if vr == &vr::UN && Tag::is_private_creator(elem.get_tag()) {
+            // See Part 5 Section 6.2.2
+            // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
+            // and in the case of Implicit VR the private tag will also not be known/lookup.
+            let possible_uid = String::try_from(elem);
+            if let Ok(uid) = possible_uid {
+                Ok(RawValue::Uid(uid))
+            } else {
+                Ok(RawValue::Bytes(elem.get_data().clone()))
+            }
+        } else {
+            Ok(RawValue::Bytes(elem.get_data().clone()))
+        }
+    }
+}
+
 impl TryFrom<&DicomElement> for RawValue {
     type Error = ParseError;
 
     /// Based on the VR of this element, parses the binary data into a RawValue.
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_data().is_empty() {
-            Ok(RawValue::Bytes(Vec::with_capacity(0)))
-        } else if value.get_vr() == &vr::AT {
-            Ok(RawValue::Attribute(Vec::<Attribute>::try_from(value)?))
-        } else if value.get_vr() == &vr::UI {
-            Ok(RawValue::Uid(String::try_from(value)?))
-        } else if value.get_vr() == &vr::SS {
-            Ok(RawValue::Shorts(Vec::<i16>::try_from(value)?))
-        } else if value.get_vr() == &vr::US {
-            Ok(RawValue::UnsignedShorts(Vec::<u16>::try_from(value)?))
-        } else if value.get_vr() == &vr::SL {
-            Ok(RawValue::Integers(Vec::<i32>::try_from(value)?))
-        } else if value.get_vr() == &vr::UL {
-            Ok(RawValue::UnsignedIntegers(Vec::<u32>::try_from(value)?))
-        } else if value.get_vr() == &vr::SV {
-            Ok(RawValue::Longs(Vec::<i64>::try_from(value)?))
-        } else if value.get_vr() == &vr::UV {
-            Ok(RawValue::UnsignedLongs(Vec::<u64>::try_from(value)?))
-        } else if value.get_vr() == &vr::OW {
-            Ok(RawValue::Words(Vec::<u16>::try_from(value)?))
-        } else if value.get_vr() == &vr::OL {
-            Ok(RawValue::DoubleWords(Vec::<u32>::try_from(value)?))
-        } else if value.get_vr() == &vr::OV {
-            Ok(RawValue::QuadWords(Vec::<u64>::try_from(value)?))
-        } else if value.get_vr() == &vr::IS {
-            let possible_i32s = Vec::<i32>::try_from(value);
-            if let Ok(i32s) = possible_i32s {
-                Ok(RawValue::Integers(i32s))
-            } else {
-                // Sometimes decimal values are (incorrectly) encoded with VR of IS.
-                Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
-            }
-        } else if value.get_vr() == &vr::OF || value.get_vr() == &vr::FL {
-            Ok(RawValue::Floats(Vec::<f32>::try_from(value)?))
-        } else if value.get_vr() == &vr::DS
-            || value.get_vr() == &vr::OD
-            || value.get_vr() == &vr::FD
-        {
-            Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
-        } else if value.get_vr().is_character_string {
-            // Check is_character_string last, as that will be true for a number of VRs above which
-            // whose try_from will attempt to parse stringified numeric values into native values.
-            Ok(RawValue::Strings(Vec::<String>::try_from(value)?))
-        } else if value.get_vr() == &vr::UN && Tag::is_private_creator(value.get_tag()) {
-            // See Part 5 Section 6.2.2
-            // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
-            // and in the case of Implicit VR the private tag will also not be known/lookup.
-            let possible_uid = String::try_from(value);
-            if let Ok(uid) = possible_uid {
-                Ok(RawValue::Uid(uid))
-            } else {
-                Ok(RawValue::Bytes(value.get_data().clone()))
-            }
-        } else {
-            Ok(RawValue::Bytes(value.get_data().clone()))
-        }
+        TryFrom::try_from(ElementWithVr(value, value.get_vr()))
     }
 }
 

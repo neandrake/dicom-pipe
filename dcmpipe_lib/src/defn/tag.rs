@@ -105,7 +105,7 @@ impl Tag {
         tag_group > 0x0008 && tag_group != 0xFFFF && tag_group % 2 == 1
     }
 
-    /// Renders the tag number as `(gggg,eeee)`.
+    /// Renders the tag number as `(GGGG,EEEE)`.
     pub fn format_tag_to_display<T>(tag: T) -> String
     where
         T: Into<u32>,
@@ -116,7 +116,7 @@ impl Tag {
         format!("({:04X},{:04X})", tag_group, tag_elem)
     }
 
-    /// Renders the tag number as `ggggeeee`.
+    /// Renders the tag number as `GGGGEEEE`.
     pub fn format_tag_to_path_display<T>(tag: T) -> String
     where
         T: Into<u32>,

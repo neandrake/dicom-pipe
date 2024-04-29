@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
@@ -10,13 +9,14 @@ use mongodb::sync::{Client, Collection, Cursor, Database};
 use walkdir::WalkDir;
 
 use anyhow::{anyhow, Context, Result};
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_dict::dict::tags;
-use dcmpipe_lib::core::dcmelement::{DicomElement, RawValue};
-use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
+use dcmpipe_lib::core::dcmelement::DicomElement;
+use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
+use dcmpipe_lib::core::RawValue;
 use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_lib::dict::tags;
 
 use crate::app::CommandApplication;
 use crate::args::{IndexArgs, IndexCommand};
@@ -114,7 +114,7 @@ impl IndexApp {
                         entry.path().display()
                     )
                 })?;
-            let uid_key: String = uid_obj.as_element().try_into()?;
+            let uid_key: String = uid_obj.get_element().try_into()?;
             let entry_key: String = uid_key.clone();
             let dicom_doc: &mut DicomDoc = uid_to_doc
                 .entry(entry_key)
@@ -135,7 +135,7 @@ impl IndexApp {
             metadata_doc.insert("serieskey", uid_key);
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
-                let child_elem: &DicomElement = child_obj.as_element();
+                let child_elem: &DicomElement = child_obj.get_element();
                 if child_elem.is_seq_like() {
                     // TODO: handle sequences
                 } else {
@@ -315,8 +315,15 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
     let key: String = Tag::format_tag_to_path_display(elem.get_tag());
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {
-        RawValue::Attribute(attr) => {
-            dicom_doc.insert(key, attr.0);
+        RawValue::Attribute(attrs) => {
+            if !attrs.is_empty() {
+                if attrs.len() == 1 {
+                    dicom_doc.insert(key, attrs[0].0);
+                } else {
+                    let attrs = attrs.into_iter().map(|a| a.0).collect::<Vec<u32>>();
+                    dicom_doc.insert(key, attrs);
+                }
+            }
         }
         RawValue::Uid(uid) => {
             dicom_doc.insert(key, uid);
@@ -397,6 +404,60 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 bytes,
             });
             dicom_doc.insert(key, binary);
+        }
+        RawValue::Longs(longs) => {
+            if !longs.is_empty() {
+                if longs.len() == 1 {
+                    dicom_doc.insert(key, longs[0]);
+                } else {
+                    dicom_doc.insert(key, longs);
+                }
+            }
+        }
+        RawValue::UnsignedLongs(ulongs) => {
+            let mut ulongs = ulongs
+                .into_iter()
+                .map(|u| u.to_string())
+                .collect::<Vec<String>>();
+            if !ulongs.is_empty() {
+                if ulongs.len() == 1 {
+                    dicom_doc.insert(key, ulongs.remove(0));
+                } else {
+                    dicom_doc.insert(key, ulongs);
+                }
+            }
+        }
+        RawValue::Words(words) => {
+            if !words.is_empty() {
+                if words.len() == 1 {
+                    dicom_doc.insert(key, words[0] as u32);
+                } else {
+                    let words: Vec<u32> = words.into_iter().map(|w| w as u32).collect::<Vec<u32>>();
+                    dicom_doc.insert(key, words);
+                }
+            }
+        }
+        RawValue::DoubleWords(dwords) => {
+            if !dwords.is_empty() {
+                if dwords.len() == 1 {
+                    dicom_doc.insert(key, dwords[0]);
+                } else {
+                    dicom_doc.insert(key, dwords);
+                }
+            }
+        }
+        RawValue::QuadWords(qwords) => {
+            let mut qwords = qwords
+                .into_iter()
+                .map(|u| u.to_string())
+                .collect::<Vec<String>>();
+            if !qwords.is_empty() {
+                if qwords.len() == 1 {
+                    dicom_doc.insert(key, qwords.remove(0));
+                } else {
+                    dicom_doc.insert(key, qwords);
+                }
+            }
         }
     }
 
