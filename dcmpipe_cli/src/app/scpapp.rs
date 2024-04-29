@@ -38,7 +38,10 @@ use dcmpipe_lib::{
         },
     },
     dimse::{
-        assoc::{Association, AssociationBuilder, DimseMsg},
+        assoc::{
+            scp::{ServiceAssoc, ServiceAssocBuilder},
+            DimseMsg,
+        },
         commands::CommandType,
         error::{AssocError, AssocRsp, DimseError},
         pdus::PduType,
@@ -106,7 +109,7 @@ impl CommandApplication for SvcProviderApp {
         for (stream_id, stream) in listener.incoming().enumerate() {
             let stream = stream?;
             let db = self.args.db.clone();
-            let assoc = AssociationBuilder::new()
+            let assoc = ServiceAssocBuilder::new()
                 .id(stream_id)
                 .host_ae(self.args.aetitle.clone())
                 .accept_aets(accept_aets.clone())
@@ -130,7 +133,7 @@ impl CommandApplication for SvcProviderApp {
 }
 
 struct AssociationDevice<R: Read, W: Write> {
-    assoc: Association,
+    assoc: ServiceAssoc,
     reader: R,
     writer: W,
     db: Option<String>,

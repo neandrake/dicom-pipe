@@ -49,7 +49,7 @@ use dcmpipe_lib::{
         },
     },
     dimse::{
-        assoc::Association,
+        assoc::scp::ServiceAssoc,
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
     },
@@ -144,12 +144,12 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
 
         for result in dcm_results {
             let res_rsp =
-                Association::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
+                ServiceAssoc::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
             self.assoc.write_pdu(&res_rsp.0, &mut self.writer)?;
             self.assoc.write_pdu(&res_rsp.1, &mut self.writer)?;
         }
 
-        let end_rsp = Association::create_cfind_end(ctx_id, msg_id, &aff_sop_class)?;
+        let end_rsp = ServiceAssoc::create_cfind_end(ctx_id, msg_id, &aff_sop_class)?;
         self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
 
         Ok(())

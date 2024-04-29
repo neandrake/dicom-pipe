@@ -13,19 +13,3 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-
-use crate::dimse::{
-    commands::messages::CommandMessage,
-    pdus::mainpdus::{Abort, PresentationDataValue},
-};
-
-pub mod scp;
-pub mod scu;
-
-#[derive(Debug)]
-pub enum DimseMsg {
-    Cmd(CommandMessage),
-    Dataset(PresentationDataValue),
-    ReleaseRQ,
-    Abort(Abort),
-}
