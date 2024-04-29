@@ -25,7 +25,7 @@ use dcmpipe_lib::{
     },
 };
 
-use super::AssociationDevice;
+use crate::app::scpapp::AssociationDevice;
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_get_req(

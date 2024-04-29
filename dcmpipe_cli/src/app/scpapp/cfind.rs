@@ -22,7 +22,7 @@ use std::{
 use bson::{doc, Document};
 use dcmpipe_lib::{
     core::{
-        charset::{CSRef, DEFAULT_CHARACTER_SET},
+        charset::CSRef,
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
         defn::{
@@ -113,7 +113,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_find_req(
         &mut self,
         cmd: &CommandMessage,
-        dcm: &DicomRoot,
+        query: &DicomRoot,
     ) -> Result<(), AssocError> {
         let ctx_id = cmd.ctx_id();
         let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
@@ -121,10 +121,13 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
-        let results = &self.query_c_find_results(dcm)?;
+        let (_query_level, include_keys, meta_keys, group_map) = &self.query_database(query)?;
 
-        for result in results {
-            let res_rsp = Association::create_cfind_result(ctx_id, msg_id, &aff_sop_class, result)?;
+        let dcm_results = Self::create_results(query, &include_keys, &meta_keys, &group_map)?;
+
+        for result in dcm_results {
+            let res_rsp =
+                Association::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
             self.assoc.write_pdu(&res_rsp.0, &mut self.writer)?;
             self.assoc.write_pdu(&res_rsp.1, &mut self.writer)?;
         }
@@ -135,26 +138,30 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         Ok(())
     }
 
-    fn query_c_find_results(&self, query: &DicomRoot) -> Result<Vec<DicomRoot>, AssocError> {
+    pub(crate) fn query_database(
+        &self,
+        query: &DicomRoot,
+    ) -> Result<(String, Vec<u32>, Vec<u32>, HashMap<String, Vec<DicomDoc>>), AssocError> {
         let Some(db) = &self.db else {
-            return Ok(Self::create_dummy_results(query, query.ts()));
+            return Err(AssocError::ab_failure(DimseError::GeneralError(
+                "Failed connecting to databse".to_owned(),
+            )));
         };
+
         let coll = IndexApp::get_dicom_coll(db)
             .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
         let (query_level, mongo_query, include_keys, meta_keys) =
-            Self::dcm_query_to_mongo_query(query)?;
+            Self::convert_dcm_query_to_mongo_query(query)?;
 
         let query_results = IndexApp::query_docs(&coll, Some(mongo_query))
             .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
 
         let group_map = Self::group_results(&query_level, query_results);
 
-        let dcm_results = Self::create_results(query, &include_keys, &meta_keys, &group_map)?;
-
-        Ok(dcm_results)
+        Ok((query_level, include_keys, meta_keys, group_map))
     }
 
-    fn dcm_query_to_mongo_query(
+    pub(crate) fn convert_dcm_query_to_mongo_query(
         dcm: &DicomRoot,
     ) -> Result<(String, Document, Vec<u32>, Vec<u32>), AssocError> {
         let mut query = Document::new();
@@ -220,7 +227,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         Ok((query_level, query, include_keys, meta_keys))
     }
 
-    fn group_results(
+    pub(crate) fn group_results(
         query_level: &str,
         query_results: impl Iterator<Item = DicomDoc>,
     ) -> HashMap<String, Vec<DicomDoc>> {
@@ -392,47 +399,5 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             }
         }
         Ok(res_root)
-    }
-
-    fn create_dummy_results(query: &DicomRoot, ts: TSRef) -> Vec<DicomRoot> {
-        let q_pid = query
-            .get_value_by_tag(&PatientID)
-            .and_then(|v| v.string().cloned())
-            .unwrap_or_default();
-        let q_name = query
-            .get_value_by_tag(&PatientsName)
-            .and_then(|v| v.string().cloned())
-            .unwrap_or_default();
-
-        let mut results = Vec::<DicomRoot>::new();
-        for patient in [
-            ("477-0101", "SNOW^JON"),
-            ("477-0183", "STARK^ROB"),
-            ("212-0309", "MARTELL^OBERYN"),
-        ] {
-            let pid = patient.0;
-            let name = patient.1;
-
-            let pid_match = if q_pid.is_empty() {
-                false
-            } else {
-                pid.starts_with(&q_pid) || pid.ends_with(&q_pid)
-            };
-            let name_match = if q_name.is_empty() {
-                false
-            } else {
-                name.split('^')
-                    .any(|p| p.starts_with(&q_name) || p.ends_with(&q_name))
-            };
-            if !pid_match && !name_match {
-                continue;
-            }
-
-            let mut result = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
-            result.add_child_with_val(&PatientID, RawValue::of_string(pid));
-            result.add_child_with_val(&PatientsName, RawValue::of_string(name));
-            results.push(result);
-        }
-        results
     }
 }

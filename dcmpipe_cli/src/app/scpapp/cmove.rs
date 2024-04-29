@@ -19,19 +19,16 @@ use std::io::{Read, Write};
 use dcmpipe_lib::{
     core::dcmobject::DicomRoot,
     dict::tags::{AffectedSOPClassUID, MessageID, MoveDestination},
-    dimse::{
-        commands::messages::CommandMessage,
-        error::{AssocError, DimseError},
-    },
+    dimse::{commands::messages::CommandMessage, error::AssocError},
 };
 
-use super::AssociationDevice;
+use crate::app::scpapp::AssociationDevice;
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_move_req(
         &mut self,
         cmd: &CommandMessage,
-        dcm: &DicomRoot,
+        query: &DicomRoot,
     ) -> Result<(), AssocError> {
         let ctx_id = cmd.ctx_id();
         let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
@@ -42,9 +39,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&MoveDestination)
             .map_err(AssocError::ab_failure)?;
 
-        cmd.message()
-            .dbg_dump()
-            .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
+        let (query_level, include_keys, meta_keys, group_map) = self.query_database(&query)?;
 
         Ok(())
     }
