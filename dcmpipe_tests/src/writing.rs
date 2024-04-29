@@ -6,9 +6,10 @@ use dcmpipe_dict::dict::{
 use dcmpipe_lib::{
     core::{
         charset,
-        dcmelement::{Attribute, DicomElement, RawValue},
+        dcmelement::DicomElement,
         dcmobject::DicomRoot,
         read::{Parser, ParserBuilder},
+        values::{Attribute, RawValue},
         write::{error::WriteError, writer::Writer},
     },
     defn::{tag::TagPath, vl::ValueLength, vr},

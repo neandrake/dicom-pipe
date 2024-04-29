@@ -7,6 +7,7 @@ pub use parser::Result;
 mod ds;
 mod iter;
 
+pub(crate) mod valdecode;
 pub(crate) mod util;
 
 pub mod behavior;

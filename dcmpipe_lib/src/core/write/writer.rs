@@ -1,16 +1,22 @@
 use std::io::Write;
 
-use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
-use crate::core::dcmelement::{DicomElement, RawValue};
-use crate::core::dcmobject::{DicomNode, DicomRoot};
-use crate::core::read::ParseError;
-use crate::core::write::ds::dataset::Dataset;
-use crate::core::write::error::WriteError;
-use crate::core::{DICOM_PREFIX, FILE_PREAMBLE_LENGTH};
-use crate::defn::constants::{tags, ts};
-use crate::defn::ts::TSRef;
-use crate::defn::vl::{ValueLength, UNDEFINED_LENGTH};
-use crate::defn::vr::{self, VRRef};
+use crate::{
+    core::{
+        charset::{CSRef, DEFAULT_CHARACTER_SET},
+        dcmelement::DicomElement,
+        dcmobject::{DicomNode, DicomRoot},
+        read::ParseError,
+        values::RawValue,
+        write::{ds::dataset::Dataset, error::WriteError},
+        DICOM_PREFIX, FILE_PREAMBLE_LENGTH,
+    },
+    defn::{
+        constants::{tags, ts},
+        ts::TSRef,
+        vl::{ValueLength, UNDEFINED_LENGTH},
+        vr::{self, VRRef},
+    },
+};
 
 pub type Result<T> = core::result::Result<T, WriteError>;
 
@@ -282,8 +288,10 @@ impl<DatasetType: Write> Writer<DatasetType> {
     fn write_data(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> Result<usize> {
         let mut bytes_written: usize = 0;
 
-        #[cfg(feature = "deflate")]
-        dataset.set_write_deflated(element.get_ts().is_deflated());
+        #[cfg(feature = "compress")]
+        {
+            dataset.set_write_deflated(element.get_ts().is_deflated());
+        }
 
         bytes_written += dataset.write(element.get_data().as_slice())?;
         Ok(bytes_written)

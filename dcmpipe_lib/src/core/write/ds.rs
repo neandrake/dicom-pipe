@@ -1,6 +1,6 @@
 //! A buffered DICOM writer
 
-#[cfg(feature = "deflate")]
+#[cfg(feature = "compress")]
 pub(crate) mod dataset {
     use libflate::deflate::Encoder;
     use std::io::{BufWriter, Result, Write};
@@ -49,7 +49,7 @@ pub(crate) mod dataset {
     }
 }
 
-#[cfg(not(feature = "deflate"))]
+#[cfg(not(feature = "compress"))]
 pub(crate) mod dataset {
     use std::io::{BufWriter, Result, Write};
 
