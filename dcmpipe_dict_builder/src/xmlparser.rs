@@ -53,7 +53,7 @@ enum XmlDicomDefinitionTable {
     FileMetaElements,
     DirStructureElements,
     Uids,
-    UNKNOWN,
+    Unknown,
 }
 
 /// The cells within the DICOM Element table. This is used to track the state of where the parser
@@ -86,7 +86,7 @@ enum XmlDicomUidCell {
 /// tables and cells.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum XmlDicomReadingState {
-    OFF,
+    OutsideTable,
     InTable,
     InTableBody,
     InDicomElementCell(XmlDicomElementCell),
@@ -119,9 +119,9 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
         reader.expand_empty_elements(true).trim_text(true);
         XmlDicomDefinitionIterator {
             parser: reader,
-            state: XmlDicomReadingState::OFF,
+            state: XmlDicomReadingState::OutsideTable,
 
-            table: XmlDicomDefinitionTable::UNKNOWN,
+            table: XmlDicomDefinitionTable::Unknown,
 
             element_tag: None,
             element_name: None,
@@ -204,7 +204,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                         // If we're currently in the Off state then that means we've just started
                         // parsing or outside of tables so we should first expect to hit a "table"
                         // element.
-                        XmlDicomReadingState::OFF => {
+                        XmlDicomReadingState::OutsideTable => {
                             if local_name == QName(b"table").into() {
                                 // The tables that we're interested in parsing have a "xml:id"
                                 // attribute identifying which table this is for.
@@ -238,8 +238,8 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         }
                                         // Unknown table, set the initial state.
                                         _ => {
-                                            self.table = XmlDicomDefinitionTable::UNKNOWN;
-                                            self.state = XmlDicomReadingState::OFF;
+                                            self.table = XmlDicomDefinitionTable::Unknown;
+                                            self.state = XmlDicomReadingState::OutsideTable;
                                         }
                                     }
                                 }
@@ -277,9 +277,9 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                     // We're in an unknown state, bounce the state machine back out
                                     // to top-level. The rest of this table will be ignored but
                                     // that's probably the only reasonable thing to do.
-                                    XmlDicomDefinitionTable::UNKNOWN => {
-                                        self.table = XmlDicomDefinitionTable::UNKNOWN;
-                                        self.state = XmlDicomReadingState::OFF;
+                                    XmlDicomDefinitionTable::Unknown => {
+                                        self.table = XmlDicomDefinitionTable::Unknown;
+                                        self.state = XmlDicomReadingState::OutsideTable;
                                     }
                                 }
                             }
@@ -362,7 +362,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                     let local_name: LocalName = e.local_name();
                     match self.state {
                         // Unexpected state.
-                        XmlDicomReadingState::OFF => {}
+                        XmlDicomReadingState::OutsideTable => {}
 
                         _ => {
                             // If a "tr" element ended check to see if all necessary fields for a
@@ -403,7 +403,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         // table??
                                         XmlDicomDefinitionTable::Uids => {}
                                         // Unexpected state.
-                                        XmlDicomDefinitionTable::UNKNOWN => {}
+                                        XmlDicomDefinitionTable::Unknown => {}
                                     }
                                 } else if self.is_next_uid_fully_read() {
                                     let out = XmlDicomUid {
@@ -444,7 +444,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         | XmlDicomDefinitionTable::FileMetaElements
                                         | XmlDicomDefinitionTable::DirStructureElements => {}
                                         // Unexpected state.
-                                        XmlDicomDefinitionTable::UNKNOWN => {}
+                                        XmlDicomDefinitionTable::Unknown => {}
                                     }
                                 } else {
                                     // If a row ended and not all fields were filled in then clear all
@@ -454,8 +454,8 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                             } else if local_name == QName(b"tbody").into() {
                                 // If the "table" element ended bump the state back out into
                                 // detecting the next table being parsed.
-                                self.state = XmlDicomReadingState::OFF;
-                                self.table = XmlDicomDefinitionTable::UNKNOWN;
+                                self.state = XmlDicomReadingState::OutsideTable;
+                                self.table = XmlDicomDefinitionTable::Unknown;
                                 self.clear_next();
                             }
                         }

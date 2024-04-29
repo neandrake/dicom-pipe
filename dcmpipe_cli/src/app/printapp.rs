@@ -124,7 +124,7 @@ fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
             } else {
                 format!("[{:?}]", element.get_vl())
             }
-        },
+        }
         ValueLength::UndefinedLength => "[u/l]".to_string(),
     };
 

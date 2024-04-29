@@ -122,10 +122,7 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
     }
 
     let sep: &str = "\\";
-    Ok(format!(
-        "{}",
-        str_vals.into_iter().collect::<Vec<String>>().join(sep)
-    ))
+    Ok(str_vals.into_iter().collect::<Vec<String>>().join(sep).to_string())
 }
 
 /// Formats `vec` converting each element to a String based on the given `func`.

@@ -488,7 +488,7 @@ impl TryFrom<&DicomElement> for RawValue {
             // XXX: This isn't right for OL or OW which require byte-swapped words.
             let uints: Vec<u32> = match value.vl {
                 ValueLength::Explicit(len)
-                    if (value.vr == &vr::OL || value.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
+                    if (value.vr == &vr::OL || value.vr == &vr::OW) && len > 0 && len % 4 == 0 =>
                 {
                     Vec::<u32>::try_from(value)?
                 }
@@ -506,9 +506,8 @@ impl TryFrom<&DicomElement> for RawValue {
             // See Part 5 Section 6.2.2
             // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
             // and in the case of Implicit VR the private tag will also not be known/lookup.
-let uid: String = String::try_from(value)?;
+            let uid: String = String::try_from(value)?;
             Ok(RawValue::Uid(uid))
-
         } else {
             let bytes: Vec<u8> = value.get_data().clone();
             Ok(RawValue::Bytes(bytes))
