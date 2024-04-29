@@ -33,11 +33,6 @@ pub enum Command {
     /// Browse a DICOM dataset in a text-based user interface.
     Browse(BrowseArgs),
 
-    /// Recursively scans a folder of DICOM datasets and prints results of parsing.
-    ///
-    /// This is primarily useful for locating DICOM files which fail to parse.
-    Scan(ScanArgs),
-
     /// Manage a database index of DICOM on disk.
     ///
     /// Recursively scans a folder for DICOM datasets, indexing them into a database.
@@ -66,12 +61,6 @@ pub struct PrintArgs {
 pub struct BrowseArgs {
     /// The file to process as a DICOM dataset.
     pub file: PathBuf,
-}
-
-#[derive(Args, Debug)]
-pub struct ScanArgs {
-    /// The folder to recursively scan for DICOM datasets.
-    pub folder: PathBuf,
 }
 
 #[derive(Args, Debug)]

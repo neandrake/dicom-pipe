@@ -24,8 +24,8 @@ use clap::Parser;
 use crate::app::indexapp::IndexApp;
 use crate::{
     app::{
-        archiveapp::ArchiveApp, browseapp::BrowseApp, printapp::PrintApp, scanapp::ScanApp,
-        scpapp::SvcProviderApp, CommandApplication,
+        archiveapp::ArchiveApp, browseapp::BrowseApp, printapp::PrintApp, scpapp::SvcProviderApp,
+        CommandApplication,
     },
     args::{Arguments, Command},
 };
@@ -48,7 +48,6 @@ fn make_app() -> Box<dyn CommandApplication> {
     match args.command {
         Command::Print(args) => Box::new(PrintApp::new(args)),
         Command::Browse(args) => Box::new(BrowseApp::new(args)),
-        Command::Scan(args) => Box::new(ScanApp::new(args)),
         #[cfg(feature = "index")]
         Command::Index(args) => Box::new(IndexApp::new(args)),
         Command::Archive(args) => Box::new(ArchiveApp::new(args)),
