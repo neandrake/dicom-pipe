@@ -67,13 +67,14 @@ mod dict_tests {
             .expect("TransferSyntax 1.2.840.10008.1.2 not found");
         assert_eq!(&ImplicitVRLittleEndian, ivrle_by_id);
 
-        let ivrle_by_uid: &TransferSyntax =
-            TS_BY_UID
-                .get(ImplicitVRLittleEndian.uid.uid)
-                .expect(&format!(
+        let ivrle_by_uid: &TransferSyntax = TS_BY_UID
+            .get(ImplicitVRLittleEndian.uid.uid)
+            .unwrap_or_else(|| {
+                panic!(
                     "TransferSyntax {}, not found",
                     ImplicitVRLittleEndian.uid.uid
-                ));
+                )
+            });
         assert_eq!(&ImplicitVRLittleEndian, ivrle_by_uid);
 
         let evrle_by_ident: &TransferSyntax = TS_BY_IDENT
@@ -86,13 +87,14 @@ mod dict_tests {
             .expect("TransferSyntax 1.2.840.10008.1.2.1 not found");
         assert_eq!(&ExplicitVRLittleEndian, evrle_by_id);
 
-        let evrle_by_uid: &TransferSyntax =
-            TS_BY_UID
-                .get(ExplicitVRLittleEndian.uid.uid)
-                .expect(&format!(
+        let evrle_by_uid: &TransferSyntax = TS_BY_UID
+            .get(ExplicitVRLittleEndian.uid.uid)
+            .unwrap_or_else(|| {
+                panic!(
                     "TransferSyntax {}, not found",
                     ExplicitVRLittleEndian.uid.uid
-                ));
+                )
+            });
         assert_eq!(&ExplicitVRLittleEndian, evrle_by_uid);
     }
 

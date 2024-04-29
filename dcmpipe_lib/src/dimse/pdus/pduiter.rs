@@ -134,6 +134,7 @@ pub struct DimseMsg {
 }
 
 impl DimseMsg {
+    #[must_use]
     pub fn new(cmd: CommandMessage, ctx_id: u8) -> Self {
         Self {
             cmd,
@@ -142,6 +143,7 @@ impl DimseMsg {
         }
     }
 
+    #[must_use]
     pub fn new_with_dcm(cmd: CommandMessage, ctx_id: u8, dcm_len: u32) -> Self {
         Self {
             cmd,

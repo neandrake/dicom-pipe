@@ -27,7 +27,7 @@ pub mod common_stddicom {
 
     /// The path to the fixtures, relative to the `dcmpipe_lib` crate which is the working directory
     /// when tests are run.
-    const FIXTURES_PATH: &'static str = "./tests/fixtures";
+    const FIXTURES_PATH: &str = "./tests/fixtures";
 
     /// Gets the fixture file of the given file path, relative to the fixtures directory.
     pub fn fixture(path: &str) -> Result<BufReader<File>, std::io::Error> {

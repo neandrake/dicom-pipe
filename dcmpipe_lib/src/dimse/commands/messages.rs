@@ -40,6 +40,7 @@ pub struct CommandMessage {
 }
 
 impl CommandMessage {
+    #[must_use]
     pub fn new(message: DicomRoot) -> Self {
         let msg_id = message
             .get_value_by_tag(&MessageID)
@@ -125,6 +126,7 @@ impl CommandMessage {
         Self::new(message)
     }
 
+    #[must_use]
     pub fn c_echo_req(ts: TSRef, msg_id: u16, sop_class_uid: &str) -> Self {
         CommandMessage::create(
             ts,
@@ -183,6 +185,7 @@ impl CommandMessage {
         ))
     }
 
+    #[must_use]
     pub fn c_find_req(ts: TSRef, msg_id: u16, sop_class_uid: &str) -> Self {
         CommandMessage::create(
             ts,
@@ -271,12 +274,12 @@ mod tests {
         act_pair: Option<(&u32, &DicomObject)>,
     ) -> usize {
         let (_act_tag, act_obj) =
-            act_pair.expect(&format!("Should have element: {}", exp_tag.ident()));
+            act_pair.unwrap_or_else(|| panic!("Should have element: {}", exp_tag.ident()));
         assert_eq!(exp_tag.tag(), act_obj.element().tag());
         let act_val = act_obj
             .element()
             .parse_value()
-            .expect(&format!("Should get value for: {}", exp_tag.ident()));
+            .unwrap_or_else(|_| panic!("Should get value for: {}", exp_tag.ident()));
         assert_eq!(exp_val, act_val, "for {}", exp_tag.ident());
         act_obj.byte_size()
     }

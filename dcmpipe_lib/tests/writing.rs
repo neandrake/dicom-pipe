@@ -367,11 +367,7 @@ mod writing_tests {
                 // Account for numbers encoded as "2.5000"
                 let indexof_dot = v.iter().position(|&b| b == b'.');
                 let remove_trailing_zeroes = if let Some(dot_pos) = indexof_dot {
-                    if dot_pos != v.len() - 1 {
-                        true
-                    } else {
-                        false
-                    }
+                    dot_pos != v.len() - 1
                 } else {
                     false
                 };

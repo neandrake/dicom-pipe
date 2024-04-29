@@ -29,11 +29,13 @@ pub struct MaxLengthItem {
 
 impl MaxLengthItem {
     /// The type of this PDU, `UserSubPduType::MaxLengthItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::MaxLengthItem
     }
 
     /// Create a new `MaxLengthItem`.
+    #[must_use]
     pub fn new(max_length: u32) -> Self {
         let length: u16 = size_of::<u32>().try_into().unwrap_or_default(); // max_length
 
@@ -46,16 +48,19 @@ impl MaxLengthItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the user
     /// data fields. This should be a fixed value of 4.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The maximum length.
+    #[must_use]
     pub fn max_length(&self) -> u32 {
         self.max_length
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -108,11 +113,13 @@ pub struct ImplementationClassUIDItem {
 
 impl ImplementationClassUIDItem {
     /// The type of this PDU, `UserSubPduType::ImplementationClassUIDItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::ImplementationClassUIDItem
     }
 
     /// Create a new `ImplementationClassUIDItem`.
+    #[must_use]
     pub fn new(impl_class_uid: Vec<u8>) -> Self {
         Self {
             reserved: 0u8,
@@ -122,16 +129,19 @@ impl ImplementationClassUIDItem {
     }
 
     /// The number of bytes in the following Implementation Class UID field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The Implementation Class UID.
+    #[must_use]
     pub fn impl_class_uid(&self) -> &Vec<u8> {
         &self.impl_class_uid
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -184,11 +194,13 @@ pub struct AsyncOperationsWindowItem {
 
 impl AsyncOperationsWindowItem {
     /// The type of this PDU, `UserSubPduType::AsyncOperationsWindowItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::AsyncOperationsWindowItem
     }
 
     /// Create a new `AsyncOperationsWindowItem`.
+    #[must_use]
     pub fn new(max_ops_invoked: u16, max_ops_performed: u16) -> Self {
         let length: usize = size_of::<u16>() // max_ops_invoked
             + size_of::<u16>(); // max_ops_performed
@@ -203,21 +215,25 @@ impl AsyncOperationsWindowItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// Maximum Number Operations Performed field. This should be a fixed value of 4.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// Maximum Number of Operations Invoked.
+    #[must_use]
     pub fn max_ops_invoked(&self) -> u16 {
         self.max_ops_invoked
     }
 
     /// Maximum Number of Operations Performed.
+    #[must_use]
     pub fn max_ops_performed(&self) -> u16 {
         self.max_ops_performed
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -278,11 +294,13 @@ pub struct RoleSelectionItem {
 
 impl RoleSelectionItem {
     /// The type of this PDU, `UserSubPduType::RoleSelectionItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::RoleSelectionItem
     }
 
     /// Create a new `RoleSelectionItem`.
+    #[must_use]
     pub fn new(sop_class_uid: Vec<u8>, scu_role: u8, scp_role: u8) -> Self {
         let length: usize = size_of::<u16>() // sop_class_uid_length
             + sop_class_uid.len()
@@ -301,16 +319,19 @@ impl RoleSelectionItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the SCP
     /// Role field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The number of bytes in the SOP Class UID field.
+    #[must_use]
     pub fn sop_class_uid_length(&self) -> u16 {
         self.sop_class_uid_length
     }
 
     /// The SOP Class UID field.
+    #[must_use]
     pub fn sop_class_uid(&self) -> &Vec<u8> {
         &self.sop_class_uid
     }
@@ -319,6 +340,7 @@ impl RoleSelectionItem {
     ///
     /// 0: non-support of the SCU role.
     /// 1: support of the SCU role.
+    #[must_use]
     pub fn scu_role(&self) -> u8 {
         self.scu_role
     }
@@ -327,11 +349,13 @@ impl RoleSelectionItem {
     ///
     /// 0: non-support of the SCP role.
     /// 1: support of the SCP role.
+    #[must_use]
     pub fn scp_role(&self) -> u8 {
         self.scp_role
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -400,11 +424,13 @@ pub struct ImplementationVersionNameItem {
 
 impl ImplementationVersionNameItem {
     /// The type of this PDU, `UserSubPduType::ImplementationVersionNameItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::ImplementationVersionNameItem
     }
 
     /// Create a new `ImplementationVersionNameItem`.
+    #[must_use]
     pub fn new(impl_ver_name: Vec<u8>) -> Self {
         Self {
             reserved: 0u8,
@@ -414,16 +440,19 @@ impl ImplementationVersionNameItem {
     }
 
     /// The number of bytes in the Implementation Version Name field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// Implementation Version Name.
+    #[must_use]
     pub fn impl_ver_name(&self) -> &Vec<u8> {
         &self.impl_ver_name
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -477,11 +506,13 @@ pub struct SOPClassExtendedNegotiationItem {
 
 impl SOPClassExtendedNegotiationItem {
     /// The type of this PDU, `UserSubPduType::SOPClassExtendedNegotiationItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::SOPClassExtendedNegotiationItem
     }
 
     /// Create a new `SOPClassExtendedNegotiationItem`.
+    #[must_use]
     pub fn new(sop_class_uid: Vec<u8>, service_class_app_info: Vec<u8>) -> Self {
         let length: usize = size_of::<u16>() // sop_class_uid_length
             + sop_class_uid.len()
@@ -498,26 +529,31 @@ impl SOPClassExtendedNegotiationItem {
 
     /// The number of bytes from the first byte of the following field the last byte of the Service
     /// Class Application Information field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The number of bytes in the SOP Class UID field.
+    #[must_use]
     pub fn sop_class_length(&self) -> u16 {
         self.sop_class_uid_length
     }
 
     /// The SOP Class UID field.
+    #[must_use]
     pub fn sop_class_uid(&self) -> &Vec<u8> {
         &self.sop_class_uid
     }
 
     /// The Service Class Application Info field.
+    #[must_use]
     pub fn service_class_app_info(&self) -> &Vec<u8> {
         &self.service_class_app_info
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -587,11 +623,13 @@ pub struct SOPClassCommonExtendedNegotiationItem {
 
 impl SOPClassCommonExtendedNegotiationItem {
     /// The type of this PDU, `UserSubPduType::SOPClassCommonExtendedNegotiationItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::SOPClassCommonExtendedNegotiationItem
     }
 
     /// Create a new `SOPClassCommonExtendedNegotiationItem`.
+    #[must_use]
     pub fn new(
         sop_class_uid: Vec<u8>,
         service_class_uid: Vec<u8>,
@@ -626,48 +664,57 @@ impl SOPClassCommonExtendedNegotiationItem {
     }
 
     /// The version of this item. The current standard version is 0.
+    #[must_use]
     pub fn version(&self) -> u8 {
         self.version
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// Reserved field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The number of bytes in the SOP Class UID field.
+    #[must_use]
     pub fn sop_class_length(&self) -> u16 {
         self.sop_class_uid_length
     }
 
     /// The SOP Class UID field.
+    #[must_use]
     pub fn sop_class_uid(&self) -> &Vec<u8> {
         &self.sop_class_uid
     }
 
     /// The number of bytes in the Service Class UID field.
+    #[must_use]
     pub fn service_class_length(&self) -> u16 {
         self.service_class_uid_length
     }
 
     /// The Service Class UID field.
+    #[must_use]
     pub fn service_class_uid(&self) -> &Vec<u8> {
         &self.service_class_uid
     }
 
     /// The number of bytes in the Related General SOP Class Identification field. May be zero if
     /// that field is not present.
+    #[must_use]
     pub fn rel_gen_sop_class_length(&self) -> u16 {
         self.rel_gen_sop_classes_length
     }
 
     /// The Related General SOP Class Identification fields.
+    #[must_use]
     pub fn rel_gen_sop_classes(&self) -> &Vec<RelatedGeneralSOPClassUID> {
         &self.rel_gen_sop_classes
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // version
@@ -776,6 +823,7 @@ pub struct RelatedGeneralSOPClassUID {
 
 impl RelatedGeneralSOPClassUID {
     /// Create a new `RelatedGeneralSOPClassUID`.
+    #[must_use]
     pub fn new(rel_gen_sop_class: Vec<u8>) -> Self {
         Self {
             length: rel_gen_sop_class.len().try_into().unwrap_or_default(),
@@ -784,16 +832,19 @@ impl RelatedGeneralSOPClassUID {
     }
 
     /// The number of bytes in the Related General SOP Class UID field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The Related General SOP Class UID field.
+    #[must_use]
     pub fn rel_gen_sop_class(&self) -> &Vec<u8> {
         &self.rel_gen_sop_class
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u16>() // length
             + self.rel_gen_sop_class.len()
@@ -843,11 +894,13 @@ pub struct UserIdentityItem {
 
 impl UserIdentityItem {
     /// The type of this PDU, `UserSubPduType::UserIdentityItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::UserIdentityItem
     }
 
     /// Create a new `UserIdentityItem`.
+    #[must_use]
     pub fn new(identity_type: u8, pos_rsp_req: u8, pri_value: Vec<u8>, sec_value: Vec<u8>) -> Self {
         let length: usize = size_of::<u8>() // identity_type
             + size_of::<u8>() // pos_rsp_req
@@ -870,6 +923,7 @@ impl UserIdentityItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the last
     /// field sent.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
@@ -881,6 +935,7 @@ impl UserIdentityItem {
     /// 3: Kerberos Service Ticket.
     /// 4: SAML Assertion.
     /// 5: JSON Web Token.
+    #[must_use]
     pub fn identity_type(&self) -> u8 {
         self.identity_type
     }
@@ -889,32 +944,38 @@ impl UserIdentityItem {
     ///
     /// 0 - no response requested
     /// 1 - positive response requested
+    #[must_use]
     pub fn pos_rsp_req(&self) -> u8 {
         self.pos_rsp_req
     }
 
     /// The length of the primary field.
+    #[must_use]
     pub fn pri_length(&self) -> u16 {
         self.pri_length
     }
 
     /// The primary field value.
+    #[must_use]
     pub fn pri_value(&self) -> &Vec<u8> {
         &self.pri_value
     }
 
     /// The length of the secondary field. This field should only be non-zero if the identity type
     /// is 2.
+    #[must_use]
     pub fn sec_length(&self) -> u16 {
         self.sec_length
     }
 
     /// The secondary field. Only present if the identity type is 2.
+    #[must_use]
     pub fn sec_value(&self) -> &Vec<u8> {
         &self.sec_value
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -995,11 +1056,13 @@ pub struct UserIdentityNegotiationItem {
 
 impl UserIdentityNegotiationItem {
     /// The type of this PDU, `UserSubPduType::UserIdentityNegotiationItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         UserPduType::UserIdentityNegotiationItem
     }
 
     /// Create a new `UserIdentityNegotiationItem`.
+    #[must_use]
     pub fn new(server_rsp: Vec<u8>) -> Self {
         let length: usize = size_of::<u16>() // server_rsp_length
             + server_rsp.len();
@@ -1014,11 +1077,13 @@ impl UserIdentityNegotiationItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// final field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// Server response length. This field should only be non-zero if the identity type is 3 or 4.
+    #[must_use]
     pub fn server_rsp_length(&self) -> u16 {
         self.server_rsp_length
     }
@@ -1026,11 +1091,13 @@ impl UserIdentityNegotiationItem {
     /// Server response. If the identity type is 3 then this will be the Kerberos Service ticket
     /// encoded in accordance with RFC-1510. If the identity type is 4 then this will be the SAML
     /// response.
+    #[must_use]
     pub fn server_rsp(&self) -> &Vec<u8> {
         &self.server_rsp
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -1168,56 +1235,40 @@ mod tests {
     fn test_user_pdu_type_roundtrip() {
         assert_eq!(
             UserPduType::MaxLengthItem,
-            (u8::from(&UserPduType::MaxLengthItem)).try_into().unwrap()
+            (u8::from(&UserPduType::MaxLengthItem)).into()
         );
 
         assert_eq!(
             UserPduType::ImplementationClassUIDItem,
-            (u8::from(&UserPduType::ImplementationClassUIDItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::ImplementationClassUIDItem)).into()
         );
         assert_eq!(
             UserPduType::AsyncOperationsWindowItem,
-            (u8::from(&UserPduType::AsyncOperationsWindowItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::AsyncOperationsWindowItem)).into()
         );
         assert_eq!(
             UserPduType::RoleSelectionItem,
-            (u8::from(&UserPduType::RoleSelectionItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::RoleSelectionItem)).into()
         );
         assert_eq!(
             UserPduType::ImplementationVersionNameItem,
-            (u8::from(&UserPduType::ImplementationVersionNameItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::ImplementationVersionNameItem)).into()
         );
         assert_eq!(
             UserPduType::SOPClassExtendedNegotiationItem,
-            (u8::from(&UserPduType::SOPClassExtendedNegotiationItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::SOPClassExtendedNegotiationItem)).into()
         );
         assert_eq!(
             UserPduType::SOPClassCommonExtendedNegotiationItem,
-            (u8::from(&UserPduType::SOPClassCommonExtendedNegotiationItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::SOPClassCommonExtendedNegotiationItem)).into()
         );
         assert_eq!(
             UserPduType::UserIdentityItem,
-            (u8::from(&UserPduType::UserIdentityItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::UserIdentityItem)).into()
         );
         assert_eq!(
             UserPduType::UserIdentityNegotiationItem,
-            (u8::from(&UserPduType::UserIdentityNegotiationItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&UserPduType::UserIdentityNegotiationItem)).into()
         );
     }
 }

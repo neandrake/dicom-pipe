@@ -144,6 +144,7 @@ pub enum Pdu {
 
 impl Pdu {
     /// The `PduType` for this PDU.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         match self {
             Pdu::AssocRQ(pdu) => pdu.pdu_type(),
@@ -169,6 +170,7 @@ impl Pdu {
     /// See `PresentationDataItemPartial` which exists for more flexible memory management when
     /// dealing with potentially large `PresentationDataValue`s. Regardless of that, this will
     /// still return the total number of bytes for this entire PDU.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         match self {
             Pdu::AssocRQ(pdu) => pdu.byte_size(),
@@ -328,6 +330,7 @@ pub enum UserPdu {
 
 impl UserPdu {
     /// The `UserPduType` for this User PDU.
+    #[must_use]
     pub fn pdu_type(&self) -> UserPduType {
         match self {
             UserPdu::MaxLengthItem(pdu) => pdu.pdu_type(),
@@ -343,6 +346,7 @@ impl UserPdu {
     }
 
     /// The total number of bytes that this User PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         match self {
             UserPdu::MaxLengthItem(pdu) => pdu.byte_size(),

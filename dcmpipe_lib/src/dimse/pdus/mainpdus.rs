@@ -56,11 +56,13 @@ pub struct AssocRQ {
 
 impl AssocRQ {
     /// The type of this PDU, `PduType::AssocRQ`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::AssocRQ
     }
 
     /// Create a new `AssocRQ`.
+    #[must_use]
     pub fn new(
         called_ae: [u8; 16],
         calling_ae: [u8; 16],
@@ -93,50 +95,59 @@ impl AssocRQ {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// variable field (User Information).
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
     /// Identifies each version of the DICOM Upper Layer protocol supported by the calling
     /// end-system. Currently this is version 1, identified with bit 0 set.
+    #[must_use]
     pub fn version(&self) -> u16 {
         self.version
     }
 
     /// Destination AE, 16 characters encoded with the Basic G0 Set (essentially ASCII), with
     /// leading and trailing spaces being non-significant.
+    #[must_use]
     pub fn called_ae(&self) -> &[u8; 16] {
         &self.called_ae
     }
 
     /// Source AE, 16 characters encoded with the Basic G0 Set (essentially ASCII), with leading
     /// and trailing spaces being non-significant.
+    #[must_use]
     pub fn calling_ae(&self) -> &[u8; 16] {
         &self.calling_ae
     }
 
     /// The third reserved field, 32 bytes. This is exposed as the standard requires this value be
     /// copied in the AssocAC response.
+    #[must_use]
     pub fn reserved_3(&self) -> &[u8; 32] {
         &self.reserved_3
     }
 
     /// Application Context.
+    #[must_use]
     pub fn app_ctx(&self) -> &ApplicationContextItem {
         &self.app_ctx
     }
 
     /// Presentation Contexts, at least one.
+    #[must_use]
     pub fn pres_ctxs(&self) -> &Vec<AssocRQPresentationContext> {
         &self.pres_ctxs
     }
 
     /// User Information.
+    #[must_use]
     pub fn user_info(&self) -> &UserInformationItem {
         &self.user_info
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -253,11 +264,13 @@ pub struct AssocAC {
 
 impl AssocAC {
     /// The type of this PDU, `PduType::AssocAC`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::AssocAC
     }
 
     /// Create a new `AssocAC`.
+    #[must_use]
     pub fn new(
         reserved_3: [u8; 16],
         reserved_4: [u8; 16],
@@ -291,44 +304,52 @@ impl AssocAC {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// variable items field (User Information).
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
     /// Identifies each version of the DICOM Upper Layer protocol supported by the calling
     /// end-system. Currently this is version 1, identified with bit 0 set.
+    #[must_use]
     pub fn version(&self) -> u16 {
         self.version
     }
 
     /// Reserved, but this should be populated with the Destination AE field from the RQ though
     /// its value should not be checked.
+    #[must_use]
     pub fn reserved_3(&self) -> &[u8; 16] {
         &self.reserved_3
     }
 
     /// Reserved, but this should be populated with the Source AE field from the RQ though its
     /// value should not be checked.
+    #[must_use]
     pub fn reserved_4(&self) -> &[u8; 16] {
         &self.reserved_4
     }
 
     /// Application Context.
+    #[must_use]
     pub fn app_ctx(&self) -> &ApplicationContextItem {
         &self.app_ctx
     }
 
     /// Presentation Contexts, at least one.
+    #[must_use]
     pub fn pres_ctxs(&self) -> &Vec<AssocACPresentationContext> {
         &self.pres_ctxs
     }
 
     /// User Information.
+    #[must_use]
     pub fn user_info(&self) -> &UserInformationItem {
         &self.user_info
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -435,6 +456,7 @@ pub struct AssocRJ {
 
 impl AssocRJ {
     /// The type of this PDU, `PduType::AssocRJ`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::AssocRJ
     }
@@ -467,6 +489,7 @@ impl AssocRJ {
     ///     - 1: Temporary congestion.
     ///     - 2: Local limit exceeded.
     ///     - 3-7: Reserved.
+    #[must_use]
     pub fn new(result: u8, source: u8, reason: u8) -> Self {
         let length: usize = size_of::<u8>() // reserved_2
             + size_of::<u8>() // result
@@ -485,6 +508,7 @@ impl AssocRJ {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// Reason/Diag. field. This should be a fixed value of 4.
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
@@ -494,6 +518,7 @@ impl AssocRJ {
     /// # Notes
     /// - 1: Rejected-permanent.
     /// - 2: Rejected-transient.
+    #[must_use]
     pub fn result(&self) -> u8 {
         self.result
     }
@@ -504,6 +529,7 @@ impl AssocRJ {
     /// - 1: DICOM Upper Layer Service User.
     /// - 2: DICOM Upper Layer Service Provider (ACSE-related function).
     /// - 3: DICOM Upper Layer Service Provider (Presentation-related function).
+    #[must_use]
     pub fn source(&self) -> u8 {
         self.source
     }
@@ -526,11 +552,13 @@ impl AssocRJ {
     ///   - 1: Temporary congestion.
     ///   - 2: Local limit exceeded.
     ///   - 3-7: Reserved.
+    #[must_use]
     pub fn reason(&self) -> u8 {
         self.reason
     }
 
     /// Returns a description of the reason for A-ASSOCIATION-RJ.
+    #[must_use]
     pub fn get_reason_desc(&self) -> &'static str {
         if self.source == 1 {
             match self.reason {
@@ -558,6 +586,7 @@ impl AssocRJ {
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -621,11 +650,13 @@ pub struct ReleaseRQ {
 
 impl ReleaseRQ {
     /// The type of this PDU, `PduType::ReleaseRQ`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::ReleaseRQ
     }
 
     /// Create a new `ReleaseRQ`.
+    #[must_use]
     pub fn new() -> Self {
         let length: usize = size_of::<[u8; 4]>(); // reserved_2
 
@@ -638,11 +669,13 @@ impl ReleaseRQ {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// reserved field. This should be a fixed value of 4.
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -700,11 +733,13 @@ pub struct ReleaseRP {
 
 impl ReleaseRP {
     /// The type of this PDU, `PduType::ReleaseRP`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::ReleaseRP
     }
 
     /// Create a new `ReleaseRP`.
+    #[must_use]
     pub fn new() -> Self {
         let length: usize = size_of::<[u8; 4]>(); // reserved_2
 
@@ -717,11 +752,13 @@ impl ReleaseRP {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// reserved field. This should be a fixed value of 4.
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -783,6 +820,7 @@ pub struct Abort {
 
 impl Abort {
     /// The type of this PDU, `PduType::Abort`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::Abort
     }
@@ -803,6 +841,7 @@ impl Abort {
     ///   - 4: Unrecognized PDU parameter.
     ///   - 5: Unexpected PDU parameter.
     ///   - 6: Invalid PDU parameter.
+    #[must_use]
     pub fn new(source: u8, reason: u8) -> Self {
         let length: usize = size_of::<u8>() // reserved_2
             + size_of::<u8>() // reserved_3
@@ -821,6 +860,7 @@ impl Abort {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// Reason/Diag. field. This should be a fixed value of 4.
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
@@ -831,6 +871,7 @@ impl Abort {
     /// 0: DICOM Upper Layer service-user (initiated abort).
     /// 1: Reserved.
     /// 2: DICOM Upper Layer service-provider (initiated abort).
+    #[must_use]
     pub fn source(&self) -> u8 {
         self.source
     }
@@ -848,11 +889,13 @@ impl Abort {
     ///
     /// If the source field has a value of 0 (service-user) then this field shall not be
     /// significant and should be set to zero, but unchecked.
+    #[must_use]
     pub fn reason(&self) -> u8 {
         self.reason
     }
 
     /// Returns a description of the reason for the A-ABORT.
+    #[must_use]
     pub fn get_reason_desc(&self) -> &'static str {
         match self.reason {
             0 => "Not-specified",
@@ -867,6 +910,7 @@ impl Abort {
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -929,11 +973,13 @@ pub struct PresentationDataItem {
 
 impl PresentationDataItem {
     /// The type of this PDU, `PduType::PresentationDataItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::PresentationDataItem
     }
 
     /// Create a new `PresentationDataItem`.
+    #[must_use]
     pub fn new(pres_data: Vec<PresentationDataValue>) -> Self {
         let length: usize = pres_data.iter().map(|p| p.byte_size()).sum::<usize>();
 
@@ -946,16 +992,19 @@ impl PresentationDataItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// variable field (Presentation Data values).
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
     /// Presentation Data values.
+    #[must_use]
     pub fn pres_data(&self) -> &Vec<PresentationDataValue> {
         &self.pres_data
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -1022,6 +1071,7 @@ pub struct PresentationDataValue {
 
 impl PresentationDataValue {
     /// Create a new `PresentationDataValue`.
+    #[must_use]
     pub fn new(ctx_id: u8, msg_header: u8, data: Vec<u8>) -> Self {
         let length: usize = size_of::<u8>() // ctx_id
             + size_of::<u8>() // msg_header
@@ -1037,11 +1087,13 @@ impl PresentationDataValue {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// presentation data value field.
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
     /// Context ID, an odd number between 1-255.
+    #[must_use]
     pub fn ctx_id(&self) -> u8 {
         self.ctx_id
     }
@@ -1060,16 +1112,19 @@ impl PresentationDataValue {
     ///   1: The message fragment is the last fragment.
     ///
     /// The other bits shall be zeros, but unchecked.
+    #[must_use]
     pub fn msg_header(&self) -> u8 {
         self.msg_header
     }
 
     /// Presentation data, a fragment. Either a Command or a DICOM Data Set.
+    #[must_use]
     pub fn data(&self) -> &Vec<u8> {
         &self.data
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u32>() // length
             + size_of::<u8>() // ctx_id
@@ -1078,11 +1133,13 @@ impl PresentationDataValue {
     }
 
     /// Returns true if this value is a command message, false for a dicom dataset.
+    #[must_use]
     pub fn is_command(&self) -> bool {
         self.msg_header & 0b01 == 0b01
     }
 
     /// Returns true if this value is the last fragment in a presentation data item, false if not.
+    #[must_use]
     pub fn is_last_fragment(&self) -> bool {
         self.msg_header & 0b10 == 0b10
     }
@@ -1142,12 +1199,14 @@ pub struct PresentationDataItemPartial {
 
 impl PresentationDataItemPartial {
     /// The type of this PDU, `PduType::PresentationDataItemPartial`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::PresentationDataItemPartial
     }
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// variable field (Presentation Data values).
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
@@ -1158,6 +1217,7 @@ impl PresentationDataItemPartial {
     /// Unline the `read()` and `write()` functions, this value _DOES_ include the length of the
     /// value fields, as it must be known ahead of time when preparing to write this PDU to a
     /// dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -1218,6 +1278,7 @@ impl PresentationDataValuePartial {
     /// - `P_DATA_CMD_LAST`
     /// - `P_DATA_DCM_DATASET`
     /// - `P_DATA_DCM_DATASET_LAST`
+    #[must_use]
     pub fn new(length: u32, ctx_id: u8, msg_header: u8) -> Self {
         Self {
             length,
@@ -1228,11 +1289,13 @@ impl PresentationDataValuePartial {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// presentation data value field.
+    #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
     /// Context ID, an odd number between 1-255.
+    #[must_use]
     pub fn ctx_id(&self) -> u8 {
         self.ctx_id
     }
@@ -1251,11 +1314,13 @@ impl PresentationDataValuePartial {
     ///   1: The message fragment is the last fragment.
     ///
     /// The other bits shall be zeros, but unchecked.
+    #[must_use]
     pub fn msg_header(&self) -> u8 {
         self.msg_header
     }
 
     /// The length of the data field.
+    #[must_use]
     pub fn length_of_data(&self) -> u32 {
         // The length field appears before the ctx_id and msg_header fields, so the length's value
         // includes those two bytes which need subtracted.
@@ -1263,11 +1328,13 @@ impl PresentationDataValuePartial {
     }
 
     /// Returns true if this value is a command message, false for a dicom dataset.
+    #[must_use]
     pub fn is_command(&self) -> bool {
         self.msg_header & 0b01 == 0b01
     }
 
     /// Returns true if this value is the last fragment in a presentation data item, false if not.
+    #[must_use]
     pub fn is_last_fragment(&self) -> bool {
         self.msg_header & 0b10 == 0b10
     }
@@ -1278,6 +1345,7 @@ impl PresentationDataValuePartial {
     /// Unline the `read()` and `write()` functions, this value _DOES_ include the length of the
     /// data field, as it must be known ahead of time when preparing to write this PDU to a
     /// dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u32>() // length
             + usize::try_from(self.length).unwrap_or_default()
@@ -1339,11 +1407,13 @@ pub struct ApplicationContextItem {
 
 impl ApplicationContextItem {
     /// The type of this PDU, `PduType::ApplicationContextItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::ApplicationContextItem
     }
 
     /// Create a new `ApplicationContextItem`.
+    #[must_use]
     pub fn new(app_context_name: Vec<u8>) -> Self {
         let length: u16 = app_context_name.len().try_into().unwrap_or_default();
 
@@ -1356,16 +1426,19 @@ impl ApplicationContextItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// application context field name.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// A valid application context name (essentially a UID).
+    #[must_use]
     pub fn app_context_name(&self) -> &Vec<u8> {
         &self.app_context_name
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -1425,11 +1498,13 @@ pub struct AssocRQPresentationContext {
 
 impl AssocRQPresentationContext {
     /// The type of this PDU, `PduType::AssocRQPresentationContext`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::AssocRQPresentationContext
     }
 
     /// Create a new `AssocRQPresentationItem`.
+    #[must_use]
     pub fn new(
         ctx_id: u8,
         abstract_syntax: AbstractSyntaxItem,
@@ -1456,26 +1531,31 @@ impl AssocRQPresentationContext {
 
     /// The number of bytes from the first byte of the following field to the last byte of the last
     /// transfer syntax item.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// Presentation context ID, an odd number between 1 and 255.
+    #[must_use]
     pub fn ctx_id(&self) -> u8 {
         self.ctx_id
     }
 
     /// The abstract syntax sub item.
+    #[must_use]
     pub fn abstract_syntax(&self) -> &AbstractSyntaxItem {
         &self.abstract_syntax
     }
 
     /// The transfer syntax sub-items.
+    #[must_use]
     pub fn transfer_syntaxes(&self) -> &Vec<TransferSyntaxItem> {
         &self.transfer_syntaxes
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -1587,11 +1667,13 @@ pub struct AssocACPresentationContext {
 
 impl AssocACPresentationContext {
     /// The type of this PDU, `PduType::AssocACPresentationContext`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::AssocACPresentationContext
     }
 
     /// Create a new `AssocACPresentationContext`.
+    #[must_use]
     pub fn new(ctx_id: u8, result: u8, transfer_syntax: TransferSyntaxItem) -> Self {
         let length: usize = size_of::<u8>() // ctx_id
             + size_of::<u8>() // reserved_2
@@ -1612,11 +1694,13 @@ impl AssocACPresentationContext {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// Transfer Syntax item.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// Presentation context ID, an odd number between 1 and 255.
+    #[must_use]
     pub fn ctx_id(&self) -> u8 {
         self.ctx_id
     }
@@ -1628,6 +1712,7 @@ impl AssocACPresentationContext {
     /// 2: No reason (provider rejection).
     /// 3: Abstract Syntax not supported (provider rejection).
     /// 4: Transfer Syntaxes not supported (provider rejection).
+    #[must_use]
     pub fn result(&self) -> u8 {
         self.result
     }
@@ -1635,11 +1720,13 @@ impl AssocACPresentationContext {
     /// The selected transfer syntax. When the `result` field has a value other than 0, this field
     /// shall not be significant and should be ignored. The `TransferSyntaxItem` should contain
     /// only a single transfer syntax.
+    #[must_use]
     pub fn transfer_syntax(&self) -> &TransferSyntaxItem {
         &self.transfer_syntax
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved_1
@@ -1716,11 +1803,13 @@ pub struct AbstractSyntaxItem {
 
 impl AbstractSyntaxItem {
     /// The type of this PDU, `PduType::AbstractSyntaxItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::AbstractSyntaxItem
     }
 
     /// Create a new `AbstractSyntaxItem`.
+    #[must_use]
     pub fn new(abstract_syntax: Vec<u8>) -> Self {
         Self {
             reserved: 0u8,
@@ -1731,16 +1820,19 @@ impl AbstractSyntaxItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// abstract syntax name field.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The abstract syntax UID related to the proposed presentation context.
+    #[must_use]
     pub fn abstract_syntax(&self) -> &Vec<u8> {
         &self.abstract_syntax
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -1798,11 +1890,13 @@ pub struct TransferSyntaxItem {
 
 impl TransferSyntaxItem {
     /// The type of this PDU, `PduType::TransferSyntaxItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::TransferSyntaxItem
     }
 
     /// Create a new `TransferSyntaxItem`.
+    #[must_use]
     pub fn new(transfer_syntaxes: Vec<u8>) -> Self {
         Self {
             reserved: 0u8,
@@ -1813,16 +1907,19 @@ impl TransferSyntaxItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// transfer syntax name fields.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// The transfer syntax UIDs related to the proposed presentation context.
+    #[must_use]
     pub fn transfer_syntaxes(&self) -> &Vec<u8> {
         &self.transfer_syntaxes
     }
 
     /// The total number of bytes that this PDU will require to write to a dataset.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
@@ -1880,6 +1977,7 @@ pub struct UserInformationItem {
 
 impl UserInformationItem {
     /// The type of this PDU, `PduType::UserInformationItem`.
+    #[must_use]
     pub fn pdu_type(&self) -> PduType {
         PduType::UserInformationItem
     }
@@ -1897,11 +1995,13 @@ impl UserInformationItem {
 
     /// The number of bytes from the first byte of the following field to the last byte of the user
     /// data fields.
+    #[must_use]
     pub fn length(&self) -> u16 {
         self.length
     }
 
     /// User-data sub-items.
+    #[must_use]
     pub fn user_data(&self) -> &Vec<UserPdu> {
         &self.user_data
     }
@@ -2104,72 +2204,44 @@ mod tests {
 
     #[test]
     fn test_pdu_type_roundtrip() {
-        assert_eq!(
-            PduType::AssocRQ,
-            (u8::from(&PduType::AssocRQ)).try_into().unwrap()
-        );
-        assert_eq!(
-            PduType::AssocAC,
-            (u8::from(&PduType::AssocAC)).try_into().unwrap()
-        );
-        assert_eq!(
-            PduType::AssocRJ,
-            (u8::from(&PduType::AssocRJ)).try_into().unwrap()
-        );
+        assert_eq!(PduType::AssocRQ, (u8::from(&PduType::AssocRQ)).into());
+        assert_eq!(PduType::AssocAC, (u8::from(&PduType::AssocAC)).into());
+        assert_eq!(PduType::AssocRJ, (u8::from(&PduType::AssocRJ)).into());
 
         assert_eq!(
             PduType::PresentationDataItemPartial,
-            (u8::from(&PduType::PresentationDataItemPartial))
-                .try_into()
-                .unwrap()
+            (u8::from(&PduType::PresentationDataItemPartial)).into()
         );
 
-        assert_eq!(
-            PduType::ReleaseRQ,
-            (u8::from(&PduType::ReleaseRQ)).try_into().unwrap()
-        );
-        assert_eq!(
-            PduType::ReleaseRP,
-            (u8::from(&PduType::ReleaseRP)).try_into().unwrap()
-        );
-        assert_eq!(
-            PduType::Abort,
-            (u8::from(&PduType::Abort)).try_into().unwrap()
-        );
+        assert_eq!(PduType::ReleaseRQ, (u8::from(&PduType::ReleaseRQ)).into());
+        assert_eq!(PduType::ReleaseRP, (u8::from(&PduType::ReleaseRP)).into());
+        assert_eq!(PduType::Abort, (u8::from(&PduType::Abort)).into());
 
         assert_eq!(
             PduType::ApplicationContextItem,
-            (u8::from(&PduType::ApplicationContextItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&PduType::ApplicationContextItem)).into()
         );
 
         assert_eq!(
             PduType::AssocRQPresentationContext,
-            (u8::from(&PduType::AssocRQPresentationContext))
-                .try_into()
-                .unwrap()
+            (u8::from(&PduType::AssocRQPresentationContext)).into()
         );
         assert_eq!(
             PduType::AssocACPresentationContext,
-            (u8::from(&PduType::AssocACPresentationContext))
-                .try_into()
-                .unwrap()
+            (u8::from(&PduType::AssocACPresentationContext)).into()
         );
 
         assert_eq!(
             PduType::AbstractSyntaxItem,
-            (u8::from(&PduType::AbstractSyntaxItem)).try_into().unwrap()
+            (u8::from(&PduType::AbstractSyntaxItem)).into()
         );
         assert_eq!(
             PduType::TransferSyntaxItem,
-            (u8::from(&PduType::TransferSyntaxItem)).try_into().unwrap()
+            (u8::from(&PduType::TransferSyntaxItem)).into()
         );
         assert_eq!(
             PduType::UserInformationItem,
-            (u8::from(&PduType::UserInformationItem))
-                .try_into()
-                .unwrap()
+            (u8::from(&PduType::UserInformationItem)).into()
         );
     }
 }

@@ -232,30 +232,36 @@ pub struct AssociationBuilder {
 }
 
 impl AssociationBuilder {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn id(mut self, id: usize) -> Self {
         self.id = id;
         self
     }
 
+    #[must_use]
     pub fn host_ae(mut self, host_ae: String) -> Self {
         self.host_ae = host_ae;
         self
     }
 
+    #[must_use]
     pub fn accept_aets(mut self, accept_aets: HashSet<String>) -> Self {
         self.accept_aets = accept_aets;
         self
     }
 
+    #[must_use]
     pub fn accept_abs(mut self, accept_abs: HashSet<UIDRef>) -> Self {
         self.accept_abs = accept_abs;
         self
     }
 
+    #[must_use]
     pub fn accept_ts(mut self, accept_ts: HashSet<TSRef>) -> Self {
         self.accept_ts = accept_ts;
         self
@@ -266,6 +272,7 @@ impl AssociationBuilder {
         self
     }
 
+    #[must_use]
     pub fn build(self) -> Association {
         Association {
             _id: self.id,

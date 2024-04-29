@@ -57,7 +57,7 @@ mod parsing_tests {
             .expect("Should be able to iterate a valid dicom dataset");
 
         let is_dcm: bool = is_standard_dcm_file(&parser);
-        assert_eq!(true, is_dcm);
+        assert!(is_dcm);
     }
 
     #[test]
@@ -70,7 +70,7 @@ mod parsing_tests {
             .expect("Should be able to iterate a valid dicom dataset with non-standard preamble");
 
         let is_dcm: bool = is_standard_dcm_file(&parser);
-        assert_eq!(false, is_dcm);
+        assert!(!is_dcm);
     }
 
     #[test]
@@ -152,7 +152,7 @@ mod parsing_tests {
             .skip_while(|x| x.is_ok() && x.as_ref().unwrap().tag() <= SpecificCharacterSet.tag)
             .next();
 
-        assert_eq!(true, first_non_fme.is_none());
+        assert!(first_non_fme.is_none());
     }
 
     #[test]
@@ -187,7 +187,7 @@ mod parsing_tests {
 
         assert_eq!(ParserState::ReadFileMeta, parser.parser_state());
 
-        while let Some(_) = parser.next() {
+        for _ in parser.by_ref() {
             // read through the entire dataset
         }
 
@@ -526,7 +526,7 @@ mod parsing_tests {
         let private_un_seq_elem: &DicomElement = private_un_seq_obj.element();
         assert_eq!(&vr::UN, private_un_seq_elem.vr());
         assert_eq!(ValueLength::UndefinedLength, private_un_seq_elem.vl());
-        assert_eq!(true, private_un_seq_elem.is_sq_like());
+        assert!(private_un_seq_elem.is_sq_like());
         assert_eq!(0, private_un_seq_elem.data().len());
 
         let child_obj: &DicomObject = private_un_seq_obj
