@@ -1,13 +1,9 @@
-extern crate byteorder;
 extern crate dcmpipe_lib;
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use dcmpipe_lib::core::charset::CSRef;
 use dcmpipe_lib::core::dcmelement::{DicomElement, DicomSequencePosition};
 use dcmpipe_lib::core::dict::dicom_elements as tags;
 use dcmpipe_lib::core::dict::lookup::{TAG_BY_VALUE, UID_BY_ID};
 use dcmpipe_lib::core::tag::Tag;
-use dcmpipe_lib::core::ts::TSRef;
 use dcmpipe_lib::core::vr;
 use dcmpipe_lib::read::dcmparser::DicomStreamParser;
 use dcmpipe_lib::read::tagstop::TagStop;
@@ -72,8 +68,7 @@ fn appmain() -> Result<(), Error> {
             prev_was_file_meta = false;
         }
 
-        let printed: Option<String> =
-            render_element(&mut elem, dicom_iter.get_ts(), dicom_iter.get_cs())?;
+        let printed: Option<String> = render_element(&mut elem)?;
 
         if let Some(printed) = printed {
             stdout.write_all(format!("{}\n", printed).as_ref())?;
@@ -83,11 +78,7 @@ fn appmain() -> Result<(), Error> {
     Ok(())
 }
 
-fn render_element(
-    element: &mut DicomElement,
-    ts: TSRef,
-    cs: CSRef,
-) -> Result<Option<String>, Error> {
+fn render_element(element: &mut DicomElement) -> Result<Option<String>, Error> {
     if element.tag.trailing_zeros() >= 16 {
         // Group Length tags are deprecated, see note on Ch 5 Part 7.2
         return Ok(None);
@@ -101,15 +92,12 @@ fn render_element(
     };
     let vr: &str = element.vr.ident;
 
-    let cs: CSRef = element.vr.get_proper_cs(cs);
     let mut tag_value: String = if element.vr == &vr::SQ {
         String::new()
     } else if element.is_empty() {
         "<empty>".to_owned()
-    } else if ts.big_endian {
-        render_dicom_value::<BigEndian>(element, cs)?
     } else {
-        render_dicom_value::<LittleEndian>(element, cs)?
+        render_dicom_value(element)?
     };
 
     let seq_path: &Vec<DicomSequencePosition> = element.get_sequence_path();
@@ -170,20 +158,17 @@ fn render_element(
 }
 
 /// Formats the value of this element as a string based on the VR
-fn render_dicom_value<Endian: ByteOrder>(
-    elem: &mut DicomElement,
-    cs: CSRef,
-) -> Result<String, Error> {
+fn render_dicom_value(elem: &mut DicomElement) -> Result<String, Error> {
     let mut ellipses: bool = false;
     let mut sep: &str = ", ";
     let mut str_vals: Vec<String> = Vec::new();
     if elem.vr == &vr::AT {
         str_vals.push(Tag::format_tag_to_display(
-            elem.parse_attribute::<Endian>()?,
+            elem.parse_attribute()?,
         ));
     } else if elem.vr == &vr::FL || elem.vr == &vr::OF {
         sep = " / ";
-        let vec: Vec<f32> = elem.parse_f32s::<Endian>()?;
+        let vec: Vec<f32> = elem.parse_f32s()?;
         let vec_len: usize = vec.len();
         vec.into_iter()
             .take(MAX_ITEMS_DISPLAYED)
@@ -192,7 +177,7 @@ fn render_dicom_value<Endian: ByteOrder>(
         ellipses = vec_len > str_vals.len();
     } else if elem.vr == &vr::FD || elem.vr == &vr::OD {
         sep = " / ";
-        let vec: Vec<f64> = elem.parse_f64s::<Endian>()?;
+        let vec: Vec<f64> = elem.parse_f64s()?;
         let vec_len: usize = vec.len();
         vec.into_iter()
             .take(MAX_ITEMS_DISPLAYED)
@@ -201,7 +186,7 @@ fn render_dicom_value<Endian: ByteOrder>(
         ellipses = vec_len > str_vals.len();
     } else if elem.vr == &vr::SS || elem.vr == &vr::OW {
         sep = " / ";
-        let vec: Vec<i16> = elem.parse_i16s::<Endian>()?;
+        let vec: Vec<i16> = elem.parse_i16s()?;
         let vec_len: usize = vec.len();
         vec.into_iter()
             .take(MAX_ITEMS_DISPLAYED)
@@ -210,7 +195,7 @@ fn render_dicom_value<Endian: ByteOrder>(
         ellipses = vec_len > str_vals.len();
     } else if elem.vr == &vr::SL || elem.vr == &vr::OL {
         sep = " / ";
-        let vec: Vec<i32> = elem.parse_i32s::<Endian>()?;
+        let vec: Vec<i32> = elem.parse_i32s()?;
         let vec_len: usize = vec.len();
         vec.into_iter()
             .take(MAX_ITEMS_DISPLAYED)
@@ -218,18 +203,18 @@ fn render_dicom_value<Endian: ByteOrder>(
             .for_each(|val: String| str_vals.push(val));
         ellipses = vec_len > str_vals.len();
     } else if elem.vr == &vr::UI {
-        let str_val: String = elem.parse_string(cs)?;
+        let str_val: String = elem.parse_string()?;
         if let Some(uid) = UID_BY_ID.get(str_val.as_str()) {
             str_vals.push(format!("{} ({})", str_val, uid.name));
         } else {
             str_vals.push(str_val);
         }
     } else if elem.vr == &vr::UL {
-        str_vals.push(format!("{}", elem.parse_u32::<Endian>()?));
+        str_vals.push(format!("{}", elem.parse_u32()?));
     } else if elem.vr == &vr::US {
-        str_vals.push(format!("{}", elem.parse_u16::<Endian>()?));
+        str_vals.push(format!("{}", elem.parse_u16()?));
     } else if elem.vr.is_character_string {
-        let vec: Vec<String> = elem.parse_strings(cs)?;
+        let vec: Vec<String> = elem.parse_strings()?;
         let vec_len: usize = vec.len();
         vec.iter()
             .take(MAX_ITEMS_DISPLAYED)
