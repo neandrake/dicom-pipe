@@ -25,7 +25,7 @@ impl<'a> From<ParseErrorInfo<'a>> for ParseError {
 
         // TODO: How to get a dicom dictionary here for better error messages?
         let tagstring = TagPath::format_tagpath_to_display(&elem.create_tagpath(), None);
-        ParseError::ValueParseError {
+        ParseError::DecodeValueError {
             message: message.to_owned(),
             tagstring,
             vr: elem.vr(),
@@ -86,17 +86,13 @@ pub enum ParseError {
     #[error(
         "error parsing element value: {message}\n\ttagpath: {tagstring}\n\tvr:{vr:?}, cs: {cs:?}\n\tvalue: {bytes:?}"
     )]
-    ValueParseError {
+    DecodeValueError {
         message: String,
         tagstring: String,
         vr: VRRef,
         cs: CSRef,
         bytes: Vec<u8>,
     },
-
-    /// An error occurs when converting RawValue to bytes.
-    #[error("error converting RawValue to bytes: {message}")]
-    RawValueConversionError { message: String },
 
     /// An error when a text/string representation of a tagpath is unable to be parsed/resolved.
     #[error("unable to resolve tagpath: {string_path}")]

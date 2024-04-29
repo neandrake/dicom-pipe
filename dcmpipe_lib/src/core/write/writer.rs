@@ -263,7 +263,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         match element.vl() {
             ValueLength::UndefinedLength => {
                 if !write_as_u32 {
-                    return Err(WriteError::InvalidUndefinedValueLengthError);
+                    return Err(WriteError::InvalidValueLength);
                 }
 
                 if element.ts().big_endian() {
