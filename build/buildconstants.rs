@@ -279,15 +279,15 @@ pub struct TransferSyntaxLookup {{
 
 impl TransferSyntaxLookup {{
 \tpub fn by_ident(&self, ident: &str) -> Option<&'static TransferSyntax> {{
-\t\tident_to_ts.get(ident).map(|ts| *ts)
+\t\tself.ident_to_ts.get(ident).map(|ts| *ts)
 \t}}
 
 \tpub fn by_id(&self, id: &str) -> Option<&'static TransferSyntax> {{
-\t\tid_to_ts.get(id).map(|ts| *ts)
+\t\tself.id_to_ts.get(id).map(|ts| *ts)
 \t}}
 
 \tpub fn by_uid(&self, uid: &UID) -> Option<&'static TransferSyntax> {{
-\t\tuid_to_ts.get(uid).map(|ts| *ts)
+\t\tself.uid_to_ts.get(uid).map(|ts| *ts)
 \t}}
 
 \tpub fn new() -> TransferSyntaxLookup {{
@@ -296,7 +296,7 @@ impl TransferSyntaxLookup {{
 \t\tlet mut uid_to_ts: HashMap<&'static UID, &'static TransferSyntax> = HashMap::new();
 {}
 
-\t\tTransferSyntax {{
+\t\tTransferSyntaxLookup {{
 \t\t\tident_to_ts: ident_to_ts,
 \t\t\tid_to_ts: id_to_ts,
 \t\t\tuid_to_ts: uid_to_ts,
