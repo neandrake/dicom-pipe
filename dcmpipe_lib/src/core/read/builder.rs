@@ -18,15 +18,15 @@
 
 use std::io::Read;
 
-use super::{
-    behavior::ParseBehavior,
-    parser::{Parser, ParserState},
-};
-
 use crate::core::{
     charset::DEFAULT_CHARACTER_SET,
     defn::{constants::ts::ExplicitVRLittleEndian, dcmdict::DicomDictionary, ts::TSRef},
-    read::{ds::dataset::Dataset, stop::ParseStop},
+    read::{
+        behavior::ParseBehavior,
+        ds::dataset::Dataset,
+        parser::{Parser, ParserState},
+        stop::ParseStop,
+    },
 };
 
 /// A builder for constructing a `Parser`.

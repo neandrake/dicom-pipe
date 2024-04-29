@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-use super::{tag::TagRef, ts::TSRef, uid::UIDRef};
+use crate::core::defn::{tag::TagRef, ts::TSRef, uid::UIDRef};
 
 /// A DICOM dictionary enables looking up transer syntaxes, tags, and uids by
 /// their name or number (as defined in the standard), or by their UID.

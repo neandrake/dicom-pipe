@@ -19,12 +19,11 @@ use std::io::Write;
 use crate::core::{
     charset::{CSRef, DEFAULT_CHARACTER_SET},
     defn::{constants::ts, ts::TSRef},
+    write::{
+        ds::dataset::Dataset,
+        writer::{Writer, WriterState},
+    },
     FILE_PREAMBLE_LENGTH,
-};
-
-use super::{
-    ds::dataset::Dataset,
-    writer::{Writer, WriterState},
 };
 
 /// A builder for constructing a `Writer`.

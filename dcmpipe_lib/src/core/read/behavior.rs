@@ -16,7 +16,7 @@
 
 //! Specify behavior while parsing.
 
-use super::stop::ParseStop;
+use crate::core::read::stop::ParseStop;
 
 #[derive(Clone, Debug)]
 pub struct ParseBehavior {
