@@ -1,4 +1,3 @@
-use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -6,7 +5,6 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{
     Parser, ParserBuilder, Result, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
@@ -14,8 +12,6 @@ use dcmpipe_lib::core::dcmparser::{
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
-use dcmpipe_lib::defn::vl::ValueLength;
-use dcmpipe_lib::defn::vr;
 
 #[cfg(test)]
 mod charsets;
@@ -158,7 +154,7 @@ pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<()> {
 }
 
 fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<()> {
-    parse_element_value(dcmobj.get_element())?;
+    dcmobj.get_element().parse_value()?;
     for (_tag, child_dcmobj) in dcmobj.iter_child_nodes() {
         parse_all_dcmobj_values(child_dcmobj)?;
     }
@@ -169,7 +165,7 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
     for elem_result in parser {
         match elem_result {
             Ok(elem) => {
-                match parse_element_value(&elem) {
+                match elem.parse_value() {
                     Ok(_) => Ok(()),
                     Err(e) => {
                         let sq_path: String = elem
@@ -194,62 +190,6 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
                 Err(e)
             }
         }?;
-    }
-
-    Ok(())
-}
-
-pub fn parse_element_value(elem: &DicomElement) -> Result<()> {
-    if elem.vr == &vr::AT {
-        Attribute::try_from(elem)?;
-    } else if elem.vr == &vr::FD || elem.vr == &vr::OF || elem.vr == &vr::OD || elem.vr == &vr::FL {
-        match elem.vl {
-            ValueLength::Explicit(len)
-                if (elem.vr == &vr::OD || elem.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
-            {
-                Vec::<f64>::try_from(elem)?
-            }
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<f32>::try_from(elem)?
-                .into_iter()
-                .map(f64::from)
-                .collect::<Vec<f64>>(),
-            ValueLength::Explicit(1) => vec![f64::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-    } else if elem.vr == &vr::SS {
-        match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?,
-            ValueLength::Explicit(1) => vec![i16::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-    } else if elem.vr == &vr::SL {
-        match elem.vl {
-            ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => Vec::<i32>::try_from(elem)?,
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<i16>::try_from(elem)?
-                .into_iter()
-                .map(i32::from)
-                .collect::<Vec<i32>>(),
-            ValueLength::Explicit(1) => vec![i32::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-    } else if elem.vr == &vr::UI {
-        String::try_from(elem)?;
-    } else if elem.vr == &vr::UL || elem.vr == &vr::OL || elem.vr == &vr::OW || elem.vr == &vr::US {
-        match elem.vl {
-            ValueLength::Explicit(len)
-                if (elem.vr == &vr::UL || elem.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
-            {
-                Vec::<u32>::try_from(elem)?
-            }
-            ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => Vec::<u16>::try_from(elem)?
-                .into_iter()
-                .map(u32::from)
-                .collect::<Vec<u32>>(),
-            ValueLength::Explicit(1) => vec![u32::from(elem.get_data()[0])],
-            _ => vec![],
-        };
-    } else if elem.vr.is_character_string {
-        Vec::<String>::try_from(elem)?;
     }
 
     Ok(())
