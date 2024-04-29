@@ -159,10 +159,11 @@ impl DicomElement {
             },
             RawValue::Uid(uid) => {
                 self.cs.encode(&uid, EncoderTrap::Strict)
-                    .map_err(|e: Cow<'static, str>| error(e.as_ref(), &self))?
+                    .map_err(|e: Cow<'static, str>| error(e.as_ref(), self))?
             },
             RawValue::Strings(strings) => {
-                let (values, errs): (Vec<Result<Vec<u8>>>, Vec<Result<Vec<u8>>>) = strings.iter()
+                type MaybeBytes = Vec<Result<Vec<u8>>>;
+                let (values, errs): (MaybeBytes, MaybeBytes) = strings.iter()
                     .map(|s| self.cs.encode(s, EncoderTrap::Strict)
                         // Add the separator after each encoded value. Below the last separator
                         // will be popped off.
@@ -170,7 +171,7 @@ impl DicomElement {
                             v.push(CHARACTER_STRING_SEPARATOR as u8);
                             v
                         })
-                        .map_err(|e: Cow<'static, str>| error(e.as_ref(), &self)))
+                        .map_err(|e: Cow<'static, str>| error(e.as_ref(), self)))
                     .partition(Result::is_ok);
 
                 if let Some(Err(e)) = errs.into_iter().last() {
@@ -179,8 +180,7 @@ impl DicomElement {
 
                 // Flatten the bytes for all strings.
                 let mut bytes: Vec<u8> = values.into_iter()
-                    .map(Result::unwrap)
-                    .flatten()
+                    .flat_map(Result::unwrap)
                     .collect::<Vec<u8>>();
                 // Remove last separator.
                 bytes.pop();
@@ -345,7 +345,7 @@ impl DicomElement {
         self.data = bytes;
         self.vl = ValueLength::Explicit(
             self.data.len().try_into()
-            .map_err(|e: std::num::TryFromIntError| error(&e.to_string(), &self))?);
+            .map_err(|e: std::num::TryFromIntError| error(&e.to_string(), self))?);
 
         Ok(())
     }
@@ -628,7 +628,8 @@ impl TryFrom<&DicomElement> for Vec<f32> {
     /// Associated VRs: OF
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let (values, errors): (Vec<Result<f32>>, Vec<Result<f32>>) =
+            type MaybeFloats = Vec<Result<f32>>;
+            let (values, errors): (MaybeFloats, MaybeFloats) =
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
@@ -683,7 +684,8 @@ impl TryFrom<&DicomElement> for Vec<f64> {
     /// Associated VRs: OD
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let (values, errors): (Vec<Result<f64>>, Vec<Result<f64>>) =
+            type MaybeDoubles = Vec<Result<f64>>;
+            let (values, errors): (MaybeDoubles, MaybeDoubles) =
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
@@ -737,7 +739,8 @@ impl TryFrom<&DicomElement> for Vec<i16> {
     /// Associated VRs: OW
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let (values, errors): (Vec<Result<i16>>, Vec<Result<i16>>) =
+            type MaybeShorts = Vec<Result<i16>>;
+            let (values, errors): (MaybeShorts, MaybeShorts) =
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
@@ -792,7 +795,8 @@ impl TryFrom<&DicomElement> for Vec<i32> {
     /// Associated VRs: OL
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let (values, errors): (Vec<Result<i32>>, Vec<Result<i32>>) =
+            type MaybeInts = Vec<Result<i32>>;
+            let (values, errors): (MaybeInts, MaybeInts) =
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
@@ -846,7 +850,8 @@ impl TryFrom<&DicomElement> for Vec<u32> {
     /// Associated VRs: UL, OL
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let (values, errors): (Vec<Result<u32>>, Vec<Result<u32>>) =
+            type MaybeUints = Vec<Result<u32>>;
+            let (values, errors): (MaybeUints, MaybeUints) =
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
@@ -900,7 +905,8 @@ impl TryFrom<&DicomElement> for Vec<u16> {
     /// Associated VRs: US, OW
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr.is_character_string {
-            let (values, errors): (Vec<Result<u16>>, Vec<Result<u16>>) =
+            type MaybeUshorts = Vec<Result<u16>>;
+            let (values, errors): (MaybeUshorts, MaybeUshorts) =
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())

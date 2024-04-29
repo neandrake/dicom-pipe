@@ -105,7 +105,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
                           Vec::with_capacity(0), Vec::with_capacity(0));
 
         element.encode_value(value)
-            .map_err(|err| <ParseError as Into<WriteError>>::into(err))?;
+            .map_err(<ParseError as Into<WriteError>>::into)?;
 
         Ok(element)
     }

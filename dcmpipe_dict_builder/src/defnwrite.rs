@@ -451,7 +451,7 @@ fn sanitize_var_name(var_name: &str) -> String {
         .replace("(Retired)", "")
         .replace("(Trial)", "_Trial")
         // see comment on sanitize_text()
-        .replace("\u{200b}", "")
+        .replace('\u{200b}', "")
         .replace([' ', '\'', '-', ',', '(', ')', '.', '/', '[', ']'], "")
         .replace('\"', "_")
         .replace('&', "_and_")
@@ -516,5 +516,5 @@ fn sanitize_var_name(var_name: &str) -> String {
 /// Sanitizes text from the XML definition file. The definition file has a
 /// number of zero-width space unicode characters strewn throughout.
 fn sanitize_text(text: &str) -> String {
-    text.replace("\u{200b}", "")
+    text.replace('\u{200b}', "")
 }
