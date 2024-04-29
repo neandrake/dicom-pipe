@@ -3,7 +3,6 @@ use crate::{core::charset::DEFAULT_CHARACTER_SET, dimse::error::DimseError};
 pub mod assoc;
 pub mod commands;
 pub mod error;
-pub mod pduiter;
 pub mod pdus;
 
 pub struct AeTitle(pub [u8; 16]);
@@ -23,7 +22,7 @@ impl TryFrom<&[u8]> for AeTitle {
         }
         // Create vec of size 16, copy the input, convert to an array, then into AeTitle
         let mut filled_ae: Vec<u8> = vec![b' '; 16];
-        let _ = &mut filled_ae[0..value.len()].copy_from_slice(value);
+        let () = &mut filled_ae[0..value.len()].copy_from_slice(value);
         TryInto::<[u8; 16]>::try_into(filled_ae)
             .map(AeTitle::from)
             .map_err(DimseError::InvalidAeTitle)

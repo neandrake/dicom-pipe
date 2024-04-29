@@ -14,15 +14,16 @@ use crate::{
     dimse::{
         commands::CommandType,
         error::{AssocError, DimseError},
-        pduiter::{DimseMsg, DimseMsgIter},
         pdus::{
-            Abort, AssocAC, AssocACPresentationContext, AssocRQ, Pdu, ReleaseRP, TransferSyntaxItem,
+            mainpdus::{
+                Abort, AssocAC, AssocACPresentationContext, AssocRQ, ReleaseRP, TransferSyntaxItem,
+            },
+            pduiter::{DimseMsg, DimseMsgIter},
+            Pdu, PduType,
         },
         Syntax,
     },
 };
-
-use super::pdus::PduType;
 
 pub type MsgHandler = fn(TSRef, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
 

@@ -24,10 +24,13 @@ use dcmpipe_lib::{
         assoc::{Association, AssociationBuilder},
         commands::{messages::CommandMessage, CommandStatus, CommandType},
         error::{AssocError, DimseError},
-        pduiter::DimseMsg,
         pdus::{
-            Pdu, PresentationDataItem, PresentationDataValue, P_DATA_CMD_LAST,
-            P_DATA_DCM_DATASET_LAST,
+            mainpdus::{
+                PresentationDataItem, PresentationDataValue, P_DATA_CMD_LAST,
+                P_DATA_DCM_DATASET_LAST,
+            },
+            pduiter::DimseMsg,
+            Pdu,
         },
     },
 };

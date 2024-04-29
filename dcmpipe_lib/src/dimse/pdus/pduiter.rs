@@ -9,7 +9,10 @@ use crate::{
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
     dimse::{
         commands::messages::CommandMessage,
-        pdus::{Pdu, PresentationDataItemPartial, PresentationDataValueHeader},
+        pdus::{
+            mainpdus::{PresentationDataItemPartial, PresentationDataValuePartial},
+            Pdu,
+        },
         DimseError,
     },
 };
@@ -17,8 +20,8 @@ use crate::{
 #[derive(Debug)]
 pub enum PduIterItem {
     Pdu(Pdu),
-    CmdMessage(PresentationDataValueHeader, CommandMessage),
-    Dataset(PresentationDataValueHeader),
+    CmdMessage(PresentationDataValuePartial, CommandMessage),
+    Dataset(PresentationDataValuePartial),
 }
 
 #[derive(Debug)]
@@ -33,7 +36,7 @@ pub struct PduIter<R: Read> {
     state: PduIterState,
 
     pdi: Option<PresentationDataItemPartial>,
-    pdvh: Option<PresentationDataValueHeader>,
+    pdvh: Option<PresentationDataValuePartial>,
 }
 
 impl<R: Read> PduIter<R> {
@@ -63,7 +66,7 @@ impl<R: Read> Iterator for PduIter<R> {
                     return Some(pdu.map(PduIterItem::Pdu));
                 }
                 PduIterState::ReadPdiVal => {
-                    let pdvh = PresentationDataValueHeader::read(&mut self.stream);
+                    let pdvh = PresentationDataValuePartial::read(&mut self.stream);
                     match pdvh {
                         Ok(pdvh) => {
                             let is_cmd = pdvh.is_command();

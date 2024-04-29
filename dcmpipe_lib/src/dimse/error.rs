@@ -2,7 +2,10 @@ use std::{fmt::Display, io::Write};
 
 use crate::{
     core::{charset::CSError, read::ParseError, write::error::WriteError},
-    dimse::pdus::{Abort, AssocRJ, PduType},
+    dimse::pdus::{
+        mainpdus::{Abort, AssocRJ},
+        PduType,
+    },
 };
 
 #[derive(Debug, thiserror::Error)]
