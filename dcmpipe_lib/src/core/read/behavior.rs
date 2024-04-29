@@ -9,7 +9,7 @@ pub struct ParseBehavior {
     /// Refer to documentatoin on `ParseStop`.
     ///
     /// Default: `ParseStop::EndOfDataset`.
-    pub stop: ParseStop,
+    stop: ParseStop,
 
     /// Specifies how the parser should handle an error it encounters in the dataset while
     /// populating a `DicomObject` with elements it parses.
@@ -17,7 +17,25 @@ pub struct ParseBehavior {
     /// If `true`, a partially-populated `DicomObject` will be returned instead of a `Result::Err`.
     ///
     /// Default: `false`.
-    pub allow_partial_object: bool,
+    allow_partial_object: bool,
+}
+
+impl ParseBehavior {
+    pub fn stop(&self) -> &ParseStop {
+        &self.stop
+    }
+
+    pub fn allow_partial_object(&self) -> bool {
+        self.allow_partial_object
+    }
+
+    pub fn set_stop(&mut self, stop: ParseStop) {
+        self.stop = stop;
+    }
+
+    pub fn set_allow_partial_object(&mut self, allow_partial_object: bool) {
+        self.allow_partial_object = allow_partial_object;
+    }
 }
 
 impl Default for ParseBehavior {

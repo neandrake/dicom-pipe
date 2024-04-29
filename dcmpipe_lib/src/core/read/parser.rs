@@ -222,7 +222,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Checks if the stream should stop being parsed based on `self.stop`. This should be checked
     /// after parsing a tag number from the dataset.
     fn is_at_parse_stop(&self) -> bool {
-        match &self.behavior.stop {
+        match &self.behavior.stop() {
             // If the entire dataset is intended to be read then never indicate to stop.
             ParseStop::EndOfDataset => false,
 
@@ -237,7 +237,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     .chain(once(TagNode::new(self.tag_last_read, None)))
                     .collect::<Vec<TagNode>>()
                     .into();
-                self.behavior.stop.evaluate(&current)
+                self.behavior.stop().evaluate(&current)
             }
         }
     }

@@ -42,14 +42,14 @@ impl<'dict> ParserBuilder<'dict> {
 
     /// Sets the `ParseStop` for when to stop parsing the dataset.
     pub fn stop(mut self, stop: ParseStop) -> Self {
-        self.behavior.stop = stop;
+        self.behavior.set_stop(stop);
         self
     }
 
     /// Specify whether or not to return a partial `DicomObject` if the parser encounters an error
     /// in the dataset.
     pub fn allow_partial_object(mut self, allow_partial_object: bool) -> Self {
-        self.behavior.allow_partial_object = allow_partial_object;
+        self.behavior.set_allow_partial_object(allow_partial_object);
         self
     }
 
