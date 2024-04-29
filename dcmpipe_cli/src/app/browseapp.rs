@@ -158,11 +158,23 @@ impl BrowseApp {
     }
 
     fn event_mouse_scroll_up(&self, state: &mut BrowseAppState, _event: MouseEvent) {
-        self.table_select_next(state, -1);
+        let i = state
+            .table_state
+            .offset()
+            .saturating_sub(1)
+            .min(state.dcmroot.get_child_count())
+            .max(0);
+        *state.table_state.offset_mut() = i;
     }
 
     fn event_mouse_scroll_down(&self, state: &mut BrowseAppState, _event: MouseEvent) {
-        self.table_select_next(state, 1);
+        let i = state
+            .table_state
+            .offset()
+            .saturating_add(1)
+            .min(state.dcmroot.get_child_count())
+            .max(0);
+        *state.table_state.offset_mut() = i;
     }
 
     fn table_select_next(&self, state: &mut BrowseAppState, modifier: isize) {
