@@ -92,22 +92,22 @@ impl IndexApp {
 
         let walkdir = WalkDir::new(folder).into_iter().filter_map(|e| e.ok());
 
-        let parser_builder: ParserBuilder<'_> = ParserBuilder::default()
-            .stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()))
-            .dictionary(&STANDARD_DICOM_DICTIONARY);
+        let parser_builder =
+            ParserBuilder::default().stop(ParseStop::BeforeTagValue(tags::PixelData.tag.into()));
         for entry in walkdir {
             if !entry.metadata()?.file_type().is_file() {
                 continue;
             }
 
             let file: File = File::open(entry.path())?;
-            let mut parser: Parser<'_, File> = parser_builder.build(file);
+            let mut parser: Parser<'_, File> =
+                parser_builder.build(file, &STANDARD_DICOM_DICTIONARY);
 
-            let dcm_root: Option<DicomRoot<'_>> = DicomRoot::parse(&mut parser)?;
+            let dcm_root = DicomRoot::parse(&mut parser)?;
             if dcm_root.is_none() {
                 continue;
             }
-            let dcm_root: DicomRoot<'_> = dcm_root.unwrap();
+            let dcm_root = dcm_root.unwrap();
 
             let uid_obj: &DicomObject = dcm_root
                 .get_child_by_tag(tags::SeriesInstanceUID.tag)
@@ -140,7 +140,7 @@ impl IndexApp {
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
                 let child_elem: &DicomElement = child_obj.element();
-                if child_elem.is_seq_like() {
+                if child_elem.is_sq_like() {
                     // TODO: handle sequences
                 } else {
                     insert_elem_entry(child_elem, &mut dicom_doc.doc)?;
@@ -361,7 +361,7 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 }
             }
         }
-        RawValue::UnsignedShorts(ushorts) => {
+        RawValue::UShorts(ushorts) => {
             if !ushorts.is_empty() {
                 if ushorts.len() == 1 {
                     dicom_doc.insert(key, u32::from(ushorts[0]));
@@ -374,7 +374,7 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 }
             }
         }
-        RawValue::Integers(ints) => {
+        RawValue::Ints(ints) => {
             if !ints.is_empty() {
                 if ints.len() == 1 {
                     dicom_doc.insert(key, ints[0]);
@@ -383,7 +383,7 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 }
             }
         }
-        RawValue::UnsignedIntegers(uints) => {
+        RawValue::UInts(uints) => {
             if !uints.is_empty() {
                 if uints.len() == 1 {
                     dicom_doc.insert(key, uints[0]);
@@ -418,7 +418,7 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 }
             }
         }
-        RawValue::UnsignedLongs(ulongs) => {
+        RawValue::ULongs(ulongs) => {
             let mut ulongs = ulongs
                 .into_iter()
                 .map(|u| u.to_string())
@@ -441,7 +441,7 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 }
             }
         }
-        RawValue::DoubleWords(dwords) => {
+        RawValue::DWords(dwords) => {
             if !dwords.is_empty() {
                 if dwords.len() == 1 {
                     dicom_doc.insert(key, dwords[0]);
@@ -450,7 +450,7 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                 }
             }
         }
-        RawValue::QuadWords(qwords) => {
+        RawValue::QWords(qwords) => {
             let mut qwords = qwords
                 .into_iter()
                 .map(|u| u.to_string())
@@ -462,6 +462,14 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                     dicom_doc.insert(key, qwords);
                 }
             }
+        }
+        RawValue::BytesView(bytes) => {
+            let bytes: Vec<u8> = bytes.iter().copied().take(16).collect::<Vec<u8>>();
+            let binary = Bson::Binary(Binary {
+                subtype: BinarySubtype::Generic,
+                bytes,
+            });
+            dicom_doc.insert(key, binary);
         }
     }
 
