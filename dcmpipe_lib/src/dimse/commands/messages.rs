@@ -254,7 +254,8 @@ impl CommandMessage {
     /// Create a C-FIND response.
     #[must_use]
     pub fn c_find_rsp(msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
-        let dataset_type = if status == &CommandStatus::Success(0) {
+        // For a C-FIND response a DICOM dataset should immediately follow.
+        let dataset_type = if status == &CommandStatus::success() {
             COMMAND_DATASET_TYPE_NONE
         } else {
             COMMAND_DATASET_TYPE_SOME
@@ -283,6 +284,24 @@ impl CommandMessage {
         let msg_id = req.get_ushort(&MessageID)?;
         let aff_sop_uid = req.get_string(&AffectedSOPClassUID)?;
         Ok(Self::c_find_rsp(msg_id, &aff_sop_uid, status))
+    }
+
+    /// Create a C-STORE response.
+    #[must_use]
+    pub fn c_store_rsp(msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
+        CommandMessage::create(vec![
+            (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_uid)),
+            (
+                &CommandField,
+                RawValue::of_ushort(u16::from(&CommandType::CStoreRsp)),
+            ),
+            (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
+            (
+                &CommandDataSetType,
+                RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
+            ),
+            (&Status, RawValue::from(status)),
+        ])
     }
 }
 

@@ -1692,6 +1692,14 @@ impl AssocACPresentationContext {
     }
 
     /// Create a new `AssocACPresentationContext`.
+    ///
+    /// # Arguments
+    /// `results`
+    /// - 0: Acceptance.
+    /// - 1: User-rejection.
+    /// - 2: No reason (provider rejection).
+    /// - 3: Abstract Syntax not supported (provider rejection).
+    /// - 4: Transfer Syntaxes not supported (provider rejection).
     #[must_use]
     pub fn new(ctx_id: u8, result: u8, transfer_syntax: TransferSyntaxItem) -> Self {
         let length: usize = size_of::<u8>() // ctx_id
@@ -1726,11 +1734,12 @@ impl AssocACPresentationContext {
 
     /// Result/Reason.
     ///
-    /// 0: Acceptance.
-    /// 1: User-rejection.
-    /// 2: No reason (provider rejection).
-    /// 3: Abstract Syntax not supported (provider rejection).
-    /// 4: Transfer Syntaxes not supported (provider rejection).
+    /// # Notes
+    /// - 0: Acceptance.
+    /// - 1: User-rejection.
+    /// - 2: No reason (provider rejection).
+    /// - 3: Abstract Syntax not supported (provider rejection).
+    /// - 4: Transfer Syntaxes not supported (provider rejection).
     #[must_use]
     pub fn result(&self) -> u8 {
         self.result
@@ -1755,6 +1764,13 @@ impl AssocACPresentationContext {
             + size_of::<u8>() // result
             + size_of::<u8>() // reserved_3
             + self.transfer_syntax.byte_size()
+    }
+
+    /// Convenience for checking that this presentation context has a result field indicating it
+    /// was accepted.
+    #[must_use]
+    pub fn is_accepted(&self) -> bool {
+        self.result == 0
     }
 
     /// Write this PDU to the given dataset.

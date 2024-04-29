@@ -23,11 +23,7 @@ use crate::{
     core::{
         charset::DEFAULT_CHARACTER_SET as CS,
         dcmobject::DicomRoot,
-        defn::{
-            dcmdict::DicomDictionary,
-            ts::{TSRef, TransferSyntax},
-            uid::UIDRef,
-        },
+        defn::{dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef},
         write::{builder::WriterBuilder, writer::WriterState},
     },
     dict::{
@@ -51,13 +47,7 @@ use crate::{
 };
 
 pub type MsgHandler =
-    fn(&Association, TSRef, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
-
-struct AssocAcResult {
-    ac: AssocAC,
-    ab: UIDRef,
-    ts: TSRef,
-}
+    fn(&Association, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
 
 pub struct Association {
     _id: usize,
@@ -66,6 +56,7 @@ pub struct Association {
     accept_abs: HashSet<UIDRef>,
     accept_ts: HashSet<TSRef>,
     handlers: HashMap<CommandType, MsgHandler>,
+    pres_ctx: HashMap<u8, AssocACPresentationContext>,
 }
 
 impl Association {
@@ -96,13 +87,23 @@ impl Association {
         Ok(())
     }
 
+    /// Retrieve the accepted presentation context by the given context ID.
+    #[must_use]
+    pub fn get_pres_ctx(&self, ctx_id: u8) -> Option<&AssocACPresentationContext> {
+        self.pres_ctx.get(&ctx_id)
+    }
+
     /// Begin processing an `Association` acting as a Service Class Provider, reading requests from
     /// the  reader and writing responses to the writer.
     ///
     /// # Errors
     /// - I/O errors may occur when reading/writing from the reader/writer.
     /// - Any misbehaving SCU will be managed within, and this will not propagate these as errors.
-    pub fn start<R: Read, W: Write>(&self, mut reader: R, mut writer: W) -> Result<(), AssocError> {
+    pub fn start<R: Read, W: Write>(
+        &mut self,
+        mut reader: R,
+        mut writer: W,
+    ) -> Result<(), AssocError> {
         let rq = Pdu::read(&mut reader)
             .map_err(AssocError::ab_failure)
             .and_then(|rq| match rq {
@@ -121,11 +122,22 @@ impl Association {
             Ok(rq) => rq,
             Err(e) => return e.write(&mut writer).map_err(AssocError::error),
         };
-        let (ab, ts) = (assoc_ac.ab, assoc_ac.ts);
 
-        self.write_pdu(&Pdu::AssocAC(assoc_ac.ac), &mut writer)?;
+        for pres_ctx in assoc_ac.pres_ctxs() {
+            if pres_ctx.is_accepted() {
+                self.pres_ctx.insert(pres_ctx.ctx_id(), pres_ctx.to_owned());
+            }
+        }
 
-        if let Err(e) = self.msg_loop(ab, ts, &mut reader, &mut writer) {
+        self.write_pdu(&Pdu::AssocAC(assoc_ac), &mut writer)?;
+
+        if self.pres_ctx.is_empty() {
+            return Err(AssocError::error(DimseError::GeneralError(
+                "No presentation contexts negotiated".to_owned(),
+            )));
+        }
+
+        if let Err(e) = self.msg_loop(&mut reader, &mut writer) {
             e.write(&mut writer).map_err(AssocError::error)
         } else {
             Ok(())
@@ -141,7 +153,7 @@ impl Association {
     ///
     /// # Errors
     /// If the result of the request is to reject or abort, those are propagated as an `AssocError`.
-    fn validate_assoc_rq(&self, rq: &AssocRQ) -> Result<AssocAcResult, AssocError> {
+    fn validate_assoc_rq(&mut self, rq: &AssocRQ) -> Result<AssocAC, AssocError> {
         // There's only a single DICOM Standard defined Application Context Name. Private
         // Application Context Names are allowed by the standard.
         let app_ctx = String::try_from(&Syntax(rq.app_ctx().app_context_name()))
@@ -151,8 +163,7 @@ impl Association {
             .get_uid_by_uid(&app_ctx)
             .ok_or_else(|| {
                 AssocError::rj_unsupported(DimseError::GeneralError(format!(
-                    "Application Context not found: {}",
-                    app_ctx
+                    "Application Context not found: {app_ctx}"
                 )))
             })?;
 
@@ -188,71 +199,63 @@ impl Association {
             )));
         }
 
-        let pres_ctx = rq.pres_ctxs().first().ok_or_else(|| {
-            AssocError::rj_failure(DimseError::GeneralError(
-                "No presentation context items defined".to_string(),
-            ))
-        })?;
+        // Check the proposed presentation contexts and create responses for each.
+        let mut rsp_pres_ctx: Vec<AssocACPresentationContext> =
+            Vec::with_capacity(rq.pres_ctxs().len());
+        for req_pres_ctx in rq.pres_ctxs() {
+            let ts = req_pres_ctx
+                .transfer_syntaxes()
+                .iter()
+                .filter_map(|ts| String::try_from(&Syntax(ts.transfer_syntaxes())).ok())
+                .filter_map(|ts| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&ts))
+                .find(|ts| self.accept_ts.contains(ts));
 
-        let scu_supported_ts = pres_ctx
-            .transfer_syntaxes()
-            .iter()
-            .filter_map(|ts| String::try_from(&Syntax(&ts.transfer_syntaxes())).ok())
-            .filter_map(|ts| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&ts))
-            .collect::<Vec<&TransferSyntax>>();
+            let Some(ts) = ts else {
+                let deny_pres_ctx = AssocACPresentationContext::new(
+                    req_pres_ctx.ctx_id(),
+                    4,
+                    TransferSyntaxItem::new(Vec::with_capacity(0)),
+                );
+                rsp_pres_ctx.push(deny_pres_ctx);
+                continue;
+            };
 
-        let ts = scu_supported_ts
-            .clone()
-            .into_iter()
-            .find(|ts| self.accept_ts.contains(ts))
-            .ok_or_else(|| {
-                AssocError::rj_failure(DimseError::GeneralError(format!(
-                    "Transfer syntax supported. SCU supported: {:?}",
-                    scu_supported_ts
-                )))
-            })?;
+            let ab = String::try_from(&Syntax(req_pres_ctx.abstract_syntax().abstract_syntax()))
+                .ok()
+                .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&ab))
+                .filter(|ab| self.accept_abs.contains(ab));
 
-        let ab = String::try_from(&Syntax(pres_ctx.abstract_syntax().abstract_syntax()))
-            .ok()
-            .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&ab));
+            if ab.is_none() {
+                let deny_pres_ctx = AssocACPresentationContext::new(
+                    req_pres_ctx.ctx_id(),
+                    3,
+                    TransferSyntaxItem::new(Vec::with_capacity(0)),
+                );
+                rsp_pres_ctx.push(deny_pres_ctx);
+                continue;
+            }
 
-        let Some(ab) = ab else {
-            let ab = pres_ctx.abstract_syntax().abstract_syntax();
-            let ab = String::from_utf8(ab.clone()).unwrap_or_else(|_e| format!("{ab:?}"));
-            return Err(AssocError::rj_failure(DimseError::GeneralError(format!(
-                "Unknown abstract syntax: {ab:?}"
-            ))));
-        };
-
-        if !self.accept_abs.contains(ab) {
-            return Err(AssocError::rj_failure(DimseError::GeneralError(format!(
-                "Unsupported abstract syntax: {}, {}",
-                ab.name(),
-                ab.uid()
-            ))));
+            let acc_pres_ctx = AssocACPresentationContext::new(
+                req_pres_ctx.ctx_id(),
+                0,
+                TransferSyntaxItem::from(ts),
+            );
+            rsp_pres_ctx.push(acc_pres_ctx);
         }
 
-        let ac = AssocAC::new(
+        Ok(AssocAC::new(
             rq.called_ae().to_owned(),
             rq.calling_ae().to_owned(),
             rq.reserved_3().to_owned(),
             rq.app_ctx().to_owned(),
-            vec![AssocACPresentationContext::new(
-                pres_ctx.ctx_id(),
-                0u8, // Acceptance
-                TransferSyntaxItem::from(ts),
-            )],
+            rsp_pres_ctx,
             rq.user_info().to_owned(),
-        );
-
-        Ok(AssocAcResult { ac, ab, ts })
+        ))
     }
 
     /// The main request/resposne processing loop.
     fn msg_loop<R: Read, W: Write>(
         &self,
-        _ab: UIDRef,
-        ts: TSRef,
         mut reader: &mut R,
         mut writer: &mut W,
     ) -> Result<(), AssocError> {
@@ -278,7 +281,12 @@ impl Association {
             };
 
             if let Some(handler) = self.handlers.get(msg.cmd().cmd_type()) {
-                handler(self, ts, &msg, &mut reader, &mut writer)?;
+                handler(self, &msg, &mut reader, &mut writer)?;
+            } else {
+                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                    "No handler registered for {:?}",
+                    msg.cmd().cmd_type()
+                ))));
             }
         }
     }
@@ -380,6 +388,29 @@ impl Association {
 
         Ok(cmd_rsp_pdi)
     }
+
+    /// Create a C-STORE ending response, as a `PresentationDataItem`.
+    ///
+    /// # Errors
+    /// I/O errors may occur serializing the response object into `PresentationDataItem`.
+    pub fn create_cstore_end(
+        ctx_id: u8,
+        msg_id: u16,
+        aff_sop_class: &str,
+        status: &CommandStatus,
+    ) -> Result<Pdu, AssocError> {
+        let rsp_cmd = CommandMessage::c_store_rsp(msg_id, aff_sop_class, status);
+
+        let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
+        let cmd_rsp_pdi =
+            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
+                ctx_id,
+                P_DATA_CMD_LAST,
+                cmd_rsp_data,
+            )]));
+
+        Ok(cmd_rsp_pdi)
+    }
 }
 
 #[derive(Default, Clone)]
@@ -443,6 +474,7 @@ impl AssociationBuilder {
             accept_abs: self.accept_abs,
             accept_ts: self.accept_ts,
             handlers: self.handlers,
+            pres_ctx: HashMap::new(),
         }
     }
 }

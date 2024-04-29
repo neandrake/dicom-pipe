@@ -143,6 +143,7 @@ impl<R: Read> Iterator for PduIter<R> {
     }
 }
 
+#[derive(Debug)]
 pub struct DimseMsg {
     cmd: CommandMessage,
     ctx_id: u8,

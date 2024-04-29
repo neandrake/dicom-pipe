@@ -22,6 +22,7 @@ use dcmpipe_lib::{
         dcmobject::DicomRoot,
         defn::{
             constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
+            dcmdict::DicomDictionary,
             ts::TSRef,
         },
         read::{stop::ParseStop, ParserBuilder, ParserState},
@@ -31,16 +32,20 @@ use dcmpipe_lib::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
         tags::{AffectedSOPClassUID, MessageID, PatientID, PatientsName},
         uids::{
-            ModalityWorklistInformationModelFIND, PatientRootQueryRetrieveInformationModelFIND,
+            CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
+            NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
             PatientStudyOnlyQueryRetrieveInformationModelFIND,
+            PositronEmissionTomographyImageStorage, RTDoseStorage, RTPlanStorage,
+            RTStructureSetStorage, SecondaryCaptureImageStorage,
             StudyRootQueryRetrieveInformationModelFIND, VerificationSOPClass,
         },
     },
     dimse::{
         assoc::{Association, AssociationBuilder},
-        commands::CommandType,
+        commands::{CommandStatus, CommandType},
         error::{AssocError, DimseError},
         pdus::pduiter::DimseMsg,
+        Syntax,
     },
 };
 use std::{
@@ -82,6 +87,14 @@ impl CommandApplication for SvcProviderApp {
             &StudyRootQueryRetrieveInformationModelFIND,
             &ModalityWorklistInformationModelFIND,
             &PatientStudyOnlyQueryRetrieveInformationModelFIND,
+            &CTImageStorage,
+            &MRImageStorage,
+            &PositronEmissionTomographyImageStorage,
+            &NuclearMedicineImageStorage,
+            &SecondaryCaptureImageStorage,
+            &RTStructureSetStorage,
+            &RTDoseStorage,
+            &RTPlanStorage,
         ]);
         let accept_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
 
@@ -93,7 +106,6 @@ impl CommandApplication for SvcProviderApp {
             .handler(
                 CommandType::CEchoReq,
                 |assoc: &Association,
-                 _ts: TSRef,
                  msg: &DimseMsg,
                  _reader: &mut dyn Read,
                  mut writer: &mut dyn Write| {
@@ -103,17 +115,25 @@ impl CommandApplication for SvcProviderApp {
             .handler(
                 CommandType::CFindReq,
                 |assoc: &Association,
-                 ts: TSRef,
                  msg: &DimseMsg,
                  reader: &mut dyn Read,
                  mut writer: &mut dyn Write| {
-                    AssociationDevice::handle_c_find_req(assoc, ts, msg, reader, &mut writer)
+                    AssociationDevice::handle_c_find_req(assoc, msg, reader, &mut writer)
+                },
+            )
+            .handler(
+                CommandType::CStoreReq,
+                |assoc: &Association,
+                 msg: &DimseMsg,
+                 reader: &mut dyn Read,
+                 mut writer: &mut dyn Write| {
+                    AssociationDevice::handle_c_store_req(assoc, msg, reader, &mut writer)
                 },
             );
 
         for (stream_id, stream) in listener.incoming().enumerate() {
             let stream = stream?;
-            let assoc = assoc_builder.clone().id(stream_id).build();
+            let mut assoc = assoc_builder.clone().id(stream_id).build();
             pool.execute(move || {
                 let bufread = BufReader::new(&stream);
                 let bufwrite = BufWriter::new(&stream);
@@ -143,16 +163,34 @@ impl AssociationDevice {
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
         let end_rsp = Association::create_cecho_end(msg.ctx_id(), msg_id, &aff_sop_class)?;
-        assoc.write_pdu(&end_rsp, &mut writer)
+        assoc.write_pdu(&end_rsp, &mut writer)?;
+
+        Ok(())
     }
 
     fn handle_c_find_req(
         assoc: &Association,
-        ts: TSRef,
         req: &DimseMsg,
         reader: &mut dyn Read,
         mut writer: &mut dyn Write,
     ) -> Result<(), AssocError> {
+        let Some(pres_ctx) = assoc.get_pres_ctx(req.ctx_id()) else {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                "Presentation Context {} not found",
+                req.ctx_id()
+            ))));
+        };
+
+        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
+            .map_err(AssocError::error)?;
+        let ts = STANDARD_DICOM_DICTIONARY
+            .get_ts_by_uid(&ts)
+            .ok_or_else(|| {
+                AssocError::ab_failure(DimseError::GeneralError(format!(
+                    "Failed to resolve transfer syntax: {ts}"
+                )))
+            })?;
+
         let mut parser = ParserBuilder::default()
             .state(ParserState::ReadElement)
             .dataset_ts(ts)
@@ -232,5 +270,64 @@ impl AssociationDevice {
             results.push(result);
         }
         results
+    }
+
+    fn handle_c_store_req(
+        assoc: &Association,
+        msg: &DimseMsg,
+        reader: &mut dyn Read,
+        mut writer: &mut dyn Write,
+    ) -> Result<(), AssocError> {
+        let Some(pres_ctx) = assoc.get_pres_ctx(msg.ctx_id()) else {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                "Presentation Context {} not found",
+                msg.ctx_id()
+            ))));
+        };
+
+        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
+            .map_err(AssocError::error)?;
+        let ts = STANDARD_DICOM_DICTIONARY
+            .get_ts_by_uid(&ts)
+            .ok_or_else(|| {
+                AssocError::ab_failure(DimseError::GeneralError(format!(
+                    "Failed to resolve transfer syntax: {ts}"
+                )))
+            })?;
+
+        let mut parser = ParserBuilder::default()
+            .state(ParserState::ReadElement)
+            .dataset_ts(ts)
+            .stop(ParseStop::AfterBytesRead(u64::from(msg.dcm_len())))
+            .build(reader, &STANDARD_DICOM_DICTIONARY);
+        let dataset = DicomRoot::parse(&mut parser)
+            .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?;
+        let Some(dataset) = dataset else {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(
+                "No DICOM query after parsing query".to_string(),
+            )));
+        };
+
+        let _ = dataset.dbg_dump();
+
+        let ctx_id = msg.ctx_id();
+        let msg_id = msg
+            .cmd()
+            .get_ushort(&MessageID)
+            .map_err(AssocError::ab_failure)?;
+        let aff_sop_class = msg
+            .cmd()
+            .get_string(&AffectedSOPClassUID)
+            .map_err(AssocError::ab_failure)?;
+
+        let end_rsp = Association::create_cstore_end(
+            ctx_id,
+            msg_id,
+            &aff_sop_class,
+            &CommandStatus::success(),
+        )?;
+        assoc.write_pdu(&end_rsp, &mut writer)?;
+
+        Ok(())
     }
 }
