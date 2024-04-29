@@ -20,7 +20,6 @@ A set of crates for reading and writing DICOM.
 #### TODO
 
 Short-term goals
-- [ ] Add tests for DICOM test datasets currently manually tested 
 - [ ] Change errors to be custom instead of `std::io::Error`
 - [ ] Abide by [[ https://rust-lang-nursery.github.io/api-guidelines/checklist.html | Rust's API Guidelines ]]
 - [ ] Add support for logging
