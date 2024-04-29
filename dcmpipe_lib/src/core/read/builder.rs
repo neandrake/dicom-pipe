@@ -49,10 +49,7 @@ impl<'dict> ParserBuilder<'dict> {
             dataset: Dataset::new(dataset, self.buffsize),
             stop: self.stop.clone().unwrap_or(ParseStop::EndOfDataset),
             dictionary: self.dictionary,
-            state: self
-                .state
-                .clone()
-                .unwrap_or(ParseState::DetectTransferSyntax),
+            state: self.state.unwrap_or(ParseState::DetectTransferSyntax),
 
             bytes_read: 0,
             file_preamble: None,

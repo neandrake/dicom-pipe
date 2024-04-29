@@ -88,10 +88,10 @@ impl DicomElement {
             tag,
             vr,
             vl,
-            ts,
-            cs,
             data,
             sq_path,
+            ts,
+            cs,
         }
     }
 
@@ -329,9 +329,7 @@ impl<'me> TryFrom<ElementWithVr<'me>> for Vec<String> {
                         .map(str::to_owned)
                         .collect::<Vec<String>>()
                 } else {
-                    let mut vec: Vec<String> = Vec::new();
-                    vec.push(multivalue);
-                    vec
+                    vec![multivalue]
                 }
             })
     }

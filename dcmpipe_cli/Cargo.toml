@@ -6,12 +6,12 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
-bson = "0.14"
-crossterm = "0.17"
-cursive = { version = "0.14", default-features = false, features = ["crossterm-backend"] }
-cursive_table_view = "0.12"
+bson = "1.2"
+crossterm = "0.20"
+cursive = { version = "0.16", default-features = false, features = ["crossterm-backend"] }
+cursive_table_view = "0.13"
 dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
 dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["deflate"] }
-mongodb = { version = "0.10", default-features = false, features = ["sync"] }
+mongodb = { version = "1.2", default-features = false, features = ["sync"] }
 structopt = "0.3"
 walkdir = "2.3"

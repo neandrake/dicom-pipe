@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
-use bson::{doc, Array, Bson, Document};
+use bson::{doc, Array, Binary, Bson, Document};
 use mongodb::sync::{Client, Collection, Cursor, Database};
 use walkdir::WalkDir;
 
@@ -377,7 +377,10 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
         }
         RawValue::Bytes(bytes) => {
             let bytes: Vec<u8> = bytes.into_iter().take(16).collect::<Vec<u8>>();
-            let binary = Bson::Binary(BinarySubtype::Generic, bytes);
+            let binary = Bson::Binary(Binary {
+                subtype: BinarySubtype::Generic,
+                bytes,
+            });
             dicom_doc.insert(key, binary);
         }
     }

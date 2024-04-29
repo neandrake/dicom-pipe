@@ -5,8 +5,8 @@ authors = ["neandrake <die.drachen@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-phf_codegen = "0.7"
-quick-xml = "0.18"
+phf_codegen = "0.9"
+quick-xml = "0.22"
 
 [lib]
 name="dcmpipe_dict_builder"

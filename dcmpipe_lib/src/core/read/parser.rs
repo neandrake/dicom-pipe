@@ -616,13 +616,15 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.iterate_prefix()?;
             self.state = ParseState::DetectTransferSyntax;
             return Ok(());
-        } else if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID {
+        } else if !(tags::FILE_META_INFORMATION_GROUP_LENGTH..=tags::SOP_INSTANCE_UID)
+            .contains(&tag)
+        {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
             tag = read::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
 
             // if switching endian didn't result in a valid tag then try skipping preamble/prefix
-            if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID {
+            if !(tags::FILE_META_INFORMATION_GROUP_LENGTH..=tags::SOP_INSTANCE_UID).contains(&tag) {
                 // if file preamble was already read then flip into Element mode and let it fail
                 if already_read_preamble {
                     self.detected_ts = &ts::ImplicitVRLittleEndian;
@@ -810,11 +812,10 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
             if tag > tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
                 self.state = ParseState::FileMeta;
-                return Ok(None);
             } else {
                 self.state = ParseState::Element;
-                return Ok(None);
             }
+            return Ok(None);
         }
 
         let grouplength: DicomElement = self.read_dicom_element(tag, ts)?;

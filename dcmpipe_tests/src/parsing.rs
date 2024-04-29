@@ -58,7 +58,7 @@ fn test_bad_dicom_prefix_parser() {
     let parse_error: ParseError = result.err().unwrap();
     match parse_error {
         ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {}
-        other => assert!(false, format!("{:?}", other)),
+        other => assert!(false, "{:?}", other),
     };
 }
 

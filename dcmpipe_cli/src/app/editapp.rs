@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use cursive::traits::{Boxable, Identifiable};
 use cursive::views::{Dialog, TextView};
-use cursive::Cursive;
+use cursive::{Cursive, CursiveExt};
 use cursive_table_view::{TableView, TableViewItem};
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
