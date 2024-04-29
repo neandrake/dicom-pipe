@@ -1,9 +1,3 @@
-extern crate crossterm;
-extern crate cursive;
-extern crate cursive_table_view;
-extern crate dcmpipe_dict;
-extern crate dcmpipe_lib;
-
 mod app;
 
 use crate::app::CursiveApp;

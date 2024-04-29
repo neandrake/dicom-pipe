@@ -1,5 +1,3 @@
-extern crate dcmpipe_dict_builder;
-
 use dcmpipe_dict_builder::defnwrite;
 
 use std::fs::File;
@@ -7,7 +5,7 @@ use std::path::Path;
 
 // This file was downloaded from
 // http://dicom.nema.org/medical/dicom/current/source/docbook/part06/part06.xml
-static DICOM_DEFINITIONS_XML_FILE: &'static str = "build/dicom_xml/part06.xml";
+static DICOM_DEFINITIONS_XML_FILE: &str = "build/dicom_xml/part06.xml";
 
 fn main() {
     // Causes this build script to re-run if the file is modified/changed

@@ -26,7 +26,7 @@ impl LowMemApp {
         }
 
         let file: File = File::open(path)?;
-        let mut parser: Parser<File> = ParserBuilder::new(file)
+        let mut parser: Parser<'_, File> = ParserBuilder::new(file)
             .dictionary(&STANDARD_DICOM_DICTIONARY)
             .build();
 

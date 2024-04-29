@@ -17,11 +17,11 @@ use std::io::Error;
 fn test_parse_nested_charset_values() -> Result<(), Error> {
     let path_str: &str = "./fixtures/dclunie/charsettests/DICOMDIR";
     let file: File = File::open(path_str)?;
-    let mut parser: Parser<File> = ParserBuilder::new(file)
+    let mut parser: Parser<'_, File> = ParserBuilder::new(file)
         .dictionary(&STANDARD_DICOM_DICTIONARY)
         .build();
 
-    let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
+    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
 
     test_nested_charset(&dcmroot, 0, all::ISO_8859_8, "ISO_IR 138", "שרון^דבורה")?;
     test_nested_charset(&dcmroot, 4, all::ISO_8859_5, "ISO_IR 144", "Люкceмбypг")?;
@@ -61,7 +61,7 @@ fn test_parse_nested_charset_values() -> Result<(), Error> {
 }
 
 fn test_nested_charset(
-    dcmroot: &DicomRoot,
+    dcmroot: &DicomRoot<'_>,
     item_num: usize,
     cs: CSRef,
     scs: &str,
@@ -223,7 +223,7 @@ fn test_scs_x2() -> Result<(), Error> {
 }
 
 fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> Result<(), Error> {
-    let dcmroot: DicomRoot = parse_file(path, with_std)?;
+    let dcmroot: DicomRoot<'_> = parse_file(path, with_std)?;
 
     assert_eq!(dcmroot.get_cs().name(), cs.name());
 

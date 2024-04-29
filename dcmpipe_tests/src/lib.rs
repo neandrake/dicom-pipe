@@ -1,6 +1,3 @@
-extern crate encoding;
-extern crate walkdir;
-
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
@@ -25,14 +22,14 @@ mod mock;
 mod parsing;
 
 /// Parses the given file into a `DicomObject`
-pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot, Error> {
+pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>, Error> {
     let file: File = File::open(path)?;
-    let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
+    let mut parser: ParserBuilder<'_, File> = ParserBuilder::new(file);
     if with_std {
         parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
     }
-    let mut parser: Parser<File> = parser.build();
-    let dcmroot: DicomRoot = parse_into_object(&mut parser)?;
+    let mut parser: Parser<'_, File> = parser.build();
+    let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?;
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
 }
@@ -44,11 +41,11 @@ pub fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
     for path in get_dicom_file_paths() {
         let path_str: &str = path.to_str().expect("path");
         let file: File = File::open(path.clone())?;
-        let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
+        let mut parser: ParserBuilder<'_, File> = ParserBuilder::new(file);
         if with_std {
             parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
         }
-        let parser: Parser<File> = parser.build();
+        let parser: Parser<'_, File> = parser.build();
 
         if parse_all_element_values(parser, path_str).is_err() {
             num_failed += 1;
@@ -92,7 +89,7 @@ pub fn get_dicom_file_paths() -> impl Iterator<Item = PathBuf> {
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'.
 /// DICOM files do not need to abide by this format to be valid, but it's standard.
-pub fn is_standard_dcm_file<DatasetType>(parser: &Parser<DatasetType>) -> bool
+pub fn is_standard_dcm_file<DatasetType>(parser: &Parser<'_, DatasetType>) -> bool
 where
     DatasetType: Read,
 {
@@ -121,7 +118,7 @@ where
     true
 }
 
-pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot) -> Result<(), Error> {
+pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<(), Error> {
     for (_tag, dcmobj) in dcmroot.iter_child_nodes() {
         parse_all_dcmobj_values(dcmobj)?;
     }
@@ -136,7 +133,7 @@ fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn parse_all_element_values(parser: Parser<File>, path_str: &str) -> Result<(), Error> {
+pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Result<(), Error> {
     for elem_result in parser {
         match elem_result {
             Ok(elem) => {
