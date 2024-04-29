@@ -120,14 +120,14 @@ impl<'dict> DicomRoot<'dict> {
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
     /// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
     /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
-    pub fn parse_into_object<DatasetType: Read>(
+    pub fn parse<DatasetType: Read>(
         parser: &mut Parser<'dict, DatasetType>,
     ) -> Result<Option<DicomRoot<'dict>>, ParseError> {
         let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
         let mut items: Vec<DicomObject> = Vec::new();
 
         let parse_result: Option<Result<DicomElement, ParseError>> =
-            DicomRoot::parse_into_object_recurse(parser, &mut child_nodes, &mut items, true);
+            DicomRoot::parse_recurse(parser, &mut child_nodes, &mut items, true);
 
         if !parser.behavior.allow_partial_object {
             if let Some(Err(e)) = parse_result {
@@ -162,7 +162,7 @@ impl<'dict> DicomRoot<'dict> {
     /// `child_nodes` The map of child nodes which elements should be parsed into
     /// `items` The list of nodes which item elements should be parsed into
     /// `is_root_level` Whether the root level is being parsed, or within child nodes
-    fn parse_into_object_recurse<DatasetType: Read>(
+    fn parse_recurse<DatasetType: Read>(
         parser: &mut Parser<'_, DatasetType>,
         child_nodes: &mut BTreeMap<u32, DicomObject>,
         items: &mut Vec<DicomObject>,
@@ -201,12 +201,8 @@ impl<'dict> DicomRoot<'dict> {
             {
                 let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
                 let mut items: Vec<DicomObject> = Vec::new();
-                possible_next_elem = DicomRoot::parse_into_object_recurse(
-                    parser,
-                    &mut child_nodes,
-                    &mut items,
-                    false,
-                );
+                possible_next_elem =
+                    DicomRoot::parse_recurse(parser, &mut child_nodes, &mut items, false);
                 DicomObject::new_with_children(element, child_nodes, items)
             } else {
                 DicomObject::new(element)

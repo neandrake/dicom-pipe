@@ -35,7 +35,7 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .dictionary(dict)
         .build(File::open(path)?);
-    let dcmroot: DicomRoot<'_> = DicomRoot::parse_into_object(&mut parser)?.unwrap();
+    let dcmroot: DicomRoot<'_> = DicomRoot::parse(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
 }

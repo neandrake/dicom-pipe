@@ -99,7 +99,7 @@ impl IndexApp {
             let file: File = File::open(entry.path())?;
             let mut parser: Parser<'_, File> = parser_builder.build(file);
 
-            let dcm_root: Option<DicomRoot<'_>> = DicomRoot::parse_into_object(&mut parser)?;
+            let dcm_root: Option<DicomRoot<'_>> = DicomRoot::parse(&mut parser)?;
             if dcm_root.is_none() {
                 continue;
             }

@@ -20,7 +20,7 @@ fn test_parse_nested_charset_values() -> Result<()> {
         .build(file);
 
     let dcmroot: DicomRoot<'_> =
-        DicomRoot::parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
+        DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
 
     test_nested_charset(
         &dcmroot,

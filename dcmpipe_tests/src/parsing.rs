@@ -70,7 +70,7 @@ fn test_bad_dicom_prefix_parser() {
 fn test_invalid_dicom_prefix_is_none() {
     let mut parser: Parser<'_, MockDicomDataset> = MockDicomDataset::invalid_dicom_prefix();
     let parse_result: Option<DicomRoot<'_>> =
-        DicomRoot::parse_into_object(&mut parser).expect("Failed to parse DICOM");
+        DicomRoot::parse(&mut parser).expect("Failed to parse DICOM");
     assert!(parse_result.is_none());
 }
 
@@ -208,7 +208,7 @@ fn test_dicom_object(with_std: bool) -> Result<()> {
         .build(File::open(file)?);
 
     let dcmroot: DicomRoot<'_> =
-        DicomRoot::parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
+        DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
     let sop_class_uid: &DicomObject = dcmroot
         .get_child_by_tag(tags::SOPClassUID.tag)
         .expect("Should have SOP Class UID");
@@ -247,7 +247,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         .build(File::open(file)?);
 
     let dcmroot: DicomRoot<'_> =
-        DicomRoot::parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
+        DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
 
     // StructureSetTime is the last element before a sequence item
     let ss_time: &DicomElement = dcmroot
@@ -260,7 +260,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
 
     // walk the depths of the first sequence to make sure the structure is setup as we expect
     {
-        /* Output form dcmdump
+        /* Output from dcmdump
         (3006,0010) SQ (Sequence with undefined length #=1)     # u/l, 1 ReferencedFrameOfReferenceSequence
           (fffe,e000) na (Item with explicit length #=2)          # 1286, 1 Item
             (0020,0052) UI [1.2.246.352.91.0000217.20050503182534.1.1] #  42, 1 FrameOfReferenceUID
@@ -276,11 +276,11 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
                 */
 
         let tagpath: TagPath = vec![
-            TagNode::new(tags::ReferencedFrameofReferenceSequence.tag, Some(1)),
-            TagNode::new(tags::RTReferencedStudySequence.tag, Some(1)),
-            TagNode::new(tags::RTReferencedSeriesSequence.tag, Some(1)),
-            TagNode::new(tags::ContourImageSequence.tag, Some(11)),
-            tags::ReferencedSOPInstanceUID.tag.into(),
+            (&tags::ReferencedFrameofReferenceSequence).into(),
+            (&tags::RTReferencedStudySequence).into(),
+            (&tags::RTReferencedSeriesSequence).into(),
+            TagNode::from((&tags::ContourImageSequence, Some(11))),
+            (&tags::ReferencedSOPInstanceUID).into(),
         ]
         .into();
 
@@ -578,7 +578,7 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
         .dataset_ts(&ts::ImplicitVRLittleEndian)
         .build(Cursor::new(data));
 
-    let sq_contents_root = DicomRoot::parse_into_object(&mut parser)
+    let sq_contents_root = DicomRoot::parse(&mut parser)
         .expect("Parse of sequence contents should not error")
         .expect("Parse of sequence contents should result in parsed dicom root");
 
@@ -639,7 +639,7 @@ fn test_missing_preamble(with_std: bool) -> Result<()> {
 
     // parse the rest of the dataset into an object
     let dcmroot: DicomRoot<'_> =
-        DicomRoot::parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
+        DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
     assert_eq!(dcmroot.get_child_count(), 32);
     Ok(())
 }
@@ -1287,8 +1287,7 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bo
         ))
         .build(File::open(file)?);
 
-    let dcmroot: DicomRoot<'_> =
-        DicomRoot::parse_into_object(&mut parser)?.expect("Parse into object");
+    let dcmroot: DicomRoot<'_> = DicomRoot::parse(&mut parser)?.expect("Parse into object");
     let sis_obj: &DicomObject = dcmroot
         .get_child_by_tagnode(&(&tags::SourceImageSequence).into())
         .expect("Parse SourceImageSequence");
@@ -1363,7 +1362,7 @@ fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
         .dictionary(dict)
         .build(File::open(file)?);
 
-    let res: Result<Option<DicomRoot<'_>>> = DicomRoot::parse_into_object(&mut parser);
+    let res: Result<Option<DicomRoot<'_>>> = DicomRoot::parse(&mut parser);
     assert!(res.is_err());
 
     // Parse again but allow a partial DicomObject result. This dataset
@@ -1372,7 +1371,7 @@ fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
         .dictionary(dict)
         .build(File::open(file)?);
 
-    let dcmroot = DicomRoot::parse_into_object(&mut parser)?.expect("Parse partial object");
+    let dcmroot = DicomRoot::parse(&mut parser)?.expect("Parse partial object");
     // Verify a bunch of dicom was parsed.
     assert_eq!(dcmroot.get_child_count(), 106);
     parse_all_dcmroot_values(&dcmroot)?;

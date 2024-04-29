@@ -6,12 +6,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-bson = "2.7"
+bson = "2.8"
 clap = { version = "4.4", features = ["derive"] }
 crossterm = "0.27"
 dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
 dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["compress"] }
-mongodb = { version = "2.7", default-features = false, features = ["sync"] }
+mongodb = { version = "2.8", default-features = false, features = ["sync"] }
 ratatui = "0.24"
 walkdir = "2.4"
 

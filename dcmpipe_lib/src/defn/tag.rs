@@ -172,6 +172,15 @@ impl From<(u32, Option<usize>)> for TagNode {
     }
 }
 
+impl From<(&Tag, Option<usize>)> for TagNode {
+    fn from(tuple: (&Tag, Option<usize>)) -> Self {
+        TagNode {
+            tag: tuple.0.tag,
+            item: tuple.1,
+        }
+    }
+}
+
 impl From<&u32> for TagNode {
     fn from(tag: &u32) -> Self {
         TagNode {
@@ -262,12 +271,32 @@ impl Display for TagPath {
 
 impl<T: Into<TagNode>> From<T> for TagPath {
     fn from(value: T) -> Self {
-        vec![value.into()].into()
+        TagPath {
+            nodes: vec![value.into()],
+        }
     }
 }
 
-impl From<Vec<TagNode>> for TagPath {
-    fn from(nodes: Vec<TagNode>) -> Self {
+impl<T: Into<TagNode>> From<Vec<T>> for TagPath {
+    fn from(value: Vec<T>) -> Self {
+        let len = value.len();
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(len);
+        for (i, t) in value.into_iter().enumerate() {
+            let tag_node: TagNode = t.into();
+            // For convenience, when making a tag path from a list of things that can be converted
+            // into TagNode, assume that many of those things got the default into implementation
+            // which defaults with an index of `None`, however unless it's the last node it should
+            // not have an index of `None`. Assume `Some(1)` is the appropriate item index.
+            let item = if i < len - 1 {
+                tag_node.get_item().or(Some(1))
+            } else {
+                tag_node.get_item()
+            };
+            nodes.push(TagNode {
+                tag: tag_node.get_tag(),
+                item,
+            })
+        }
         TagPath { nodes }
     }
 }
@@ -275,11 +304,10 @@ impl From<Vec<TagNode>> for TagPath {
 impl From<&[u32]> for TagPath {
     fn from(tags: &[u32]) -> Self {
         let len = tags.len();
-        let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
-        for i in 0..len {
-            let tag: u32 = unsafe { *tags.get_unchecked(i) };
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(len);
+        for (i, tag) in tags.iter().enumerate() {
             let item = if i == len - 1 { None } else { Some(1) };
-            nodes.push(TagNode::new(tag, item));
+            nodes.push(TagNode::new(*tag, item));
         }
         TagPath { nodes }
     }
@@ -288,9 +316,8 @@ impl From<&[u32]> for TagPath {
 impl From<&[Tag]> for TagPath {
     fn from(tags: &[Tag]) -> Self {
         let len = tags.len();
-        let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
-        for i in 0..len {
-            let tag: &Tag = unsafe { tags.get_unchecked(i) };
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(len);
+        for (i, tag) in tags.iter().enumerate() {
             let item = if i == len - 1 { None } else { Some(1) };
             nodes.push(TagNode::new(tag.tag, item));
         }
@@ -301,9 +328,8 @@ impl From<&[Tag]> for TagPath {
 impl From<&[&Tag]> for TagPath {
     fn from(tags: &[&Tag]) -> Self {
         let len = tags.len();
-        let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
-        for i in 0..len {
-            let tag: &Tag = unsafe { tags.get_unchecked(i) };
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(len);
+        for (i, tag) in tags.iter().enumerate() {
             let item = if i == len - 1 { None } else { Some(1) };
             nodes.push(TagNode::new(tag.tag, item));
         }

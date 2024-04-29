@@ -14,9 +14,9 @@ FLAGS:
 
 SUBCOMMANDS:
     archive    Archives DICOM datasets from a source folder into a destination folder
-    edit       Opens a DICOM dataset in a TUI for browsing and editing
+    browse     Opens a DICOM dataset in a TUI for browsing and editing
     help       Prints this message or the help of the given subcommand(s)
     index      Manage a database index of DICOM on disk
-    parse      Recursively parses a folder of DICOM datasets and prints results of parsing
+    scan       Recursively scans a folder of DICOM datasets and prints results of parsing
     print      Parses a single file and prints the DICOM elements to stdout
 ```

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::fs::File;
 use std::iter::Peekable;
 use std::path::Path;
@@ -44,91 +45,152 @@ fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, File
     Ok(parser)
 }
 
-/// Returns the name of the element, or an appropriate descriptive name if not known.
-pub fn render_tag_name(element: &DicomElement) -> &str {
-    if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
-        tag.ident
-    } else if Tag::is_private_creator(element.get_tag()) {
-        "<PrivateCreator>"
-    } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
-        "<PrivateSequence>"
-    } else if Tag::is_private_group_length(element.get_tag()) {
-        "<PrivateGroupLength>"
-    } else if Tag::is_private(element.get_tag()) {
-        "<PrivateTag>"
-    } else if Tag::is_group_length(element.get_tag()) {
-        "<GroupLength>"
-    } else {
-        "<UnknownTag>"
+pub(crate) enum TagName {
+    Known(u32, String),
+    PrivateCreator(u32),
+    PrivateSequence(u32),
+    PrivateGroupLength(u32),
+    Private(u32),
+    GroupLength(u32),
+    Unknown(u32),
+}
+
+impl From<&DicomElement> for TagName {
+    fn from(element: &DicomElement) -> Self {
+        if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
+            TagName::Known(tag.tag, tag.ident.to_string())
+        } else if Tag::is_private_creator(element.get_tag()) {
+            TagName::PrivateCreator(element.get_tag())
+        } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
+            TagName::PrivateSequence(element.get_tag())
+        } else if Tag::is_private_group_length(element.get_tag()) {
+            TagName::PrivateGroupLength(element.get_tag())
+        } else if Tag::is_private(element.get_tag()) {
+            TagName::Private(element.get_tag())
+        } else if Tag::is_group_length(element.get_tag()) {
+            TagName::GroupLength(element.get_tag())
+        } else {
+            TagName::Unknown(element.get_tag())
+        }
     }
 }
 
-/// Formats the value of this element as a string based on the VR.
-pub fn render_value(elem: &DicomElement, multiline: bool) -> Result<String> {
-    if elem.is_seq_like() {
-        return Ok(String::new());
-    }
-
-    let mut sep = if multiline { " " } else { "\\" };
-    let (add_ellipses, mut str_vals) = match elem.parse_value()? {
-        RawValue::Attribute(attr) => (false, vec![Tag::format_tag_to_display(attr.0)]),
-        RawValue::Uid(uid_str) => {
-            let uid_lookup = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
-            let uid_display = if uid_str.len() > 64 {
-                String::from_utf8(uid_str.as_bytes()[0..64].to_vec())
-                    .unwrap_or_else(|_| "<Unviewable>".to_string());
-                format!("[>64bytes] {}", uid_str)
-            } else {
-                uid_str
-            };
-            if let Some(uid) = uid_lookup {
-                let name = if let Some((name, _detail)) = uid.name.split_once(':') {
-                    name
-                } else {
-                    uid.name
-                };
-                (false, vec![format!("{} => {}", uid_display, name)])
-            } else {
-                (false, vec![uid_display])
-            }
+impl fmt::Display for TagName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TagName::Known(_, display) => write!(f, "{}", display),
+            TagName::PrivateCreator(_) => write!(f, "<PrivateCreator>"),
+            TagName::PrivateSequence(_) => write!(f, "<PrivateSequence>"),
+            TagName::PrivateGroupLength(_) => write!(f, "<PrivateGroupLength>"),
+            TagName::Private(_) => write!(f, "<PrivateTag>"),
+            TagName::GroupLength(_) => write!(f, "<GroupLength>"),
+            TagName::Unknown(_) => write!(f, "<UnknownTag>"),
         }
-        RawValue::Strings(strings) => {
-            if multiline {
-                sep = "\n";
-            }
-            format_vec_to_strings(strings, |val: String| {
-                if !multiline {
-                    val.replace("\r\n", " / ").replace('\n', " / ")
+    }
+}
+
+pub(crate) struct ElementWithLineFmt<'elem>(pub &'elem DicomElement, pub bool);
+
+pub(crate) enum TagValue {
+    Sequence,
+    Error(String),
+    Uid(String, String),
+    Stringified(String),
+}
+
+impl fmt::Display for TagValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TagValue::Sequence => Ok(()),
+            TagValue::Error(error_str) => write!(f, "<Error {}>", error_str),
+            TagValue::Uid(uid, name) => {
+                if name.is_empty() {
+                    write!(f, "{}", uid)
                 } else {
-                    val
+                    write!(f, "{} => {}", uid, name)
                 }
-            })
+            }
+            TagValue::Stringified(value) => write!(f, "{}", value),
         }
-        RawValue::Floats(floats) => format_vec_to_strings(floats, |val: f32| format!("{:.2}", val)),
-        RawValue::Doubles(doubles) => {
-            format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
-        }
-        RawValue::Shorts(shorts) => format_vec_to_strings(shorts, |val: i16| format!("{}", val)),
-        RawValue::UnsignedShorts(ushorts) => {
-            format_vec_to_strings(ushorts, |val: u16| format!("{}", val))
-        }
-        RawValue::Integers(ints) => format_vec_to_strings(ints, |val: i32| format!("{}", val)),
-        RawValue::UnsignedIntegers(uints) => {
-            format_vec_to_strings(uints, |val: u32| format!("{}", val))
-        }
-        RawValue::Bytes(bytes) => format_vec_to_strings(bytes, |val: u8| format!("{:02x}", val)),
-    };
-
-    if add_ellipses {
-        str_vals.push("..".to_string());
     }
+}
 
-    let num_vals: usize = str_vals.len();
-    if num_vals == 1 {
-        return Ok(str_vals.remove(0));
+impl<'elem> From<ElementWithLineFmt<'elem>> for TagValue {
+    fn from(value: ElementWithLineFmt<'elem>) -> Self {
+        let elem = value.0;
+        let multiline = value.1;
+
+        if elem.is_seq_like() {
+            return TagValue::Sequence;
+        }
+
+        let mut sep = if multiline { " " } else { "\\" };
+        let elem_value = match elem.parse_value() {
+            Err(e) => return TagValue::Error(e.to_string()),
+            Ok(val) => val,
+        };
+
+        let (add_ellipses, mut str_vals) = match elem_value {
+            RawValue::Attribute(attr) => (false, vec![Tag::format_tag_to_display(attr.0)]),
+            RawValue::Uid(uid_str) => {
+                let uid_lookup = STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&uid_str);
+                match uid_lookup {
+                    Some(found_uid) => {
+                        let uid_name = if let Some((name, _detail)) = found_uid.name.split_once(':')
+                        {
+                            name
+                        } else {
+                            found_uid.name
+                        };
+                        return TagValue::Uid(uid_str.to_string(), uid_name.to_string());
+                    }
+                    None => return TagValue::Uid(uid_str.to_string(), String::new()),
+                }
+            }
+            RawValue::Strings(strings) => {
+                if multiline {
+                    sep = "\n";
+                }
+                format_vec_to_strings(strings, |val: String| {
+                    if !multiline {
+                        val.replace("\r\n", " / ").replace('\n', " / ")
+                    } else {
+                        val
+                    }
+                })
+            }
+            RawValue::Floats(floats) => {
+                format_vec_to_strings(floats, |val: f32| format!("{:.2}", val))
+            }
+            RawValue::Doubles(doubles) => {
+                format_vec_to_strings(doubles, |val: f64| format!("{:.2}", val))
+            }
+            RawValue::Shorts(shorts) => {
+                format_vec_to_strings(shorts, |val: i16| format!("{}", val))
+            }
+            RawValue::UnsignedShorts(ushorts) => {
+                format_vec_to_strings(ushorts, |val: u16| format!("{}", val))
+            }
+            RawValue::Integers(ints) => format_vec_to_strings(ints, |val: i32| format!("{}", val)),
+            RawValue::UnsignedIntegers(uints) => {
+                format_vec_to_strings(uints, |val: u32| format!("{}", val))
+            }
+            RawValue::Bytes(bytes) => {
+                format_vec_to_strings(bytes, |val: u8| format!("{:02x}", val))
+            }
+        };
+
+        if add_ellipses {
+            str_vals.push("..".to_string());
+        }
+
+        let num_vals: usize = str_vals.len();
+        if num_vals == 1 {
+            return TagValue::Stringified(str_vals.remove(0));
+        }
+
+        TagValue::Stringified(str_vals.join(sep).to_string())
     }
-
-    Ok(str_vals.join(sep).to_string())
 }
 
 /// Formats `vec` converting each element to a String based on the given `func`.
