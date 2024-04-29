@@ -464,9 +464,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                             source: e,
                             detail: format!(
                                 "reading tag at byte {:#04X}, {}, vl: {}",
-                                self.bytes_read,
-                                full_path,
-                                value_length
+                                self.bytes_read, full_path, value_length
                             ),
                         }
                     }

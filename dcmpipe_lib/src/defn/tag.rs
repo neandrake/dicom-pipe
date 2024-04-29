@@ -161,7 +161,8 @@ pub struct TagPath(pub Vec<TagNode>);
 
 impl TagPath {
     pub fn format_tagpath_to_display(tagpath: &TagPath) -> String {
-        tagpath.0
+        tagpath
+            .0
             .iter()
             // Filter out tags related to items & delimiters as they are markers which are already
             // contextually conveyed by the item number indicators.
@@ -184,7 +185,7 @@ impl TagPath {
 
 impl Display for TagPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &TagPath::format_tagpath_to_display(&self))
+        write!(f, "{}", &TagPath::format_tagpath_to_display(self))
     }
 }
 
