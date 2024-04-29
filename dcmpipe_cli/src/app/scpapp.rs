@@ -18,7 +18,7 @@ use crate::{app::CommandApplication, args::SvcProviderArgs, threadpool::ThreadPo
 use anyhow::Result;
 use dcmpipe_lib::{
     core::{
-        charset::DEFAULT_CHARACTER_SET as CS,
+        charset::DEFAULT_CHARACTER_SET,
         dcmobject::DicomRoot,
         defn::{
             constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
@@ -40,13 +40,13 @@ use dcmpipe_lib::{
         assoc::{Association, AssociationBuilder},
         commands::CommandType,
         error::{AssocError, DimseError},
-        pdus::{pduiter::DimseMsg, Pdu},
+        pdus::pduiter::DimseMsg,
     },
 };
 use std::{
     collections::HashSet,
     io::{BufReader, BufWriter, Read, Write},
-    net::{TcpListener, TcpStream},
+    net::TcpListener,
 };
 
 pub struct SvcProviderApp {
@@ -95,19 +95,29 @@ impl CommandApplication for SvcProviderApp {
                 .accept_ts(accept_ts.clone())
                 .handler(
                     CommandType::CEchoReq,
-                    |_ts: TSRef, msg: &DimseMsg, _reader: &mut dyn Read, writer: &mut dyn Write| {
-                        AssociationDevice::handle_c_echo_req(msg, writer)
+                    |assoc: &Association,
+                     _ts: TSRef,
+                     msg: &DimseMsg,
+                     _reader: &mut dyn Read,
+                     mut writer: &mut dyn Write| {
+                        AssociationDevice::handle_c_echo_req(assoc, msg, &mut writer)
                     },
                 )
                 .handler(
                     CommandType::CFindReq,
-                    |ts: TSRef, msg: &DimseMsg, reader: &mut dyn Read, writer: &mut dyn Write| {
-                        AssociationDevice::handle_c_find_req(ts, msg, reader, writer)
+                    |assoc: &Association,
+                     ts: TSRef,
+                     msg: &DimseMsg,
+                     reader: &mut dyn Read,
+                     mut writer: &mut dyn Write| {
+                        AssociationDevice::handle_c_find_req(assoc, ts, msg, reader, &mut writer)
                     },
                 )
                 .build();
             pool.execute(move || {
-                if let Err(e) = AssociationDevice::process(&stream, &assoc) {
+                let bufread = BufReader::new(&stream);
+                let bufwrite = BufWriter::new(&stream);
+                if let Err(e) = assoc.start(bufread, bufwrite) {
                     eprintln!("[ err ><]: {e}");
                 }
             })?;
@@ -119,20 +129,11 @@ impl CommandApplication for SvcProviderApp {
 struct AssociationDevice;
 
 impl AssociationDevice {
-    pub fn process(stream: &TcpStream, assoc: &Association) -> Result<(), AssocError> {
-        let bufread = BufReader::new(stream);
-        let bufwrite = BufWriter::new(stream);
-        assoc.start(bufread, bufwrite)
-    }
-
-    fn write_pdu(pdu: &Pdu, mut writer: &mut dyn Write) -> Result<(), AssocError> {
-        pdu.write(&mut writer).map_err(AssocError::ab_failure)?;
-        writer
-            .flush()
-            .map_err(|err| AssocError::ab_failure(DimseError::IOError(err)))
-    }
-
-    fn handle_c_echo_req(msg: &DimseMsg, writer: &mut dyn Write) -> Result<(), AssocError> {
+    fn handle_c_echo_req(
+        assoc: &Association,
+        msg: &DimseMsg,
+        mut writer: &mut dyn Write,
+    ) -> Result<(), AssocError> {
         let msg_id = msg
             .cmd()
             .get_ushort(&MessageID)
@@ -142,14 +143,15 @@ impl AssociationDevice {
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
         let end_rsp = Association::create_cecho_end(msg.ctx_id(), msg_id, &aff_sop_class)?;
-        AssociationDevice::write_pdu(&end_rsp, writer)
+        assoc.write_pdu(&end_rsp, &mut writer)
     }
 
     fn handle_c_find_req(
+        assoc: &Association,
         ts: TSRef,
         req: &DimseMsg,
         reader: &mut dyn Read,
-        writer: &mut dyn Write,
+        mut writer: &mut dyn Write,
     ) -> Result<(), AssocError> {
         let mut parser = ParserBuilder::default()
             .state(ParserState::ReadElement)
@@ -180,12 +182,12 @@ impl AssociationDevice {
         for result in results {
             let res_rsp =
                 Association::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
-            AssociationDevice::write_pdu(&res_rsp.0, writer)?;
-            AssociationDevice::write_pdu(&res_rsp.1, writer)?;
+            assoc.write_pdu(&res_rsp.0, &mut writer)?;
+            assoc.write_pdu(&res_rsp.1, &mut writer)?;
         }
 
         let end_rsp = Association::create_cfind_end(ctx_id, msg_id, &aff_sop_class)?;
-        AssociationDevice::write_pdu(&end_rsp, writer)?;
+        assoc.write_pdu(&end_rsp, &mut writer)?;
 
         Ok(())
     }
@@ -224,7 +226,7 @@ impl AssociationDevice {
                 continue;
             }
 
-            let mut result = DicomRoot::new_empty(ts, CS);
+            let mut result = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
             result.add_child_with_val(&PatientID, RawValue::of_string(pid));
             result.add_child_with_val(&PatientsName, RawValue::of_string(name));
             results.push(result);

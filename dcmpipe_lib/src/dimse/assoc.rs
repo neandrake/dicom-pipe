@@ -47,7 +47,8 @@ use crate::{
     },
 };
 
-pub type MsgHandler = fn(TSRef, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
+pub type MsgHandler =
+    fn(&Association, TSRef, &DimseMsg, &mut dyn Read, &mut dyn Write) -> Result<(), AssocError>;
 
 struct AssocAcResult {
     ac: AssocAC,
@@ -244,7 +245,7 @@ impl Association {
             };
 
             if let Some(handler) = self.handlers.get(msg.cmd().cmd_type()) {
-                handler(ts, &msg, &mut reader, &mut writer)?;
+                handler(self, ts, &msg, &mut reader, &mut writer)?;
             }
         }
     }
