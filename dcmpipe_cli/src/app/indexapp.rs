@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Array, Binary, Bson, Document};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document};
 use mongodb::sync::{Client, Collection, Cursor, Database};
 use walkdir::WalkDir;
 
@@ -57,6 +57,7 @@ static MONGO_ID_KEY: &str = "_id";
 /// record is updated from disk contents rather than creating new records, however it was easier
 /// for the moment to just make an optional `id` field -- which if filled in means that it will
 /// correspond to an existing record otherwise it represents a brand new document.
+#[derive(Clone)]
 pub struct DicomDoc {
     key: String,
     doc: Document,
@@ -143,16 +144,24 @@ impl IndexApp {
                 continue;
             };
 
-            let uid_key = dcm_root
-                .get_value_by_tag(&SeriesInstanceUID)
-                .or_else(|| dcm_root.get_value_by_tag(&SOPInstanceUID))
+            let Some(sop_uid) = dcm_root
+                .get_value_by_tag(&SOPInstanceUID)
                 .and_then(|v| v.string().cloned())
-                .unwrap_or_default();
+            else {
+                continue;
+            };
 
-            let entry_key: String = uid_key.clone();
+            let Some(series_uid) = dcm_root
+                .get_value_by_tag(&SeriesInstanceUID)
+                .and_then(|v| v.string().cloned())
+            else {
+                continue;
+            };
+
+            let entry_key: String = series_uid.clone();
             let dicom_doc: &mut DicomDoc = uid_to_doc
                 .entry(entry_key)
-                .or_insert_with(|| DicomDoc::new(uid_key.clone()));
+                .or_insert_with(|| DicomDoc::new(series_uid.clone()));
 
             let metadata_doc: &mut Document = dicom_doc
                 .doc
@@ -160,13 +169,24 @@ impl IndexApp {
                 .or_insert_with(|| Document::new().into())
                 .as_document_mut()
                 .ok_or_else(|| anyhow!("Field failure: metadata"))?;
-            let files_field: &mut Array = metadata_doc
-                .entry("files".to_owned())
-                .or_insert_with(|| Vec::<String>::new().into())
-                .as_array_mut()
-                .ok_or_else(|| anyhow!("Field failure: metadata.files"))?;
-            files_field.push(format!("{}", entry.path().display()).into());
-            metadata_doc.insert("serieskey", uid_key);
+
+            metadata_doc.insert("serieskey", series_uid);
+
+            let files_key: String = "files".to_owned();
+            let files_val: Bson = format!("{}", entry.path().display()).into();
+            if let Ok(files_field) = metadata_doc.get_array_mut(files_key.clone()) {
+                files_field.push(files_val);
+            } else {
+                metadata_doc.insert(files_key, vec![files_val].to_owned());
+            }
+
+            let sops_key: String = "sops".to_owned();
+            let sops_val: Bson = sop_uid.into();
+            if let Ok(sops_field) = metadata_doc.get_array_mut(sops_key.clone()) {
+                sops_field.push(sops_val);
+            } else {
+                metadata_doc.insert(sops_key, vec![sops_val].to_owned());
+            }
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
                 let child_elem: &DicomElement = child_obj.element();

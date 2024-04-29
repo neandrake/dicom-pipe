@@ -30,7 +30,6 @@ use dcmpipe_lib::{
         uids::{
             CTImageStorage, MRImageStorage, ModalityWorklistInformationModelFIND,
             NuclearMedicineImageStorage, PatientRootQueryRetrieveInformationModelFIND,
-            PatientStudyOnlyQueryRetrieveInformationModelFIND,
             PositronEmissionTomographyImageStorage, RTDoseStorage, RTPlanStorage,
             RTStructureSetStorage, SecondaryCaptureImageStorage,
             StudyRootQueryRetrieveInformationModelFIND, VerificationSOPClass,
@@ -86,7 +85,6 @@ impl CommandApplication for SvcProviderApp {
             &PatientRootQueryRetrieveInformationModelFIND,
             &StudyRootQueryRetrieveInformationModelFIND,
             &ModalityWorklistInformationModelFIND,
-            &PatientStudyOnlyQueryRetrieveInformationModelFIND,
             &CTImageStorage,
             &MRImageStorage,
             &PositronEmissionTomographyImageStorage,
