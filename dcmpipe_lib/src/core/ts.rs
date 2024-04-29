@@ -41,11 +41,11 @@ impl TransferSyntax {
         encapsulated: bool,
     ) -> TransferSyntax {
         TransferSyntax {
-            uid: uid,
-            explicit_vr: explicit_vr,
-            big_endian: big_endian,
-            deflated: deflated,
-            encapsulated: encapsulated,
+            uid,
+            explicit_vr,
+            big_endian,
+            deflated,
+            encapsulated,
         }
     }
 

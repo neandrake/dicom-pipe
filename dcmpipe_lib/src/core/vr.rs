@@ -127,10 +127,10 @@ impl VR {
     }
 
     pub fn get_proper_cs(&self, cs: CSRef) -> CSRef {
-        match self.decode_text_with_replaced_cs {
-            true => cs,
-            false => DEFAULT_CHARACTER_SET,
+        if self.decode_text_with_replaced_cs {
+            return cs;
         }
+        DEFAULT_CHARACTER_SET
     }
 }
 
