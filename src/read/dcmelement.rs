@@ -2,7 +2,7 @@ use byteorder::{ByteOrder, ReadBytesExt};
 
 use core::dict::lookup::TAG_BY_VALUE;
 use core::vl::ValueLength;
-use core::vr::VRRef;
+use core::vr::{CHARACTER_STRING_SEPARATOR, VRRef};
 
 use encoding::types::{DecoderTrap, EncodingRef};
 
@@ -41,6 +41,20 @@ impl DicomElement {
         let data: &Vec<u8> = self.get_value().get_ref();
         cs.decode(data, DecoderTrap::Strict)
             .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+    }
+
+    /// All character string AE's -- subsequent interpretation of String is necessary based on VR
+    /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
+    pub fn parse_strings(&self, cs: EncodingRef) -> Result<Vec<String>, Error> {
+        let data: &Vec<u8> = self.get_value().get_ref();
+        cs.decode(data, DecoderTrap::Strict)
+            .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+            .map(|multivalue: String| {
+                multivalue
+                    .split(CHARACTER_STRING_SEPARATOR)
+                    .map(|singlevalue: &str| singlevalue.to_owned())
+                    .collect::<Vec<String>>()
+            })
     }
 
     /// AT
