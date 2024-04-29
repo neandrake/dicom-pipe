@@ -101,8 +101,8 @@ impl<StreamType: Read> ParserBuilder<StreamType> {
             state: self.state.unwrap_or(ParseState::DetectState),
 
             bytes_read: 0,
-            file_preamble: [0u8; FILE_PREAMBLE_LENGTH],
-            dicom_prefix: [0u8; DICOM_PREFIX_LENGTH],
+            file_preamble: None,
+            dicom_prefix: None,
             fmi_start: 0,
             fmi_grouplength: 0,
             tag_last_read: 0,
@@ -143,11 +143,11 @@ pub struct Parser<StreamType: Read> {
 
     /// The file preamble read from the stream. Currently this doesn't differentiate between the
     /// stream having a preamble of all zeros or not having a preamble at all.
-    file_preamble: [u8; FILE_PREAMBLE_LENGTH],
+    file_preamble: Option<[u8; FILE_PREAMBLE_LENGTH]>,
 
     /// The prefix read from the stream. This should be a value of `"DICM"` but not all streams have
     /// a prefix.
-    dicom_prefix: [u8; DICOM_PREFIX_LENGTH],
+    dicom_prefix: Option<[u8; DICOM_PREFIX_LENGTH]>,
 
     /// The number of bytes read just after having read the `FileMetaInformationGroupLength`. This
     /// is used to determine how many bytes to continue parsing until we switch to reading regular
@@ -214,11 +214,11 @@ impl<StreamType: Read> Parser<StreamType> {
         self.cs
     }
 
-    pub fn get_file_preamble(&self) -> &[u8] {
+    pub fn get_file_preamble(&self) -> &Option<[u8; FILE_PREAMBLE_LENGTH]> {
         &self.file_preamble
     }
 
-    pub fn get_dicom_prefix(&self) -> &[u8] {
+    pub fn get_dicom_prefix(&self) -> &Option<[u8; DICOM_PREFIX_LENGTH]> {
         &self.dicom_prefix
     }
 
@@ -345,38 +345,38 @@ impl<StreamType: Read> Parser<StreamType> {
     /// If the given transfer syntax is Implicit VR then this does not read from the stream but does
     /// a lookup of the VR based on the tag dictionary used for parsing.
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef), Error> {
-        if ts.explicit_vr {
-            let mut buf: [u8; 2] = [0; 2];
+        if !ts.explicit_vr {
+            return Ok((self.lookup_vr(tag)?, ts));
+        }
+
+        let mut buf: [u8; 2] = [0; 2];
+        self.stream.read_exact(&mut buf)?;
+        self.bytes_read += 2;
+        let first_char: u8 = buf[0];
+        let second_char: u8 = buf[1];
+
+        let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
+        let mut vr: VRRef = VR::from_code(code).unwrap_or(&vr::UN);
+
+        if vr.has_explicit_2byte_pad {
             self.stream.read_exact(&mut buf)?;
             self.bytes_read += 2;
-            let first_char: u8 = buf[0];
-            let second_char: u8 = buf[1];
-
-            let code: u16 = (u16::from(first_char) << 8) + u16::from(second_char);
-            let mut vr: VRRef = VR::from_code(code).unwrap_or(&vr::UN);
-
-            if vr.has_explicit_2byte_pad {
-                self.stream.read_exact(&mut buf)?;
-                self.bytes_read += 2;
-            }
-
-            // Part 5 Section 6.2.2 Note 2
-            // If at some point an application knows the actual VR for an Attribute of VR UN
-            // (e.g., has its own applicable data dictionary), it can assume that the Value Field of
-            // the Attribute is encoded in Little Endian byte ordering with implicit VR encoding,
-            // irrespective of the current Transfer Syntax.
-            let mut ts: TSRef = ts;
-            if vr == &vr::UN {
-                vr = self.lookup_vr(tag)?;
-                if vr != &vr::UN {
-                    ts = &ts::ImplicitVRLittleEndian;
-                }
-            }
-
-            Ok((vr, ts))
-        } else {
-            Ok((self.lookup_vr(tag)?, ts))
         }
+
+        // Part 5 Section 6.2.2 Note 2
+        // If at some point an application knows the actual VR for an Attribute of VR UN
+        // (e.g., has its own applicable data dictionary), it can assume that the Value Field of
+        // the Attribute is encoded in Little Endian byte ordering with implicit VR encoding,
+        // irrespective of the current Transfer Syntax.
+        let mut ts: TSRef = ts;
+        if vr == &vr::UN {
+            vr = self.lookup_vr(tag)?;
+            if vr != &vr::UN {
+                ts = &ts::ImplicitVRLittleEndian;
+            }
+        }
+
+        Ok((vr, ts))
     }
 
     /// Looks up the VR of the given tag in the current lookup dictionary, or `UN` if not present
@@ -530,26 +530,31 @@ impl<StreamType: Read> Parser<StreamType> {
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
         let tag: u32 = self.read_tag_from_stream(&mut cursor, &ts::ImplicitVRLittleEndian)?;
-        // quick check for common case of being zeroed-out data
         if tag == 0 {
+            // quick check for common case of being zeroed-out data
             self.finalize_preamble(&buf)?;
             return Ok(());
         }
 
-        // quick check if we're reading beginning of file meta, continue from there
         if tag == tags::FILE_META_INFORMATION_GROUP_LENGTH {
+            // quick check if we're reading beginning of file meta, continue from there
             self.partial_tag = Some(tag);
             self.state = ParseState::GroupLength;
             return Ok(());
+        } else if tag >= tags::STANDARD_GROUP && tag <= tags::SOP_INSTANCE_UID {
+
+        } else {
+            let vr: VRRef = self.lookup_vr(tag)?;
+
+            // unknown tag and not a group-length tag then assume it's not dicom encoded
+            if vr == &vr::UN && tag.trailing_zeros() < 16 {
+                self.finalize_preamble(&buf)?;
+                return Ok(());
+            }
         }
 
-        let vr: VRRef = self.lookup_vr(tag)?;
+        cursor.set_position(0);
 
-        // unknown tag and not a group-length tag then assume it's not dicom encoded
-        if vr == &vr::UN && tag.trailing_zeros() < 16 {
-            self.finalize_preamble(&buf)?;
-            return Ok(());
-        }
 
         // known tag that's not file meta, use DICOM default transfer syntax
         self.partial_tag = Some(tag);
@@ -562,35 +567,41 @@ impl<StreamType: Read> Parser<StreamType> {
     /// there is a preamble then this takes the currently parsed bytes as input, copies them into
     /// the preamble field and reads in the remainder of the preamble from the stream.
     fn finalize_preamble(&mut self, buf: &[u8]) -> Result<(), Error> {
-        self.file_preamble[..buf.len()].copy_from_slice(&buf);
-        let file_preamble_len: usize = self.file_preamble.len();
+        let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
+        file_preamble[..buf.len()].copy_from_slice(&buf);
+        let file_preamble_len: usize = file_preamble.len();
         self.stream
-            .read_exact(&mut self.file_preamble[buf.len()..file_preamble_len])?;
-        self.bytes_read += self.file_preamble.len() as u64;
+            .read_exact(&mut file_preamble[buf.len()..file_preamble_len])?;
+        self.bytes_read += file_preamble.len() as u64;
+        self.file_preamble = Some(file_preamble);
         self.state = ParseState::Prefix;
         Ok(())
     }
 
     /// Performs the `ParserState::Preamble` iteration
     fn iterate_preamble(&mut self) -> Result<(), Error> {
-        self.stream.read_exact(&mut self.file_preamble)?;
-        self.bytes_read += self.file_preamble.len() as u64;
+        let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];
+        self.stream.read_exact(&mut file_preamble)?;
+        self.bytes_read += file_preamble.len() as u64;
+        self.file_preamble = Some(file_preamble);
         self.state = ParseState::Prefix;
         Ok(())
     }
 
     /// Performs the `ParserState::Prefix` iteration
     fn iterate_prefix(&mut self) -> Result<(), Error> {
-        self.stream.read_exact(&mut self.dicom_prefix)?;
-        self.bytes_read += self.dicom_prefix.len() as u64;
+        let mut dicom_prefix: [u8; DICOM_PREFIX_LENGTH] = [0; DICOM_PREFIX_LENGTH];
+        self.stream.read_exact(&mut dicom_prefix)?;
+        self.bytes_read += dicom_prefix.len() as u64;
         for (n, prefix_item) in DICOM_PREFIX.iter().enumerate() {
-            if self.dicom_prefix[n] != *prefix_item {
+            if dicom_prefix[n] != *prefix_item {
                 return Err(Error::new(
                     ErrorKind::InvalidData,
                     format!("Invalid DICOM Prefix: {:?}", self.dicom_prefix),
                 ));
             }
         }
+        self.dicom_prefix = Some(dicom_prefix);
         self.state = ParseState::GroupLength;
         Ok(())
     }

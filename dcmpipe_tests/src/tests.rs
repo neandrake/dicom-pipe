@@ -7,9 +7,7 @@ use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
-use dcmpipe_lib::core::dcmparser::{
-    ParseState, Parser, ParserBuilder, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
-};
+use dcmpipe_lib::core::dcmparser::{ParseState, Parser, ParserBuilder};
 use dcmpipe_lib::core::dcmreader::parse_stream;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::vl::ValueLength;
@@ -344,14 +342,8 @@ fn test_missing_preamble(with_std: bool) -> Result<(), Error> {
     assert_eq!(parser.get_parser_state(), ParseState::Element);
     assert_eq!(parser.get_ts(), &ts::ImplicitVRLittleEndian);
 
-    // parser doesn't differentiate between no preamble/prefix vs. what's read
-    // so in this scenario both of these should be initialized to zeros
-    for i in 0..FILE_PREAMBLE_LENGTH {
-        assert_eq!(parser.get_file_preamble()[i], 0);
-    }
-    for i in 0..DICOM_PREFIX_LENGTH {
-        assert_eq!(parser.get_dicom_prefix()[i], 0);
-    }
+    assert!(parser.get_file_preamble().is_none());
+    assert!(parser.get_dicom_prefix().is_none());
 
     // parse the rest of the stream into an object
     let dcmroot: DicomRoot = parse_stream(&mut parser)?;

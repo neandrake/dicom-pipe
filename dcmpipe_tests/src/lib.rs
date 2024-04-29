@@ -94,19 +94,31 @@ pub fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'.
 /// DICOM files do not need to abide by this format to be valid, but it's standard.
-pub fn is_standard_dcm_file<StreamType>(stream: &Parser<StreamType>) -> bool
+pub fn is_standard_dcm_file<StreamType>(parser: &Parser<StreamType>) -> bool
     where
         StreamType: Read,
 {
-    for i in 0..FILE_PREAMBLE_LENGTH {
-        if stream.get_file_preamble()[i] != 0 {
-            return false;
-        }
+    match parser.get_file_preamble() {
+        Some(file_preamble) => {
+            for i in 0..FILE_PREAMBLE_LENGTH {
+                if file_preamble[i] != 0 {
+                    eprintln!("BAD PREAMBLE??");
+                    return false;
+                }
+            }
+        },
+        None => {},
     }
-    for i in 0..DICOM_PREFIX_LENGTH {
-        if stream.get_dicom_prefix()[i] != DICOM_PREFIX[i] {
-            return false;
-        }
+
+    match parser.get_dicom_prefix() {
+        Some(prefix) => {
+            for i in 0..DICOM_PREFIX_LENGTH {
+                if prefix[i] != DICOM_PREFIX[i] {
+                    return false;
+                }
+            }
+        },
+        None => {},
     }
     true
 }
