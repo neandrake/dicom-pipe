@@ -1254,7 +1254,7 @@ pub static UV: VR = VR {
 /// ## Length of Value
 /// Any length valid for any of the other DICOM Value Representations
 pub static INVALID: VR = VR {
-    ident: "",
+    ident: "??",
     name: "Invalid",
     code: 0x0000,
     padding: NULL_PADDING,

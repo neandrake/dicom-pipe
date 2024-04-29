@@ -64,7 +64,8 @@ pub trait DicomNode {
     }
 }
 
-/// A root node of a DICOM dataset. It does not represent an element but contains child elements.
+/// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
+/// does not contain a `DicomElement` itself but will have either children or items.
 pub struct DicomRoot<'dict> {
     ts: TSRef,
     cs: CSRef,
@@ -79,13 +80,14 @@ impl<'dict> DicomRoot<'dict> {
         cs: CSRef,
         dictionary: &dyn DicomDictionary,
         child_nodes: BTreeMap<u32, DicomObject>,
+        items: Vec<DicomObject>,
     ) -> DicomRoot<'_> {
         DicomRoot {
             ts,
             cs,
             dictionary,
             child_nodes,
-            items: Vec::with_capacity(0),
+            items,
         }
     }
 
@@ -118,17 +120,16 @@ impl<'dict> DicomNode for DicomRoot<'dict> {
         self.child_nodes.iter()
     }
 
-    /// Always returns zero, as the root of a DicomObject is never sequence-like.
     fn get_item_count(&self) -> usize {
         self.items.len()
     }
 
-    /// Always returns None, as the root of a DicomObject is never sequence-like.
     fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
+        // Index for items are provided 1-based, convert to 0-based for vec use.
+        let index = index - 1;
         self.items.get(index)
     }
 
-    /// Always returns an empty iterator, as the root of a DicomObject is never sequence-like.
     fn iter_items(&self) -> std::slice::Iter<DicomObject> {
         self.items.iter()
     }

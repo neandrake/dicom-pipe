@@ -118,15 +118,13 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
     let tag_name: &str =
         if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
             tag.ident
+        } else if Tag::is_private_creator(element.get_tag()) {
+            "<Private Creator>"
         } else {
             "<Unknown Tag>"
         };
 
-    let vr: &str = if element.get_vr() == &vr::INVALID {
-        "XX"
-    } else {
-        element.get_vr().ident
-    };
+    let vr: &str = element.get_vr().ident;
 
     let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
 

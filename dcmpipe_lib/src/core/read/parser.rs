@@ -291,33 +291,52 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             || tag == tags::ITEM_DELIMITATION_ITEM
             || tag == tags::ITEM
         {
-            &ts::ImplicitVRLittleEndian
+            if elem_ts.is_big_endian() {
+                &ts::ImplicitVRBigEndian
+            } else {
+                &ts::ImplicitVRLittleEndian
+            }
         } else {
             elem_ts
         };
 
-        let vr_ts: (VRRef, TSRef) = if let Some(partial_vr) = self.partial_vr {
-            self.partial_vr.take();
-            (partial_vr, ts)
-        } else if ts.explicit_vr {
-            match self.read_vr(tag, ts) {
-                Err(ParseError::UnknownExplicitVR(_code)) => (&vr::INVALID, ts),
+        let mut switch_to_ivrle: bool = false;
+        let vr: VRRef = if ts.explicit_vr {
+            // The `partial_vr` may be populated as part of initial dataset parsing when attempting
+            // to detect the transfer syntax. The UnknownExplicitVR error used here is only
+            // transient error to transition to the `self.read_vr()`.
+            let vr_res: Result<VRRef> = self
+                .partial_vr
+                .take()
+                .ok_or(ParseError::UnknownExplicitVR(0))
+                .or_else(|_e| self.read_vr());
+            match vr_res {
+                Ok(vr) if vr == &vr::UN => {
+                    // See Part 5 Section 6.2.2 Note 2
+                    if self.lookup_vr(tag).is_some() {
+                        switch_to_ivrle = true;
+                    }
+                    vr
+                }
+                Ok(vr) => vr,
+                Err(ParseError::UnknownExplicitVR(_code)) => &vr::INVALID,
                 Err(e) => return Err(e),
-                Ok(vr_ts) => vr_ts,
             }
         } else {
-            let vr: VRRef = if let Some(vr) = self.lookup_vr(tag) {
+            // Implicit VR, look up in the current dictionary or assume UN if not resolved.
+            if let Some(vr) = self.lookup_vr(tag) {
+                // Part 5 Section 6.2.2 Note 2
+                // If at some point an application knows the actual VR for an Attribute of VR UN
+                // (e.g., has its own applicable data dictionary), it can assume that the Value
+                // Field of the Attribute is encoded in Little Endian byte ordering with implicit
+                // VR encoding, irrespective of the current Transfer Syntax.
+                switch_to_ivrle = true;
                 vr
             } else {
                 &vr::UN
-            };
-            (vr, ts)
+            }
         };
 
-        let vr: VRRef = vr_ts.0;
-        // If VR is explicitly UN but we can tell it's SQ then the inner elements are encoded as
-        // IVRLE -- but only the contents should be parsed as such, do not switch transfer syntax
-        // prior to reading in the value length.
         let vl: ValueLength = if let Some(partial_vl) = self.partial_vl {
             self.partial_vl.take();
             partial_vl
@@ -326,10 +345,14 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         };
 
         let parse_as_seq: bool = read::util::is_non_standard_seq(tag, vr, vl);
-        let ts: TSRef = if parse_as_seq {
-            &ts::ImplicitVRLittleEndian
+        let ts: TSRef = if parse_as_seq || switch_to_ivrle {
+            if switch_to_ivrle || !ts.is_big_endian() {
+                &ts::ImplicitVRLittleEndian
+            } else {
+                &ts::ImplicitVRBigEndian
+            }
         } else {
-            vr_ts.1
+            ts
         };
 
         // Sequence and item elements should let the iterator handle parsing its contents and not
@@ -371,44 +394,24 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         Ok(DicomElement::new(tag, vr, vl, ts, cs, bytes, ancestors))
     }
 
-    /// Reads an explicit VR attribute from the dataset. This returns a tuple of `(VRRef, TSRef)`
-    /// containing the parsed VR and the passed in transfer syntax. If the VR is explicitly written
-    /// as `UN` then the dictionary used for parsing is checked for the default/implicit VR. If the
-    /// VR found from the dictionary is `SQ` then the returned transfer syntax will be IVRLE as it
-    /// is assumed the value field is encoded this way, irrespective of defined transfer syntax.
-    /// See Part 5 Section 6.2.2 Note 2.
-    fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef)> {
-        let vr_res: Result<VRRef> = read::util::read_vr_from_dataset(&mut self.dataset);
-        match vr_res {
-            // For valid VR or unknown VR there were still 2 bytes read from stream
-            Ok(_) | Err(ParseError::UnknownExplicitVR(_)) => self.bytes_read += 2,
-            _ => {}
-        }
-
-        let mut vr: VRRef = vr_res?;
-        // The padding after the VR was read and thrown away.
-        if vr.has_explicit_2byte_pad {
-            self.bytes_read += 2;
-        }
-
-        // Part 5 Section 6.2.2 Note 2
-        // If at some point an application knows the actual VR for an Attribute of VR UN (e.g., has
-        // has its own applicable data dictionary), it can assume that the Value Field of the
-        // Attribute is encoded in Little Endian byte ordering with implicit VR encoding,
-        // irrespective of the current Transfer Syntax.
-        // --
-        // Only do this for potential sequences and not elements which have values
-        let mut ts: TSRef = ts;
-        if vr == &vr::UN {
-            if let Some(found_vr) = self.lookup_vr(tag) {
-                if found_vr == &vr::SQ {
-                    ts = &ts::ImplicitVRLittleEndian;
-                    vr = found_vr;
+    /// Reads VR from the dataset. This should only be done for ExplicitVR transfer syntaxes.
+    /// If the VR read from the dataset indicates it contains additional 2-byte-padding for
+    /// explicit VRs then those bytes are also read (and thrown away). If the bytes do not
+    /// correspond to a valid/known VR then `ParseError::UnknownExplicitVR` is returned.
+    fn read_vr(&mut self) -> Result<VRRef> {
+        match read::util::read_vr_from_dataset(&mut self.dataset) {
+            Ok(vr) => {
+                self.bytes_read += 2;
+                if vr.has_explicit_2byte_pad {
+                    self.bytes_read += 2;
                 }
+                Ok(vr)
+            }
+            Err(e) => {
+                self.bytes_read += 2;
+                Err(e)
             }
         }
-
-        Ok((vr, ts))
     }
 
     /// Looks up the implicit VR of the given tag in the current dictionary.
@@ -915,13 +918,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Performs the `ParserState::Element` iteration
     fn iterate_element(&mut self) -> Result<Option<DicomElement>> {
-        // if we're in a sequence we need to use the sequence's transfer syntax
-        let ts: TSRef = self
-            .current_path
-            .last()
-            .map(SequenceElement::get_ts)
-            .or(self.dataset_ts)
-            .unwrap_or(self.detected_ts);
+        // use the transfer syntax defined by the dataset, or if not specified or not yet seen then
+        // use the one initialized/detected.
+        let ts: TSRef = self.dataset_ts.unwrap_or(self.detected_ts);
 
         #[cfg(feature = "deflate")]
         self.dataset.set_read_deflated(ts.is_deflated());
@@ -991,15 +990,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         self.pop_sequence_items_base_on_byte_pos();
 
         if element.is_seq_like() || tag == tags::ITEM {
-            let sq_ts: TSRef = if tag == tags::ITEM {
-                // item elements will have a TS of IVRLE but since this is indicates what contents
-                // should parse as use the original ts determined to parse regular elements
-                ts
-            } else {
-                // otherwise the element will have the transfer syntax for the sequence
-                element.get_ts()
-            };
-
             let seq_end_pos: Option<u64> = if let ValueLength::Explicit(len) = element.get_vl() {
                 Some(self.bytes_read + u64::from(len))
             } else {
@@ -1013,7 +1003,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             };
 
             self.current_path
-                .push(SequenceElement::new(tag, seq_end_pos, sq_ts, sq_cs));
+                .push(SequenceElement::new(tag, seq_end_pos, sq_cs));
         }
 
         Ok(Some(element))

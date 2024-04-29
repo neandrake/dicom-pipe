@@ -10,14 +10,19 @@ use crate::core::read::stop::ParseStop;
 use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use crate::defn::constants::ts;
 use crate::defn::dcmdict::DicomDictionary;
+use crate::defn::ts::TSRef;
 
 /// A builder for constructing `Parser` with common default states.
 pub struct ParserBuilder<'dict> {
-    /// Initial parse state. Default is `ParseState::DetectState`.
+    /// Initial parse state. Default is `ParseState::DetectTransferSyntax`.
     state: Option<ParseState>,
 
     /// When to stop parsing the dataset. Default is `ParseStop::EndOfDataset`.
     stop: Option<ParseStop>,
+
+    /// The transfer syntax of the dataset, if known. Defaults to `None` expecting that the initial
+    /// parse state is `ParseState::DetectTransferSyntax`.
+    dataset_ts: Option<TSRef>,
 
     /// The `DicomDictionary` to be used when parsing elements. Default is `MinimalDicomDictionary`.
     dictionary: &'dict dyn DicomDictionary,
@@ -27,9 +32,21 @@ pub struct ParserBuilder<'dict> {
 }
 
 impl<'dict> ParserBuilder<'dict> {
+    /// Sets the initial `ParseState` indicating how to start parsing the dataset.
+    pub fn state(mut self, state: ParseState) -> Self {
+        self.state = Some(state);
+        self
+    }
+
     /// Sets the `ParseStop` for when to stop parsing the dataset.
     pub fn stop(mut self, stop: ParseStop) -> Self {
         self.stop = Some(stop);
+        self
+    }
+
+    /// Sets the transfer syntax of the dataset, if known.
+    pub fn dataset_ts(mut self, dataset_ts: TSRef) -> Self {
+        self.dataset_ts = Some(dataset_ts);
         self
     }
 
@@ -66,7 +83,7 @@ impl<'dict> ParserBuilder<'dict> {
             partial_vr: None,
             partial_vl: None,
             detected_ts: &ts::ExplicitVRLittleEndian,
-            dataset_ts: None,
+            dataset_ts: self.dataset_ts,
             cs: DEFAULT_CHARACTER_SET,
             current_path: Vec::new(),
             iterator_ended: false,
@@ -79,6 +96,7 @@ impl<'dict> Default for ParserBuilder<'dict> {
         ParserBuilder {
             state: None,
             stop: None,
+            dataset_ts: None,
             dictionary: &MINIMAL_DICOM_DICTIONARY,
             // BufReader's current default buffer size is 8k
             buffsize: 8 * 1024,

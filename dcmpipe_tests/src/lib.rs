@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
+use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use walkdir::WalkDir;
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
@@ -25,13 +27,15 @@ mod writing;
 
 /// Parses the given file into a `DicomObject`
 pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
-    let mut parser_builder: ParserBuilder<'_> = ParserBuilder::default();
-    if with_std {
-        parser_builder = parser_builder.dictionary(&STANDARD_DICOM_DICTIONARY);
-    }
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
 
-    let file: File = File::open(path)?;
-    let mut parser: Parser<'_, File> = parser_builder.build(file);
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .dictionary(dict)
+        .build(File::open(path)?);
     let dcmroot: DicomRoot<'_> = parse_into_object(&mut parser)?.unwrap();
     parse_all_dcmroot_values(&dcmroot)?;
     Ok(dcmroot)
@@ -40,15 +44,19 @@ pub fn parse_file(path: &str, with_std: bool) -> Result<DicomRoot<'_>> {
 /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
 /// whether the standard dicom dictionary should be reigstered with the parser.
 pub fn parse_all_dicom_files(with_std: bool) -> Result<usize> {
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
+
     let mut num_failed: usize = 0;
     for path in get_dicom_file_paths() {
         let path_str: &str = path.to_str().expect("path");
-        let file: File = File::open(path.clone())?;
-        let mut parser: ParserBuilder<'_> = ParserBuilder::default();
-        if with_std {
-            parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
-        }
-        let parser: Parser<'_, File> = parser.build(file);
+
+        let parser: Parser<'_, File> = ParserBuilder::default()
+            .dictionary(dict)
+            .build(File::open(path.clone())?);
 
         if parse_all_element_values(parser, path_str).is_err() {
             num_failed += 1;

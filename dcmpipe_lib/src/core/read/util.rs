@@ -140,8 +140,8 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
         return Err(e);
     }
 
-    // if no child elements were parsed then assume not a valid dicom file
-    if child_nodes.is_empty() {
+    // If no child nodes and no items were parsed then this isn't valid dicom.
+    if child_nodes.is_empty() && items.is_empty() {
         return Ok(None);
     }
 
@@ -152,6 +152,7 @@ pub fn parse_into_object<'dict, DatasetType: Read>(
         parser.get_cs(),
         parser.get_dictionary(),
         child_nodes,
+        items,
     );
     Ok(Some(root))
 }

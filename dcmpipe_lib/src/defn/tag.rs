@@ -54,18 +54,26 @@ impl Tag {
         self.vm
     }
 
+    /// Detects if the given tag is a private creator, which is defined to be an odd-numbered group
+    /// number with an element number between 0x0010-0x00FF.
+    pub fn is_private_creator(tag: u32) -> bool {
+        let tag_group: u32 = tag >> 16;
+        let tag_elem: u32 = tag & 0x0000_FFFF;
+        return tag_group % 2 == 1 && tag_elem >= 0x0010 && tag_elem <= 0x00FF;
+    }
+
     /// Renders the tag number as `(gggg,eeee)`.
     pub fn format_tag_to_display(tag: u32) -> String {
         let tag_group: u32 = tag >> 16;
-        let tag_element: u32 = tag & 0x0000_FFFF;
-        format!("({:04X},{:04X})", tag_group, tag_element)
+        let tag_elem: u32 = tag & 0x0000_FFFF;
+        format!("({:04X},{:04X})", tag_group, tag_elem)
     }
 
     /// Renders the tag number as `ggggeeee`.
     pub fn format_tag_to_path_display(tag: u32) -> String {
         let tag_group: u32 = tag >> 16;
-        let tag_element: u32 = tag & 0x0000_FFFF;
-        format!("{:04X}{:04X}", tag_group, tag_element)
+        let tag_elem: u32 = tag & 0x0000_FFFF;
+        format!("{:04X}{:04X}", tag_group, tag_elem)
     }
 }
 

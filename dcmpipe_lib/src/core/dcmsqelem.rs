@@ -2,7 +2,6 @@ use std::fmt::{Debug, Display, Formatter};
 
 use crate::core::charset::CSRef;
 use crate::defn::tag::TagNode;
-use crate::defn::ts::TSRef;
 
 /// Represents the sequence/item position of an element.
 /// For elements to track which sequence they are a part of. When an SQ element is parsed the parser
@@ -27,12 +26,6 @@ pub struct SequenceElement {
     /// to None.
     seq_end_pos: Option<u64>,
 
-    /// See Part 5 Section 6.2.2 Note 2
-    /// If a sequence is encoded with explicit VR but data dictionary defines it as SQ then we
-    /// should interpret the contents of the sequence as ImplicitVRLittleEndian. SQ elements need to
-    /// track what transfer syntax their contents are encoded with.
-    ts: TSRef,
-
     /// See Part 5 Section 7.5.3
     /// If an encapsulated Data Set includes the Specific Character Set Attribute, it shall apply
     /// only to the encapsulated Data Set. If the Attribute Specific Character Set is not explicitly
@@ -42,11 +35,10 @@ pub struct SequenceElement {
 }
 
 impl SequenceElement {
-    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>, ts: TSRef, cs: CSRef) -> SequenceElement {
+    pub fn new(seq_tag: u32, seq_end_pos: Option<u64>, cs: CSRef) -> SequenceElement {
         SequenceElement {
             node: TagNode::new(seq_tag, None),
             seq_end_pos,
-            ts,
             cs,
         }
     }
@@ -65,10 +57,6 @@ impl SequenceElement {
 
     pub fn get_item_number(&self) -> Option<usize> {
         self.node.get_item()
-    }
-
-    pub fn get_ts(&self) -> TSRef {
-        self.ts
     }
 
     pub fn get_cs(&self) -> CSRef {

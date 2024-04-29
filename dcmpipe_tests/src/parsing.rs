@@ -1,6 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 use std::fs::File;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Cursor};
 
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_dict::dict::tags;
@@ -11,6 +11,8 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::util::parse_into_object;
 use dcmpipe_lib::core::read::{ParseError, ParseState, Parser, ParserBuilder, Result};
+use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
+use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
@@ -194,14 +196,17 @@ fn test_dicom_object_without_std() -> Result<()> {
 }
 
 fn test_dicom_object(with_std: bool) -> Result<()> {
-    let file: File =
-        File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
-    let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().stop(ParseStop::BeforeTag(tags::PixelData.tag.into()));
-    if with_std {
-        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
-    }
-    let mut parser: Parser<'_, File> = parser.build(file);
+    let file: &str = "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm";
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
+
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .dictionary(dict)
+        .stop(ParseStop::BeforeTag(tags::PixelData.tag.into()))
+        .build(File::open(file)?);
 
     let dcmroot: DicomRoot<'_> =
         parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
@@ -230,13 +235,17 @@ fn test_dicom_object_sequences_without_std() -> Result<()> {
 }
 
 fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
-    let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?;
-    let mut parser: ParserBuilder<'_> =
-        ParserBuilder::default().stop(ParseStop::BeforeTag(tags::PixelData.tag.into()));
-    if with_std {
-        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
-    }
-    let mut parser: Parser<'_, File> = parser.build(file);
+    let file: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
+
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .dictionary(dict)
+        .stop(ParseStop::BeforeTag(tags::PixelData.tag.into()))
+        .build(File::open(file)?);
 
     let dcmroot: DicomRoot<'_> =
         parse_into_object(&mut parser)?.expect("Failed to parse DICOM elements");
@@ -538,7 +547,9 @@ fn test_seq_switch_to_ivrle_without_std() -> Result<()> {
 }
 
 /// `SequenceDelimitationItem`, `Item`, and `ItemDelimitationItem` are always encoded as IVRLE
-/// despite what the transfer syntax is.
+/// despite what the transfer syntax is. This dataset encodes SourceImageSequence with an explicit
+/// VR of UN rather than SQ which requires using a parser on the sequence's data field to decode
+/// its contents.
 fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
@@ -550,13 +561,9 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
         .get_child_by_tag(tags::SourceImageSequence.tag)
         .expect("Should have Source Image Sequence");
 
-    if with_std {
-        assert_eq!(sis_obj.get_item_count(), 1);
-    } else {
-        // Without standard lookup we won't know the implicit VR for this element and won't know
-        // that it should be parsed as a sequence, so it won't be a parent element.
-        assert_eq!(sis_obj.get_item_count(), 0);
-    }
+    // The SourceImageSequence is explicitly set with VR of UN, even though the standard dictionary
+    // will properly indicate it's SQ. As it's explicitly UN it will not be parsed as a sequence.
+    assert_eq!(sis_obj.get_item_count(), 0);
 
     let sis_elem: &DicomElement = sis_obj.get_element();
     if with_std {
@@ -569,7 +576,22 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
         return Ok(());
     }
 
-    let item_obj: &DicomObject = sis_obj
+    // Parse the SourceImageSequence's data field as a sequence of items, as it's explicitly
+    // defined to have VR of UN rather than SQ.
+    let data: &Vec<u8> = sis_obj.get_element().get_data();
+    // Initialize the parser to start with Element rather than file-stuff, specifying IVRLE since
+    // the contents _must_ be encoded that way in a sequence.
+    let mut parser = ParserBuilder::default()
+        .state(ParseState::Element)
+        .dataset_ts(&ts::ImplicitVRLittleEndian)
+        .build(Cursor::new(data));
+
+    let sq_contents_root = parse_into_object(&mut parser)
+        .expect("Parse of sequence contents should not error")
+        .expect("Parse of sequence contents should result in parsed dicom root");
+
+    eprintln!("SQ has {} elements and {} items", sq_contents_root.get_child_count(), sq_contents_root.get_item_count());
+    let item_obj: &DicomObject = sq_contents_root
         .get_item_by_index(1)
         .expect("Should be able to get child object");
 
@@ -602,12 +624,16 @@ fn test_missing_preamble_without_std() -> Result<()> {
 
 /// This file has no preamble or file meta - should parse as the DICOM default IVRLE
 fn test_missing_preamble(with_std: bool) -> Result<()> {
-    let file: File = File::open("./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?;
-    let mut parser: ParserBuilder<'_> = ParserBuilder::default();
-    if with_std {
-        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
-    }
-    let mut parser: Parser<'_, File> = parser.build(file);
+    let file: &str = "./fixtures/gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm";
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
+
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .dictionary(dict)
+        .build(File::open(file)?);
 
     let first_elem: DicomElement = parser.next().expect("First element should be parsable")?;
 
