@@ -2,7 +2,7 @@
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::uid::UID;
+use crate::core::defn::uid::UID;
 
 /// Verification SOP Class
 ///

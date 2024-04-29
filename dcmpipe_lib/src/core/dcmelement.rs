@@ -3,13 +3,9 @@
 use std::fmt;
 use std::iter::once;
 
-use crate::{
-    core::{
-        charset::{CSRef, DEFAULT_CHARACTER_SET},
-        dcmsqelem::SequenceElement,
-        read::{self, parser::ParseResult},
-        values::RawValue,
-    },
+use crate::core::{
+    charset::{CSRef, DEFAULT_CHARACTER_SET},
+    dcmsqelem::SequenceElement,
     defn::{
         constants::{tags, ts},
         tag::{Tag, TagNode, TagPath},
@@ -17,6 +13,8 @@ use crate::{
         vl::ValueLength,
         vr::{self, VRRef},
     },
+    read::{self, parser::ParseResult},
+    values::RawValue,
 };
 
 use super::write::valencode::ElemAndRawValue;

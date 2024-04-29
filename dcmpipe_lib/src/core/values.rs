@@ -1,4 +1,4 @@
-use crate::{core::dcmelement::DicomElement, defn::vr::VRRef};
+use crate::{core::dcmelement::DicomElement, core::defn::vr::VRRef};
 
 /// Wrapper around `&[u8]` for getting a slice of the element value without the padding values.
 #[derive(Debug)]

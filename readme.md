@@ -6,18 +6,17 @@ A set of crates for reading and writing DICOM.
 
 ## Goals ##
 - The core library should be small/minimal with few dependencies. It should be possible to target WASM and create a small lean library for use in web pages.
-- The core library should support DICOM files as well as DICOM network streams.
-- The core library should not require the standard DICOM dictionary.
-- Allow building private tag dictionaries with `dcmpipe_dict_builder` and using them with the core library.
-- Provide basic command-line utilities for inspecting DICOM files and communicating with DICOM networks.
+- The core library should support DICOM files for valid transfer media and transfer syntax.
+- Optional support for DICOM message exchange, not required by the core library.
+- Optional support for the standard DICOM dictionary, not required by the core library.
+- Importing of customized dictionaries with private tag entries.
 
 ## Crates ##
-- `dcmpipe_cli`: Several command-line tools utilizing `dcmpipe_lib`.
-- `dcmpipe_dict_builder`: Functionality for parsing the dicom standard and output tags and uids along with map lookups using `phf`. This is intended to be used by `build.rs` scripts.
-- `dcmpipe_lib`: The core library of definitions for the DICOM format and ability to read/write dicom.
+- `dcmpipe_cli`: Command-line tools utilizing the core library.
+- `dcmpipe_dict_builder`: Parses the DICOM Standard XML files for producting the standard DICOM dictionary. This is intended to be used by `build.rs` scripts.
+- `dcmpipe_lib`: The core library, supporting read and write of DICOM data sets.
 
 ## Milestone v1.0 ##
-- [-] Conform to [Rust's API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html)
-  - [ ] Documentation
+- [ ] Conform to [Rust's API Guidelines](https://rust-lang.github.io/api-guidelines/checklist.html)
 - [x] Add support for writing DICOM streams
 - [ ] Add support for DICOM network connectivity

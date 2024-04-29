@@ -1,24 +1,28 @@
 //! The print command renders the contents of a DICOM dataset to stdout, in a format similar to the
 //! dcmdump tool.
 
-use std::fs::File;
-use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::{
+    fs::File,
+    io::{self, Write},
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 
-use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmsqelem::SequenceElement;
-use dcmpipe_lib::core::read::Parser;
-use dcmpipe_lib::defn::constants::tags::FILE_META_GROUP_END;
-use dcmpipe_lib::defn::tag::Tag;
-use dcmpipe_lib::defn::ts::TSRef;
-use dcmpipe_lib::defn::vl::ValueLength;
-use dcmpipe_lib::defn::vr;
-use dcmpipe_lib::dict::tags;
+use dcmpipe_lib::{
+    core::{
+        dcmelement::DicomElement,
+        dcmsqelem::SequenceElement,
+        defn::{constants::tags::FILE_META_GROUP_END, tag::Tag, ts::TSRef, vl::ValueLength, vr},
+        read::Parser,
+    },
+    dict::tags,
+};
 
-use crate::app::{parse_file, CommandApplication};
-use crate::args::PrintArgs;
+use crate::{
+    app::{parse_file, CommandApplication},
+    args::PrintArgs,
+};
 
 use super::{ElementWithLineFmt, TagCategory, TagValue};
 

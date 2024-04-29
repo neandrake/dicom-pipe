@@ -1,6 +1,8 @@
 //! Constants for DIMSE, DICOM Message Exchange
 
 /// Values of the `CommandField` (0000,0100) field of messages.
+///
+/// See Part 7, Appendix E.
 #[repr(u32)]
 pub enum CommandField {
     CStoreRq = 0x0001,
@@ -35,6 +37,7 @@ impl TryFrom<u32> for CommandField {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
+            // oof, can't have match arm with `(CommandField::CStoreRq as u32) =>`
             0x0001 => Ok(CommandField::CStoreRq),
             0x8001 => Ok(CommandField::CStoreRsp),
             0x0010 => Ok(CommandField::CGetRq),
@@ -66,7 +69,9 @@ impl TryFrom<u32> for CommandField {
     }
 }
 
-/// Values of the `Priorty` (0000,0700) field of messages.
+/// Values of the `Priority` (0000,0700) field of messages.
+///
+/// See Part 7, Appendix E.
 #[repr(u32)]
 pub enum Priority {
     Low = 0x0002,
@@ -90,9 +95,13 @@ impl TryFrom<u32> for Priority {
 /// Sentinel value of `CommandDataSetType` (0000,0800) to indicate that there is no Data Set
 /// present in the message. Any other value in `CommandDataSetType` indicates a Data Set is present
 /// in the message.
+///
+/// See Part 7, Appendix E.
 pub const COMMAND_DATASET_TYPE_NONE: u32 = 0x0101;
 
 /// Values of the `Status` (0000,0900) field of messages.
+///
+/// See Part 7, Appendix C.
 pub enum Status {
     Success,
     Warning(u32),

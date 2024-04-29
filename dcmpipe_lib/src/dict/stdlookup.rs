@@ -1,10 +1,6 @@
-use crate::defn::dcmdict::DicomDictionary;
-use crate::defn::tag::TagRef;
-use crate::defn::ts::TSRef;
-use crate::defn::uid::UIDRef;
-
-use crate::dict::lookup::{
-    TAG_BY_IDENT, TAG_BY_VALUE, TS_BY_IDENT, TS_BY_UID, UID_BY_IDENT, UID_BY_UID,
+use crate::{
+    core::defn::{dcmdict::DicomDictionary, tag::TagRef, ts::TSRef, uid::UIDRef},
+    dict::lookup::{TAG_BY_IDENT, TAG_BY_VALUE, TS_BY_IDENT, TS_BY_UID, UID_BY_IDENT, UID_BY_UID},
 };
 
 /// The Standard DICOM Dictionary

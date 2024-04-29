@@ -2,16 +2,20 @@
 
 use std::io::Read;
 
-use super::behavior::ParseBehavior;
-use super::parser::Parser;
-use super::parser::ParserState;
-use crate::core::charset::DEFAULT_CHARACTER_SET;
-use crate::core::read::ds::dataset::Dataset;
-use crate::core::read::stop::ParseStop;
-use crate::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
-use crate::defn::constants::ts;
-use crate::defn::dcmdict::DicomDictionary;
-use crate::defn::ts::TSRef;
+use super::{
+    behavior::ParseBehavior,
+    parser::{Parser, ParserState},
+};
+
+use crate::core::{
+    charset::DEFAULT_CHARACTER_SET,
+    defn::{
+        constants::{lookup::MINIMAL_DICOM_DICTIONARY, ts},
+        dcmdict::DicomDictionary,
+        ts::TSRef,
+    },
+    read::{ds::dataset::Dataset, stop::ParseStop},
+};
 
 /// A builder for constructing a `Parser`.
 #[derive(Debug)]

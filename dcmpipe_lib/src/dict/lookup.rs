@@ -2,13 +2,8 @@
 
 #![allow(clippy::unreadable_literal)]
 
-use crate::defn::tag::TagRef;
-use crate::defn::ts::TSRef;
-use crate::defn::uid::UIDRef;
-
-use crate::dict::tags;
-use crate::dict::transfer_syntaxes as ts;
-use crate::dict::uids;
+use crate::core::defn::{tag::TagRef, ts::TSRef, uid::UIDRef};
+use crate::dict::{tags, transfer_syntaxes as ts, uids};
 
 pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ::phf::Map {
     key: 12913932095322966823,

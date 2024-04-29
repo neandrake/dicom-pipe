@@ -1,21 +1,27 @@
 //! DICOM Object, an in-memory tree-like structure representing a DICOM dataset.
 
-use std::collections::btree_map;
-use std::collections::BTreeMap;
-use std::fmt;
-use std::io::Read;
+use std::{
+    collections::{btree_map, BTreeMap},
+    fmt,
+    io::Read,
+};
 
-use crate::core::charset::CSRef;
-use crate::core::dcmelement::DicomElement;
-use crate::defn::constants::tags;
-use crate::defn::dcmdict::DicomDictionary;
-use crate::defn::tag::{TagNode, TagPath};
-use crate::defn::ts::TSRef;
-use crate::defn::vl::ValueLength;
+use crate::core::{
+    charset::CSRef,
+    dcmelement::DicomElement,
+    defn::{
+        constants::tags,
+        dcmdict::DicomDictionary,
+        tag::{TagNode, TagPath},
+        ts::TSRef,
+        vl::ValueLength,
+    },
+};
 
-use super::read::ParseError;
-use super::read::Parser;
-use super::write::error::WriteError;
+use super::{
+    read::{ParseError, Parser},
+    write::error::WriteError,
+};
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.

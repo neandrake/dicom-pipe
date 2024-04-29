@@ -1,13 +1,13 @@
 use std::io::{ErrorKind, Read};
 
-use crate::{
-    core::read::{error::ParseError, ParseResult},
+use crate::core::{
     defn::{
         constants::tags,
         ts::TSRef,
         vl::{self, ValueLength},
         vr::{self, VRRef, VR},
     },
+    read::{error::ParseError, ParseResult},
 };
 
 /// Whether the element is a non-standard parent-able element. These are non-SQ, non-ITEM elements

@@ -3,13 +3,11 @@
 
 use std::{iter::once, mem::size_of};
 
-use crate::{
-    core::{
-        dcmelement::DicomElement,
-        read::{ParseError, ParseResult},
-        values::{Attribute, RawValue},
-    },
+use crate::core::{
+    dcmelement::DicomElement,
     defn::vr::{CS_SEPARATOR, CS_SEPARATOR_BYTE},
+    read::{ParseError, ParseResult},
+    values::{Attribute, RawValue},
 };
 
 /// Encodes a RawValue into the binary data for the given element, based on the element's currently

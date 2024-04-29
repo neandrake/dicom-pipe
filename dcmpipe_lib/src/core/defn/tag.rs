@@ -1,15 +1,13 @@
 //! DICOM Data Element (Tag)
 
-use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
+use std::{
+    fmt::{Debug, Display, Formatter},
+    hash::{Hash, Hasher},
+};
 
-use crate::core::dcmsqelem::SequenceElement;
-use crate::core::read::ParseError;
-use crate::defn::vm::VMRef;
-use crate::defn::vr::VRRef;
+use crate::core::{dcmsqelem::SequenceElement, read::ParseError};
 
-use super::constants::tags;
-use super::dcmdict::DicomDictionary;
+use super::{constants::tags, dcmdict::DicomDictionary, vm::VMRef, vr::VRRef};
 
 pub type TagRef = &'static Tag;
 

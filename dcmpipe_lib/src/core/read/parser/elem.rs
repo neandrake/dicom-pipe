@@ -5,18 +5,16 @@
 
 use std::io::Read;
 
-use crate::{
-    core::{
-        charset::CSRef,
-        dcmelement::DicomElement,
-        dcmsqelem::SequenceElement,
-        read::parser::{ParseResult, Parser},
-    },
+use crate::core::{
+    charset::CSRef,
+    dcmelement::DicomElement,
+    dcmsqelem::SequenceElement,
     defn::{
         constants::{tags, ts},
         ts::TSRef,
         vl::ValueLength,
     },
+    read::parser::{ParseResult, Parser},
 };
 
 impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {

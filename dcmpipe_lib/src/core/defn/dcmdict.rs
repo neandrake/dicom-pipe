@@ -1,8 +1,4 @@
-use core::fmt;
-
-use crate::defn::tag::TagRef;
-use crate::defn::ts::TSRef;
-use crate::defn::uid::UIDRef;
+use super::{tag::TagRef, ts::TSRef, uid::UIDRef};
 
 /// A DICOM dictionary enables looking up transer syntaxes, tags, and uids by
 /// their name or number (as defined in the standard), or by their UID.
@@ -23,8 +19,8 @@ pub trait DicomDictionary {
     fn get_uid_by_uid(&self, uid: &str) -> Option<UIDRef>;
 }
 
-impl fmt::Debug for dyn DicomDictionary + '_ {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl core::fmt::Debug for dyn DicomDictionary + '_ {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "<DicomDictionary>")
     }
 }

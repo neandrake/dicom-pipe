@@ -1,15 +1,15 @@
-use std::fmt;
-use std::fs::File;
-use std::iter::Peekable;
-use std::path::Path;
+use std::{fmt, fs::File, iter::Peekable, path::Path};
 
 use anyhow::{anyhow, Result};
-use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::read::{ParseError, Parser, ParserBuilder};
-use dcmpipe_lib::core::RawValue;
-use dcmpipe_lib::defn::dcmdict::DicomDictionary;
-use dcmpipe_lib::defn::tag::Tag;
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_lib::{
+    core::{
+        dcmelement::DicomElement,
+        defn::{dcmdict::DicomDictionary, tag::Tag},
+        read::{ParseError, Parser, ParserBuilder},
+        RawValue,
+    },
+    dict::stdlookup::STANDARD_DICOM_DICTIONARY,
+};
 
 pub(crate) mod archiveapp;
 pub(crate) mod browseapp;

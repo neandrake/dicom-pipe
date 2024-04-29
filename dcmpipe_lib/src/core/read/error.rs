@@ -1,12 +1,10 @@
 //! Errors that can occur during parsing of a DICOM dataset.
 
-use crate::{
-    core::{
-        charset::{CSError, CSRef},
-        dcmelement::DicomElement,
-        DICOM_PREFIX_LENGTH,
-    },
+use crate::core::{
+    charset::{CSError, CSRef},
+    dcmelement::DicomElement,
     defn::{dcmdict::DicomDictionary, tag::TagPath, vr::VRRef},
+    DICOM_PREFIX_LENGTH,
 };
 
 use thiserror::Error;

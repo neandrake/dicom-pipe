@@ -1,21 +1,19 @@
 use std::io::Write;
 
-use crate::{
-    core::{
-        charset::CSRef,
-        dcmelement::DicomElement,
-        dcmobject::DicomRoot,
-        read::ParseError,
-        values::RawValue,
-        write::{ds::dataset::Dataset, error::WriteError},
-        DICOM_PREFIX, FILE_PREAMBLE_LENGTH,
-    },
+use crate::core::{
+    charset::CSRef,
+    dcmelement::DicomElement,
+    dcmobject::DicomRoot,
     defn::{
         constants::{tags, ts},
         ts::TSRef,
         vl::{ValueLength, UNDEFINED_LENGTH},
         vr::{self, VRRef},
     },
+    read::ParseError,
+    values::RawValue,
+    write::{ds::dataset::Dataset, error::WriteError},
+    DICOM_PREFIX, FILE_PREAMBLE_LENGTH,
 };
 
 pub type WriteResult<T> = core::result::Result<T, WriteError>;

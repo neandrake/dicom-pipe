@@ -1,38 +1,48 @@
 //! The browse command opens a TUI for navigating through a DICOM data set.
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::{stdout, Stdout};
-use std::ops::Sub;
-use std::path::Path;
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{stdout, Stdout},
+    ops::Sub,
+    path::Path,
+    time::Duration,
+};
 
 use anyhow::{anyhow, Result};
 
-use crossterm::event::{self, Event::Key, Event::Mouse, KeyCode::Char};
-use crossterm::event::{
-    DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
-    MouseButton, MouseEvent, MouseEventKind,
+use crossterm::{
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture,
+        Event::Key,
+        Event::Mouse,
+        KeyCode::{self, Char},
+        KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    },
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use crossterm::execute;
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+use dcmpipe_lib::{
+    core::{
+        dcmobject::{DicomObject, DicomRoot},
+        defn::{
+            constants,
+            tag::{Tag, TagNode, TagPath},
+        },
+        read::Parser,
+    },
+    dict::stdlookup::STANDARD_DICOM_DICTIONARY,
 };
-use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::Parser;
-use dcmpipe_lib::defn::constants;
-use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Alignment, Constraint, Layout};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::block::Title;
-use ratatui::widgets::{Block, Borders, Cell, Row, Table, TableState};
-use ratatui::{Frame, Terminal};
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Alignment, Constraint, Layout},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{block::Title, Block, Borders, Cell, Row, Table, TableState},
+    Frame, Terminal,
+};
 
-use crate::app::CommandApplication;
-use crate::args::BrowseArgs;
+use crate::{app::CommandApplication, args::BrowseArgs};
 
 use super::{ElementWithLineFmt, TagCategory, TagValue};
 

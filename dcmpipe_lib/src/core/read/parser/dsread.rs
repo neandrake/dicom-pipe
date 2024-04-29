@@ -12,24 +12,22 @@
 
 use std::io::{ErrorKind, Read};
 
-use crate::{
-    core::{
-        charset::CSRef,
-        dcmelement::DicomElement,
-        dcmsqelem::SequenceElement,
-        read::{
-            self,
-            parser::{ParseResult, Parser},
-            util::is_non_standard_seq,
-            ParseError,
-        },
-    },
+use crate::core::{
+    charset::CSRef,
+    dcmelement::DicomElement,
+    dcmsqelem::SequenceElement,
     defn::{
         constants::{tags, ts},
         tag::Tag,
         ts::TSRef,
         vl::ValueLength,
         vr::{self, VRRef},
+    },
+    read::{
+        self,
+        parser::{ParseResult, Parser},
+        util::is_non_standard_seq,
+        ParseError,
     },
 };
 

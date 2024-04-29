@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use crate::{
-    core::charset::CSRef,
-    core::{charset::DEFAULT_CHARACTER_SET, FILE_PREAMBLE_LENGTH},
+use crate::core::{
+    charset::{CSRef, DEFAULT_CHARACTER_SET},
     defn::{constants::ts, ts::TSRef},
+    FILE_PREAMBLE_LENGTH,
 };
 
 use super::{

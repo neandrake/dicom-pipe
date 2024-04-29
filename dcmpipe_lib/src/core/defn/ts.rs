@@ -2,7 +2,7 @@
 
 use std::hash::{Hash, Hasher};
 
-use crate::defn::uid::UIDRef;
+use super::uid::UIDRef;
 
 pub type TSRef = &'static TransferSyntax;
 

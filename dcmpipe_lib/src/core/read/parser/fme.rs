@@ -6,15 +6,13 @@
 
 use std::io::Read;
 
-use crate::{
-    core::{
-        dcmelement::DicomElement,
-        read::parser::{
-            ParseError, ParseResult, Parser, ParserState, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
-            FILE_PREAMBLE_LENGTH,
-        },
-    },
+use crate::core::{
+    dcmelement::DicomElement,
     defn::{constants::tags, ts::TSRef},
+    read::parser::{
+        ParseError, ParseResult, Parser, ParserState, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
+        FILE_PREAMBLE_LENGTH,
+    },
 };
 
 impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {

@@ -1,25 +1,29 @@
-use std::collections::HashMap;
-use std::fs::File;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    fs::File,
+    path::{Path, PathBuf},
+};
 
-use bson::oid::ObjectId;
-use bson::spec::BinarySubtype;
-use bson::{doc, Array, Binary, Bson, Document};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Array, Binary, Bson, Document};
 use mongodb::sync::{Client, Collection, Cursor, Database};
 use walkdir::WalkDir;
 
 use anyhow::{anyhow, Context, Result};
-use dcmpipe_lib::core::dcmelement::DicomElement;
-use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
-use dcmpipe_lib::core::read::stop::ParseStop;
-use dcmpipe_lib::core::read::{Parser, ParserBuilder};
-use dcmpipe_lib::core::RawValue;
-use dcmpipe_lib::defn::tag::Tag;
-use dcmpipe_lib::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::dict::tags;
+use dcmpipe_lib::{
+    core::{
+        dcmelement::DicomElement,
+        dcmobject::{DicomObject, DicomRoot},
+        defn::tag::Tag,
+        read::{stop::ParseStop, Parser, ParserBuilder},
+        RawValue,
+    },
+    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, tags},
+};
 
-use crate::app::CommandApplication;
-use crate::args::{IndexArgs, IndexCommand};
+use crate::{
+    app::CommandApplication,
+    args::{IndexArgs, IndexCommand},
+};
 
 static SERIES_UID_KEY: &str = "0020000E";
 static SOP_UID_KEY: &str = "00080018";

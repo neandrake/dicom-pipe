@@ -24,7 +24,7 @@ pub mod tags {
 pub mod ts {
     #![allow(non_upper_case_globals)]
 
-    use crate::defn::ts::TransferSyntax;
+    use crate::core::defn::ts::TransferSyntax;
 
     /// Implicit VR Little Endian: Default Transfer Syntax for DICOM
     ///
@@ -45,17 +45,6 @@ pub mod ts {
         explicit_vr: true,
         big_endian: false,
         deflated: false,
-        encapsulated: false,
-    };
-
-    /// Deflated Explicit VR Little Endian
-    ///
-    /// - **UID:** 1.2.840.10008.1.2.1.99
-    pub static DeflatedExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
-        uid: &super::uids::DeflatedExplicitVRLittleEndian,
-        explicit_vr: true,
-        big_endian: false,
-        deflated: true,
         encapsulated: false,
     };
 
@@ -80,13 +69,24 @@ pub mod ts {
         deflated: false,
         encapsulated: false,
     };
+
+    /// Deflated Explicit VR Little Endian
+    ///
+    /// - **UID:** 1.2.840.10008.1.2.1.99
+    pub static DeflatedExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
+        uid: &super::uids::DeflatedExplicitVRLittleEndian,
+        explicit_vr: true,
+        big_endian: false,
+        deflated: true,
+        encapsulated: false,
+    };
 }
 
 /// The minimal set of UIDs needed when parsing a DICOM dataset.
 pub mod uids {
     #![allow(non_upper_case_globals)]
 
-    use crate::defn::uid::UID;
+    use crate::core::defn::uid::UID;
 
     /// Implicit VR Little Endian: Default Transfer Syntax for DICOM
     ///
@@ -141,13 +141,9 @@ pub mod uids {
 
 /// The transfer syntax lookup for parsing a DICOM dataset.
 pub mod lookup {
-    use crate::defn::dcmdict::DicomDictionary;
-    use crate::defn::tag::TagRef;
-    use crate::defn::ts::TSRef;
-    use crate::defn::uid::UIDRef;
+    use crate::core::defn::{dcmdict::DicomDictionary, tag::TagRef, ts::TSRef, uid::UIDRef};
 
-    use super::ts;
-    use super::uids;
+    use super::{ts, uids};
 
     /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
     /// minimal set of `get_ts_by_uid`, all other functions return `None`.

@@ -3,16 +3,14 @@
 
 use std::{any::type_name, fmt::Display, mem::size_of, str::FromStr};
 
-use crate::{
-    core::{
-        dcmelement::DicomElement,
-        read::{ParseError, ParseResult},
-        values::{Attribute, BytesWithoutPadding, ElementWithVr, RawValue},
-    },
+use crate::core::{
+    dcmelement::DicomElement,
     defn::{
         tag::Tag,
         vr::{self, VRRef, CS_SEPARATOR},
     },
+    read::{ParseError, ParseResult},
+    values::{Attribute, BytesWithoutPadding, ElementWithVr, RawValue},
 };
 
 use super::error::ParseErrorInfo;

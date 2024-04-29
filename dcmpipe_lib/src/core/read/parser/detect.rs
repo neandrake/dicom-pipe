@@ -13,16 +13,16 @@
 
 use std::io::{Cursor, Read};
 
-use crate::{
-    core::read::{
-        self,
-        parser::{ParseError, ParseResult, Parser, ParserState, FILE_PREAMBLE_LENGTH},
-    },
+use crate::core::{
     defn::{
         constants::{tags, ts},
         ts::TSRef,
         vl::ValueLength,
         vr::{self, VRRef},
+    },
+    read::{
+        self,
+        parser::{ParseError, ParseResult, Parser, ParserState, FILE_PREAMBLE_LENGTH},
     },
 };
 

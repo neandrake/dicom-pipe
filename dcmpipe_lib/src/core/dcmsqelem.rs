@@ -1,9 +1,9 @@
 use std::fmt::{Debug, Display, Formatter};
 
-use crate::core::charset::CSRef;
-use crate::defn::tag::TagNode;
-use crate::defn::vl::ValueLength;
-use crate::defn::vr::VRRef;
+use crate::core::{
+    charset::CSRef,
+    defn::{tag::TagNode, vl::ValueLength, vr::VRRef},
+};
 
 /// Represents the sequence/item position of an element.
 /// For elements to track which sequence they are a part of. When an SQ element is parsed the parser

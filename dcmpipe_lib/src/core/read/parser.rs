@@ -1,13 +1,9 @@
 use std::{convert::TryFrom, io::Read, iter::once};
 
-use crate::{
-    core::{
-        charset::{self, CSRef},
-        dcmelement::DicomElement,
-        dcmsqelem::SequenceElement,
-        read::{behavior::ParseBehavior, ds::dataset::Dataset, error::ParseError, stop::ParseStop},
-        DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
-    },
+use crate::core::{
+    charset::{self, CSRef},
+    dcmelement::DicomElement,
+    dcmsqelem::SequenceElement,
     defn::{
         constants::tags,
         dcmdict::DicomDictionary,
@@ -16,6 +12,8 @@ use crate::{
         vl::ValueLength,
         vr::VRRef,
     },
+    read::{behavior::ParseBehavior, ds::dataset::Dataset, error::ParseError, stop::ParseStop},
+    DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 
 mod detect;

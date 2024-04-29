@@ -11,13 +11,8 @@ static LOOKUP_PREAMBLE: &str = "//! This is an auto-generated file. Do not make 
 
 #![allow(clippy::unreadable_literal)]
 
-use crate::defn::tag::TagRef;
-use crate::defn::ts::TSRef;
-use crate::defn::uid::UIDRef;
-
-use crate::dict::tags;
-use crate::dict::transfer_syntaxes as ts;
-use crate::dict::uids;
+use crate::core::defn::{tag::TagRef, ts::TSRef, uid::UIDRef};
+use crate::dict::{tags, transfer_syntaxes as ts, uids};
 
 ";
 
@@ -26,9 +21,7 @@ static DICOM_ELEMENT_PREAMBLE: &str =
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::tag::Tag;
-use crate::defn::vm::VM;
-use crate::defn::vr;
+use crate::core::defn::{tag::Tag, vm::VM, vr};
 
 ";
 
@@ -37,8 +30,7 @@ static TRANSFER_SYNTAX_PREAMBLE: &str =
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::ts::TransferSyntax;
-
+use crate::core::defn::ts::TransferSyntax;
 use crate::dict::uids;
 
 ";
@@ -47,7 +39,7 @@ static UID_PREAMBLE: &str = "//! This is an auto-generated file. Do not make mod
 
 #![allow(non_upper_case_globals)]
 
-use crate::defn::uid::UID;
+use crate::core::defn::uid::UID;
 
 ";
 
