@@ -409,11 +409,11 @@ impl TryFrom<&DicomElement> for RawValue {
     type Error = ParseError;
 
     /// Based on the VR of this element, parses the binary data into a RawValue.
-    /// Note that not all RawValue variants can be returned. There is only one
-    /// way to encode floats as strings which is VR of DS, which will always return
-    /// a Vec<f64> instead of Vec<f32>. There is only one way to encode unsigned
-    /// shorts which is VR of UL, which will always return a Vec<u32> instead of
-    /// Vec<u16>.
+    ///
+    /// Note that not all RawValue variants can be returned. There is only one way to encode floats
+    /// as strings which is VR of DS, which will always return a `Vec<f64>` instead of `Vec<f32>`.
+    /// There is only one way to encode unsigned shorts which is VR of UL, which will always return
+    /// a `Vec<u32>` instead of `Vec<u16>`.
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr == &vr::AT {
             let attr: Attribute = Attribute::try_from(value)?;

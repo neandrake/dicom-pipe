@@ -1148,6 +1148,8 @@ pub static UN: VR = VR {
 ///
 /// ## Length of Value
 /// 2^32 - 2 bytes maximum
+///
+/// [RFC3986]: https://datatracker.ietf.org/doc/html/rfc3986
 pub static UR: VR = VR {
     ident: "UR",
     name: "Universal Resource Identifier / Universal Resource Locator",
