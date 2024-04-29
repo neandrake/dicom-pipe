@@ -100,7 +100,74 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
     let mut file: File = File::open(file_path)?;
     file.read_to_end(&mut file_bytes)?;
 
-    assert_eq!(written_bytes, file_bytes);
+    assert_byte_chunks(&written_bytes, &file_bytes);
 
     Ok(())
+}
+
+
+#[test]
+pub fn test_reencoded_values() -> Result<(), WriteError> {
+    let file_path: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
+    let file: File = File::open(file_path)?;
+    let mut parser = ParserBuilder::default()
+        .dictionary(&STANDARD_DICOM_DICTIONARY)
+        .build(file);
+
+    while let Some(Ok(mut elem)) = parser.next() {
+        let data = elem.get_data().clone();
+        let value = elem.parse_value()?;
+        elem.encode_value(value, Some(elem.get_vl()))?;
+        let reencoded_data = elem.get_data().clone();
+
+        assert_eq!(reencoded_data, data, "Element did not re-encode the same: {:?}", elem);
+    }
+
+    Ok(())
+}
+
+#[test]
+pub fn test_write_reencoded_values() -> Result<(), WriteError> {
+    let file_path: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
+    let file: File = File::open(file_path)?;
+    let file_size = file.metadata()?.len();
+    let mut parser = ParserBuilder::default()
+        .dictionary(&STANDARD_DICOM_DICTIONARY)
+        .build(file);
+
+    let mut elements: Vec<DicomElement> = Vec::new();
+    while let Some(Ok(mut elem)) = parser.next() {
+        let value = elem.parse_value()?;
+        elem.encode_value(value, Some(elem.get_vl()))?;
+        elements.push(elem);
+    }
+
+    let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
+    writer.write_elements(elements.iter())?;
+    let written_bytes = writer.into_dataset()?;
+
+    // Read all bytes into memory.
+    let mut file_bytes: Vec<u8> = Vec::with_capacity(file_size as usize);
+    let mut file: File = File::open(file_path)?;
+    file.read_to_end(&mut file_bytes)?;
+
+    assert_byte_chunks(&written_bytes, &file_bytes);
+
+    Ok(())
+}
+
+fn assert_byte_chunks(written_bytes: &Vec<u8>, file_bytes: &Vec<u8>) {
+    let chunk_size = 0x1000;
+    let written_chunks = written_bytes
+        .chunks(chunk_size)
+        .map(|v| v.to_vec())
+        .collect::<Vec<Vec<u8>>>();
+    let file_chunks = file_bytes
+        .chunks(chunk_size)
+        .map(|v| v.to_vec())
+        .collect::<Vec<Vec<u8>>>();
+
+    for i in 0..written_chunks.len() {
+        assert_eq!(written_chunks.get(i).unwrap(), file_chunks.get(i).unwrap(), "chunk mismatch: {}", i);
+    }
 }

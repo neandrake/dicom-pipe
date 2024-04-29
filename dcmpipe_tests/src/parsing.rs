@@ -1425,7 +1425,7 @@ fn test_empty_string_parsed_as_number(with_std: bool) -> Result<()> {
     if let RawValue::Doubles(vals) = value {
         assert!(vals.is_empty());
     } else {
-        panic!("PatientsWeight should parse as a list of doubles");
+        panic!("PatientsWeight should parse as a list of doubles but was {:?}", value);
     }
 
     Ok(())

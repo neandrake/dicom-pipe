@@ -84,7 +84,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
     pub fn create_element(&self, tag: u32, vr: VRRef, value: RawValue) -> Result<DicomElement> {
         let mut e = DicomElement::new_empty(tag, vr, self.ts);
-        e.encode_value(value)?;
+        e.encode_value(value, None)?;
         Ok(e)
     }
 
@@ -180,7 +180,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let mut element = DicomElement::new_empty(tag, vr, &ts::ExplicitVRLittleEndian);
 
         element
-            .encode_value(value)
+            .encode_value(value, None)
             .map_err(<ParseError as Into<WriteError>>::into)?;
 
         Ok(element)

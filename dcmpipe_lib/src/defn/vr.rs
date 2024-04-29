@@ -6,7 +6,10 @@ use std::hash::{Hash, Hasher};
 use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 
 /// The BACKSLASH used to delimit multi-value character string values, `\`
-pub const CHARACTER_STRING_SEPARATOR: char = 0x5C as char;
+pub const CS_SEPARATOR_BYTE: u8 = 0x5C;
+
+/// The BACKSLASH used to delimit multi-value character string values, `\`
+pub const CS_SEPARATOR: char = CS_SEPARATOR_BYTE as char;
 
 /// The SPACE character used for padding
 pub const SPACE_PADDING: u8 = 0x20;
