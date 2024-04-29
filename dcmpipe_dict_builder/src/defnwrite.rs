@@ -298,6 +298,9 @@ fn process_transfer_syntax(
     ident_lookup: &mut phf_codegen::Map<String>,
     id_lookup: &mut phf_codegen::Map<String>,
 ) -> Option<String> {
+    let name_text: String = sanitize_text(&uid.name);
+    let uid_text: String = sanitize_text(&uid.value);
+
     let var_name: String = sanitize_var_name(&uid.name);
     if var_name.is_empty() {
         return None;
@@ -339,15 +342,17 @@ fn process_transfer_syntax(
     .to_owned();
 
     let code: String = transfer_syntax_definition!(
-        uid.name,
-        uid.value,
-        var_name, // comment placeholders
+        // comment placeholders
+        name_text,
+        uid_text,
+        var_name,
+        // field placeholders
         var_uid,
         explicit_vr_val,
         big_endian_val,
         deflated_val,
         encapsulated_val
-    ); // field placeholders
+    );
     let var_name_key: String = var_name.clone();
     ident_lookup.entry(var_name_key, &format!("&ts::{}", var_name));
     let id_val_lookup: String = uid.value.clone();
@@ -445,6 +450,8 @@ fn sanitize_var_name(var_name: &str) -> String {
     let mut sanitized: String = var_name
         .replace("(Retired)", "")
         .replace("(Trial)", "_Trial")
+        // see comment on sanitize_text()
+        .replace("\u{200b}", "")
         .replace([' ', '\'', '-', ',', '(', ')', '.', '/', '[', ']'], "")
         .replace('\"', "_")
         .replace('&', "_and_")
@@ -504,4 +511,10 @@ fn sanitize_var_name(var_name: &str) -> String {
         }
     }
     sanitized
+}
+
+/// Sanitizes text from the XML definition file. The definition file has a
+/// number of zero-width space unicode characters strewn throughout.
+fn sanitize_text(text: &str) -> String {
+    text.replace("\u{200b}", "")
 }

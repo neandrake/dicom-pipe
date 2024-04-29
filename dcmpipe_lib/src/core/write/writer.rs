@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::core::charset::{self, CSRef};
-use crate::core::dcmelement::DicomElement;
+use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
+use crate::core::dcmelement::{DicomElement, RawValue};
 use crate::core::dcmsqelem::SequenceElement;
 use crate::core::write::ds::dataset::Dataset;
 use crate::core::write::error::WriteError;
@@ -71,6 +71,30 @@ impl<DatasetType: Write> Writer<DatasetType> {
         }
 
         Ok(bytes_written)
+    }
+
+    pub fn write_file_meta(&mut self) -> Result<usize> {
+        let mut bytes_written: usize = 0;
+
+        let fme_length: u32 = 0;
+        let group_len_element: DicomElement = self.new_fme(
+            tags::FILE_META_INFORMATION_GROUP_LENGTH, &vr::UL,
+            RawValue::UnsignedIntegers(vec![fme_length]));
+
+        bytes_written += self.write_element(&group_len_element)?;
+
+        Ok(bytes_written)
+    }
+
+    fn new_fme(&self, tag: u32, vr: VRRef, value: RawValue) -> DicomElement {
+        let mut element = DicomElement::new(tag, vr,
+                          ValueLength::UndefinedLength,
+                          &ts::ExplicitVRLittleEndian, DEFAULT_CHARACTER_SET,
+                          Vec::with_capacity(0), Vec::with_capacity(0));
+
+        element.encode_value(value);
+
+        element
     }
 
     pub fn write_element(&mut self, element: &DicomElement) -> Result<usize> {

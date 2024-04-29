@@ -819,7 +819,9 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
-            if tag > tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
+            if tag > tags::FILE_META_INFORMATION_GROUP_LENGTH &&
+                tag < tags::FILE_META_GROUP_END {
+
                 self.state = ParseState::FileMeta;
             } else {
                 self.state = ParseState::Element;

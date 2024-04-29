@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::iter::once;
 
-use encoding::types::DecoderTrap;
+use encoding::types::{DecoderTrap, EncoderTrap};
 
 use crate::core::charset::CSRef;
 use crate::core::dcmsqelem::SequenceElement;
@@ -136,100 +136,165 @@ impl DicomElement {
 
     /// Parses this element's data into native/raw value type
     pub fn parse_value(&self) -> Result<RawValue> {
-        if self.vr == &vr::AT {
-            let attr: Attribute = Attribute::try_from(self)?;
+        RawValue::try_from(self)
+    }
+
+    pub fn encode_value(&mut self, value: RawValue) -> Result<()> {
+        let bytes: Vec<u8> = match value {
+            RawValue::Attribute(Attribute(attr)) => {
+                let mut bytes: Vec<u8> = Vec::with_capacity(4);
+                let group_number: u16 = ((attr >> 16) | 0xFF) as u16;
+                let elem_number: u16 = (attr | 0xFF) as u16;
+                if self.ts.is_big_endian() {
+                    bytes[0..2].copy_from_slice(&group_number.to_be_bytes());
+                    bytes[2..4].copy_from_slice(&elem_number.to_be_bytes());
+                } else {
+                    bytes[0..2].copy_from_slice(&group_number.to_le_bytes());
+                    bytes[2..4].copy_from_slice(&elem_number.to_le_bytes());
+                }
+                bytes
+            },
+            RawValue::Uid(uid) => {
+                self.cs.encode(&uid, EncoderTrap::Strict)
+                    .map_err(|e: Cow<'static, str>| error(e.as_ref(), &self))?
+            },
+            RawValue::Strings(strings) => {
+                let (values, errs): (Vec<Result<Vec<u8>>>, Vec<Result<Vec<u8>>>) = strings.iter()
+                    .map(|s| self.cs.encode(s, EncoderTrap::Strict)
+                         .map_err(|e: Cow<'static, str>| error(e.as_ref(), &self)))
+                    .partition(Result::is_ok);
+
+                if let Some(Err(e)) = errs.into_iter().last() {
+                    return Err(e);
+                }
+
+                // TODO: This needs separator between Vec<u8> before collecting
+                values.into_iter().map(Result::unwrap).flatten().collect::<Vec<u8>>()
+            },
+            RawValue::Doubles(doubles) => {
+                vec![]
+            },
+            RawValue::Shorts(shorts) => {
+                vec![]
+            },
+            RawValue::Integers(ints) => {
+                vec![]
+            },
+            RawValue::UnsignedIntegers(uints) => {
+                vec![]
+            },
+            RawValue::Bytes(bytes) => {
+                vec![]
+            },
+        };
+
+        self.data = bytes;
+        self.vl = ValueLength::Explicit(
+            self.data.len().try_into()
+            .map_err(|e: std::num::TryFromIntError| error(&e.to_string(), &self))?);
+
+        Ok(())
+    }
+}
+
+impl TryFrom<&DicomElement> for RawValue {
+    type Error = ParseError;
+
+    fn try_from(value: &DicomElement) -> Result<Self> {
+        if value.vr == &vr::AT {
+            let attr: Attribute = Attribute::try_from(value)?;
             Ok(RawValue::Attribute(attr))
-        } else if self.vr == &vr::UI {
-            let uid: String = String::try_from(self)?;
+        } else if value.vr == &vr::UI {
+            let uid: String = String::try_from(value)?;
             Ok(RawValue::Uid(uid))
-        } else if self.vr == &vr::DS {
-            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(self);
+        } else if value.vr == &vr::DS {
+            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(value);
             if let Ok(doubles) = parsed {
                 Ok(RawValue::Doubles(doubles))
             } else {
-                let parsed: Vec<String> = Vec::<String>::try_from(self)?;
+                let parsed: Vec<String> = Vec::<String>::try_from(value)?;
                 Ok(RawValue::Strings(parsed))
             }
-        } else if self.vr == &vr::IS {
-            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(self);
+        } else if value.vr == &vr::IS {
+            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(value);
             if let Ok(doubles) = parsed {
                 let ints: Vec<i32> = doubles.into_iter().map(|v| v as i32).collect::<Vec<i32>>();
                 Ok(RawValue::Integers(ints))
             } else {
-                let parsed: Vec<String> = Vec::<String>::try_from(self)?;
+                let parsed: Vec<String> = Vec::<String>::try_from(value)?;
                 Ok(RawValue::Strings(parsed))
             }
-        } else if self.vr.is_character_string {
-            let strings: Vec<String> = Vec::<String>::try_from(self)?;
+        } else if value.vr.is_character_string {
+            let strings: Vec<String> = Vec::<String>::try_from(value)?;
             Ok(RawValue::Strings(strings))
-        } else if self.vr == &vr::FD
-            || self.vr == &vr::OF
-            || self.vr == &vr::OD
-            || self.vr == &vr::FL
+        } else if value.vr == &vr::FD
+            || value.vr == &vr::OF
+            || value.vr == &vr::OD
+            || value.vr == &vr::FL
         {
-            let doubles: Vec<f64> = match self.vl {
+            let doubles: Vec<f64> = match value.vl {
                 ValueLength::Explicit(len)
-                    if (self.vr == &vr::OD || self.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
+                    if (value.vr == &vr::OD || value.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
                 {
-                    Vec::<f64>::try_from(self)?
+                    Vec::<f64>::try_from(value)?
                 }
                 ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => {
-                    Vec::<f32>::try_from(self)?
+                    Vec::<f32>::try_from(value)?
                         .into_iter()
                         .map(f64::from)
                         .collect::<Vec<f64>>()
                 }
-                ValueLength::Explicit(1) => vec![f64::from(self.get_data()[0])],
+                ValueLength::Explicit(1) => vec![f64::from(value.get_data()[0])],
                 _ => vec![],
             };
             Ok(RawValue::Doubles(doubles))
-        } else if self.vr == &vr::SS {
-            let shorts: Vec<i16> = match self.vl {
+        } else if value.vr == &vr::SS {
+            let shorts: Vec<i16> = match value.vl {
                 ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => {
-                    Vec::<i16>::try_from(self)?
+                    Vec::<i16>::try_from(value)?
                 }
-                ValueLength::Explicit(1) => vec![i16::from(self.get_data()[0])],
+                ValueLength::Explicit(1) => vec![i16::from(value.get_data()[0])],
                 _ => vec![],
             };
             Ok(RawValue::Shorts(shorts))
-        } else if self.vr == &vr::SL {
-            let ints: Vec<i32> = match self.vl {
+        } else if value.vr == &vr::SL {
+            let ints: Vec<i32> = match value.vl {
                 ValueLength::Explicit(len) if len > 0 && len % 4 == 0 => {
-                    Vec::<i32>::try_from(self)?
+                    Vec::<i32>::try_from(value)?
                 }
                 ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => {
-                    Vec::<i16>::try_from(self)?
+                    Vec::<i16>::try_from(value)?
                         .into_iter()
                         .map(i32::from)
                         .collect::<Vec<i32>>()
                 }
-                ValueLength::Explicit(1) => vec![i32::from(self.get_data()[0])],
+                ValueLength::Explicit(1) => vec![i32::from(value.get_data()[0])],
                 _ => vec![],
             };
             Ok(RawValue::Integers(ints))
-        } else if self.vr == &vr::UL
-            || self.vr == &vr::OL
-            || self.vr == &vr::OW
-            || self.vr == &vr::US
+        } else if value.vr == &vr::UL
+            || value.vr == &vr::OL
+            || value.vr == &vr::OW
+            || value.vr == &vr::US
         {
-            let uints: Vec<u32> = match self.vl {
+            let uints: Vec<u32> = match value.vl {
                 ValueLength::Explicit(len)
-                    if (self.vr == &vr::UL || self.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
+                    if (value.vr == &vr::UL || value.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
                 {
-                    Vec::<u32>::try_from(self)?
+                    Vec::<u32>::try_from(value)?
                 }
                 ValueLength::Explicit(len) if len > 0 && len % 2 == 0 => {
-                    Vec::<u16>::try_from(self)?
+                    Vec::<u16>::try_from(value)?
                         .into_iter()
                         .map(u32::from)
                         .collect::<Vec<u32>>()
                 }
-                ValueLength::Explicit(1) => vec![u32::from(self.get_data()[0])],
+                ValueLength::Explicit(1) => vec![u32::from(value.get_data()[0])],
                 _ => vec![],
             };
             Ok(RawValue::UnsignedIntegers(uints))
         } else {
-            let bytes: Vec<u8> = self.get_data().clone();
+            let bytes: Vec<u8> = value.get_data().clone();
             Ok(RawValue::Bytes(bytes))
         }
     }

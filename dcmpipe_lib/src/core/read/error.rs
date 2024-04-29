@@ -45,4 +45,10 @@ pub enum ParseError {
         vr: VRRef,
         bytes: Vec<u8>,
     },
+
+    /// An error occurs when converting RawValue to bytes.
+    #[error("error converting RawValue to bytes: {message}")]
+    RawValueConversionError {
+        message: String,
+    },
 }
