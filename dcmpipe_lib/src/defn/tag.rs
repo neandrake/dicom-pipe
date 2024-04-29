@@ -1,10 +1,13 @@
 //! DICOM Data Element (Tag)
 
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 
+use crate::core::dcmsqelem::SequenceElement;
 use crate::defn::vm::VMRef;
 use crate::defn::vr::VRRef;
+
+use super::constants::tags;
 
 pub type TagRef = &'static Tag;
 
@@ -134,6 +137,15 @@ impl From<&u32> for TagNode {
     }
 }
 
+impl From<&SequenceElement> for TagNode {
+    fn from(element: &SequenceElement) -> Self {
+        TagNode {
+            tag: element.get_seq_tag(),
+            item: element.get_item_number(),
+        }
+    }
+}
+
 /// A `TagPath` is an ordered collection of `TagNode`s. The path specifies a unique traversal into
 /// a DICOM dataset referencing a single DICOM tag/element. Example:
 ///
@@ -148,19 +160,31 @@ impl From<&u32> for TagNode {
 pub struct TagPath(pub Vec<TagNode>);
 
 impl TagPath {
-    pub fn display(&self) -> String {
-        self.0
+    pub fn format_tagpath_to_display(tagpath: &TagPath) -> String {
+        tagpath.0
             .iter()
-            .map(|node| match node.item {
-                None => Tag::format_tag_to_path_display(node.tag),
-                Some(item_num) => format!(
-                    "{}[{}]",
-                    Tag::format_tag_to_path_display(node.tag),
-                    item_num
-                ),
+            // Filter out tags related to items & delimiters as they are markers which are already
+            // contextually conveyed by the item number indicators.
+            .filter(|node| {
+                node.tag != tags::ITEM
+                    && node.tag != tags::ITEM_DELIMITATION_ITEM
+                    && node.tag != tags::SEQUENCE_DELIMITATION_ITEM
+            })
+            .map(|node| {
+                let tag = Tag::format_tag_to_display(node.tag);
+                match node.item {
+                    None => tag,
+                    Some(item_num) => format!("{}[{}]", tag, item_num),
+                }
             })
             .collect::<Vec<String>>()
             .join(".")
+    }
+}
+
+impl Display for TagPath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &TagPath::format_tagpath_to_display(&self))
     }
 }
 
@@ -204,5 +228,37 @@ impl From<&[u32]> for TagPath {
             nodes.push(TagNode::new(tag, item));
         }
         nodes.into()
+    }
+}
+
+impl From<&[&SequenceElement]> for TagPath {
+    fn from(elements: &[&SequenceElement]) -> Self {
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(elements.len());
+        for elem in elements {
+            nodes.push((*elem).into());
+        }
+        nodes.into()
+    }
+}
+
+impl From<&[SequenceElement]> for TagPath {
+    fn from(elements: &[SequenceElement]) -> Self {
+        let mut nodes: Vec<TagNode> = Vec::with_capacity(elements.len());
+        for elem in elements {
+            nodes.push(elem.into());
+        }
+        nodes.into()
+    }
+}
+
+impl From<Vec<SequenceElement>> for TagPath {
+    fn from(elements: Vec<SequenceElement>) -> Self {
+        elements.as_slice().into()
+    }
+}
+
+impl From<&Vec<SequenceElement>> for TagPath {
+    fn from(elements: &Vec<SequenceElement>) -> Self {
+        elements.as_slice().into()
     }
 }

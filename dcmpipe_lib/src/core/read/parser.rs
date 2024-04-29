@@ -11,7 +11,7 @@ use crate::core::read::stop::ParseStop;
 use crate::core::{DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use crate::defn::constants::{tags, ts};
 use crate::defn::dcmdict::DicomDictionary;
-use crate::defn::tag::Tag;
+use crate::defn::tag::{Tag, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef};
@@ -458,11 +458,14 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                         //       original contents of the dataset are retained if needed.
                         ParseError::ExpectedEOF
                     } else {
+                        let mut full_path: TagPath = (&self.current_path).into();
+                        full_path.0.push(tag.into());
                         ParseError::DetailedIOError {
                             source: e,
                             detail: format!(
-                                "reading tag: {}, vl: {}",
-                                Tag::format_tag_to_display(tag),
+                                "reading tag at byte {:#04X}, {}, vl: {}",
+                                self.bytes_read,
+                                full_path,
                                 value_length
                             ),
                         }

@@ -181,7 +181,7 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
                             .collect::<Vec<String>>()
                             .join(".");
                         eprintln!(
-                            "Error parsing DICOM Element:\n\t{}\n\t{}\n\t{}",
+                            "Error parsing DICOM Element:\n\tfile: {}\n\tseq: {}\n\terr: {}",
                             path_str, sq_path, e
                         );
                         Err(e)
@@ -190,7 +190,7 @@ pub fn parse_all_element_values(parser: Parser<'_, File>, path_str: &str) -> Res
                 Ok(())
             }
             Err(e) => {
-                eprintln!("Error parsing DICOM:\n\t{}\n\t{}", path_str, e);
+                eprintln!("Error parsing DICOM:\n\tfile: {}\n\terr: {}", path_str, e);
                 Err(e)
             }
         }?;

@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::core::charset::CSRef;
 use crate::defn::tag::TagNode;
@@ -100,6 +100,12 @@ impl SequenceElement {
                 self.node.get_item_mut().take();
             }
         }
+    }
+}
+
+impl Display for SequenceElement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.node)
     }
 }
 
