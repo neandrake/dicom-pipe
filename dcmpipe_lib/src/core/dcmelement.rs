@@ -2,7 +2,8 @@ use crate::core::charset::CSRef;
 use crate::core::dcmparser::{ParseError, Result};
 use crate::core::dcmparser_util;
 use crate::core::dcmsqelem::SequenceElement;
-use crate::core::tagpath::{TagPath, TagPathElement};
+use crate::defn::constants::tags;
+use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, CHARACTER_STRING_SEPARATOR};
@@ -106,16 +107,6 @@ impl DicomElement {
         &self.sq_path
     }
 
-    pub fn get_tag_path(&self) -> TagPath {
-        let mut path: Vec<TagPathElement> = self
-            .sq_path
-            .iter()
-            .map(|dse: &SequenceElement| TagPathElement::new(dse.get_seq_tag(), None))
-            .collect::<Vec<TagPathElement>>();
-        path.push(TagPathElement::new(self.tag, None));
-        TagPath::new_from_vec(path)
-    }
-
     /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence
     pub fn is_seq_like(&self) -> bool {
         self.vr == &vr::SQ || dcmparser_util::is_non_standard_seq(self.tag, self.vr, self.vl)
@@ -124,6 +115,17 @@ impl DicomElement {
     /// Returns whether the the size of the value for this element is zero
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    pub fn get_tagpath(&self) -> TagPath {
+        let mut nodes: Vec<TagNode> = self
+            .sq_path
+            .iter()
+            .filter(|sq| sq.get_seq_tag() != tags::ITEM)
+            .map(|sq| sq.get_node().clone())
+            .collect::<Vec<TagNode>>();
+        nodes.push(self.tag.into());
+        nodes.into()
     }
 
     /// Parses this element's data into native/raw value type

@@ -199,7 +199,10 @@ fn parse_into_object_recurse<DatasetType: Read>(
             prev_seq_path_len = cur_seq_path_len;
         }
 
-        if cur_seq_path_len < prev_seq_path_len {
+        if cur_seq_path_len < prev_seq_path_len
+            && tag != tags::SEQUENCE_DELIMITATION_ITEM
+            && tag != tags::ITEM_DELIMITATION_ITEM
+        {
             // if the next element has a shorter path than the previous one it should not be added
             // to the given node but returned so it can be added to a parent node.
             return Some(Ok(element));
@@ -209,7 +212,9 @@ fn parse_into_object_recurse<DatasetType: Read>(
         // checking sequence or item tag should match dcmparser.read_dicom_element() which
         // does not read a value for those elements but lets the parser read its value as
         // separate elements which we're considering child elements.
-        let dcmobj: DicomObject = if element.is_seq_like() || tag == tags::ITEM {
+        let dcmobj: DicomObject = if element.is_seq_like()
+            || (tag == tags::ITEM && element.vl != ValueLength::Explicit(0))
+        {
             let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
             let mut items: Vec<DicomObject> = Vec::new();
             possible_next_elem =

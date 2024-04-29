@@ -9,7 +9,7 @@ use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{ParseError, ParseState, Parser, ParserBuilder, Result};
 use dcmpipe_lib::core::dcmparser_util::parse_into_object;
 use dcmpipe_lib::core::tagstop::TagStop;
-use dcmpipe_lib::defn::tag::Tag;
+use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::convert::{TryFrom, TryInto};
@@ -252,13 +252,37 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
                     [11 items, pairs of sop-class and sop-uid references]
                 */
 
+        let tagpath: TagPath = vec![
+            TagNode::new(tags::ReferencedFrameofReferenceSequence.tag, Some(1)),
+            TagNode::new(tags::RTReferencedStudySequence.tag, Some(1)),
+            TagNode::new(tags::RTReferencedSeriesSequence.tag, Some(1)),
+            TagNode::new(tags::ContourImageSequence.tag, Some(11)),
+            tags::ReferencedSOPInstanceUID.tag.into(),
+        ]
+        .into();
+
+        let last_ref_sop_uid_elem: &DicomElement = dcmroot
+            .get(&tagpath)
+            .expect("Should get element by tagpath")
+            .as_element();
+
+        let last_ref_sop_uid: String = last_ref_sop_uid_elem.try_into()?;
+
+        let retrieved_tagpath: TagPath = last_ref_sop_uid_elem.get_tagpath();
+        assert_eq!(retrieved_tagpath, tagpath);
+
+        assert_eq!(
+            last_ref_sop_uid,
+            "1.2.246.352.91.0000217.20050503182534671465"
+        );
+
         // the first sequence item in this object
         let rfor_sq: &DicomObject = dcmroot
             .get_child(tags::ReferencedFrameofReferenceSequence.tag)
             .expect("Should have ReferencedFrameOfReferenceSequence");
 
         assert_eq!(rfor_sq.get_item_count(), 1);
-        let item_obj: &DicomObject = rfor_sq.get_item(0).expect("Have first item");
+        let item_obj: &DicomObject = rfor_sq.get_item(1).expect("Have first item");
         assert_eq!(item_obj.get_child_count(), 2);
         let item_foruid: &DicomObject = item_obj
             .get_child(tags::FrameofReferenceUID.tag)
@@ -286,7 +310,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         assert_eq!(rtrss_sq.get_item_count(), 1);
         assert_eq!(rtrss_sq.get_child_count(), 1);
 
-        let rtrss_sq_item: &DicomObject = rtrss_sq.get_item(0).expect("Have first item");
+        let rtrss_sq_item: &DicomObject = rtrss_sq.get_item(1).expect("Have first item");
         assert_eq!(rtrss_sq_item.get_child_count(), 3);
         let ref_sopclass: &DicomElement = rtrss_sq_item
             .get_child(tags::ReferencedSOPClassUID.tag)
@@ -311,7 +335,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         assert_eq!(rtref_ser_sq.get_item_count(), 1);
         assert_eq!(rtref_ser_sq.get_child_count(), 1);
 
-        let rtref_ser_item: &DicomObject = rtref_ser_sq.get_item(0).expect("Have first item");
+        let rtref_ser_item: &DicomObject = rtref_ser_sq.get_item(1).expect("Have first item");
         assert_eq!(rtref_ser_item.get_child_count(), 2);
         let rtref_ser_uid: &DicomElement = rtref_ser_item
             .get_child(tags::SeriesInstanceUID.tag)
@@ -342,7 +366,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         assert_eq!(cont_img_sq_child.get_item_count(), 0);
 
         let last_sop_uid: &DicomElement = cont_img_sq
-            .get_item(10)
+            .get_item(11)
             .expect("Get last item")
             .get_child(tags::ReferencedSOPInstanceUID.tag)
             .expect("Get last item's ref sop uid")
@@ -365,11 +389,11 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
     let contour_data: &DicomElement = dcmroot
         .get_child(tags::ROIContourSequence.tag)
         .expect("Have roi contour seq")
-        .get_item(0)
+        .get_item(1)
         .expect("Have first item")
         .get_child(tags::ContourSequence.tag)
         .expect("Have contour sequence")
-        .get_item(0)
+        .get_item(1)
         .expect("Have first item")
         .get_child(tags::ContourData.tag)
         .expect("Have contour data")
@@ -440,7 +464,7 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
     let private_un_seq_obj: &DicomObject = dcmroot
         .get_child(tags::SharedFunctionalGroupsSequence.tag)
         .expect("Fixture should have this this tag")
-        .get_item(0)
+        .get_item(1)
         .expect("This sequence should have 1 sequence item")
         .get_child(0x2005_140E)
         .expect("This sequence should have private element as child");
@@ -453,7 +477,7 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
     assert_eq!(private_un_seq_elem.get_data().len(), 0);
 
     let child_obj: &DicomObject = private_un_seq_obj
-        .get_item(0)
+        .get_item(1)
         .expect("Private sequence should have one item");
     // The first item has 27 elements
     assert_eq!(child_obj.get_child_count(), 27);
@@ -525,7 +549,7 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
     }
 
     let item_obj: &DicomObject = sis_obj
-        .get_item(0)
+        .get_item(1)
         .expect("Should be able to get child object");
 
     assert_eq!(item_obj.get_child_count(), 2);
@@ -703,17 +727,43 @@ fn test_illegal_cp246(with_std: bool) -> Result<()> {
         TagStop::AfterBytePos(6484),
     )?;
 
-    let ref_sop_class_uid: String = dcmroot
+    let ref_sop_class_uid_elem: &DicomElement = dcmroot
         .get_child(tags::SharedFunctionalGroupsSequence.tag)
         .expect("Should have SharedFunctionalGroupsSequence")
-        .get_item(0)
+        .get_item(1)
         .expect("Should have item")
         .get_child(tags::ReferencedImageSequence.tag)
         .expect("Should have ReferencedImageSequence")
-        .get_item(0)
+        .get_item(1)
         .expect("Should have item")
         .get_child(tags::ReferencedSOPClassUID.tag)
         .expect("Should have ReferencedSOPClassUID")
+        .as_element();
+
+    let ref_sop_class_uid: String = ref_sop_class_uid_elem.try_into()?;
+
+    assert_eq!(ref_sop_class_uid, uids::EnhancedMRImageStorage.uid);
+
+    let ref_sop_class_uid: String = dcmroot
+        .get(
+            &vec![
+                TagNode::new(tags::SharedFunctionalGroupsSequence.tag, Some(1)),
+                TagNode::new(tags::ReferencedImageSequence.tag, Some(1)),
+                TagNode::new(tags::ReferencedSOPClassUID.tag, None),
+            ]
+            .into(),
+        )
+        .expect("Should get by tagpath")
+        .as_element()
+        .try_into()?;
+
+    assert_eq!(ref_sop_class_uid, uids::EnhancedMRImageStorage.uid);
+
+    let elem_tagpath: TagPath = ref_sop_class_uid_elem.get_tagpath();
+
+    let ref_sop_class_uid: String = dcmroot
+        .get(&elem_tagpath)
+        .expect("Should get by element tagpath")
         .as_element()
         .try_into()?;
 

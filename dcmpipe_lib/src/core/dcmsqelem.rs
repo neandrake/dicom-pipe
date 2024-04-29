@@ -1,4 +1,5 @@
 use crate::core::charset::CSRef;
+use crate::defn::tag::TagNode;
 use crate::defn::ts::TSRef;
 
 /// Represents the sequence/item position of an element.
@@ -7,8 +8,18 @@ use crate::defn::ts::TSRef;
 /// themselves. This allows elements to know how they exist within a dicom object.
 #[derive(Clone)]
 pub struct SequenceElement {
-    /// The SQ element tag.
-    seq_tag: u32,
+    /// See Part 5 Section 7.5
+    /// Items present in an SQ Data Element shall be an ordered set where each Item may be
+    /// referenced by its ordinal position. Each Item shall be implicitly assigned an ordinal
+    /// position starting with the value 1 for the first Item in the Sequence, and incremented by 1
+    /// with each subsequent Item. The last Item in the Sequence shall have an ordinal position
+    /// equal to the number of Items in the Sequence.
+    ///
+    /// This is initialized/incremented whenever an Item tag is parsed. Sequences are not required
+    /// to have their contents encoded within items so this cannot be used as an index into a
+    /// sequence's total listing of top-level children.
+    node: TagNode,
+
     /// The byte position where the parent sequence ends. This value is set as
     /// `bytes_read + value_length` during parsing. If the sequence has undefined length this is set
     /// to None.
@@ -24,40 +35,32 @@ pub struct SequenceElement {
     /// included in an encapsulated Data Set, then the Specific Character Set value of the
     /// encapsulating Data Set applies.
     cs: CSRef,
-    /// See Part 5 Section 7.5
-    /// Items present in an SQ Data Element shall be an ordered set where each Item may be
-    /// referenced by its ordinal position. Each Item shall be implicitly assigned an ordinal
-    /// position starting with the value 1 for the first Item in the Sequence, and incremented by 1
-    /// with each subsequent Item. The last Item in the Sequence shall have an ordinal position
-    /// equal to the number of Items in the Sequence.
-    ///
-    /// This is initialized/incremented whenever an Item tag is parsed. Sequences are not required
-    /// to have their contents encoded within items so this cannot be used as an index into a
-    /// sequence's total listing of top-level children.
-    item_number: Option<u32>,
 }
 
 impl SequenceElement {
     pub fn new(seq_tag: u32, seq_end_pos: Option<u64>, ts: TSRef, cs: CSRef) -> SequenceElement {
         SequenceElement {
-            seq_tag,
+            node: TagNode::new(seq_tag, None),
             seq_end_pos,
             ts,
             cs,
-            item_number: None,
         }
     }
 
+    pub fn get_node(&self) -> &TagNode {
+        &self.node
+    }
+
     pub fn get_seq_tag(&self) -> u32 {
-        self.seq_tag
+        self.node.get_tag()
     }
 
     pub fn get_seq_end_pos(&self) -> Option<u64> {
         self.seq_end_pos
     }
 
-    pub fn get_item_number(&self) -> Option<u32> {
-        self.item_number
+    pub fn get_item_number(&self) -> Option<usize> {
+        self.node.get_item()
     }
 
     pub fn get_ts(&self) -> TSRef {
@@ -73,24 +76,24 @@ impl SequenceElement {
     }
 
     pub fn increment_item_num(&mut self) {
-        match self.item_number {
+        match self.node.get_item() {
             None => {
-                self.item_number.replace(1);
+                self.node.get_item_mut().replace(1);
             }
             Some(val) => {
-                self.item_number.replace(val + 1);
+                self.node.get_item_mut().replace(val + 1);
             }
         }
     }
 
     pub fn decrement_item_num(&mut self) {
-        match self.item_number {
+        match self.node.get_item() {
             None => {}
             Some(val) if val > 1 => {
-                self.item_number.replace(val - 1);
+                self.node.get_item_mut().replace(val - 1);
             }
             Some(_) => {
-                self.item_number.take();
+                self.node.get_item_mut().take();
             }
         }
     }

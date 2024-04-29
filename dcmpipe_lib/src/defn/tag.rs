@@ -65,3 +65,92 @@ impl Hash for Tag {
         self.tag.hash(state);
     }
 }
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TagNode {
+    tag: u32,
+    item: Option<usize>,
+}
+
+impl TagNode {
+    pub fn new(tag: u32, item: Option<usize>) -> TagNode {
+        TagNode { tag, item }
+    }
+
+    pub fn get_tag(&self) -> u32 {
+        self.tag
+    }
+
+    pub fn get_item(&self) -> Option<usize> {
+        self.item
+    }
+
+    pub fn get_item_mut(&mut self) -> &mut Option<usize> {
+        &mut self.item
+    }
+}
+
+impl From<u32> for TagNode {
+    fn from(tag: u32) -> Self {
+        TagNode { tag, item: None }
+    }
+}
+
+impl From<&u32> for TagNode {
+    fn from(tag: &u32) -> Self {
+        TagNode {
+            tag: *tag,
+            item: None,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct TagPath(pub Vec<TagNode>);
+
+impl TagPath {
+    pub fn display(&self) -> String {
+        self.0
+            .iter()
+            .map(|node| match node.item {
+                None => Tag::format_tag_to_path_display(node.tag),
+                Some(item_num) => format!(
+                    "{}[{}]",
+                    Tag::format_tag_to_path_display(node.tag),
+                    item_num
+                ),
+            })
+            .collect::<Vec<String>>()
+            .join(".")
+    }
+}
+
+impl From<Vec<TagNode>> for TagPath {
+    fn from(nodes: Vec<TagNode>) -> Self {
+        TagPath(nodes)
+    }
+}
+
+impl From<Vec<u32>> for TagPath {
+    fn from(tags: Vec<u32>) -> Self {
+        tags.into_iter()
+            .map(|t| t.into())
+            .collect::<Vec<TagNode>>()
+            .into()
+    }
+}
+
+impl From<&[u32]> for TagPath {
+    fn from(tags: &[u32]) -> Self {
+        tags.iter()
+            .map(|t| t.into())
+            .collect::<Vec<TagNode>>()
+            .into()
+    }
+}
+
+impl From<u32> for TagPath {
+    fn from(tag: u32) -> Self {
+        vec![TagNode::from(tag)].into()
+    }
+}

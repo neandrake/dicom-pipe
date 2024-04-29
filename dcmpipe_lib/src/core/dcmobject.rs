@@ -1,6 +1,7 @@
 use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
 use crate::defn::dcmdict::DicomDictionary;
+use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use std::collections::btree_map;
 use std::collections::BTreeMap;
@@ -19,6 +20,35 @@ pub trait DicomNode {
     fn get_item_count(&self) -> usize;
     /// Get an item of the given index
     fn get_item(&self, index: usize) -> Option<&DicomObject>;
+
+    fn get_child_node(&self, node: &TagNode) -> Option<&DicomObject> {
+        self.get_child(node.get_tag())
+            .and_then(|o| match node.get_item() {
+                None => Some(o),
+                Some(item_num) => o.get_item(item_num),
+            })
+    }
+
+    fn get(&self, tagpath: &TagPath) -> Option<&DicomObject> {
+        if tagpath.0.is_empty() {
+            return None;
+        }
+
+        let obj = tagpath.0.get(0).and_then(|node| self.get_child_node(node));
+
+        if tagpath.0.len() == 1 {
+            return obj;
+        }
+
+        let mut obj: &DicomObject = obj?;
+        for index in 1..tagpath.0.len() {
+            obj = tagpath
+                .0
+                .get(index)
+                .and_then(|node| obj.get_child_node(node))?;
+        }
+        Some(obj)
+    }
 }
 
 /// A root node of a DICOM dataset. It does not represent an element but contains child elements.
@@ -28,6 +58,7 @@ pub struct DicomRoot<'dict> {
     dictionary: &'dict dyn DicomDictionary,
     child_nodes: BTreeMap<u32, DicomObject>,
 }
+
 impl<'dict> DicomRoot<'dict> {
     pub fn new(
         ts: TSRef,
@@ -55,6 +86,7 @@ impl<'dict> DicomRoot<'dict> {
         self.dictionary
     }
 }
+
 impl<'dict> DicomNode for DicomRoot<'dict> {
     fn get_child_count(&self) -> usize {
         self.child_nodes.len()
@@ -92,6 +124,7 @@ pub struct DicomObject {
     /// Item nodes don't go into the map since there can be multiple of them.
     items: Vec<DicomObject>,
 }
+
 impl DicomObject {
     pub fn new(element: DicomElement) -> DicomObject {
         DicomObject {
@@ -117,6 +150,7 @@ impl DicomObject {
         &self.element
     }
 }
+
 impl DicomNode for DicomObject {
     fn get_child_count(&self) -> usize {
         self.child_nodes.len()
@@ -140,6 +174,6 @@ impl DicomNode for DicomObject {
     }
 
     fn get_item(&self, index: usize) -> Option<&DicomObject> {
-        self.items.get(index)
+        self.items.get(index - 1)
     }
 }
