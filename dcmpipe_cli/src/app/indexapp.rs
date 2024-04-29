@@ -77,7 +77,7 @@ impl IndexApp {
         IndexApp { db, cmd }
     }
 
-    fn get_dicom_coll(&self) -> Result<Collection> {
+    fn get_dicom_coll(&self) -> Result<Collection<Document>> {
         let client: Client = Client::with_uri_str(&self.db)
             .with_context(|| format!("Invalid database URI: {}", &self.db))?;
         let database: Database = client.database(DATABASE_NAME);
@@ -153,7 +153,7 @@ impl IndexApp {
     /// if appropriate, or marks the document as missing on-disk and then deletes it.
     /// Performs all updates to mongo based on the scan results.
     fn upsert_records(&mut self, mut uid_to_doc: HashMap<String, DicomDoc>) -> Result<()> {
-        let dicom_coll: Collection = self.get_dicom_coll()?;
+        let dicom_coll: Collection<Document> = self.get_dicom_coll()?;
 
         let mut serieskeys: Vec<Bson> = Vec::new();
         for key in uid_to_doc.keys() {
@@ -202,7 +202,7 @@ impl IndexApp {
     }
 
     fn verify_records(&mut self) -> Result<()> {
-        let dicom_coll: Collection = self.get_dicom_coll()?;
+        let dicom_coll: Collection<Document> = self.get_dicom_coll()?;
 
         let mut record_count: usize = 0;
         let mut updated_records: Vec<Document> = Vec::new();
@@ -276,10 +276,10 @@ impl IndexApp {
     /// Query for all dicom records in the given collection and returns an iterator over `DicomDoc`
     fn query_docs(
         &mut self,
-        dicom_coll: &Collection,
+        dicom_coll: &Collection<Document>,
         query: Option<Document>,
     ) -> Result<impl Iterator<Item = DicomDoc>> {
-        let all_dicom_docs: Cursor = dicom_coll
+        let all_dicom_docs: Cursor<Document> = dicom_coll
             .find(query, None)
             .with_context(|| format!("Invalid database: {}", &self.db))?;
 

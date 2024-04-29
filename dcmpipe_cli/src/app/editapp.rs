@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use cursive::traits::{Boxable, Identifiable};
+use cursive::view::{Nameable, Resizable};
 use cursive::views::{Dialog, TextView};
 use cursive::{Cursive, CursiveExt};
 use cursive_table_view::{TableView, TableViewItem};

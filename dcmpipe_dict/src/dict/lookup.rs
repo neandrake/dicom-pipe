@@ -12,7 +12,7 @@ use crate::dict::uids;
 
 pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ::phf::Map {
     key: 12913932095322966823,
-    disps: ::phf::Slice::Static(&[
+    disps: &[
         (0, 74),
         (0, 4),
         (0, 16),
@@ -914,8 +914,8 @@ pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ::phf::Map {
         (3, 706),
         (0, 181),
         (0, 303),
-    ]),
-    entries: ::phf::Slice::Static(&[
+    ],
+    entries: &[
         ("DeliveredDistalDepth", &tags::DeliveredDistalDepth),
         ("TableTopRollRotationDirection", &tags::TableTopRollRotationDirection),
         ("ImplantRegulatoryDisapprovalCodeSequence", &tags::ImplantRegulatoryDisapprovalCodeSequence),
@@ -5418,12 +5418,12 @@ pub static TAG_BY_IDENT: phf::Map<&'static str, TagRef> = ::phf::Map {
         ("CylinderPower", &tags::CylinderPower),
         ("PatientsAge", &tags::PatientsAge),
         ("WhitePoint", &tags::WhitePoint),
-    ]),
+    ],
 };
 
 pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = ::phf::Map {
     key: 12913932095322966823,
-    disps: ::phf::Slice::Static(&[
+    disps: &[
         (0, 176),
         (0, 6),
         (0, 80),
@@ -6325,8 +6325,8 @@ pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = ::phf::Map {
         (0, 204),
         (0, 19),
         (0, 356),
-    ]),
-    entries: ::phf::Slice::Static(&[
+    ],
+    entries: &[
         (4236090, &tags::ReportStatusComment_Trial),
         (805830707, &tags::SpecifiedSecondaryMeterset),
         (5242912, &tags::DeviceDescription),
@@ -10829,12 +10829,12 @@ pub static TAG_BY_VALUE: phf::Map<u32, TagRef> = ::phf::Map {
         (532775, &tags::ViewName),
         (1609745, &tags::MultipleSpinEcho),
         (806354955, &tags::ReferencedConceptualVolumeUID),
-    ]),
+    ],
 };
 
 pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = ::phf::Map {
     key: 7485420634051515786,
-    disps: ::phf::Slice::Static(&[
+    disps: &[
         (1, 27),
         (15, 37),
         (0, 5),
@@ -10844,8 +10844,8 @@ pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = ::phf::Map {
         (0, 0),
         (23, 40),
         (0, 1),
-    ]),
-    entries: ::phf::Slice::Static(&[
+    ],
+    entries: &[
         ("JPIPReferenced", &ts::JPIPReferenced),
         ("ExplicitVRBigEndian", &ts::ExplicitVRBigEndian),
         ("JPEGSpectralSelectionHierarchicalProcess21_and_23", &ts::JPEGSpectralSelectionHierarchicalProcess21_and_23),
@@ -10889,12 +10889,12 @@ pub static TS_BY_IDENT: phf::Map<&'static str, TSRef> = ::phf::Map {
         ("JPEGFullProgressionHierarchicalProcess25_and_27", &ts::JPEGFullProgressionHierarchicalProcess25_and_27),
         ("JPEG2000ImageCompressionLosslessOnly", &ts::JPEG2000ImageCompressionLosslessOnly),
         ("JPEGBaselineProcess1", &ts::JPEGBaselineProcess1),
-    ]),
+    ],
 };
 
 pub static TS_BY_UID: phf::Map<&'static str, TSRef> = ::phf::Map {
     key: 10121458955350035957,
-    disps: ::phf::Slice::Static(&[
+    disps: &[
         (2, 0),
         (0, 9),
         (4, 25),
@@ -10904,8 +10904,8 @@ pub static TS_BY_UID: phf::Map<&'static str, TSRef> = ::phf::Map {
         (2, 14),
         (0, 24),
         (7, 7),
-    ]),
-    entries: ::phf::Slice::Static(&[
+    ],
+    entries: &[
         ("1.2.840.10008.1.2.4.95", &ts::JPIPReferencedDeflate),
         ("1.2.840.10008.1.2.4.106", &ts::MPEG4AVCH264StereoHighProfileLevel42),
         ("1.2.840.10008.1.2.4.56", &ts::JPEGFullProgressionNonHierarchicalProcess11_and_13),
@@ -10949,12 +10949,12 @@ pub static TS_BY_UID: phf::Map<&'static str, TSRef> = ::phf::Map {
         ("1.2.840.10008.1.2.4.107", &ts::HEVCH265MainProfileLevel51),
         ("1.2.840.10008.1.2.4.65", &ts::JPEGLosslessHierarchicalProcess28),
         ("1.2.840.10008.1.2.4.108", &ts::HEVCH265Main10ProfileLevel51),
-    ]),
+    ],
 };
 
 pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = ::phf::Map {
     key: 12913932095322966823,
-    disps: ::phf::Slice::Static(&[
+    disps: &[
         (0, 96),
         (0, 133),
         (2, 225),
@@ -11037,8 +11037,8 @@ pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = ::phf::Map {
         (0, 278),
         (1, 78),
         (1, 17),
-    ]),
-    entries: ::phf::Slice::Static(&[
+    ],
+    entries: &[
         ("GrayscalePlanarMPRVolumetricPresentationStateStorage", &uids::GrayscalePlanarMPRVolumetricPresentationStateStorage),
         ("ImplantAssemblyTemplateInformationModelMOVE", &uids::ImplantAssemblyTemplateInformationModelMOVE),
         ("DICOSCTImageStorage", &uids::DICOSCTImageStorage),
@@ -11446,12 +11446,12 @@ pub static UID_BY_IDENT: phf::Map<&'static str, UIDRef> = ::phf::Map {
         ("SPM2PDFrameofReference", &uids::SPM2PDFrameofReference),
         ("HangingProtocolStorage", &uids::HangingProtocolStorage),
         ("SPM2T1FrameofReference", &uids::SPM2T1FrameofReference),
-    ]),
+    ],
 };
 
 pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = ::phf::Map {
     key: 12913932095322966823,
-    disps: ::phf::Slice::Static(&[
+    disps: &[
         (0, 7),
         (0, 33),
         (0, 206),
@@ -11534,8 +11534,8 @@ pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = ::phf::Map {
         (0, 3),
         (0, 69),
         (0, 277),
-    ]),
-    entries: ::phf::Slice::Static(&[
+    ],
+    entries: &[
         ("1.2.840.10008.2.6.1", &uids::DICOMUIDRegistry),
         ("1.2.840.10008.5.1.4.1.2.3.1", &uids::PatientStudyOnlyQueryRetrieveInformationModelFIND),
         ("1.2.840.10008.5.1.4.1.1.481.4", &uids::RTBeamsTreatmentRecordStorage),
@@ -11943,5 +11943,5 @@ pub static UID_BY_UID: phf::Map<&'static str, UIDRef> = ::phf::Map {
         ("1.2.840.10008.5.1.4.1.1.200.3", &uids::ProtocolApprovalStorage),
         ("1.2.840.10008.1.2.4.106", &uids::MPEG4AVCH264StereoHighProfileLevel42),
         ("1.2.840.10008.5.1.4.1.2.1.2", &uids::PatientRootQueryRetrieveInformationModelMOVE),
-    ]),
+    ],
 };
