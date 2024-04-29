@@ -252,7 +252,10 @@ impl DicomElement {
     /// Associated VRs: AT
     pub fn parse_attribute(&self) -> Result<u32, Error> {
         if self.data.len() < 4 {
-            return Err(Error::new(ErrorKind::InvalidData, "Unable to parse attribute"));
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Unable to parse attribute",
+            ));
         }
 
         let mut buf: [u8; 2] = [0; 2];
