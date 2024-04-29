@@ -5,7 +5,7 @@ use app::{FullObjApp, LowMemApp};
 use std::io::{Error, ErrorKind};
 use std::{env, process};
 
-static APP_MODE: usize = 1;
+static APP_MODE: usize = 3;
 
 fn main() {
     if let Err(e) = runapp() {
