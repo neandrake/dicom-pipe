@@ -230,6 +230,18 @@ pub struct TagPath {
 }
 
 impl TagPath {
+    /// Creates a tag path with no nodes.
+    pub fn empty() -> TagPath {
+        TagPath {
+            nodes: Vec::with_capacity(0),
+        }
+    }
+
+    /// Return whether there are any nodes in this tag path.
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
     /// Formats the tag path as readable text, optionally using the tag's display name where
     /// possible, otherwise tags will be displayed as `(gggg,eeee)`.
     pub fn format_tagpath_to_display(

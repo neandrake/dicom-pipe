@@ -18,6 +18,7 @@ use crossterm::terminal::{
 };
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::Parser;
+use dcmpipe_lib::defn::constants;
 use dcmpipe_lib::defn::tag::{Tag, TagNode, TagPath};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Alignment, Constraint, Layout};
@@ -30,7 +31,7 @@ use ratatui::{Frame, Terminal};
 use crate::app::CommandApplication;
 use crate::args::BrowseArgs;
 
-use super::{get_nth_child, ElementWithLineFmt, TagName, TagValue};
+use super::{ElementWithLineFmt, TagName, TagValue};
 
 pub struct BrowseApp {
     args: BrowseArgs,
@@ -54,20 +55,19 @@ impl std::error::Error for BrowseError {}
 /// The result of parsing all elements in a DICOM data set.
 struct DicomDocumentModel<'app> {
     /// The file path the DICOM dataset was loaded from.
-    path: &'app Path,
-    /// The mapping of some `TagPath` to that path's parsed child nodes. The empty path represents
-    /// the root of the DICOM data set, whose model contains all the top-level DICOM elements. If
-    /// the data set includes sequences then additional entries for each sequence element will be
-    /// present to include its parsed sub-elements.
-    map: HashMap<TagPath, DicomElementModel<'app>>,
+    file_path: &'app Path,
+    /// The mapping of DICOM nodes to its respective data model. The empty path represents the root
+    /// of the DICOM data set, whose model contains all the top-level DICOM elements.
+    node_models: HashMap<TagPath, DicomNodeModel<'app>>,
+    node_views: HashMap<TagPath, DicomNodeViewState>,
 }
 
-/// The data model for an element. This represents one "level" within a DICOM document model, where
-/// the rows for this model are the first-level child elements of some other `DicomNode`.
+/// The data model for a node within a DICOM document. The model for a given node are the rows
+/// representing the immediate child elements of that node.
 /// This model only contains the data necessary for rendering, so all DICOM element values are
-/// parsed in order to build this struct.
+/// rendered in order to build this struct.
 #[derive(Clone)]
-struct DicomElementModel<'model> {
+struct DicomNodeModel<'model> {
     /// The ordered values parsed from the DICOM elements at this level.
     rows: Vec<Row<'model>>,
     /// For each row, the maximum length of DICOM tag name, which aside from DICOM value will be
@@ -75,11 +75,10 @@ struct DicomElementModel<'model> {
     max_name_width: u16,
 }
 
-/// The ViewState of what's displayed on screen. This should remain minimal (i.e. not include the
-/// data model), as it will be cloned every frame render. This contains both view-level information
-/// about the current model being displayed as well as view state from user input.
+/// The view state of what's displayed on screen for a `DicomNodeModel`. This should remain
+/// separate from the data model as it will be cloned every frame render.
 #[derive(Clone)]
-struct ViewState {
+struct DicomNodeViewState {
     /// Title to show in top-left of table
     dataset_title: String,
     /// The number of rows of the current model.
@@ -88,20 +87,15 @@ struct ViewState {
     max_name_width: u16,
     /// The Ratatui table state which contains offset and selection.
     table_state: TableState,
-    /// Whether the user has requested to quit/close.
-    user_quit: bool,
-    /// The user selected a row to dive deeper into.
-    user_nav: UserNav,
-    /// The current path of elements to display.
-    current_root_element: TagPath,
 }
 
-/// Actions the user can take to navigate the DICOM document.
+/// User keyboard/mouse events are translated into actions that modify the application state.
 #[derive(Clone)]
-enum UserNav {
+enum UserAction {
     None,
-    IntoLevel(usize),
-    UpLevel,
+    Quit,
+    NavIntoLevel(usize),
+    NavUpLevel,
 }
 
 impl CommandApplication for BrowseApp {
@@ -120,7 +114,7 @@ impl CommandApplication for BrowseApp {
 
         let mut terminal = self.init()?;
 
-        let app_result = self.run_loop(&mut terminal, &dcmroot, &doc_model);
+        let app_result = self.run_loop(&mut terminal, &dcmroot, doc_model);
 
         self.close(terminal)?;
 
@@ -132,42 +126,42 @@ impl CommandApplication for BrowseApp {
 
 impl<'app> DicomDocumentModel<'app> {
     fn parse<'dict>(path: &'app Path, dcmroot: &DicomRoot<'dict>) -> DicomDocumentModel<'app> {
-        let map = DicomElementModel::parse(dcmroot);
-        DicomDocumentModel { path, map }
+        let map = DicomNodeModel::parse(dcmroot);
+        let count = map.len();
+        DicomDocumentModel {
+            file_path: path,
+            node_models: map,
+            node_views: HashMap::with_capacity(count),
+        }
     }
 }
 
-impl<'model> DicomElementModel<'model> {
-    fn parse<'dict>(dcmnode: &'dict dyn DicomNode) -> HashMap<TagPath, DicomElementModel<'model>> {
+impl<'model> DicomNodeModel<'model> {
+    fn parse<'dict>(dcmnode: &'dict dyn DicomNode) -> HashMap<TagPath, DicomNodeModel<'model>> {
         let total_sub_items = dcmnode.get_item_count() + dcmnode.get_child_count();
-        let mut map: HashMap<TagPath, DicomElementModel<'model>> =
+        let mut map: HashMap<TagPath, DicomNodeModel<'model>> =
             HashMap::with_capacity(total_sub_items);
         let mut rows: Vec<Row<'model>> = Vec::with_capacity(total_sub_items);
         let mut max_name_width: u16 = 0;
         for item in dcmnode.iter_items() {
-            let (row, child_map, name_len) = DicomElementModel::parse_dcmobj(item);
+            let (row, child_map, name_len) = DicomNodeModel::parse_dcmobj(item);
             rows.push(row);
             map.extend(child_map);
             max_name_width = max_name_width.max(name_len);
         }
         for (_child_tag, child) in dcmnode.iter_child_nodes() {
-            let (row, child_map, name_len) = DicomElementModel::parse_dcmobj(child);
+            let (row, child_map, name_len) = DicomNodeModel::parse_dcmobj(child);
             rows.push(row);
             map.extend(child_map);
             max_name_width = max_name_width.max(name_len);
         }
 
-        let elem_tbl = DicomElementModel {
+        let elem_tbl = DicomNodeModel {
             rows,
             max_name_width,
         };
 
-        let tagpath = dcmnode.get_element().map_or_else(
-            || TagPath {
-                nodes: Vec::with_capacity(0),
-            },
-            |e| e.get_tagpath(),
-        );
+        let tagpath = get_tagpath(dcmnode);
         map.insert(tagpath, elem_tbl);
 
         map
@@ -175,15 +169,11 @@ impl<'model> DicomElementModel<'model> {
 
     fn parse_dcmobj(
         child: &DicomObject,
-    ) -> (
-        Row<'model>,
-        HashMap<TagPath, DicomElementModel<'model>>,
-        u16,
-    ) {
-        let mut map: HashMap<TagPath, DicomElementModel<'model>> = HashMap::new();
+    ) -> (Row<'model>, HashMap<TagPath, DicomNodeModel<'model>>, u16) {
+        let mut map: HashMap<TagPath, DicomNodeModel<'model>> = HashMap::new();
         let child_tag = child.as_element().get_tag();
         if child.get_item_count() > 0 || child.get_child_count() > 0 {
-            let child_map = DicomElementModel::parse(child);
+            let child_map = DicomNodeModel::parse(child);
             map.extend(child_map);
         }
 
@@ -272,54 +262,46 @@ impl<'app> BrowseApp {
         &self,
         terminal: &mut Terminal<CrosstermBackend<Stdout>>,
         dcmroot: &'dict DicomRoot,
-        doc_model: &'app DicomDocumentModel<'app>,
+        mut doc_model: DicomDocumentModel<'app>,
     ) -> Result<()> {
-        let root_path = TagPath {
-            nodes: Vec::with_capacity(0),
-        };
+        let root_path = TagPath::empty();
         let default_table_state = TableState::new().with_selected(Some(0));
+        let filename = doc_model
+            .file_path
+            .file_name()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap_or_default()
+            .to_string();
 
-        // Track table state per-path, to match DicomDocumentModel's layout. This allows navigation
-        // of elements to retain their own offset + selection.
-        let mut table_state_map: HashMap<TagPath, TableState> = HashMap::new();
-
-        let mut view_state = ViewState {
-            dataset_title: doc_model.path.to_str().unwrap_or_default().to_owned(),
-            num_rows: 0,
-            max_name_width: 0,
-            table_state: table_state_map
-                .entry(root_path.clone())
-                .or_insert_with(|| default_table_state.clone())
-                .clone(),
-            user_quit: false,
-            user_nav: UserNav::None,
-            current_root_element: root_path.clone(),
-        };
+        let mut current_tagpath = root_path.clone();
+        let mut user_action = UserAction::None;
 
         loop {
-            let Some(table_model) = doc_model.map.get(&view_state.current_root_element) else {
-                return Err(BrowseError::InvalidTagPath(view_state.current_root_element).into());
+            if let UserAction::Quit = user_action {
+                break;
+            }
+
+            let Some(table_model) = doc_model.node_models.get(&current_tagpath) else {
+                return Err(BrowseError::InvalidTagPath(current_tagpath).into());
             };
 
-            // Apply state from current model.
-            view_state.num_rows = table_model.rows.len();
-            view_state.max_name_width = table_model.max_name_width;
-            view_state.table_state = table_state_map
-                .entry(view_state.current_root_element.clone())
-                .or_insert_with(|| default_table_state.clone())
-                .clone();
-            // Reset user-input state.
-            view_state.user_quit = false;
-            view_state.user_nav = UserNav::None;
-
-            view_state.dataset_title = if view_state.current_root_element.nodes.is_empty() {
-                doc_model.path.to_str().unwrap_or_default().to_string()
-            } else {
-                TagPath::format_tagpath_to_display(
-                    &view_state.current_root_element,
-                    Some(dcmroot.get_dictionary()),
-                )
-            };
+            let mut view_state = doc_model
+                .node_views
+                .remove(&current_tagpath)
+                .unwrap_or_else(|| DicomNodeViewState {
+                    num_rows: table_model.rows.len(),
+                    max_name_width: table_model.max_name_width,
+                    table_state: default_table_state.clone(),
+                    dataset_title: if current_tagpath.is_empty() {
+                        filename.clone()
+                    } else {
+                        TagPath::format_tagpath_to_display(
+                            &current_tagpath,
+                            Some(dcmroot.get_dictionary()),
+                        )
+                    },
+                });
 
             // Ratatui's Table requires an iterator over owned Rows, so the model must be cloned
             // every render, apparently. The render_stateful_widget() function requires moving a
@@ -329,67 +311,78 @@ impl<'app> BrowseApp {
             // The view_state is small and intended to be cloned every iteration.
             let render_view_state = view_state.clone();
 
-            let current_path = view_state.current_root_element.clone();
-
             terminal.draw(|frame| self.render(render_model, render_view_state, frame))?;
 
-            view_state = self.update_state_from_user_input(dcmroot, doc_model, view_state)?;
+            // Check for user event. If the user event would modify the ViewState it will also be
+            // updated (table offset/selection).
+            user_action = self.process_user_input(&mut view_state)?;
 
-            // Update the previous table state to ensure the offset+selection actually persists.
-            // This must use the path prior to `update_state_from_user_input()` which will modify
-            // the path based on user navigation.
-            table_state_map.insert(current_path, view_state.table_state.clone());
+            // Update the table state after updating offset/selection from user input, but prior to
+            // updating/modifying the path if the user navigated away from the current node.
+            doc_model
+                .node_views
+                .insert(current_tagpath.clone(), view_state);
 
-            if view_state.user_quit {
-                break;
-            }
+            current_tagpath = self.get_tagpath_from_user_action(
+                dcmroot,
+                &doc_model,
+                &user_action,
+                current_tagpath,
+            )?;
         }
         Ok(())
     }
 
-    fn update_state_from_user_input(
-        &self,
-        dcmroot: &DicomRoot,
-        doc_model: &'app DicomDocumentModel<'app>,
-        mut view_state: ViewState,
-    ) -> Result<ViewState> {
-        if event::poll(Duration::from_millis(50))? {
+    /// Polls for user input events and updates `ViewState` based on the user's interaction.
+    fn process_user_input(&self, view_state: &mut DicomNodeViewState) -> Result<UserAction> {
+        let user_action = if event::poll(Duration::from_millis(50))? {
             match event::read()? {
                 Key(key) => match key.kind {
-                    KeyEventKind::Press => self.event_keypress(&mut view_state, key),
-                    KeyEventKind::Release => self.event_keyrelease(&mut view_state, key),
-                    _ => {}
+                    KeyEventKind::Press => self.event_keypress(view_state, key),
+                    KeyEventKind::Release => self.event_keyrelease(view_state, key),
+                    _ => UserAction::None,
                 },
                 Mouse(mouse) => match mouse.kind {
                     MouseEventKind::Down(button) | MouseEventKind::Drag(button) => {
-                        self.event_mouse_down(&mut view_state, mouse, button)
+                        self.event_mouse_down(view_state, mouse, button)
                     }
-                    MouseEventKind::ScrollDown => {
-                        self.event_mouse_scroll_down(&mut view_state, mouse)
-                    }
-                    MouseEventKind::ScrollUp => self.event_mouse_scroll_up(&mut view_state, mouse),
-                    _ => {}
+                    MouseEventKind::ScrollDown => self.event_mouse_scroll_down(view_state, mouse),
+                    MouseEventKind::ScrollUp => self.event_mouse_scroll_up(view_state, mouse),
+                    _ => UserAction::None,
                 },
-                _ => {}
+                _ => UserAction::None,
             }
-        }
+        } else {
+            UserAction::None
+        };
 
+        Ok(user_action)
+    }
+
+    /// Returns the path the user has navigated to based on `ViewState::user_nav`.
+    fn get_tagpath_from_user_action(
+        &self,
+        dcmroot: &DicomRoot,
+        doc_model: &'app DicomDocumentModel<'app>,
+        user_action: &'app UserAction,
+        current_tagpath: TagPath,
+    ) -> Result<TagPath> {
         // Handle user navigation
-        match view_state.user_nav {
-            UserNav::None => {}
-            UserNav::IntoLevel(sel_idx) => {
-                let next_path = if view_state.current_root_element.nodes.is_empty() {
+        match user_action {
+            UserAction::None => {}
+            UserAction::Quit => {}
+            UserAction::NavIntoLevel(sel_idx) => {
+                let sel_idx = *sel_idx;
+                let next_path = if current_tagpath.is_empty() {
                     get_nth_child(dcmroot, sel_idx)
                         .map(|o| o.as_element().get_tagpath())
-                        .unwrap_or_else(|| view_state.current_root_element.clone())
+                        .unwrap_or_else(|| current_tagpath.clone())
                 } else {
-                    if let None = dcmroot.get_child_by_tagpath(&view_state.current_root_element) {
-                        return Err(
-                            BrowseError::InvalidTagPath(view_state.current_root_element).into()
-                        );
+                    if dcmroot.get_child_by_tagpath(&current_tagpath).is_none() {
+                        return Err(BrowseError::InvalidTagPath(current_tagpath).into());
                     }
                     dcmroot
-                        .get_child_by_tagpath(&view_state.current_root_element)
+                        .get_child_by_tagpath(&current_tagpath)
                         .and_then(|c| {
                             // Check items first and children second. Sequences will have a
                             // single child which is the delimiter at the end.
@@ -409,68 +402,65 @@ impl<'app> BrowseApp {
                                 None
                             }
                         })
-                        .map(|o| o.as_element().get_tagpath())
-                        .unwrap_or_else(|| view_state.current_root_element.clone())
+                        .map(|selected| get_tagpath(selected))
+                        .unwrap_or_else(|| current_tagpath.clone())
                 };
 
-                if doc_model.map.contains_key(&next_path) {
-                    view_state.current_root_element = next_path;
+                if doc_model.node_models.contains_key(&next_path) {
+                    return Ok(next_path);
                 }
             }
-            UserNav::UpLevel => {
-                if !view_state.current_root_element.nodes.is_empty() {
-                    let mut nodes = view_state
-                        .current_root_element
-                        .nodes
-                        .drain(
-                            ..view_state
-                                .current_root_element
-                                .nodes
-                                .len()
-                                .saturating_sub(1),
-                        )
-                        .collect::<Vec<TagNode>>();
-
-                    // Remove item # from the last element of the path as the model map uses a
-                    // key of the TagPath with no index specified.
-                    if let Some(last) = nodes.last_mut() {
-                        last.get_item_mut().take();
-                    }
-                    view_state.current_root_element = nodes.into();
-                }
+            UserAction::NavUpLevel => {
+                return Ok(get_prev_path(current_tagpath));
             }
         }
-        Ok(view_state)
+        Ok(current_tagpath)
     }
 
-    fn event_keyrelease(&self, _view_state: &mut ViewState, _event: KeyEvent) {}
+    fn event_keyrelease(
+        &self,
+        _view_state: &mut DicomNodeViewState,
+        _event: KeyEvent,
+    ) -> UserAction {
+        UserAction::None
+    }
 
-    fn event_keypress(&self, view_state: &'app mut ViewState, event: KeyEvent) {
+    fn event_keypress(
+        &self,
+        view_state: &'app mut DicomNodeViewState,
+        event: KeyEvent,
+    ) -> UserAction {
         match event.code {
-            Char('q') => view_state.user_quit = true,
-            KeyCode::Esc => view_state.user_quit = true,
-            Char('l') | KeyCode::Enter => {
+            Char('q') | KeyCode::Esc => UserAction::Quit,
+
+            Char('l') | KeyCode::Right | KeyCode::Enter => {
                 if let Some(selected) = view_state.table_state.selected() {
-                    view_state.user_nav = UserNav::IntoLevel(selected);
+                    UserAction::NavIntoLevel(selected)
+                } else {
+                    UserAction::None
                 }
             }
-            Char('h') | KeyCode::Left | KeyCode::Backspace => {
-                view_state.user_nav = UserNav::UpLevel
+            Char('h') | KeyCode::Left | KeyCode::Backspace => UserAction::NavUpLevel,
+            Char('j') | KeyCode::Down => {
+                self.table_select_next(view_state, 1);
+                UserAction::None
             }
-            Char('j') | KeyCode::Down => self.table_select_next(view_state, 1),
-            Char('k') | KeyCode::Up => self.table_select_next(view_state, -1),
-            _ => {}
+            Char('k') | KeyCode::Up => {
+                self.table_select_next(view_state, -1);
+                UserAction::None
+            }
+            _ => UserAction::None,
         }
     }
 
     fn event_mouse_down(
         &self,
-        view_state: &'app mut ViewState,
+        view_state: &'app mut DicomNodeViewState,
         event: MouseEvent,
         button: MouseButton,
-    ) {
+    ) -> UserAction {
         if button != MouseButton::Left {
-            return;
+            return UserAction::None;
         }
 
         // Convert the event row (all widgets on screen) into the table row.
@@ -486,17 +476,29 @@ impl<'app> BrowseApp {
         } else {
             view_state.table_state.select(index);
         }
+
+        UserAction::None
     }
 
-    fn event_mouse_scroll_up(&self, view_state: &'app mut ViewState, _event: MouseEvent) {
+    fn event_mouse_scroll_up(
+        &self,
+        view_state: &'app mut DicomNodeViewState,
+        _event: MouseEvent,
+    ) -> UserAction {
         self.table_scroll_next(view_state, -1);
+        UserAction::None
     }
 
-    fn event_mouse_scroll_down(&self, view_state: &'app mut ViewState, _event: MouseEvent) {
+    fn event_mouse_scroll_down(
+        &self,
+        view_state: &'app mut DicomNodeViewState,
+        _event: MouseEvent,
+    ) -> UserAction {
         self.table_scroll_next(view_state, 1);
+        UserAction::None
     }
 
-    fn table_scroll_next(&self, view_state: &'app mut ViewState, modifier: isize) {
+    fn table_scroll_next(&self, view_state: &'app mut DicomNodeViewState, modifier: isize) {
         let i = view_state
             .table_state
             .offset()
@@ -506,7 +508,7 @@ impl<'app> BrowseApp {
         *view_state.table_state.offset_mut() = i;
     }
 
-    fn table_select_next(&self, view_state: &'app mut ViewState, modifier: isize) {
+    fn table_select_next(&self, view_state: &'app mut DicomNodeViewState, modifier: isize) {
         let i = match view_state.table_state.selected() {
             None => 0,
             Some(i) => view_state
@@ -518,7 +520,7 @@ impl<'app> BrowseApp {
         view_state.table_state.select(Some(i));
     }
 
-    fn render(&self, model: DicomElementModel, view_state: ViewState, frame: &mut Frame) {
+    fn render(&self, model: DicomNodeModel, mut view_state: DicomNodeViewState, frame: &mut Frame) {
         let column_widths = [
             Constraint::Length(1),
             Constraint::Length(11),
@@ -557,6 +559,60 @@ impl<'app> BrowseApp {
             .constraints([Constraint::Min(1), Constraint::Length(1)])
             .split(frame.size());
 
-        frame.render_stateful_widget(table, sections[0], &mut view_state.table_state.clone());
+        frame.render_stateful_widget(table, sections[0], &mut view_state.table_state);
     }
+}
+
+/// Treates a DICOM element's children as an ordered list to get a child node based on index. This
+/// is only useful for mapping the view-index to the model-index.
+fn get_nth_child(node: &dyn DicomNode, index: usize) -> Option<&DicomObject> {
+    node.iter_child_nodes().skip(index).map(|e| e.1).next()
+}
+
+/// Computes the `TagPath` for a given node within a DICOM document. This uses
+/// `DicomElement::get_tagpath()` with two modifications:
+/// - For elements at the root of the document this returns `TagPath::empty()`.
+/// - For items within a sequence the trailing `constants::tags::ITEM` node is removed.
+fn get_tagpath(dcmnode: &dyn DicomNode) -> TagPath {
+    let tagpath = dcmnode
+        .get_element()
+        .map(|o| o.get_tagpath())
+        .unwrap_or_else(TagPath::empty);
+    strip_last_item(tagpath)
+}
+
+/// Builds the previous path based on the given path.
+fn get_prev_path(mut current: TagPath) -> TagPath {
+    if current.is_empty() {
+        return TagPath::empty();
+    }
+
+    // If the last item is indexed, instead of removing the node remove the index.
+    if let Some(last) = current.nodes.last_mut() {
+        if last.get_item().is_some() {
+            last.get_item_mut().take();
+            return current;
+        }
+    }
+
+    // Remove the last node.
+    current
+        .nodes
+        .drain(..current.nodes.len().saturating_sub(1))
+        .collect::<Vec<TagNode>>()
+        .into()
+}
+
+/// Removes the last node in the given path if it's an ITEM.
+fn strip_last_item(mut tagpath: TagPath) -> TagPath {
+    if let Some(last) = tagpath.nodes.last() {
+        if last.get_tag() == constants::tags::ITEM {
+            return tagpath
+                .nodes
+                .drain(..tagpath.nodes.len().saturating_sub(1))
+                .collect::<Vec<TagNode>>()
+                .into();
+        }
+    }
+    tagpath
 }
