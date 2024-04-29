@@ -8,12 +8,10 @@ use std::io::Read;
 use crate::core::charset::CSRef;
 use crate::core::dcmelement::DicomElement;
 use crate::defn::constants::tags;
-use crate::defn::constants::ts;
 use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
 use crate::defn::vl::ValueLength;
-use crate::defn::vr;
 
 use super::read::ParseError;
 use super::read::Parser;
@@ -28,7 +26,7 @@ pub struct DicomRoot<'dict> {
 
     /// This is an object to be parent of all the root-level elements, but does not itself
     /// represent an element.
-    facade: DicomObject,
+    sentinel: DicomObject,
 }
 
 impl<'dict> DicomRoot<'dict> {
@@ -39,13 +37,13 @@ impl<'dict> DicomRoot<'dict> {
         child_nodes: BTreeMap<u32, DicomObject>,
         items: Vec<DicomObject>,
     ) -> DicomRoot<'_> {
-        let facade_elem = DicomElement::new_empty(0u32, &vr::INVALID, &ts::ExplicitVRLittleEndian);
-        let facade = DicomObject::new_with_children(facade_elem, child_nodes, items);
+        let sentinel_elem = DicomElement::new_sentinel();
+        let sentinel = DicomObject::new_with_children(sentinel_elem, child_nodes, items);
         DicomRoot {
             ts,
             cs,
             dictionary,
-            facade,
+            sentinel,
         }
     }
 
@@ -53,7 +51,7 @@ impl<'dict> DicomRoot<'dict> {
     /// the `DicomObject::as_element()` on the returned value as it does not represent an actual
     /// element within the dataset and does not hold valid data.
     pub fn as_obj(&self) -> &DicomObject {
-        &self.facade
+        &self.sentinel
     }
 
     /// Get the transfer syntax used to encode the dataset.
@@ -72,42 +70,42 @@ impl<'dict> DicomRoot<'dict> {
     }
 
     pub fn get_child_count(&self) -> usize {
-        self.facade.child_count()
+        self.sentinel.child_count()
     }
 
     pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
-        self.facade.get_child_by_tag(tag)
+        self.sentinel.get_child_by_tag(tag)
     }
 
     pub fn iter_child_nodes(&self) -> btree_map::Iter<'_, u32, DicomObject> {
-        self.facade.iter_child_nodes()
+        self.sentinel.iter_child_nodes()
     }
 
     pub fn item_count(&self) -> usize {
-        self.facade.item_count()
+        self.sentinel.item_count()
     }
 
     pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
-        self.facade.get_item_by_index(index)
+        self.sentinel.get_item_by_index(index)
     }
 
     pub fn iter_items(&self) -> std::slice::Iter<DicomObject> {
-        self.facade.iter_items()
+        self.sentinel.iter_items()
     }
 
     /// Get a child node with the given `TagNode`.
     pub fn get_child_by_tagnode(&self, tag_node: &TagNode) -> Option<&DicomObject> {
-        self.facade.get_child_by_tagnode(tag_node)
+        self.sentinel.get_child_by_tagnode(tag_node)
     }
 
     /// Get a child node with the given `TagPath`.
     pub fn get_child_by_tagpath(&self, tagpath: &TagPath) -> Option<&DicomObject> {
-        self.facade.get_child_by_tagpath(tagpath)
+        self.sentinel.get_child_by_tagpath(tagpath)
     }
 
     /// Flattens this object into an ordered list of elements as they would appear in a dataset.
     pub fn flatten(&self) -> Result<Vec<&DicomElement>, WriteError> {
-        self.facade.flatten()
+        self.sentinel.flatten()
     }
 
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
@@ -248,7 +246,7 @@ impl std::fmt::Debug for DicomRoot<'_> {
             "<DicomRoot {} {}> {:?}",
             self.ts().uid().name(),
             self.cs.name(),
-            &self.facade
+            &self.sentinel
         )
     }
 }
@@ -358,7 +356,7 @@ impl DicomObject {
 impl fmt::Debug for DicomObject {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.element.tag() == 0 {
-            write!(f, "<facade>")
+            write!(f, "<sentinel>")
         } else if self.element.is_empty() {
             write!(f, "{:?}", &self.element)
         } else {

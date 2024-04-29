@@ -78,6 +78,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         let mut tag: u32 = read::util::read_tag_from_dataset(&mut cursor, ts.big_endian())?;
 
+        // a zero tag is valid for dimse, however dimse parser should not need to start by
+        // identifying the transfer syntax, as it should always be ImplicitVRLittleEndian
         if tag == 0 {
             // if tag is zero then assume preamble, jump forward and attempt to detect tag after it
 

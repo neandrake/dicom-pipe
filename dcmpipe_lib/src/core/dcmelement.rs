@@ -11,7 +11,7 @@ use crate::{
         values::RawValue,
     },
     defn::{
-        constants::tags,
+        constants::{tags, ts},
         tag::{Tag, TagNode, TagPath},
         ts::TSRef,
         vl::ValueLength,
@@ -89,6 +89,23 @@ impl DicomElement {
         }
     }
 
+    /// Creates a new sentinel element which is not a valid `DicomElement`. This can be
+    /// distinguished from a valid `DicomElement` by having a tag value of zero, VR of `INVALID`,
+    /// and transfer syntax of `ExplicitVRLittleEndian`. Note that all three of these elements
+    /// should be checked as a tag of zero is valid for DIMSE, "Command Group Length". Use the
+    /// `is_sentinel()` function to check for this specific case.
+    pub fn new_sentinel() -> Self {
+        DicomElement {
+            tag: 0,
+            vr: &vr::INVALID,
+            vl: ValueLength::Explicit(0),
+            data: Vec::with_capacity(0),
+            sq_path: Vec::with_capacity(0),
+            ts: &ts::ExplicitVRLittleEndian,
+            cs: DEFAULT_CHARACTER_SET,
+        }
+    }
+
     pub fn tag(&self) -> u32 {
         self.tag
     }
@@ -122,14 +139,24 @@ impl DicomElement {
         self.vr == &vr::SQ || read::util::is_non_standard_seq(self.tag, self.vr, self.vl)
     }
 
-    /// Returns whether the the size of the value for this element is zero.
+    /// Returns whether the the size of the value field for this element is zero.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
+    /// Checks if this `DicomElement` is a sentinel value, identified by having the following
+    /// properties:
+    ///
+    /// - Tag value of zero
+    /// - VR of `&vr::INVALID`
+    /// - Transfer Syntax of `&ts::ImplicitVRLittleEndian`
+    pub fn is_sentinel(&self) -> bool {
+        self.tag == 0 && self.vr == &vr::INVALID && self.ts == &ts::ExplicitVRLittleEndian
+    }
+
     /// Creates a `TagPath` for the current element.
     pub fn create_tagpath(&self) -> TagPath {
-        if self.tag == 0 {
+        if self.is_sentinel() {
             TagPath::empty()
         } else {
             self.sq_path
