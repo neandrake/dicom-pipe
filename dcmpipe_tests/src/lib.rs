@@ -1,3 +1,10 @@
+use std::convert::TryFrom;
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+
+use walkdir::WalkDir;
+
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
 use dcmpipe_lib::core::dcmelement::{Attribute, DicomElement};
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
@@ -9,11 +16,6 @@ use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
-use std::convert::TryFrom;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
 
 #[cfg(test)]
 mod charsets;
@@ -156,7 +158,7 @@ pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> Result<()> {
 }
 
 fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> Result<()> {
-    parse_element_value(dcmobj.as_element())?;
+    parse_element_value(dcmobj.get_element())?;
     for (_tag, child_dcmobj) in dcmobj.iter_child_nodes() {
         parse_all_dcmobj_values(child_dcmobj)?;
     }

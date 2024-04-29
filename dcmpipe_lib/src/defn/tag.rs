@@ -1,9 +1,10 @@
 //! DICOM Data Elements
 
-use crate::defn::vm::VMRef;
-use crate::defn::vr::VRRef;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
+
+use crate::defn::vm::VMRef;
+use crate::defn::vr::VRRef;
 
 pub type TagRef = &'static Tag;
 

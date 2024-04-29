@@ -1,10 +1,13 @@
-use crate::app::CommandApplication;
-use anyhow::Result;
-use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
-use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
 use std::fs::File;
 use std::path::PathBuf;
+
+use anyhow::Result;
 use walkdir::WalkDir;
+
+use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_lib::core::dcmparser::{Parser, ParserBuilder};
+
+use crate::app::CommandApplication;
 
 enum ScanResult {
     Success,
