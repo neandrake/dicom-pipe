@@ -14,7 +14,9 @@ use std::io::{Error, ErrorKind, Seek};
 use std::path::Path;
 
 use core::dict::file_meta_elements as fme;
-use core::{ts, vr};
+use core::dict::transfer_syntaxes as ts;
+use core::ts::TransferSyntax;
+use core::vr;
 
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -30,7 +32,7 @@ pub struct DicomStream<StreamType> {
     dicom_prefix: [u8;DICOM_PREFIX_LENGTH],
     
     file_meta: HashMap<u32, DicomElement>,
-    ts: &'static ts::TransferSyntax<'static>,
+    ts: &'static TransferSyntax<'static>,
 
     // To allow peeking the next tag without fully reading the next element 
     tag_peek: Option<u32>,
@@ -202,7 +204,7 @@ impl<StreamType: ReadBytesExt + Seek> DicomStream<StreamType> {
             // Peek the next tag, all tags in 0002,xxxx are reserved for FileMetaInformation
             self.read_tag::<LittleEndian>()?;
             if let Some(read_tag) = self.tag_peek {
-                if read_tag < 0x00030000 {
+                if read_tag < 0x0003_0000 {
                     continue;
                 }
             }
