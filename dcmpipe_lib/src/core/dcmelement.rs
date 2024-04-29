@@ -276,7 +276,9 @@ impl DicomElement {
                         })
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of FL.
@@ -311,7 +313,9 @@ impl DicomElement {
                         })
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of FL.
@@ -338,7 +342,9 @@ impl DicomElement {
                         .map(|short: i16| short.to_string().into_bytes())
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of SS
@@ -364,7 +370,9 @@ impl DicomElement {
                         .map(|ushort: u16| ushort.to_string().into_bytes())
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of US
@@ -390,7 +398,9 @@ impl DicomElement {
                         .map(|int: i32| int.to_string().into_bytes())
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of SL.
@@ -416,7 +426,9 @@ impl DicomElement {
                         .map(|uint: u32| uint.to_string().into_bytes())
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of UL.
@@ -442,7 +454,9 @@ impl DicomElement {
                         .map(|long: i64| long.to_string().into_bytes())
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of SL.
@@ -469,7 +483,9 @@ impl DicomElement {
                         .map(|ulong: u64| ulong.to_string().into_bytes())
                         .flat_map(|v| v.into_iter().chain(once(vr::CS_SEPARATOR_BYTE)))
                         .collect::<Vec<u8>>();
-                    encoded.remove(encoded.len() - 1);
+                    if !encoded.is_empty() {
+                        encoded.remove(encoded.len() - 1);
+                    }
                     encoded
                 } else {
                     // This should only be the case for a VR of UL.

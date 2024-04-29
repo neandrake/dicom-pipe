@@ -292,58 +292,64 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
             }
 
             // Some character-based elements seem to include trailing null-byte padding.
-            let orig_end_trimmed = orig_parsed_data
-                .iter()
-                .rev()
-                .map(|b| b.to_owned())
-                .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
-                .collect::<Vec<u8>>()
-                .iter()
-                .rev()
-                .map(|b| b.to_owned())
-                .collect::<Vec<u8>>();
-            let reencoded_end_trimmed = reencoded_data
-                .iter()
-                .rev()
-                .map(|b| b.to_owned())
-                .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
-                .collect::<Vec<u8>>()
-                .iter()
-                .rev()
-                .map(|b| b.to_owned())
-                .collect::<Vec<u8>>();
+            let trimmer = |v: &Vec<u8>| {
+                v.iter()
+                    .rev()
+                    .map(|b| b.to_owned())
+                    .skip_while(|&b| b == vr::SPACE_PADDING || b == vr::NULL_PADDING)
+                    .collect::<Vec<u8>>()
+                    .iter()
+                    .rev()
+                    .map(|b| b.to_owned())
+                    .collect::<Vec<u8>>()
+            };
+
+            let orig_end_trimmed = trimmer(&orig_parsed_data);
+            let reencoded_end_trimmed = trimmer(&reencoded_data);
 
             if orig_end_trimmed == reencoded_end_trimmed {
                 return Ok(());
             }
         }
 
-        // Values may have originally had leading and trailing spaces which are lost
-        // when parsed into RawValue. Additionally the same for leading zeros.
         if elem.get_vr() == &vr::IS || elem.get_vr() == &vr::LO {
-            let orig_end_trimmed = orig_parsed_data
-                .iter()
-                .map(|b| b.to_owned())
-                .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
-                .collect::<Vec<u8>>()
-                .iter()
-                .rev()
-                .map(|b| b.to_owned())
-                .skip_while(|&b| b == vr::SPACE_PADDING)
-                .collect::<Vec<u8>>();
-            let reencoded_end_trimmed = reencoded_data
-                .iter()
-                .map(|b| b.to_owned())
-                .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
-                .collect::<Vec<u8>>()
-                .iter()
-                .rev()
-                .map(|b| b.to_owned())
-                .skip_while(|&b| b == vr::SPACE_PADDING)
-                .collect::<Vec<u8>>();
+            // Values may have originally had leading and trailing spaces which are lost
+            // when parsed into RawValue. Additionally the same for leading zeros.
+            let trimmer = |v: &Vec<u8>| {
+                v.iter()
+                    .map(|b| b.to_owned())
+                    .skip_while(|&b| b == vr::SPACE_PADDING || b == b'0')
+                    .collect::<Vec<u8>>()
+                    .iter()
+                    .rev()
+                    .map(|b| b.to_owned())
+                    .skip_while(|&b| b == vr::SPACE_PADDING)
+                    .collect::<Vec<u8>>()
+            };
 
-            if orig_end_trimmed == reencoded_end_trimmed {
-                return Ok(());
+            let orig_pieces = orig_parsed_data
+                .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+                .map(|b| b.to_owned())
+                .collect::<Vec<Vec<u8>>>();
+            let reencoded_pieces = reencoded_data
+                .split(|&b| b == vr::CS_SEPARATOR_BYTE)
+                .map(|b| b.to_owned())
+                .collect::<Vec<Vec<u8>>>();
+
+            if orig_pieces.len() == reencoded_pieces.len() {
+                let mut all_eq = true;
+                for i in 0..orig_pieces.len() {
+                    let orig_end_trimmed = trimmer(&orig_pieces[i]);
+                    let reencoded_end_trimmed = trimmer(&reencoded_pieces[i]);
+
+                    if orig_end_trimmed != reencoded_end_trimmed {
+                        all_eq = false;
+                        break;
+                    }
+                }
+                if all_eq {
+                    return Ok(());
+                }
             }
         }
     }
