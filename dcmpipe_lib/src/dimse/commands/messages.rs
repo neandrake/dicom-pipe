@@ -34,6 +34,8 @@ use crate::{
     },
 };
 
+use super::MoveProgress;
+
 /// Sentinel value of `CommandDataSetType` (0000,0800) to indicate that there is no Data Set
 /// present in the message. Any other value in `CommandDataSetType` indicates a Data Set is present
 /// in the message.
@@ -394,10 +396,7 @@ impl CommandMessage {
         msg_id: u16,
         aff_sop_class_uid: &str,
         status: &CommandStatus,
-        num_remaining_ops: u16,
-        num_completed_ops: u16,
-        num_failed_ops: u16,
-        num_warning_ops: u16,
+        progress: MoveProgress,
     ) -> Self {
         CommandMessage::create(
             ctx_id,
@@ -415,19 +414,19 @@ impl CommandMessage {
                 (&Status, RawValue::from(status)),
                 (
                     &NumberofRemainingSuboperations,
-                    RawValue::of_ushort(num_remaining_ops),
+                    RawValue::of_ushort(progress.0),
                 ),
                 (
                     &NumberofCompletedSuboperations,
-                    RawValue::of_ushort(num_completed_ops),
+                    RawValue::of_ushort(progress.1),
                 ),
                 (
                     &NumberofFailedSuboperations,
-                    RawValue::of_ushort(num_failed_ops),
+                    RawValue::of_ushort(progress.2),
                 ),
                 (
                     &NumberofWarningSuboperations,
-                    RawValue::of_ushort(num_warning_ops),
+                    RawValue::of_ushort(progress.3),
                 ),
             ],
         )

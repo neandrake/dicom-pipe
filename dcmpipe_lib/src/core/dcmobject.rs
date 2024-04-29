@@ -590,22 +590,17 @@ impl DicomObject {
     /// child/index nodes into a dataset.
     #[must_use]
     pub fn byte_size(&self) -> usize {
-        let start = if self.element.is_sentinel() {
-            0
-        } else {
-            self.element.byte_size()
-        };
-        start + self.flatten().iter().map(|e| e.byte_size()).sum::<usize>()
+        self.flatten().iter().map(|e| e.byte_size()).sum::<usize>()
     }
 
     /// Flattens this object into an ordered list of elements as they would appear in a dataset.
+    // TODO: How to make this return an iterator?
     #[must_use]
     pub fn flatten(&self) -> Vec<&DicomElement> {
-        // TODO: Can this instead return an iterator?
-
         let mut elements: Vec<&DicomElement> =
             Vec::with_capacity(1 + self.item_count() + self.child_count());
 
+        // Add this element, if it's not a phantom/sentinel.
         if !self.element().is_sentinel() {
             elements.push(self.element());
         }

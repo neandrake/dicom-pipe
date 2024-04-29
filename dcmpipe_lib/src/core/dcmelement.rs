@@ -221,12 +221,16 @@ impl DicomElement {
     /// Checks if this `DicomElement` is a sentinel value, identified by having the following
     /// properties:
     ///
+    /// - A root element (empty `sq_path`)
     /// - Tag value of zero
     /// - VR of `&vr::INVALID`
-    /// - Transfer Syntax of `&ts::ImplicitVRLittleEndian`
+    /// - Transfer Syntax of `ExplicitVRLittleEndian`
     #[must_use]
     pub fn is_sentinel(&self) -> bool {
-        self.tag == 0 && self.vr == &INVALID_VR && self.ts == &ExplicitVRLittleEndian
+        self.sq_path.is_empty()
+            && self.tag == 0
+            && self.vr == &INVALID_VR
+            && self.ts == &ExplicitVRLittleEndian
     }
 
     /// Creates a `TagPath` for the current element.

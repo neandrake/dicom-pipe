@@ -172,10 +172,7 @@ impl UserAssoc {
 
         let response = Pdu::read(reader).map_err(AssocError::ab_failure)?;
         let Pdu::AssocAC(ac) = response else {
-            return self
-                .common
-                .handle_disconnect(response, &mut writer)
-                .map(Some);
+            return CommonAssoc::handle_disconnect(response, &mut writer).map(Some);
         };
 
         self.common.their_user_data.clear();

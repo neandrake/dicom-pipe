@@ -245,7 +245,7 @@ impl CommonAssoc {
         writer: &mut W,
     ) -> Result<DimseMsg, AssocError> {
         match read_next_pdu(reader, self.get_pdu_max_rcv_size()) {
-            Some(Ok(PduIterItem::Pdu(pdu))) => self.handle_disconnect(pdu, writer),
+            Some(Ok(PduIterItem::Pdu(pdu))) => Self::handle_disconnect(pdu, writer),
             Some(Ok(PduIterItem::CmdMessage(cmd))) => Ok(DimseMsg::Cmd(cmd)),
             Some(Ok(PduIterItem::Dataset(dataset))) => Ok(DimseMsg::Dataset(dataset)),
             Some(Err(err)) => Err(AssocError::ab_failure(err)),
@@ -395,11 +395,7 @@ impl CommonAssoc {
     /// # Errors
     /// - I/O errors may occur when writing to the stream.
     /// - `DimseError`s may occur if `pdu` is not one the expected/valid PDUs.
-    fn handle_disconnect<W: Write>(
-        &self,
-        pdu: Pdu,
-        writer: &mut W,
-    ) -> Result<DimseMsg, AssocError> {
+    fn handle_disconnect<W: Write>(pdu: Pdu, writer: &mut W) -> Result<DimseMsg, AssocError> {
         match pdu {
             Pdu::ReleaseRQ(_rq) => {
                 CommonAssoc::write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;

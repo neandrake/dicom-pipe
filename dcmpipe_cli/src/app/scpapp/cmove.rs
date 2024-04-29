@@ -30,7 +30,7 @@ use dcmpipe_lib::{
     },
     dimse::{
         assoc::{scu::UserAssocBuilder, DimseMsg},
-        commands::{messages::CommandMessage, CommandStatus},
+        commands::{messages::CommandMessage, CommandStatus, MoveProgress},
         error::{AssocError, DimseError},
     },
 };
@@ -49,22 +49,21 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&MoveDestination)
             .map_err(AssocError::ab_failure)?;
 
-        let Some(aet_host) = self.assoc.aet_host(&dest).cloned() else {
-            let failure_status = CommandMessage::c_move_rsp(
-                ctx_id,
-                msg_id,
-                &aff_sop_class,
-                &CommandStatus::Failure(0xA801),
-                0,
-                0,
-                0,
-                0,
-            );
+        let report_status = |writer: &mut W, status: &CommandStatus, progress: MoveProgress| {
+            // TODO: Add error comment to failures.
+            let status =
+                CommandMessage::c_move_rsp(ctx_id, msg_id, &aff_sop_class, status, progress);
+            self.assoc.common().write_command(&status, writer)
+        };
 
-            // Report failed progress to C-MOVE requestor.
-            self.assoc
-                .common()
-                .write_command(&failure_status, &mut self.writer)?;
+        let Some(aet_host) = self.assoc.aet_host(&dest).cloned() else {
+            // Report failed progress to C-MOVE requestor. The query for matching SOPs happens
+            // after validating the AE title so we can't report any numbers for progress.
+            report_status(
+                &mut self.writer,
+                &CommandStatus::Failure(0xA801),
+                MoveProgress(0, 0, 0, 0),
+            )?;
             return Ok(());
         };
 
@@ -79,25 +78,13 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
 
         let path_map = Self::resolve_to_files(query_results.group_map);
 
-        let sop_count = path_map
-            .values()
-            .map(|v| v.len())
-            .sum::<usize>();
+        let sop_count = path_map.values().map(Vec::len).sum::<usize>();
         let sop_count = u16::try_from(sop_count).unwrap_or_default();
-        let move_status = CommandMessage::c_move_rsp(
-            ctx_id,
-            msg_id,
-            &aff_sop_class,
+        report_status(
+            &mut self.writer,
             &CommandStatus::pending(),
-            sop_count,
-            0,
-            0,
-            0,
-        );
-
-        self.assoc
-            .common()
-            .write_command(&move_status, &mut self.writer)?;
+            MoveProgress(sop_count, 0, 0, 0),
+        )?;
 
         let stream = TcpStream::connect(aet_host)
             .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
@@ -115,23 +102,12 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         let mut dest_reader = BufReader::new(&stream);
         let mut dest_writer = BufWriter::new(&stream);
         if let Some(msg) = scu_assoc.request_association(&mut dest_reader, &mut dest_writer)? {
-            // TODO: Add error comment to message.
-            let failure_status = CommandMessage::c_move_rsp(
-                ctx_id,
-                msg_id,
-                &aff_sop_class,
+            // All failed.
+            report_status(
+                &mut self.writer,
                 &CommandStatus::Failure(0xC000),
-                0,
-                0,
-                sop_count, // All failed
-                0,
-            );
-
-            // Report failed progress to C-MOVE requestor.
-            self.assoc
-                .common()
-                .write_command(&move_status, &mut self.writer)?;
-
+                MoveProgress(0, 0, sop_count, 0),
+            )?;
             return Ok(());
         }
 
@@ -148,22 +124,12 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                         err.write(&mut dest_writer)
                             .map_err(AssocError::ab_failure)?;
 
-                        let failure_status = CommandMessage::c_move_rsp(
-                            ctx_id,
-                            msg_id,
-                            &aff_sop_class,
+                        // For now, if one fails then do not attempt the rest.
+                        report_status(
+                            &mut self.writer,
                             &CommandStatus::Failure(0xC000),
-                            0, // No more remaining,
-                            successful,
-                            remaining, // The rest are not being attempted, all fail.
-                            0,
-                        );
-                        self.assoc
-                            .common()
-                            .write_command(&failure_status, &mut self.writer)?;
-
-                        // The failure here does not need to abort the association from the C-STORE
-                        // requestor.
+                            MoveProgress(0, successful, remaining, 0),
+                        )?;
                         return Ok(());
                     }
                 };
@@ -178,78 +144,42 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 );
 
                 let Ok(Some(DimseMsg::Cmd(cmd_rsp))) = store_rsp else {
-                    let failure_status = CommandMessage::c_move_rsp(
-                        ctx_id,
-                        msg_id,
-                        &aff_sop_class,
+                    report_status(
+                        &mut self.writer,
                         &CommandStatus::Failure(0xC000),
-                        0, // No more remaining,
-                        successful,
-                        remaining, // The rest are not being attempted, all fail.
-                        0,
-                    );
-                    self.assoc
-                        .common()
-                        .write_command(&failure_status, &mut self.writer)?;
-
+                        MoveProgress(0, successful, remaining, 0),
+                    )?;
                     return Ok(());
                 };
 
                 if !cmd_rsp.status().is_success() {
-                    let failure_status = CommandMessage::c_move_rsp(
-                        ctx_id,
-                        msg_id,
-                        &aff_sop_class,
+                    report_status(
+                        &mut self.writer,
                         &CommandStatus::Failure(0xC000),
-                        0, // No more remaining,
-                        successful,
-                        remaining, // The rest are not being attempted, all fail.
-                        0,
-                    );
-                    self.assoc
-                        .common()
-                        .write_command(&failure_status, &mut self.writer)?;
-
+                        MoveProgress(0, successful, remaining, 0),
+                    )?;
                     return Ok(());
                 }
 
                 successful += 1;
                 remaining -= 1;
 
-                // Report progress.
-                let progress_status = CommandMessage::c_move_rsp(
-                    ctx_id,
-                    msg_id,
-                    &aff_sop_class,
+                report_status(
+                    &mut self.writer,
                     &CommandStatus::pending(),
-                    remaining,
-                    successful,
-                    0,
-                    0,
-                );
-                self.assoc
-                    .common()
-                    .write_command(&progress_status, &mut self.writer)?;
+                    MoveProgress(remaining, successful, 0, 0),
+                )?;
             }
         }
 
+        // If there's an error releasing the association don't propagate as an error.
         let _ = scu_assoc.release_association(&mut dest_reader, &mut dest_writer);
 
-        // Report success.
-        let success_status = CommandMessage::c_move_rsp(
-            ctx_id,
-            msg_id,
-            &aff_sop_class,
+        report_status(
+            &mut self.writer,
             &CommandStatus::success(),
-            remaining,
-            successful,
-            0,
-            0,
-        );
-        self.assoc
-            .common()
-            .write_command(&move_status, &mut self.writer)?;
-
+            MoveProgress(remaining, successful, 0, 0),
+        )?;
         Ok(())
     }
 

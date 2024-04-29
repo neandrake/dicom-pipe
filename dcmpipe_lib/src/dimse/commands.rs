@@ -311,3 +311,7 @@ impl From<u16> for CommandStatus {
         CommandStatus::INVALID(value)
     }
 }
+
+/// When reporting progress of C-MOVE transfers. The order of progress fields are: (remaining,
+/// completed, failed, warning)
+pub struct MoveProgress(pub u16, pub u16, pub u16, pub u16);
