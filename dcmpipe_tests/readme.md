@@ -8,8 +8,7 @@ Test fixtures are files are needed to run several tests here. These fixtures are
    - [[ https://sourceforge.net/projects/gdcm/files/gdcmData/ | gdcmData ]]
    - [[ https://sourceforge.net/projects/gdcm/files/gdcmConformanceTests/ | gdcmConformanceTests ]]
  - [[ https://www.dclunie.com/ | David Clunie ]], at the bottom of the page under `Images`
- 
- These fixtures should be downloaded and extracted into this crate
- 
- {F19863}
+
+These fixtures should be downloaded and extracted into this crate
+{F19863}
  
