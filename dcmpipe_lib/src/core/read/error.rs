@@ -118,4 +118,8 @@ pub enum ParseError {
         string_path: String,
         details: String,
     },
+
+    /// A general decode error that may not be directly tied to a DICOM element.
+    #[error("error decoding: {0}")]
+    GeneralDecodeError(String),
 }

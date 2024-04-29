@@ -22,17 +22,81 @@ use std::{any::type_name, fmt::Display, mem::size_of, str::FromStr};
 use crate::core::{
     dcmelement::DicomElement,
     defn::{
-        tag::Tag,
+        tag::{Tag, TagNode},
         vr::{
             VRRef, AT, CS_SEPARATOR, DS, FD, FL, IS, NULL_PADDING, OD, OF, OL, OV, OW, SL,
-            SPACE_PADDING, SS, SV, UI, UL, UN, US, UV,
+            SPACE_PADDING, SS, SV, UI, UL, UN, US, UV, VR,
         },
     },
-    read::{ParseError, ParseResult},
+    read::{error::ParseErrorInfo, ParseError, ParseResult},
     values::{Attribute, BytesWithoutPadding, ElementWithVr, RawValue},
 };
 
-use super::error::ParseErrorInfo;
+pub struct StringAndVr<'s>(pub &'s str, pub &'s VR);
+impl<'s> TryFrom<StringAndVr<'s>> for RawValue<'s> {
+    type Error = ParseError;
+
+    fn try_from(pair: StringAndVr<'s>) -> Result<Self, Self::Error> {
+        let value = pair.0;
+        let vr = pair.1;
+        if value.is_empty() {
+            Ok(RawValue::of_string(value))
+        } else if vr == &AT {
+            let tag_node = TagNode::parse(value, None)?;
+            Ok(RawValue::of_attr(Attribute(tag_node.tag())))
+        } else if vr == &UI {
+            Ok(RawValue::of_uid(value))
+        } else if vr == &SS {
+            Ok(RawValue::of_short(value.parse::<i16>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else if vr == &US {
+            Ok(RawValue::of_ushort(value.parse::<u16>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else if vr == &SL {
+            Ok(RawValue::of_int(value.parse::<i32>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else if vr == &UL {
+            Ok(RawValue::of_uint(value.parse::<u32>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else if vr == &SV {
+            Ok(RawValue::of_long(value.parse::<i64>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else if vr == &UV {
+            Ok(RawValue::of_ulong(value.parse::<u64>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else if vr == &IS {
+            let possible_i32 = value
+                .parse::<i32>()
+                .map_err(|e| ParseError::GeneralDecodeError(e.to_string()));
+            if let Ok(i32) = possible_i32 {
+                Ok(RawValue::of_int(i32))
+            } else {
+                // Sometimes decimal elems are (incorrectly) encoded with VR of IS.
+                Ok(RawValue::of_double(value.parse::<f64>().map_err(|e| {
+                    ParseError::GeneralDecodeError(e.to_string())
+                })?))
+            }
+        } else if vr == &OF || vr == &FL {
+            Ok(RawValue::of_float(value.parse::<f32>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else if vr == &DS || vr == &OD || vr == &FD {
+            Ok(RawValue::of_double(value.parse::<f64>().map_err(|e| {
+                ParseError::GeneralDecodeError(e.to_string())
+            })?))
+        } else {
+            // Check is_character_string last, as that will be true for a number of VRs above which
+            // whose try_from will attempt to parse stringified numeric elems into native values.
+            Ok(RawValue::of_string(value))
+        }
+    }
+}
 
 impl<'e> TryFrom<&'e DicomElement> for RawValue<'e> {
     type Error = ParseError;

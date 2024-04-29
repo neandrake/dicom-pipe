@@ -271,7 +271,7 @@ impl CommandMessage {
     #[must_use]
     pub fn c_find_rsp(ctx_id: u8, msg_id: u16, aff_sop_uid: &str, status: &CommandStatus) -> Self {
         // For a C-FIND response a DICOM dataset should immediately follow.
-        let dataset_type = if status == &CommandStatus::success() {
+        let dataset_type = if status.is_success() {
             COMMAND_DATASET_TYPE_NONE
         } else {
             COMMAND_DATASET_TYPE_SOME

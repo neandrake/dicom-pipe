@@ -36,7 +36,7 @@ use crate::{
                 PresentationDataValue, ReleaseRP, TransferSyntaxItem, UserInformationItem,
                 P_DATA_CMD_LAST, P_DATA_DCM_DATASET_LAST,
             },
-            pduiter::{PduIter, PduIterItem},
+            pduiter::{read_next_pdu, PduIterItem},
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
             Pdu, UserPdu,
         },
@@ -75,6 +75,34 @@ impl ServiceAssoc {
     #[must_use]
     pub fn get_pres_ctx(&self, ctx_id: u8) -> Option<&AssocACPresentationContext> {
         self.negotiated_pres_ctx.get(&ctx_id)
+    }
+
+    /// Retrieve the accepted presentation context and its negotiated transfer syntax, by the given
+    /// context ID.
+    ///
+    /// # Errors
+    /// `AssocError` may occur if the negotiated presentation context cannot be resolved, or if a
+    /// known transfer syntax for it cannot be resolved.
+    pub fn get_pres_ctx_and_ts(
+        &self,
+        ctx_id: u8,
+    ) -> Result<(&AssocACPresentationContext, TSRef), AssocError> {
+        let Some(pres_ctx) = self.get_pres_ctx(ctx_id) else {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                "Negotiated Presentation Context ID not found: {ctx_id}"
+            ))));
+        };
+
+        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
+            .ok()
+            .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
+            .ok_or_else(|| {
+                AssocError::ab_failure(DimseError::GeneralError(
+                    "Failed to resolve transfer syntax".to_string(),
+                ))
+            })?;
+
+        Ok((pres_ctx, ts))
     }
 
     #[must_use]
@@ -266,7 +294,7 @@ impl ServiceAssoc {
         reader: &mut R,
         writer: &mut W,
     ) -> Result<DimseMsg, AssocError> {
-        match PduIter::new(reader).next() {
+        match read_next_pdu(reader) {
             Some(Ok(PduIterItem::Pdu(pdu))) => self.handle_disconnect(pdu, writer),
             Some(Ok(PduIterItem::CmdMessage(cmd))) => Ok(DimseMsg::Cmd(cmd)),
             Some(Ok(PduIterItem::Dataset(dataset))) => Ok(DimseMsg::Dataset(dataset)),

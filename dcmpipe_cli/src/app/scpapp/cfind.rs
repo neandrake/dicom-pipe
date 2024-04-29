@@ -17,6 +17,7 @@
 use std::{
     collections::{HashMap, HashSet},
     io::{Read, Write},
+    str::FromStr,
 };
 
 use bson::{doc, Document};
@@ -49,7 +50,7 @@ use dcmpipe_lib::{
         },
     },
     dimse::{
-        assoc::scp::ServiceAssoc,
+        assoc::{scp::ServiceAssoc, QueryLevel},
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
     },
@@ -110,7 +111,7 @@ static STUDY_LEVEL_META_TAGS: [TagRef; 4] = [
 ];
 
 pub(crate) struct MongoQuery {
-    pub query_level: String,
+    pub ql: QueryLevel,
     pub query: Document,
     pub include_keys: Vec<u32>,
     pub meta_keys: Vec<u32>,
@@ -169,7 +170,8 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         let query_results = IndexApp::query_docs(&coll, Some(mongo_query.query.clone()))
             .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
 
-        let group_map = Self::group_results(&mongo_query.query_level, query_results);
+        // XXX: Stream results from mongo to avoid pulling all into memory?
+        let group_map = Self::group_results(mongo_query.ql, query_results);
 
         Ok(QueryResults {
             query: mongo_query,
@@ -221,23 +223,25 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             }
         }
 
-        let query_level = dcm
-            .get_value_by_tag(&QueryRetrieveLevel)
-            .and_then(|v| v.string().cloned())
-            .unwrap_or_else(|| "STUDY".to_owned());
+        let ql = if let Some(ql_val) = dcm.get_value_by_tag(&QueryRetrieveLevel) {
+            if let Some(ql_val_str) = ql_val.string() {
+                QueryLevel::from_str(ql_val_str.as_str())
+                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
+            } else {
+                QueryLevel::Study
+            }
+        } else {
+            QueryLevel::Study
+        };
 
-        if query_level == "PATIENT"
-            || query_level == "STUDY"
-            || query_level == "SERIES"
-            || query_level == "IMAGE"
-        {
+        if ql.include_patient_tags() {
             for tag in PATIENT_LEVEL_TAGS {
                 if !include_keys.contains(&tag.tag()) {
                     include_keys.push(tag.tag());
                 }
             }
         }
-        if query_level == "STUDY" || query_level == "SERIES" || query_level == "IMAGE" {
+        if ql.include_study_tags() {
             for tag in STUDY_LEVEL_TAGS {
                 if !include_keys.contains(&tag.tag()) {
                     include_keys.push(tag.tag());
@@ -246,7 +250,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         }
 
         Ok(MongoQuery {
-            query_level,
+            ql,
             query,
             include_keys,
             meta_keys,
@@ -254,26 +258,26 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
     }
 
     pub(crate) fn group_results(
-        query_level: &str,
+        ql: QueryLevel,
         query_results: impl Iterator<Item = DicomDoc>,
     ) -> HashMap<String, Vec<DicomDoc>> {
         // The results from mongo are series-level. Group the series results based on the query
         // level specified.
         let mut group_map: HashMap<String, Vec<DicomDoc>> = HashMap::new();
         for result in query_results {
-            if query_level == "PATIENT" {
+            if ql == QueryLevel::Patient {
                 if let Ok(key) = result.doc().get_str(PATIENT_ID_KEY) {
                     group_map.entry(key.to_owned()).or_default().push(result);
                 }
-            } else if query_level == "STUDY" {
+            } else if ql == QueryLevel::Study {
                 if let Ok(key) = result.doc().get_str(STUDY_UID_KEY) {
                     group_map.entry(key.to_owned()).or_default().push(result);
                 }
-            } else if query_level == "SERIES" {
+            } else if ql == QueryLevel::Series {
                 if let Ok(key) = result.doc().get_str(SERIES_UID_KEY) {
                     group_map.entry(key.to_owned()).or_default().push(result);
                 }
-            } else if query_level == "IMAGE" {
+            } else if ql == QueryLevel::Image {
                 let sops_doc = result
                     .doc()
                     .get_document("metadata")

@@ -14,9 +14,10 @@
    limitations under the License.
 */
 
-use std::path::PathBuf;
+use std::{error::Error, path::PathBuf};
 
 use clap::{Args, Parser, Subcommand};
+use dcmpipe_lib::dimse::assoc::QueryLevel;
 
 #[derive(Parser, Debug)]
 /// Explore DICOM
@@ -148,4 +149,23 @@ pub struct SvcUserArgs {
 pub enum SvcUserCommand {
     /// Issue a C-ECHO command.
     Echo,
+
+    /// Issue a C-FIND command.
+    Find {
+        #[arg(short, long)]
+        query_level: QueryLevel,
+
+        #[arg(short, long, value_parser = parse_key_val)]
+        query: Vec<(String, String)>,
+    },
+}
+
+fn parse_key_val(s: &str) -> Result<(String, String), Box<dyn Error + Send + Sync + 'static>> {
+    let pos = s
+        .find('=')
+        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+
+    let tag = s[..pos].to_string();
+    let val = s[pos + 1..].to_string();
+    Ok((tag, val))
 }

@@ -20,23 +20,36 @@ use std::{
 };
 
 use crate::{
-    core::defn::{ts::TSRef, uid::UIDRef},
-    dict::uids::{DICOMApplicationContextName, VerificationSOPClass},
+    core::{
+        charset::DEFAULT_CHARACTER_SET,
+        dcmobject::DicomRoot,
+        defn::{dcmdict::DicomDictionary, tag::Tag, ts::TSRef, uid::UIDRef},
+        RawValue,
+    },
+    dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY,
+        tags::QueryRetrieveLevel,
+        uids::{
+            DICOMApplicationContextName, PatientRootQueryRetrieveInformationModelFIND,
+            StudyRootQueryRetrieveInformationModelFIND, VerificationSOPClass,
+        },
+    },
     dimse::{
-        assoc::{serialize, DimseMsg},
-        commands::{messages::CommandMessage, CommandStatus},
+        assoc::{serialize, DimseMsg, QueryLevel},
+        commands::messages::CommandMessage,
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
                 Abort, AbstractSyntaxItem, ApplicationContextItem, AssocACPresentationContext,
                 AssocRQ, AssocRQPresentationContext, PresentationDataItem, PresentationDataValue,
                 ReleaseRP, ReleaseRQ, TransferSyntaxItem, UserInformationItem, P_DATA_CMD_LAST,
+                P_DATA_DCM_DATASET_LAST,
             },
-            pduiter::{PduIter, PduIterItem},
+            pduiter::{read_next_pdu, CommandIter, PduIterItem},
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
-            Pdu, UserPdu,
+            Pdu, PduType, UserPdu,
         },
-        AeTitle,
+        AeTitle, Syntax,
     },
 };
 
@@ -70,15 +83,40 @@ impl UserAssoc {
         Ok(())
     }
 
-    /// Retrieve the accepted presentation context by the given context ID.
-    #[must_use]
-    pub fn get_pres_ctx(&self, ctx_id: u8) -> Option<&AssocACPresentationContext> {
-        self.negotiated_pres_ctx.get(&ctx_id)
-    }
+    /// Retrieve the accepted presentation context and its negotiated transfer syntax, by the given
+    /// abstract syntax.
+    ///
+    /// # Errors
+    /// `AssocError` may occur if the requested or negotiated presentation context cannot be
+    /// resolved, or if a known transfer syntax for it cannot be resolved.
+    pub fn get_rq_pres_ctx_and_ts_by_ab(
+        &self,
+        ab: UIDRef,
+    ) -> Result<(&AssocACPresentationContext, TSRef), AssocError> {
+        let Some(pres_ctx) = self.requested_pres_ctx.get(ab) else {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                "Requested Presentation Context not found by abstract syntax: {}",
+                ab.uid()
+            ))));
+        };
 
-    #[must_use]
-    pub fn get_rq_pres_ctx_by_ab(&self, ab: UIDRef) -> Option<&AssocRQPresentationContext> {
-        self.requested_pres_ctx.get(ab)
+        let Some(pres_ctx) = self.negotiated_pres_ctx.get(&pres_ctx.ctx_id()) else {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                "Negotiated Presentation Context not found by ctx_id: {}",
+                pres_ctx.ctx_id()
+            ))));
+        };
+
+        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
+            .ok()
+            .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
+            .ok_or_else(|| {
+                AssocError::ab_failure(DimseError::GeneralError(
+                    "Failed to resolve transfer syntax".to_string(),
+                ))
+            })?;
+
+        Ok((pres_ctx, ts))
     }
 
     #[must_use]
@@ -209,22 +247,44 @@ impl UserAssoc {
         Ok(None)
     }
 
+    /// Release the association and confirm the RELEASE-RP
+    ///
+    /// # Errors
+    /// I/O errors may occur with the reader/writer.
+    /// `DimseError` may occur for protocol errors.
+    /// Other `DimseError::GeneralError` may occur if a RELEASE-RP was not received in response.
+    pub fn release_association<R: Read, W: Write>(
+        &mut self,
+        reader: &mut R,
+        writer: &mut W,
+    ) -> Result<Option<DimseMsg>, AssocError> {
+        self.write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), writer)?;
+        match read_next_pdu(reader) {
+            Some(Ok(PduIterItem::Pdu(Pdu::ReleaseRP(_rp)))) => Ok(Some(DimseMsg::ReleaseRP)),
+            Some(Ok(other)) => Err(AssocError::error(DimseError::GeneralError(format!(
+                "Did not get response for {:?}: {other:?}",
+                PduType::ReleaseRQ
+            )))),
+            Some(Err(e)) => Err(AssocError::error(e)),
+            None => Err(AssocError::error(DimseError::GeneralError(format!(
+                "Did not get {:?}",
+                PduType::ReleaseRP
+            )))),
+        }
+    }
+
     /// Issue a C-ECHO request.
     ///
     /// # Errors
-    /// I/O errors may occur with the reader/write.
+    /// I/O errors may occur with the reader/writer.
     /// Errors will also be returned if there are protocol errors.
     /// An error will be returned if the response is not successful.
     pub fn c_echo_rq<R: Read, W: Write>(
         &mut self,
-        reader: R,
+        mut reader: R,
         mut writer: W,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        let Some(pres_ctx) = self.get_rq_pres_ctx_by_ab(&VerificationSOPClass) else {
-            return Err(AssocError::error(DimseError::UnsupportedAbstractSyntax(
-                &VerificationSOPClass,
-            )));
-        };
+        let (pres_ctx, _ts) = self.get_rq_pres_ctx_and_ts_by_ab(&VerificationSOPClass)?;
 
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
@@ -234,7 +294,7 @@ impl UserAssoc {
         let pres_data_item = PresentationDataItem::new(vec![cmd]);
         self.write_pdu(&Pdu::PresentationDataItem(pres_data_item), &mut writer)?;
 
-        let rp = PduIter::new(reader).next();
+        let rp = read_next_pdu(&mut reader);
         let Some(rp) = rp else {
             return Err(AssocError::ab_failure(DimseError::GeneralError(
                 "Did not get response".to_owned(),
@@ -254,15 +314,67 @@ impl UserAssoc {
             }
         };
 
-        if rp_msg.status() != &CommandStatus::success() {
+        if !rp_msg.status().is_success() {
             return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
                 "Response status is not success: {:?}",
                 rp_msg.status()
             ))));
         }
 
-        self.write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
+        self.release_association(&mut reader, &mut writer)?;
         Ok(None)
+    }
+
+    /// Issues a C-FIND query.
+    ///
+    /// # Return
+    /// An iterator over `(CommandMessage, Option<DicomRoot>)` for reading the results. If the
+    /// status of the command message is `CommandStatus::Pending` then the `DicomRoot` should be
+    /// present and contain the search result. All other statuses indicate the end of the stream.
+    ///
+    /// # Errors
+    /// I/O errors may occur while using the reader/writer.
+    /// `DimseError` may occur if no associated negotatiated presentation context can be found.
+    pub fn c_find_req<R: Read, W: Write>(
+        &mut self,
+        reader: R,
+        mut writer: W,
+        ql: &QueryLevel,
+        dcm_query: Vec<(&Tag, RawValue)>,
+    ) -> Result<CommandIter<R>, AssocError> {
+        let sop_class_uid = match ql {
+            QueryLevel::Patient => &PatientRootQueryRetrieveInformationModelFIND,
+            _ => &StudyRootQueryRetrieveInformationModelFIND,
+        };
+        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+
+        let ctx_id = pres_ctx.ctx_id();
+        let msg_id = self.next_msg_id();
+        let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
+
+        let cmd_data = serialize(cmd.message())?;
+        let pres_data_item = PresentationDataItem::new(vec![PresentationDataValue::new(
+            ctx_id,
+            P_DATA_CMD_LAST,
+            cmd_data,
+        )]);
+        self.write_pdu(&Pdu::PresentationDataItem(pres_data_item), &mut writer)?;
+
+        let mut dcm_root = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
+        dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
+        for (tag, val) in dcm_query {
+            dcm_root.add_child_with_val(tag, val);
+        }
+
+        let dcm_query_data = serialize(&dcm_root)?;
+        let pres_data_item = PresentationDataItem::new(vec![PresentationDataValue::new(
+            ctx_id,
+            P_DATA_DCM_DATASET_LAST,
+            dcm_query_data,
+        )]);
+        self.write_pdu(&Pdu::PresentationDataItem(pres_data_item), &mut writer)?;
+
+        Ok(CommandIter::new(ts, reader))
     }
 }
 

@@ -244,16 +244,31 @@ impl CommandStatus {
         CommandStatus::Success(0)
     }
 
+    #[must_use]
+    pub fn is_success(&self) -> bool {
+        self == &CommandStatus::Success(0)
+    }
+
     /// Convenience for `CommandStatus::Pending(0xFF00)`.
     #[must_use]
     pub fn pending() -> CommandStatus {
         CommandStatus::Pending(0xFF00)
     }
 
+    #[must_use]
+    pub fn is_pending(&self) -> bool {
+        self == &CommandStatus::Pending(0xFF00) || self == &CommandStatus::Pending(0xFF01)
+    }
+
     /// Convenience for `CommandStatus::Cancel(0xFE00)`.
     #[must_use]
     pub fn cancel() -> CommandStatus {
         CommandStatus::Cancel(0xFE00)
+    }
+
+    #[must_use]
+    pub fn is_cancel(&self) -> bool {
+        self == &CommandStatus::Cancel(0x0FFF)
     }
 }
 

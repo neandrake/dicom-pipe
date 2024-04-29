@@ -14,9 +14,12 @@
    limitations under the License.
 */
 
+use std::str::FromStr;
+
 use crate::{
     core::{
         dcmobject::DicomRoot,
+        read::ParseError,
         write::{builder::WriterBuilder, writer::WriterState},
     },
     dict::transfer_syntaxes::ImplicitVRLittleEndian,
@@ -35,8 +38,61 @@ pub enum DimseMsg {
     Cmd(CommandMessage),
     Dataset(PresentationDataValue),
     ReleaseRQ,
+    ReleaseRP,
     Reject(AssocRJ),
     Abort(Abort),
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum QueryLevel {
+    Patient,
+    Study,
+    Series,
+    Image,
+}
+
+impl QueryLevel {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        match &self {
+            Self::Patient => "PATIENT",
+            Self::Study => "STUDY",
+            Self::Series => "SERIES",
+            Self::Image => "IMAGE",
+        }
+    }
+
+    #[must_use]
+    pub fn include_patient_tags(&self) -> bool {
+        true
+    }
+
+    #[must_use]
+    pub fn include_study_tags(&self) -> bool {
+        self != &QueryLevel::Patient
+    }
+}
+
+impl std::fmt::Display for QueryLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_str().fmt(f)
+    }
+}
+
+impl FromStr for QueryLevel {
+    type Err = ParseError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "PATIENT" => Ok(Self::Patient),
+            "STUDY" => Ok(Self::Study),
+            "SERIES" => Ok(Self::Series),
+            "IMAGE" => Ok(Self::Image),
+            other => Err(ParseError::GeneralDecodeError(format!(
+                "Invalid Query Level: {other}"
+            ))),
+        }
+    }
 }
 
 /// Serialize the given `DicomRoot` into in-memory bytes, using IVRLE.

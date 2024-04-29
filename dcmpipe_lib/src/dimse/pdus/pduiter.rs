@@ -19,7 +19,7 @@ use std::io::{Cursor, Read};
 use crate::{
     core::{
         dcmobject::DicomRoot,
-        defn::constants::ts::ImplicitVRLittleEndian,
+        defn::{constants::ts::ImplicitVRLittleEndian, ts::TSRef},
         read::{ParserBuilder, ParserState},
     },
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
@@ -30,6 +30,10 @@ use crate::{
     },
 };
 
+pub fn read_next_pdu<R: Read>(reader: R) -> Option<Result<PduIterItem, DimseError>> {
+    PduIter::new(reader).next()
+}
+
 #[derive(Debug)]
 pub enum PduIterItem {
     Pdu(Pdu),
@@ -37,13 +41,10 @@ pub enum PduIterItem {
     Dataset(PresentationDataValue),
 }
 
-#[derive(Debug)]
-pub enum PduIterState {
-    ReadPdu,
-    ReadPdiVal,
-    ReadCmdMessage,
-}
-
+/// Parsing PDU's from a stream was originally implemented as an iterator however it turns out that
+/// most activity over DIMSE protocol is organized as request/response activity. The result is that
+/// the user of this API will rarely need to read a stream of PDUs. To simplify, the
+/// `read_next_pdu()` function above was created to encapsulate this iterator implementation.
 pub struct PduIter<R: Read> {
     stream: R,
 }
@@ -125,5 +126,77 @@ impl<R: Read> Iterator for PduIter<R> {
         // If it's a DICOM fragment then send it up as-is, allowing the user of this API to
         // manually stitch or forward the data without fully loading it into memory.
         Some(Ok(PduIterItem::Dataset(pres_data_val)))
+    }
+}
+
+pub struct CommandIter<R: Read> {
+    ts: TSRef,
+    reader: PduIter<R>,
+}
+
+impl<R: Read> CommandIter<R> {
+    pub fn new(ts: TSRef, reader: R) -> Self {
+        Self {
+            ts,
+            reader: PduIter::new(reader),
+        }
+    }
+}
+
+impl<R: Read> Iterator for CommandIter<R> {
+    type Item = Result<(CommandMessage, Option<DicomRoot>), DimseError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let cmd = match self.reader.next() {
+            Some(Ok(PduIterItem::Dataset(_pdv))) => {
+                return Some(Err(DimseError::GeneralError(
+                    "Received Dataset instead of Command".to_owned(),
+                )))
+            }
+            Some(Ok(PduIterItem::Pdu(pdu))) => {
+                return Some(Err(DimseError::UnexpectedPduType(pdu.pdu_type())));
+            }
+            Some(Ok(PduIterItem::CmdMessage(cmd))) => cmd,
+            Some(Err(e)) => return Some(Err(e)),
+            None => return None,
+        };
+
+        if !cmd.has_dataset() {
+            return Some(Ok((cmd, None)));
+        }
+
+        let mut buf: Vec<u8> = Vec::new();
+        loop {
+            match self.reader.next() {
+                Some(Ok(PduIterItem::Dataset(pdv))) => {
+                    let is_last = pdv.is_last_fragment();
+                    buf.append(pdv.into_data().as_mut());
+                    if is_last {
+                        break;
+                    }
+                }
+                Some(Ok(PduIterItem::Pdu(pdu))) => {
+                    return Some(Err(DimseError::UnexpectedPduType(pdu.pdu_type())))
+                }
+                Some(Ok(PduIterItem::CmdMessage(_cmd))) => {
+                    return Some(Err(DimseError::GeneralError(
+                        "Received Command instead of Dataset".to_owned(),
+                    )))
+                }
+                Some(Err(e)) => return Some(Err(e)),
+                None => break,
+            }
+        }
+
+        let mut buf = Cursor::new(buf);
+        let mut parser = ParserBuilder::default()
+            .state(ParserState::ReadElement)
+            .dataset_ts(self.ts)
+            .build(&mut buf, &STANDARD_DICOM_DICTIONARY);
+        match DicomRoot::parse(&mut parser) {
+            Ok(Some(dcm_root)) => Some(Ok((cmd, Some(dcm_root)))),
+            Ok(None) => Some(Ok((cmd, None))),
+            Err(source) => Some(Err(DimseError::ParseError(source))),
+        }
     }
 }

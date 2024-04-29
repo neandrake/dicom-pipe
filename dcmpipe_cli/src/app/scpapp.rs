@@ -22,10 +22,7 @@ use anyhow::Result;
 use dcmpipe_lib::{
     core::{
         dcmobject::DicomRoot,
-        defn::{
-            constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
-            dcmdict::DicomDictionary,
-        },
+        defn::constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
         read::{ParserBuilder, ParserState},
     },
     dict::{
@@ -48,7 +45,6 @@ use dcmpipe_lib::{
         commands::CommandType,
         error::{AssocError, DimseError},
         pdus::PduType,
-        Syntax,
     },
 };
 use std::{
@@ -145,12 +141,16 @@ struct AssociationDevice<R: Read, W: Write> {
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     fn start(&mut self) {
         let result = self.main_loop();
+        let wrote_release_rp = matches!(result, Ok(DimseMsg::ReleaseRQ));
         let output = handle_assoc_result(result, &mut self.writer);
         for line in output {
             match line {
                 Ok(line) => println!("{line}"),
                 Err(line) => eprintln!("{line}"),
             }
+        }
+        if wrote_release_rp {
+            println!("[info ->]: {:?}", PduType::ReleaseRP);
         }
     }
 
@@ -172,21 +172,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             };
             println!("[info <-]: {:?}", cmd.cmd_type());
 
-            let Some(pres_ctx) = self.assoc.get_pres_ctx(cmd.ctx_id()) else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "Negotiated Presentation Context ID not found: {}",
-                    cmd.ctx_id()
-                ))));
-            };
-
-            let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
-                .ok()
-                .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
-                .ok_or_else(|| {
-                    AssocError::ab_failure(DimseError::GeneralError(
-                        "Failed to resolve transfer syntax".to_string(),
-                    ))
-                })?;
+            let (_pres_ctx, ts) = self.assoc.get_pres_ctx_and_ts(cmd.ctx_id())?;
 
             if cmd.cmd_type() == &CommandType::CCancelReq {
                 // TODO: After implementing async PDU handling this should cancel in-flight
@@ -205,9 +191,9 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
 
             // XXX: For C-STORE this will result in loading the entire received dataset into memory
             // at once.
-            let mut buffer = Cursor::new(Vec::<u8>::new());
+            let mut buffer = Vec::<u8>::new();
             self.read_dataset(&mut buffer)?;
-            buffer.set_position(0);
+            let buffer = Cursor::new(buffer);
 
             let mut dcm_parser = ParserBuilder::default()
                 .dataset_ts(ts)

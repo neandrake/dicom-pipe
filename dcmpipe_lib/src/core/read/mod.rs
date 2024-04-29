@@ -22,10 +22,9 @@ pub use parser::ParserState;
 
 mod ds;
 
-pub(crate) mod valdecode;
-
 pub mod behavior;
 pub mod builder;
 pub mod error;
 pub mod parser;
 pub mod stop;
+pub mod valdecode;

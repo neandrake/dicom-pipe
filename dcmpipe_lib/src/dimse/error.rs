@@ -49,19 +49,19 @@ pub enum DimseError {
     UnexpectedPduType(PduType),
 
     /// Error while parsing a DICOM element in a DIMSE request/response.
-    #[error("error parsing value from request")]
+    #[error("error parsing value from request: {0}")]
     ParseError(#[from] ParseError),
 
     /// Character encoding errors while parsing DICOM element values in a DIMSE request/response.
-    #[error("error decoding string")]
+    #[error("error decoding string: {0}")]
     CharsetError(#[from] CSError),
 
     /// Errors when writing DICOM elements in a response request/response stream.
-    #[error("error encoding DICOM")]
+    #[error("error encoding DICOM: {0}")]
     WriteError(#[from] WriteError),
 
     /// Wrapper around `std::io::Error`.
-    #[error("i/o error reading from dataset")]
+    #[error("i/o error reading from dataset: {0}")]
     IOError(#[from] std::io::Error),
 
     #[error("unsupported abstract syntax {0:?}")]
