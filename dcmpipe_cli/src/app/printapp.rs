@@ -122,6 +122,8 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
             "<Private Creator>"
         } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
             "<Private Sequence>"
+        } else if Tag::is_private(element.get_tag()) {
+            "<Private Tag>"
         } else {
             "<Unknown Tag>"
         };
