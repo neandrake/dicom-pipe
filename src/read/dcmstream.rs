@@ -123,15 +123,11 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         Ok(result)
     }
 
-    pub fn read_next_tag(&mut self) -> Result<u32, Error> {
+    // Reads the next tag. If `self.tag_peek` is Some, that will be returned
+    // instead of trying to read the next tag from the stream.
+    pub fn read_next_tag<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
         self.tag_peek.map_or_else(
-            || {
-                if self.ts.big_endian {
-                    self.read_tag::<BigEndian>()
-                } else {
-                    self.read_tag::<LittleEndian>()
-                }
-            },
+            || self.read_tag::<Endian>(),
             |read_tag: u32| Ok(read_tag)
         )
     }
@@ -161,6 +157,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
             if vr.has_explicit_2byte_pad {
                 self.stream.read_u16::<Endian>()?;
                 self.bytes_read += 2;
+
                 value_length = self.stream.read_u32::<Endian>()?;
                 self.bytes_read += 4;
             } else {
@@ -186,25 +183,13 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
                 // TODO: Read until Sequence Delimitation Item
                 // Part 5 Ch. 7.1.3
                 // The Value Field has an Undefined Length and a Sequence Delimitation Item marks the end of the Value Field.
-                Err(Error::new(ErrorKind::Other, format!("Reading values of undefined length not yet supported")))
+                unimplemented!();
             },
         }
     }
 
-    pub fn read_dicom_element(&mut self) -> Result<u32, Error> {
-        if self.ts.big_endian {
-            self._read_dicom_element::<BigEndian>()
-        } else {
-            self._read_dicom_element::<LittleEndian>()
-        }
-    }
-
-    fn _read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
-        let tag: u32 = match self.tag_peek {
-            Some(read_tag) => read_tag,
-            None => self.read_tag::<Endian>()?,
-        };
-        
+    pub fn read_dicom_element<Endian: ByteOrder>(&mut self) -> Result<u32, Error> {
+        let tag: u32 = self.read_next_tag::<Endian>()?;
         let vr: VRRef = self.read_vr(tag)?;
         let vl: ValueLength = self.read_value_length::<Endian>(vr)?;
         let bytes: Vec<u8> = self.read_value_field(&vl)?;
@@ -224,25 +209,99 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         Ok(tag)
     }
 
-    pub fn parse_transfer_syntax(&mut self) -> Result<TSRef, Error> {
-        let element: &mut DicomElement = self.get_element_mut(fme::TransferSyntaxUID.tag)?;
-        
-        let mut ts_uid: String = element.parse_string(vr::DEFAULT_CHARACTER_SET)?;
+    pub fn read_file_meta<F>(&mut self, each: F) -> Result<(), Error>
+        where F: Fn(&mut Self, u32) {
+        // This is required for "well-formed" DICOM files however it's not 100% required
+        // so somehow detect reading of FileMetaInformationGroupLength maybe?
+        self.read_file_preamble()?;
+        self.read_dicom_prefix()?;
 
-        if let Some(last_char) = ts_uid.chars().last() {
-            if last_char == char::from(vr::UI.padding) {
-                ts_uid.pop();
-            }
+        let bytes_read_before_fme: usize = self.bytes_read;
+
+        // All FileMetaInformation fields are encoded as LittleEndian
+
+        // The FileMetaInformationGroupLength is required first element and
+        // tells us how many bytes to reach end of FileMetaInformation
+        let fme_bytes: usize;
+        let fmi_grouplength_tag: u32 = self.read_dicom_element::<LittleEndian>()?;
+        if fmi_grouplength_tag != fme::FileMetaInformationGroupLength.tag {
+            return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", fmi_grouplength_tag)))
+        } else {
+            let fmi_grouplength: &mut DicomElement = self.get_element_mut(fmi_grouplength_tag)?;
+            // TODO: this reading of bytes as u32 should be part of VR (and remove padding)
+            fme_bytes = fmi_grouplength.get_value_mut().read_u32::<LittleEndian>()? as usize;
         }
 
-        let ts_uid_str: &str = ts_uid.as_ref();
-        TS_BY_ID
-            .get(ts_uid_str)
-            .map(|tsref: &TSRef| *tsref)
-            .ok_or(Error::new(ErrorKind::InvalidData, format!("Unknown TransferSyntax: {}", ts_uid_str)))
+        let mut transfer_syntax: TSRef = self.ts;
+        while self.bytes_read - bytes_read_before_fme < fme_bytes {    
+            let element_tag: u32 = self.read_dicom_element::<LittleEndian>()?;
+            if element_tag == fme::TransferSyntaxUID.tag {
+                transfer_syntax = self.parse_transfer_syntax()?;
+            }
+
+            each(self, element_tag);
+        }
+
+        // don't set the transfer syntax until after reading all FileMeta, otherwise it 
+        // will attempt to read remaining FME tags as different syntax than ExplicitVRLittleEndian (which is required)
+        self.ts = transfer_syntax;
+
+        Ok(())
     }
 
-    pub fn parse_specific_character_set(&mut self) -> Result<EncodingRef, Error> {
+    pub fn read_until<F>(&mut self, tagstop: TagStop, each: F) -> Result<(), Error>
+        where F: Fn(&mut Self, u32) {
+        while !self.is_at_tag_stop(&tagstop)? {
+            let element_tag: u32 = if self.ts.big_endian {
+                self.read_dicom_element::<BigEndian>()?
+            } else {
+                self.read_dicom_element::<LittleEndian>()?
+            };
+
+            if element_tag == tags::SpecificCharacterSet.tag {
+                self.cs = self.parse_specific_character_set()?;
+            }
+
+            each(self, element_tag);
+        }
+        Ok(())
+    }
+
+    // TODO: This should have a test.
+    // Current `EndOfStream` doesn't work right as we will continue to try reading
+    // elements past the end of the stream
+    pub fn is_at_tag_stop(&mut self, tagstop: &TagStop) -> Result<bool, Error> {
+        let element_tag: u32 = if self.ts.big_endian {
+            self.read_next_tag::<BigEndian>()?
+        } else {
+            self.read_next_tag::<LittleEndian>()?
+        };
+
+        let is_at_tag_stop: bool = match *tagstop {
+            TagStop::EndOfStream => false,
+            TagStop::BeforeTag(before_tag) => element_tag >= before_tag,
+            TagStop::AfterTag(after_tag) => element_tag > after_tag,
+            TagStop::AfterBytePos(byte_pos) => self.bytes_read >= byte_pos,
+        };
+
+        Ok(is_at_tag_stop)
+    }
+
+    fn parse_transfer_syntax(&mut self) -> Result<TSRef, Error> {
+        let mut ts_uid: &str = self.get_string(fme::TransferSyntaxUID.tag, vr::DEFAULT_CHARACTER_SET)?
+            .as_ref();
+
+        if ts_uid.ends_with(char::from(vr::UI.padding)) {
+            ts_uid = unsafe { ts_uid.slice_unchecked(0, ts_uid.len() - 1) };
+        }
+
+        TS_BY_ID
+            .get(ts_uid)
+            .map(|tsref: &TSRef| *tsref)
+            .ok_or(Error::new(ErrorKind::InvalidData, format!("Unknown TransferSyntax: {}", ts_uid)))
+    }
+
+    fn parse_specific_character_set(&mut self) -> Result<EncodingRef, Error> {
         if let Ok(ref mut element) = self.get_element_mut(tags::SpecificCharacterSet.tag) {
             let decoder: EncodingRef = element.vr.get_proper_cs(self.cs);
             // Change the lookup key into format that the encoding package and recognize
@@ -265,76 +324,6 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         }
 
         Err(Error::new(ErrorKind::InvalidData, format!("DicomStream does not have SpecificCharacterSet")))
-    }
-
-    pub fn read_file_meta<F>(&mut self, each: F) -> Result<(), Error>
-        where F: Fn(&mut Self, u32) {
-        // This is required for "well-formed" DICOM files however it's not 100% required
-        // so somehow detect reading of FileMetaInformationGroupLength maybe?
-        self.read_file_preamble()?;
-        self.read_dicom_prefix()?;
-
-        let bytes_read_before_fme: usize = self.bytes_read;
-
-        // All FileMetaInformation fields are encoded as LittleEndian
-
-        // The FileMetaInformationGroupLength is required first element and
-        // tells us how many bytes to reach end of FileMetaInformation
-        let fme_bytes: usize;
-        let fmi_grouplength_tag: u32 = self.read_dicom_element()?;
-        if fmi_grouplength_tag != fme::FileMetaInformationGroupLength.tag {
-            return Err(Error::new(ErrorKind::InvalidData, format!("Expected FileMetaInformationGroupLength but read: {:?}", fmi_grouplength_tag)))
-        } else {
-            let fmi_grouplength: &mut DicomElement = self.get_element_mut(fmi_grouplength_tag)?;
-            // TODO: this reading of bytes as u32 should be part of VR (and remove padding)
-            fme_bytes = fmi_grouplength.get_value_mut().read_u32::<LittleEndian>()? as usize;
-        }
-
-        let mut transfer_syntax: TSRef = self.ts;
-        while self.bytes_read - bytes_read_before_fme < fme_bytes {    
-            let element_tag: u32 = self.read_dicom_element()?;
-            if element_tag == fme::TransferSyntaxUID.tag {
-                transfer_syntax = self.parse_transfer_syntax()?;
-            }
-
-            each(self, element_tag);
-        }
-
-        // don't set the transfer syntax until after reading all FileMeta, otherwise it 
-        // will attempt to read remaining FME tags as different syntax than ExplicitVRLittleEndian (which is required)
-        self.ts = transfer_syntax;
-
-        Ok(())
-    }
-
-    pub fn read_until<F>(&mut self, tagstop: TagStop, each: F) -> Result<(), Error>
-        where F: Fn(&mut Self, u32) {
-        while !self.is_at_tag_stop(&tagstop)? {
-            let element_tag: u32 = self.read_dicom_element()?;
-
-            if element_tag == tags::SpecificCharacterSet.tag {
-                self.cs = self.parse_specific_character_set()?;
-            }
-
-            each(self, element_tag);
-        }
-        Ok(())
-    }
-
-    // TODO: This should have a test.
-    // Current `EndOfStream` doesn't work right as we will continue to try reading
-    // elements past the end of the stream
-    pub fn is_at_tag_stop(&mut self, tagstop: &TagStop) -> Result<bool, Error> {
-        let element_tag: u32 = self.read_next_tag()?;
-
-        let is_at_tag_stop: bool = match *tagstop {
-            TagStop::EndOfStream => false,
-            TagStop::BeforeTag(before_tag) => element_tag >= before_tag,
-            TagStop::AfterTag(after_tag) => element_tag > after_tag,
-            TagStop::AfterBytePos(byte_pos) => self.bytes_read >= byte_pos,
-        };
-
-        Ok(is_at_tag_stop)
     }
 
     pub fn print_element(&mut self, element_tag: u32) -> Result<String, Error> {
