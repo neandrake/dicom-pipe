@@ -85,35 +85,35 @@ impl CommandApplication for SvcProviderApp {
         ]);
         let accept_ts = HashSet::from([&ImplicitVRLittleEndian, &ExplicitVRLittleEndian]);
 
+        let assoc_builder = AssociationBuilder::new()
+            .host_ae(self.args.aetitle.clone())
+            .accept_aets(accept_aets.clone())
+            .accept_abs(accept_abs.clone())
+            .accept_ts(accept_ts.clone())
+            .handler(
+                CommandType::CEchoReq,
+                |assoc: &Association,
+                 _ts: TSRef,
+                 msg: &DimseMsg,
+                 _reader: &mut dyn Read,
+                 mut writer: &mut dyn Write| {
+                    AssociationDevice::handle_c_echo_req(assoc, msg, &mut writer)
+                },
+            )
+            .handler(
+                CommandType::CFindReq,
+                |assoc: &Association,
+                 ts: TSRef,
+                 msg: &DimseMsg,
+                 reader: &mut dyn Read,
+                 mut writer: &mut dyn Write| {
+                    AssociationDevice::handle_c_find_req(assoc, ts, msg, reader, &mut writer)
+                },
+            );
+
         for (stream_id, stream) in listener.incoming().enumerate() {
             let stream = stream?;
-            let assoc = AssociationBuilder::new()
-                .id(stream_id)
-                .host_ae(self.args.aetitle.clone())
-                .accept_aets(accept_aets.clone())
-                .accept_abs(accept_abs.clone())
-                .accept_ts(accept_ts.clone())
-                .handler(
-                    CommandType::CEchoReq,
-                    |assoc: &Association,
-                     _ts: TSRef,
-                     msg: &DimseMsg,
-                     _reader: &mut dyn Read,
-                     mut writer: &mut dyn Write| {
-                        AssociationDevice::handle_c_echo_req(assoc, msg, &mut writer)
-                    },
-                )
-                .handler(
-                    CommandType::CFindReq,
-                    |assoc: &Association,
-                     ts: TSRef,
-                     msg: &DimseMsg,
-                     reader: &mut dyn Read,
-                     mut writer: &mut dyn Write| {
-                        AssociationDevice::handle_c_find_req(assoc, ts, msg, reader, &mut writer)
-                    },
-                )
-                .build();
+            let assoc = assoc_builder.clone().id(stream_id).build();
             pool.execute(move || {
                 let bufread = BufReader::new(&stream);
                 let bufwrite = BufWriter::new(&stream);

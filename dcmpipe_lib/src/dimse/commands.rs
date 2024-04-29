@@ -237,6 +237,26 @@ pub enum CommandStatus {
     INVALID(u16),
 }
 
+impl CommandStatus {
+    /// Convenience for `CommandStatus::Success(0)`.
+    #[must_use]
+    pub fn success() -> CommandStatus {
+        CommandStatus::Success(0)
+    }
+
+    /// Convenience for `CommandStatus::Pending(0xFF00)`.
+    #[must_use]
+    pub fn pending() -> CommandStatus {
+        CommandStatus::Pending(0xFF00)
+    }
+
+    /// Convenience for `CommandStatus::Cancel(0xFE00)`.
+    #[must_use]
+    pub fn cancel() -> CommandStatus {
+        CommandStatus::Cancel(0xFE00)
+    }
+}
+
 impl<'e> From<&CommandStatus> for RawValue<'e> {
     fn from(value: &CommandStatus) -> Self {
         match value {

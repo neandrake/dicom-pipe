@@ -229,6 +229,20 @@ impl AsyncOperationsWindowItem {
         }
     }
 
+    /// Convenience for requesting/responding that only one message may be handled at a time within
+    /// an association.
+    #[must_use]
+    pub fn synchronous() -> Self {
+        Self::new(1, 1)
+    }
+
+    /// Convenience for requesting/responding that an unlimited number of messages may be performed
+    /// simultaneously.
+    #[must_use]
+    pub fn unlimited() -> Self {
+        Self::new(0, 0)
+    }
+
     /// The number of bytes from the first byte of the following field to the last byte of the
     /// Maximum Number Operations Performed field. This should be a fixed value of 4.
     #[must_use]
@@ -256,6 +270,20 @@ impl AsyncOperationsWindowItem {
             + size_of::<u16>() // length
             + size_of::<u16>() // max_ops_invoked
             + size_of::<u16>() // max_ops_performed
+    }
+
+    /// Convenience for checking if this `AsyncOperationsWindowItem` indicates that all message
+    /// passing must be synchronous.
+    #[must_use]
+    pub fn is_synchronous(&self) -> bool {
+        self.max_ops_invoked == 1 && self.max_ops_performed == 1
+    }
+
+    /// Convenience for checking if this `AsyncOperationsWindowItem` indicates that an unliminted
+    /// number of messages are allowed asynchronously.
+    #[must_use]
+    pub fn is_unlimited(&self) -> bool {
+        self.max_ops_invoked == 0 && self.max_ops_performed == 0
     }
 
     /// Write this PDU to the given dataset.

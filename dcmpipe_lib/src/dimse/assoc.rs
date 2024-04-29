@@ -23,27 +23,30 @@ use crate::{
     core::{
         charset::DEFAULT_CHARACTER_SET as CS,
         dcmobject::DicomRoot,
-        defn::{dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef},
+        defn::{
+            dcmdict::DicomDictionary,
+            ts::{TSRef, TransferSyntax},
+            uid::UIDRef,
+        },
         write::{builder::WriterBuilder, writer::WriterState},
     },
-    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian},
+    dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian,
+        uids::DICOMApplicationContextName,
+    },
     dimse::{
+        commands::{messages::CommandMessage, CommandStatus, CommandType},
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
-                Abort, AssocAC, AssocACPresentationContext, AssocRQ, ReleaseRP, TransferSyntaxItem,
+                Abort, AssocAC, AssocACPresentationContext, AssocRQ, PresentationDataItem,
+                PresentationDataValue, ReleaseRP, TransferSyntaxItem, P_DATA_CMD_LAST,
+                P_DATA_DCM_DATASET_LAST,
             },
             pduiter::{DimseMsg, DimseMsgIter},
             Pdu, PduType,
         },
         Syntax,
-        {
-            commands::{messages::CommandMessage, CommandStatus, CommandType},
-            pdus::mainpdus::{
-                PresentationDataItem, PresentationDataValue, P_DATA_CMD_LAST,
-                P_DATA_DCM_DATASET_LAST,
-            },
-        },
     },
 };
 
@@ -139,6 +142,30 @@ impl Association {
     /// # Errors
     /// If the result of the request is to reject or abort, those are propagated as an `AssocError`.
     fn validate_assoc_rq(&self, rq: &AssocRQ) -> Result<AssocAcResult, AssocError> {
+        // There's only a single DICOM Standard defined Application Context Name. Private
+        // Application Context Names are allowed by the standard.
+        let app_ctx = String::try_from(&Syntax(rq.app_ctx().app_context_name()))
+            .map_err(AssocError::rj_unsupported)?;
+
+        let app_ctx_uid = STANDARD_DICOM_DICTIONARY
+            .get_uid_by_uid(&app_ctx)
+            .ok_or_else(|| {
+                AssocError::rj_unsupported(DimseError::GeneralError(format!(
+                    "Application Context not found: {}",
+                    app_ctx
+                )))
+            })?;
+
+        if app_ctx_uid != &DICOMApplicationContextName {
+            return Err(AssocError::rj_unsupported(DimseError::GeneralError(
+                format!(
+                    "Unsupported Application Context: {}, {}",
+                    app_ctx_uid.name(),
+                    app_ctx_uid.uid()
+                ),
+            )));
+        }
+
         let host_ae = self.host_ae.trim();
 
         let calling_ae = CS
@@ -167,37 +194,43 @@ impl Association {
             ))
         })?;
 
+        let scu_supported_ts = pres_ctx
+            .transfer_syntaxes()
+            .iter()
+            .filter_map(|ts| String::try_from(&Syntax(&ts.transfer_syntaxes())).ok())
+            .filter_map(|ts| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&ts))
+            .collect::<Vec<&TransferSyntax>>();
+
+        let ts = scu_supported_ts
+            .clone()
+            .into_iter()
+            .find(|ts| self.accept_ts.contains(ts))
+            .ok_or_else(|| {
+                AssocError::rj_failure(DimseError::GeneralError(format!(
+                    "Transfer syntax supported. SCU supported: {:?}",
+                    scu_supported_ts
+                )))
+            })?;
+
         let ab = String::try_from(&Syntax(pres_ctx.abstract_syntax().abstract_syntax()))
             .ok()
             .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&ab));
 
         let Some(ab) = ab else {
-            let ab = pres_ctx.abstract_syntax().abstract_syntax().clone();
+            let ab = pres_ctx.abstract_syntax().abstract_syntax();
             let ab = String::from_utf8(ab.clone()).unwrap_or_else(|_e| format!("{ab:?}"));
             return Err(AssocError::rj_failure(DimseError::GeneralError(format!(
-                "Unsupported abstract syntax: {ab:?}"
+                "Unknown abstract syntax: {ab:?}"
             ))));
         };
 
         if !self.accept_abs.contains(ab) {
             return Err(AssocError::rj_failure(DimseError::GeneralError(format!(
-                "Unsupported abstract syntax: {}",
+                "Unsupported abstract syntax: {}, {}",
+                ab.name(),
                 ab.uid()
             ))));
         }
-
-        let ts = pres_ctx
-            .transfer_syntaxes()
-            .iter()
-            .find_map(|ts| String::try_from(&Syntax(ts.transfer_syntaxes())).ok())
-            .and_then(|ts| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&ts))
-            .filter(|ts| self.accept_ts.contains(ts))
-            .ok_or_else(|| {
-                AssocError::rj_unsupported(DimseError::GeneralError(format!(
-                    "No transfer syntax supported: {:?}",
-                    pres_ctx.transfer_syntaxes()
-                )))
-            })?;
 
         let ac = AssocAC::new(
             rq.called_ae().to_owned(),
@@ -279,7 +312,7 @@ impl Association {
         msg_id: u16,
         aff_sop_class: &str,
     ) -> Result<Pdu, AssocError> {
-        let status = CommandStatus::Success(0);
+        let status = CommandStatus::success();
         let rsp_cmd = CommandMessage::c_echo_rsp(msg_id, aff_sop_class, &status);
 
         let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
@@ -303,7 +336,7 @@ impl Association {
         aff_sop_class: &str,
         res: &DicomRoot,
     ) -> Result<(Pdu, Pdu), AssocError> {
-        let status = CommandStatus::Pending(0xFF00);
+        let status = CommandStatus::pending();
         let rsp_cmd = CommandMessage::c_find_rsp(msg_id, aff_sop_class, &status);
 
         let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
@@ -334,7 +367,7 @@ impl Association {
         msg_id: u16,
         aff_sop_class: &str,
     ) -> Result<Pdu, AssocError> {
-        let status = CommandStatus::Success(0);
+        let status = CommandStatus::success();
         let rsp_cmd = CommandMessage::c_find_rsp(msg_id, aff_sop_class, &status);
 
         let cmd_rsp_data = Association::serialize(rsp_cmd.message())?;
@@ -349,7 +382,7 @@ impl Association {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AssociationBuilder {
     id: usize,
     host_ae: String,

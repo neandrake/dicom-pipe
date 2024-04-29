@@ -24,6 +24,7 @@ use crate::{
     },
 };
 
+/// Errors related to the DIMSE protocol.
 #[derive(Debug, thiserror::Error)]
 pub enum DimseError {
     #[error("invalid pdu type: {0:04X}")]
@@ -77,6 +78,8 @@ impl AssocRsp {
     }
 }
 
+/// Errors related to the association, which can aid in managing sending back appropriate rejection
+/// or abort PDUs if needed.
 #[derive(Debug)]
 pub struct AssocError {
     rsp: Option<AssocRsp>,
@@ -100,6 +103,8 @@ impl AssocError {
         self.err
     }
 
+    /// Generates a `AssocError`, wrapping the given error in `DimseError`. This error response
+    /// will not result in sending an abort or rejection to the other end.
     #[must_use]
     pub fn error<E>(err: E) -> Self
     where
@@ -111,6 +116,8 @@ impl AssocError {
         }
     }
 
+    /// Generates a generic `Abort`, for closing the connection without further context or
+    /// information.
     #[must_use]
     pub fn ab_failure<E>(err: E) -> Self
     where
@@ -122,6 +129,7 @@ impl AssocError {
         }
     }
 
+    /// Generates a `Abort`, indicating that an unexpected PDU was encountered.
     #[must_use]
     pub fn ab_unexpected_pdu<E>(err: E) -> Self
     where
@@ -133,6 +141,7 @@ impl AssocError {
         }
     }
 
+    /// Generates a `Abort`, indicating that the PDU is not valid or well-formed.
     #[must_use]
     pub fn ab_invalid_pdu<E>(err: E) -> Self
     where
@@ -144,46 +153,52 @@ impl AssocError {
         }
     }
 
+    /// Generates a generic `AssocRJ`, rejecting the association without further context or
+    /// information.
     #[must_use]
     pub fn rj_failure<E>(err: E) -> Self
     where
         DimseError: From<E>,
     {
         AssocError {
-            rsp: Some(AssocRsp::RJ(AssocRJ::new(2u8, 1u8, 1u8))),
+            rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 1u8))),
             err: DimseError::from(err),
         }
     }
 
+    /// Generates an `AssocRJ` indicating the calling AE Title has been rejected.
     #[must_use]
     pub fn rj_calling_aet<E>(err: E) -> Self
     where
         DimseError: From<E>,
     {
         AssocError {
-            rsp: Some(AssocRsp::RJ(AssocRJ::new(2u8, 1u8, 3u8))),
+            rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 3u8))),
             err: DimseError::from(err),
         }
     }
 
+    /// Generates an `AssocRJ` indicating the called AE Title has been rejected.
     #[must_use]
     pub fn rj_called_aet<E>(err: E) -> Self
     where
         DimseError: From<E>,
     {
         AssocError {
-            rsp: Some(AssocRsp::RJ(AssocRJ::new(2u8, 1u8, 7u8))),
+            rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 7u8))),
             err: DimseError::from(err),
         }
     }
 
+    /// Generates an `AssocRJ` indicating the Application Context Name isn't supported. This has
+    /// limited use, for the initial association negotiation.
     #[must_use]
     pub fn rj_unsupported<E>(err: E) -> Self
     where
         DimseError: From<E>,
     {
         AssocError {
-            rsp: Some(AssocRsp::RJ(AssocRJ::new(2u8, 1u8, 2u8))),
+            rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 2u8))),
             err: DimseError::from(err),
         }
     }
