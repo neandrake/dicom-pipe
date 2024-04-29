@@ -6,6 +6,7 @@ use crate::core::dcmelement::DicomElement;
 use crate::core::dcmobject::{DicomObject, DicomRoot};
 use crate::core::read::error::ParseError;
 use crate::defn::constants::tags;
+use crate::defn::ts::TSRef;
 use crate::defn::vl;
 use crate::defn::vl::ValueLength;
 use crate::defn::vr::{self, VRRef, VR};
@@ -96,22 +97,18 @@ pub(crate) fn read_vr_from_dataset(dataset: &mut impl Read) -> Result<VRRef> {
 }
 
 /// Reads a Value Length from a given dataset.
-/// `dataset` The dataset to read bytes from
-/// `read_4bytes` Whether 4 bytes or 2 bytes should be read from the dataset. Refer to the dicom
-///               standard -- implicit vr transfer syntax uses 4 bytes for value length, explicit
-///               vr uses 2 bytes, but if explicit and the VR has 2-byte padding then 4 bytes
-///               should be parsed.
-/// `big_endian` Whether to use big or little endian
+/// `dataset` The dataset to read bytes from.
+/// `ts` The transfer syntax of the element being read from.
+/// `vr` The VR of the current element the value length is being read for.
 pub(crate) fn read_value_length_from_dataset(
     dataset: &mut impl Read,
-    read_4bytes: bool,
-    big_endian: bool,
+    ts: TSRef,
+    vr: VRRef,
 ) -> Result<ValueLength> {
-    let value_length: u32 = if read_4bytes {
+    let value_length: u32 = if !ts.is_explicit_vr() || vr.has_explicit_2byte_pad {
         let mut buf: [u8; 4] = [0; 4];
         dataset.read_exact(&mut buf)?;
-
-        if big_endian {
+        if ts.is_big_endian() {
             u32::from_be_bytes(buf)
         } else {
             u32::from_le_bytes(buf)
@@ -119,14 +116,13 @@ pub(crate) fn read_value_length_from_dataset(
     } else {
         let mut buf: [u8; 2] = [0; 2];
         dataset.read_exact(&mut buf)?;
-
-        if big_endian {
-            u32::from(u16::from_be_bytes(buf))
+        if ts.is_big_endian() {
+            u16::from_be_bytes(buf) as u32
         } else {
-            u32::from(u16::from_le_bytes(buf))
+            u16::from_le_bytes(buf) as u32
         }
     };
-    Ok(vl::from_value_length(value_length))
+    Ok(vl::from_value_length(value_length as u32))
 }
 
 /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.

@@ -279,7 +279,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Reads the remainder of the dicom element from the dataset. This assumes `self.read_tag()`
     /// was called just prior and its result passed as the tag parameter here.
-    fn read_dicom_element(&mut self, tag: u32, ts: TSRef) -> Result<DicomElement> {
+    fn read_dicom_element(&mut self, tag: u32, elem_ts: TSRef) -> Result<DicomElement> {
         // Part 5, Section 7.5
         // There are three special SQ related Data Elements that are not ruled by the VR encoding
         // rules conveyed by the Transfer Syntax. They shall be encoded as Implicit VR. These
@@ -293,7 +293,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         {
             &ts::ImplicitVRLittleEndian
         } else {
-            ts
+            elem_ts
         };
 
         let vr_ts: (VRRef, TSRef) = if let Some(partial_vr) = self.partial_vr {
@@ -315,7 +315,6 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         };
 
         let vr: VRRef = vr_ts.0;
-        let vl_read_4bytes: bool = !ts.explicit_vr || vr.has_explicit_2byte_pad;
         // If VR is explicitly UN but we can tell it's SQ then the inner elements are encoded as
         // IVRLE -- but only the contents should be parsed as such, do not switch transfer syntax
         // prior to reading in the value length.
@@ -323,7 +322,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             self.partial_vl.take();
             partial_vl
         } else {
-            self.read_value_length(vl_read_4bytes, ts)?
+            self.read_value_length(ts, vr)?
         };
 
         let parse_as_seq: bool = read::util::is_non_standard_seq(tag, vr, vl);
@@ -343,9 +342,20 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let skip_bytes: bool =
             vr == &vr::SQ || (tag == tags::ITEM && !in_pixeldata) || parse_as_seq;
 
-        // eprintln!("{:?}: Tag: {}, VR: {:?}, VL: {:?}, ts: {}, bytesread: {}", self.state, Tag::format_tag_to_display(tag), vr, vl, ts.uid.ident, self.bytes_read);
+        /*
+        eprintln!(
+            "{:?}: Tag: {}, VR: {:?}, VL: {:?}, ts: {}, bytesread: {}",
+            self.state,
+            Tag::format_tag_to_display(tag),
+            vr,
+            vl,
+            ts.uid.ident,
+            self.bytes_read
+        );
+        */
+
         let bytes: Vec<u8> = if skip_bytes {
-            Vec::new()
+            Vec::with_capacity(0)
         } else {
             self.read_value_field(tag, vl, vr)?
         };
@@ -370,12 +380,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     fn read_vr(&mut self, tag: u32, ts: TSRef) -> Result<(VRRef, TSRef)> {
         let vr_res: Result<VRRef> = read::util::read_vr_from_dataset(&mut self.dataset);
         match vr_res {
-            // if the VR couldn't be matched to a known VR there were still 2 bytes read from stream
+            // For valid VR or unknown VR there were still 2 bytes read from stream
             Ok(_) | Err(ParseError::UnknownExplicitVR(_)) => self.bytes_read += 2,
             _ => {}
         }
 
         let mut vr: VRRef = vr_res?;
+        // The padding after the VR was read and thrown away.
         if vr.has_explicit_2byte_pad {
             self.bytes_read += 2;
         }
@@ -392,7 +403,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             if let Some(found_vr) = self.lookup_vr(tag) {
                 if found_vr == &vr::SQ {
                     ts = &ts::ImplicitVRLittleEndian;
-                    vr = &vr::SQ;
+                    vr = found_vr;
                 }
             }
         }
@@ -410,14 +421,13 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Reads a Value Length attribute from the dataset using the given transfer syntax. The number
     /// of bytes representing the value length depends on transfer syntax. If the VR has a 2-byte
     /// padding then those bytes are also read from the dataset.
-    fn read_value_length(&mut self, read_4bytes: bool, ts: TSRef) -> Result<ValueLength> {
-        let result: Result<ValueLength> = read::util::read_value_length_from_dataset(
-            &mut self.dataset,
-            read_4bytes,
-            ts.big_endian,
-        );
+    fn read_value_length(&mut self, ts: TSRef, vr: VRRef) -> Result<ValueLength> {
+        let result: Result<ValueLength> =
+            read::util::read_value_length_from_dataset(&mut self.dataset, ts, vr);
         if result.is_ok() {
-            if read_4bytes {
+            // For Implicit VR or Explicit w/ 2-byte pad then Value Length is read as a u32,
+            // otherwise it's read as a u16.
+            if !ts.is_explicit_vr() || vr.has_explicit_2byte_pad {
                 self.bytes_read += 4;
             } else {
                 self.bytes_read += 2;
@@ -433,7 +443,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         match vl {
             // Undefined length means that the contents of the element are other dicom elements to
             // be parsed. Don't read data from the dataset in this case.
-            ValueLength::Explicit(0) | ValueLength::UndefinedLength => Ok(Vec::new()),
+            ValueLength::Explicit(0) | ValueLength::UndefinedLength => Ok(Vec::with_capacity(0)),
             ValueLength::Explicit(value_length) => {
                 // If length is odd we only read that exact bytes from the dataset but the bytes
                 // we should return from this should be padded with a zero in order to always
@@ -699,12 +709,10 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         bytes_read += buf.len();
         cursor = Cursor::new(&buf);
 
-        let mut vr_is_explicit_padded: bool = false;
-        match read::util::read_vr_from_dataset(&mut cursor) {
+        let vr: VRRef = match read::util::read_vr_from_dataset(&mut cursor) {
             Ok(vr) => {
                 self.partial_vr = Some(vr);
                 if vr.has_explicit_2byte_pad {
-                    vr_is_explicit_padded = true;
                     // if explict & padded then the padding was read-in already and we have to read
                     // in the next 4 bytes for the value length.
                     self.dataset.read_exact(&mut buf)?;
@@ -724,6 +732,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 } else {
                     ts = &ts::ExplicitVRLittleEndian;
                 }
+                vr
             }
             Err(ParseError::UnknownExplicitVR(_)) => {
                 // unknown VR so this was likely a value length read in, reset the 4-byte buffer
@@ -734,21 +743,19 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 } else {
                     ts = &ts::ImplicitVRLittleEndian;
                 }
+
+                // vr is used to determine how many bytes the value length should be, which after
+                // switching transfer syntax to implicit it will always be 4byte u32.
+                &vr::INVALID
             }
             Err(e) => {
                 return Err(e);
             }
-        }
-
-        let vl_read_4bytes: bool = !ts.is_explicit_vr() || vr_is_explicit_padded;
+        };
 
         // assume implicit VR so read a value length and and if it's reasonably low then this is
         // likely implicit
-        let vl: ValueLength = read::util::read_value_length_from_dataset(
-            &mut cursor,
-            vl_read_4bytes,
-            ts.is_big_endian(),
-        )?;
+        let vl: ValueLength = read::util::read_value_length_from_dataset(&mut cursor, ts, vr)?;
         if let ValueLength::Explicit(len) = vl {
             // if a value length is read which makes sense for file-meta elements then assume this
             // is implicit endian and let regular parsing continue

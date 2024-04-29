@@ -15,6 +15,8 @@ use dcmpipe_lib::defn::constants::tags::FILE_META_GROUP_END;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
 use dcmpipe_lib::defn::tag::Tag;
 use dcmpipe_lib::defn::ts::TSRef;
+use dcmpipe_lib::defn::vl::ValueLength;
+use dcmpipe_lib::defn::vr;
 
 use crate::app::{parse_file, CommandApplication};
 
@@ -144,11 +146,11 @@ impl CommandApplication for PrintApp {
 
 /// Renders an element on a single line, includes indentation based on depth in sequences
 /// ```
-/// (gggg,eeee) VR TagName | TagValue
+/// (gggg,eeee) VR TagName [VL] | TagValue
 /// ```
 /// or
 /// ```
-/// (gggg,eeee) VR TagName <empty>
+/// (gggg,eeee) VR TagName [0] <empty>
 /// ```
 /// Names for unknown tags will render as `<UnknownTag>`
 fn render_element(element: &DicomElement) -> Result<Option<String>> {
@@ -165,6 +167,14 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
         return Ok(None);
     }
 
+    // Some (malformed?) datasets have a bunch of zeroes between elements.
+    if element.get_tag() == 0
+        && element.get_vr() == &vr::INVALID
+        && element.get_vl() == ValueLength::Explicit(0)
+    {
+        return Ok(None);
+    }
+
     let tag_num: String = Tag::format_tag_to_display(element.get_tag());
     let tag_name: &str =
         if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
@@ -172,7 +182,12 @@ fn render_element(element: &DicomElement) -> Result<Option<String>> {
         } else {
             "<Unknown Tag>"
         };
-    let vr: &str = element.get_vr().ident;
+
+    let vr: &str = if element.get_vr() == &vr::INVALID {
+        "XX"
+    } else {
+        element.get_vr().ident
+    };
 
     let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
 
