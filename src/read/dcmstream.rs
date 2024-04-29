@@ -12,19 +12,17 @@ use core::vr;
 use core::vr::{code_to_vr, VRRef};
 
 use encoding::all::WINDOWS_1252;
-use encoding::types::{DecoderTrap, EncodingRef};
+use encoding::types::EncodingRef;
 use encoding::label::encoding_from_whatwg_label;
 
 use read::dcmelement::DicomElement;
 use read::tagstop::TagStop;
 
 use std::ascii::AsciiExt;
-use std::borrow::Cow;
 use std::collections::hash_map::HashMap;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
-use std::string;
 
 
 pub const FILE_PREAMBLE_LENGTH: usize = 128;
@@ -228,17 +226,15 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
 
     pub fn parse_transfer_syntax(&self) -> Result<TSRef, Error> {
         let element: &DicomElement = self.get_element(fme::TransferSyntaxUID.tag)?;
-        // strip out the padding bytes for the tag being read
-        // TODO: this filtering is generally not correct as it's only padded
-        // at the end of the value. Need to find a fast/easy way to remove trailing 0's
-        let ts_uid_bytes: Vec<u8> = element.get_value().get_ref().iter()
-            .filter(|b: &&u8| **b != vr::UI.padding)
-            .map(|b: &u8| *b)
-            .collect::<Vec<u8>>();
-
-        let ts_uid: String = String::from_utf8(ts_uid_bytes)
-            .map_err(|e: string::FromUtf8Error| Error::new(ErrorKind::InvalidData, e))?;
         
+        let mut ts_uid: String = element.parse_string(DEFAULT_CHARACTER_SET)?;
+
+        if let Some(last_char) = ts_uid.chars().last() {
+            if last_char == char::from(vr::UI.padding) {
+                ts_uid.pop();
+            }
+        }
+
         let ts_uid_str: &str = ts_uid.as_ref();
         TS_BY_ID
             .get(ts_uid_str)
@@ -250,9 +246,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         if let Ok(element) = self.get_element(tags::SpecificCharacterSet.tag) {
             let decoder: EncodingRef = self.get_text_codec(element);
             // Change the lookup key into format that the encoding package and recognize
-            // TODO: I think this also needs to remove padding characters
-            let new_cs: String = decoder.decode(element.get_value().get_ref(), DecoderTrap::Strict)
-                .map_err(|e: Cow<'static, str>| Error::new(ErrorKind::InvalidData, e.into_owned()))
+            let new_cs: String = element.parse_string(decoder)
                 .iter()
                 .flat_map(|s| s.chars())
                 .map(|c: char| {
