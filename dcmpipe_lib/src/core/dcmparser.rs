@@ -546,11 +546,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // if this function has been called previously it will have read data into
         // `self.file_preamble` for invalid element cases - if preamble is already read then those
         // invalid element cases should now turn into errors
-        let already_read_preamble: bool = if let Some(_) = self.file_preamble {
-            true
-        } else {
-            false
-        };
+        let already_read_preamble: bool = self.file_preamble.is_some();
 
         // as bytes are read from `self.dataset` they will be copied into this `file_preamble`, then
         // if it's determined that we're likely in a file preamble the rest of the standard
@@ -617,14 +613,18 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         // if not an expected non-file-meta tag then try big-endian
-        if !ts.is_big_endian() && tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID {
+        if !ts.is_big_endian() && tag < tags::FILE_META_INFORMATION_GROUP_LENGTH
+            || tag > tags::SOP_INSTANCE_UID
+        {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
             tag = dcmparser_util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
         }
 
         // doesn't appear to be a valid tag in either big or little endian
-        if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH || tag > tags::SOP_INSTANCE_UID && already_read_preamble {
+        if tag < tags::FILE_META_INFORMATION_GROUP_LENGTH
+            || tag > tags::SOP_INSTANCE_UID && already_read_preamble
+        {
             // testing tag in either endian didn't seem to work, set as DICOM default
             self.ts = &ts::ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
