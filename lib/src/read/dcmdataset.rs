@@ -11,6 +11,9 @@ use std::io::{Error, ErrorKind};
 
 
 pub trait DicomDataSetContainer {
+    /// Returns true if this data set contains an element with the given tag
+    fn contains_element(&self, tag: u32) -> bool;
+
     /// Retrieve a reference to the immediate child element associated with the given tag
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error>;
     /// Retrieve a mutable reference to the immediate child element associated with the given tag
@@ -98,6 +101,10 @@ impl DicomDataSet {
 
 /// Implements the parsing and caching of DicomElements to different native types
 impl DicomDataSetContainer for DicomDataSet {
+    fn contains_element(&self, tag: u32) -> bool {
+        self.elements.contains_key(&tag)
+    }
+
     fn get_element(&self, tag: u32) -> Result<&DicomElement, Error> {
         self.elements.get(&tag)
             .ok_or(Error::new(ErrorKind::InvalidData, format!("No element for tag: {}", Tag::format_tag_to_display(tag))))
