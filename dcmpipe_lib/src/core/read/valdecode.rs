@@ -24,20 +24,25 @@ pub(crate) const U64_SIZE: usize = std::mem::size_of::<u64>();
 pub(crate) const F32_SIZE: usize = std::mem::size_of::<f32>();
 pub(crate) const F64_SIZE: usize = std::mem::size_of::<f64>();
 
-fn error(message: &str, value: &DicomElement) -> ParseError {
-    // TODO: How to get a dicom dictionary here for better error messages?
-    let tagstring = TagPath::format_tagpath_to_display(&value.get_tagpath(), None);
-    ParseError::ValueParseError {
-        message: message.to_owned(),
-        tagstring,
-        vr: value.get_vr(),
-        cs: value.get_cs(),
-        bytes: value
-            .get_data()
-            .iter()
-            .take(MAX_BYTES_IN_ERROR)
-            .cloned()
-            .collect::<Vec<u8>>(),
+impl<'a> From<(&'a str, &'a DicomElement)> for ParseError {
+    fn from(value: (&'a str, &'a DicomElement)) -> Self {
+        let message = value.0;
+        let elem = value.1;
+
+        // TODO: How to get a dicom dictionary here for better error messages?
+        let tagstring = TagPath::format_tagpath_to_display(&elem.get_tagpath(), None);
+        ParseError::ValueParseError {
+            message: message.to_owned(),
+            tagstring,
+            vr: elem.get_vr(),
+            cs: elem.get_cs(),
+            bytes: elem
+                .get_data()
+                .iter()
+                .take(MAX_BYTES_IN_ERROR)
+                .cloned()
+                .collect::<Vec<u8>>(),
+        }
     }
 }
 
@@ -111,7 +116,7 @@ impl TryFrom<&DicomElement> for Vec<Attribute> {
     /// Associated VRs: AT
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_data().len() % U32_SIZE != 0 {
-            return Err(error("value is not a multiple of 4 bytes", value));
+            return Err(("value is not a multiple of 4 bytes", value).into());
         }
 
         let num_attrs = value.get_data().len() / U32_SIZE;
@@ -279,7 +284,7 @@ impl TryFrom<&DicomElement> for f32 {
         Vec::<f32>::try_from(value)?
             .into_iter()
             .next()
-            .ok_or_else(|| error("no f32's parsed", value))
+            .ok_or_else(|| ("no f32's parsed", value).into())
     }
 }
 
@@ -292,7 +297,7 @@ impl TryFrom<&DicomElement> for i16 {
         Vec::<i16>::try_from(value)?
             .into_iter()
             .next()
-            .ok_or_else(|| error("no i16's parsed", value))
+            .ok_or_else(|| ("no i16's parsed", value).into())
     }
 }
 
@@ -310,7 +315,7 @@ impl TryFrom<&DicomElement> for Vec<i16> {
                 .map(|s| {
                     s.trim()
                         .parse::<i16>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -325,7 +330,7 @@ impl TryFrom<&DicomElement> for Vec<i16> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % I16_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of i16", value));
+            return Err(("num bytes not multiple of size of i16", value).into());
         }
 
         let mut buf: [u8; I16_SIZE] = [0; I16_SIZE];
@@ -355,7 +360,7 @@ impl TryFrom<&DicomElement> for u16 {
         Vec::<u16>::try_from(value)?
             .into_iter()
             .next()
-            .ok_or_else(|| error("no u16's parsed", value))
+            .ok_or_else(|| ("no u16's parsed", value).into())
     }
 }
 
@@ -373,7 +378,7 @@ impl TryFrom<&DicomElement> for Vec<u16> {
                 .map(|s| {
                     s.trim()
                         .parse::<u16>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -388,7 +393,7 @@ impl TryFrom<&DicomElement> for Vec<u16> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % U16_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of u16", value));
+            return Err(("num bytes not multiple of size of u16", value).into());
         }
 
         let mut buf: [u8; U16_SIZE] = [0; U16_SIZE];
@@ -417,7 +422,7 @@ impl TryFrom<&DicomElement> for i32 {
         Vec::<i32>::try_from(value)?
             .into_iter()
             .next()
-            .ok_or_else(|| error("no i32's parsed", value))
+            .ok_or_else(|| ("no i32's parsed", value).into())
     }
 }
 
@@ -435,7 +440,7 @@ impl TryFrom<&DicomElement> for Vec<i32> {
                 .map(|s| {
                     s.trim()
                         .parse::<i32>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -450,7 +455,7 @@ impl TryFrom<&DicomElement> for Vec<i32> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % I32_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of i32", value));
+            return Err(("num bytes not multiple of size of i32", value).into());
         }
 
         let mut buf: [u8; I32_SIZE] = [0; I32_SIZE];
@@ -479,7 +484,7 @@ impl TryFrom<&DicomElement> for u32 {
         Vec::<u32>::try_from(value)?
             .into_iter()
             .next()
-            .ok_or_else(|| error("no u32's parsed", value))
+            .ok_or_else(|| ("no u32's parsed", value).into())
     }
 }
 
@@ -497,7 +502,7 @@ impl TryFrom<&DicomElement> for Vec<u32> {
                 .map(|s| {
                     s.trim()
                         .parse::<u32>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -512,7 +517,7 @@ impl TryFrom<&DicomElement> for Vec<u32> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % U32_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of u32", value));
+            return Err(("num bytes not multiple of size of u32", value).into());
         }
 
         let mut buf: [u8; U32_SIZE] = [0; U32_SIZE];
@@ -546,7 +551,7 @@ impl TryFrom<&DicomElement> for Vec<i64> {
                 .map(|s| {
                     s.trim()
                         .parse::<i64>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -561,7 +566,7 @@ impl TryFrom<&DicomElement> for Vec<i64> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % I64_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of i64", value));
+            return Err(("num bytes not multiple of size of i64", value).into());
         }
 
         let mut buf: [u8; I64_SIZE] = [0; I64_SIZE];
@@ -595,7 +600,7 @@ impl TryFrom<&DicomElement> for Vec<u64> {
                 .map(|s| {
                     s.trim()
                         .parse::<u64>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -610,7 +615,7 @@ impl TryFrom<&DicomElement> for Vec<u64> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % U64_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of u64", value));
+            return Err(("num bytes not multiple of size of u64", value).into());
         }
 
         let mut buf: [u8; U64_SIZE] = [0; U64_SIZE];
@@ -644,7 +649,7 @@ impl TryFrom<&DicomElement> for Vec<f32> {
                 .map(|s| {
                     s.trim()
                         .parse::<f32>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -659,7 +664,7 @@ impl TryFrom<&DicomElement> for Vec<f32> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % F32_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of f32", value));
+            return Err(("num bytes not multiple of size of f32", value).into());
         }
 
         let mut buf: [u8; F32_SIZE] = [0; F32_SIZE];
@@ -689,7 +694,7 @@ impl TryFrom<&DicomElement> for f64 {
         Vec::<f64>::try_from(value)?
             .into_iter()
             .next()
-            .ok_or_else(|| error("no f64's parsed", value))
+            .ok_or_else(|| ("no f64's parsed", value).into())
     }
 }
 
@@ -707,7 +712,7 @@ impl TryFrom<&DicomElement> for Vec<f64> {
                 .map(|s| {
                     s.trim()
                         .parse::<f64>()
-                        .map_err(|e| error(&e.to_string(), value))
+                        .map_err(|e| (e.to_string().as_str(), value).into())
                 })
                 .partition(ParseResult::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
@@ -722,7 +727,7 @@ impl TryFrom<&DicomElement> for Vec<f64> {
             return Ok(Vec::with_capacity(0));
         }
         if num_bytes % F64_SIZE != 0 {
-            return Err(error("num bytes not multiple of size of f64", value));
+            return Err(("num bytes not multiple of size of f64", value).into());
         }
 
         let mut buf: [u8; F64_SIZE] = [0; F64_SIZE];

@@ -8,7 +8,6 @@ use crate::{
         charset::{CSRef, DEFAULT_CHARACTER_SET},
         dcmsqelem::SequenceElement,
         read::{self, parser::ParseResult},
-        write::valencode,
         values::RawValue,
     },
     defn::{
@@ -19,6 +18,8 @@ use crate::{
         vr::{self, VRRef},
     },
 };
+
+use super::write::valencode::ElemAndRawValue;
 
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
@@ -156,7 +157,7 @@ impl DicomElement {
     /// assigned `ValueLength::Explicit(0)` if this element is `Item`, `ItemDelimitationItem`, or
     /// `SequenceDelimitationItem`.
     pub fn encode_value(&mut self, value: RawValue, vl: Option<ValueLength>) -> ParseResult<()> {
-        self.data = valencode::encode_value(&self, value)?;
+        self.data = ElemAndRawValue(self, value).try_into()?;
 
         self.vl = if vl.is_some() && self.is_seq_like() || self.tag == tags::ITEM {
             vl.unwrap()
