@@ -121,7 +121,7 @@ fn scan_dir(path: PathBuf, dicom_coll: Collection) -> Result<(), Error> {
             if child_elem.is_seq_like() {
                 // TODO: handle sequences
             } else {
-                build_bson_doc(child_elem, &mut dicom_doc)?;
+                insert_elem_entry(child_elem, &mut dicom_doc)?;
             }
         }
     }
@@ -141,8 +141,8 @@ fn scan_dir(path: PathBuf, dicom_coll: Collection) -> Result<(), Error> {
     Ok(())
 }
 
-/// Parses the dicom element value and inserts the value into the given mongo document
-fn build_bson_doc(elem: &DicomElement, dicom_doc: &mut OrderedDocument) -> Result<(), Error> {
+/// Inserts the dicom element entry into the given BSON document
+fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut OrderedDocument) -> Result<(), Error> {
     let key: String = Tag::format_tag_to_path_display(elem.tag);
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {
