@@ -1,8 +1,4 @@
 target
 fixtures
-
-\.idea/dictionaries
-\.idea/inspectionProfiles
-\.idea/workspace.xml
-\.idea/vcs.xml
-
+\.idea
+\.DS_Store
