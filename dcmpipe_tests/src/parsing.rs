@@ -30,7 +30,7 @@ fn test_good_preamble() {
         .expect("Should be able to iterate a valid dicom dataset");
 
     let is_dcm: bool = is_standard_dcm_file(&parser);
-    assert_eq!(is_dcm, true);
+    assert_eq!(true, is_dcm);
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn test_nonzero_preamble() {
         .expect("Should be able to iterate a valid dicom dataset with non-standard preamble");
 
     let is_dcm: bool = is_standard_dcm_file(&parser);
-    assert_eq!(is_dcm, false);
+    assert_eq!(false, is_dcm);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn test_failure_to_read_preamble() {
 
     // should record zero bytes read since the first attempt to read into buffer should fail to fill
     let start_pos: u64 = parser.get_bytes_read();
-    assert_eq!(start_pos, 0);
+    assert_eq!(0, start_pos);
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn test_unknown_explicit_vr_parses_as_invalid() {
         .expect("Should have returned Some(Ok(elem))")
         .expect("Should have returned Ok(elem)");
 
-    assert_eq!(first_elem.get_vr(), &vr::INVALID);
+    assert_eq!(&vr::INVALID, first_elem.get_vr());
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn test_trailing_zeroes_does_not_error() {
         })
         .next();
 
-    assert_eq!(first_non_fme.is_none(), true);
+    assert_eq!(true, first_non_fme.is_none());
 }
 
 #[test]
@@ -149,22 +149,22 @@ fn test_parser_state(with_std: bool) -> Result<()> {
     }
     let mut parser: Parser<'_, File> = parser.build(file);
 
-    assert_eq!(parser.get_parser_state(), ParseState::DetectTransferSyntax);
+    assert_eq!(ParseState::DetectTransferSyntax, parser.get_parser_state());
 
     let first_elem: DicomElement = parser.next().expect("First element should be Some")?;
 
     assert_eq!(
+        tags::FileMetaInformationGroupLength.tag,
         first_elem.get_tag(),
-        tags::FileMetaInformationGroupLength.tag
     );
 
-    assert_eq!(parser.get_parser_state(), ParseState::FileMeta);
+    assert_eq!(ParseState::FileMeta, parser.get_parser_state());
 
     while let Some(_) = parser.next() {
         // read through the entire dataset
     }
 
-    assert_eq!(parser.get_parser_state(), ParseState::Element);
+    assert_eq!(ParseState::Element, parser.get_parser_state());
 
     // Ability to read dicom elements after FileMetaInformation
     // means that we interpret the transfer syntax properly, as
@@ -177,8 +177,8 @@ fn test_parser_state(with_std: bool) -> Result<()> {
     // the iterator state should be just after having parsed the stop tag
     let stopped_at_tag: u32 = parser.get_tag_last_read();
     assert_eq!(
+        Tag::format_tag_to_display(stop),
         Tag::format_tag_to_display(stopped_at_tag),
-        Tag::format_tag_to_display(stop)
     );
 
     Ok(())
@@ -216,8 +216,8 @@ fn test_dicom_object(with_std: bool) -> Result<()> {
     let element: &DicomElement = sop_class_uid.as_element();
 
     assert_eq!(
+        uids::CTImageStorage.uid,
         String::try_from(ElementWithVr(element, &vr::UI))?,
-        uids::CTImageStorage.uid
     );
 
     Ok(())
@@ -256,7 +256,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         .as_element();
     // pull value into local var so it can be typed properly, otherwise it defaults type to &Vec<u8>
     let ss_time_bytes: &[u8] = ss_time.get_data().as_ref();
-    assert_eq!(ss_time_bytes, "092108.000".as_bytes());
+    assert_eq!("092108.000".as_bytes(), ss_time_bytes);
 
     // walk the depths of the first sequence to make sure the structure is setup as we expect
     {
@@ -292,11 +292,11 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         let last_ref_sop_uid: String = last_ref_sop_uid_elem.try_into()?;
 
         let retrieved_tagpath: TagPath = last_ref_sop_uid_elem.get_tagpath();
-        assert_eq!(retrieved_tagpath, tagpath);
+        assert_eq!(tagpath, retrieved_tagpath);
 
         assert_eq!(
+            "1.2.246.352.91.0000217.20050503182534671465",
             last_ref_sop_uid,
-            "1.2.246.352.91.0000217.20050503182534671465"
         );
 
         // the first sequence item in this object
@@ -304,43 +304,43 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
             .get_child_by_tag(tags::ReferencedFrameofReferenceSequence.tag)
             .expect("Should have ReferencedFrameOfReferenceSequence");
 
-        assert_eq!(rfor_sq.get_item_count(), 1);
+        assert_eq!(1, rfor_sq.get_item_count());
         let item_obj: &DicomObject = rfor_sq.get_item_by_index(1).expect("Have first item");
-        assert_eq!(item_obj.get_child_count(), 2);
+        assert_eq!(2, item_obj.get_child_count());
         let item_foruid: &DicomObject = item_obj
             .get_child_by_tag(tags::FrameofReferenceUID.tag)
             .expect("Have FORUID");
         let item_foruid_bytes: &[u8] = item_foruid.as_element().get_data().as_ref();
         assert_eq!(
+            "1.2.246.352.91.0000217.20050503182534.1.1\0".as_bytes(),
             item_foruid_bytes,
-            "1.2.246.352.91.0000217.20050503182534.1.1\0".as_bytes()
         );
 
-        assert_eq!(rfor_sq.get_child_count(), 1);
+        assert_eq!(1, rfor_sq.get_child_count());
         let child_obj: &DicomObject = rfor_sq
             .iter_child_nodes()
             .next()
             .expect("Have first child")
             .1;
         assert_eq!(
+            tags::SequenceDelimitationItem.tag,
             child_obj.as_element().get_tag(),
-            tags::SequenceDelimitationItem.tag
         );
 
         let rtrss_sq: &DicomObject = item_obj
             .get_child_by_tag(tags::RTReferencedStudySequence.tag)
             .expect("Have RTReferencedStudySequence");
-        assert_eq!(rtrss_sq.get_item_count(), 1);
-        assert_eq!(rtrss_sq.get_child_count(), 1);
+        assert_eq!(1, rtrss_sq.get_item_count());
+        assert_eq!(1, rtrss_sq.get_child_count());
 
         let rtrss_sq_item: &DicomObject = rtrss_sq.get_item_by_index(1).expect("Have first item");
-        assert_eq!(rtrss_sq_item.get_child_count(), 3);
+        assert_eq!(3, rtrss_sq_item.get_child_count());
         let ref_sopclass: &DicomElement = rtrss_sq_item
             .get_child_by_tag(tags::ReferencedSOPClassUID.tag)
             .expect("Have ref sop class")
             .as_element();
         let ref_sopclass_bytes: &[u8] = ref_sopclass.get_data().as_ref();
-        assert_eq!(ref_sopclass_bytes, "1.2.840.10008.3.1.2.3.1\0".as_bytes());
+        assert_eq!("1.2.840.10008.3.1.2.3.1\0".as_bytes(), ref_sopclass_bytes);
 
         let ref_sopuid: &DicomElement = rtrss_sq_item
             .get_child_by_tag(tags::ReferencedSOPInstanceUID.tag)
@@ -348,34 +348,34 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
             .as_element();
         let ref_sopuid_bytes: &[u8] = ref_sopuid.get_data().as_ref();
         assert_eq!(
+            "1.2.246.352.91.0000217.20050503182534\0".as_bytes(),
             ref_sopuid_bytes,
-            "1.2.246.352.91.0000217.20050503182534\0".as_bytes()
         );
 
         let rtref_ser_sq: &DicomObject = rtrss_sq_item
             .get_child_by_tag(tags::RTReferencedSeriesSequence.tag)
             .expect("Have ref series seq");
-        assert_eq!(rtref_ser_sq.get_item_count(), 1);
-        assert_eq!(rtref_ser_sq.get_child_count(), 1);
+        assert_eq!(1, rtref_ser_sq.get_item_count());
+        assert_eq!(1, rtref_ser_sq.get_child_count());
 
         let rtref_ser_item: &DicomObject =
             rtref_ser_sq.get_item_by_index(1).expect("Have first item");
-        assert_eq!(rtref_ser_item.get_child_count(), 2);
+        assert_eq!(2, rtref_ser_item.get_child_count());
         let rtref_ser_uid: &DicomElement = rtref_ser_item
             .get_child_by_tag(tags::SeriesInstanceUID.tag)
             .expect("Have series uid")
             .as_element();
         let rtref_ser_uid_bytes: &[u8] = rtref_ser_uid.get_data().as_ref();
         assert_eq!(
+            "1.2.246.352.91.0000217.20050503182534.1\0".as_bytes(),
             rtref_ser_uid_bytes,
-            "1.2.246.352.91.0000217.20050503182534.1\0".as_bytes()
         );
 
         let cont_img_sq: &DicomObject = rtref_ser_item
             .get_child_by_tag(tags::ContourImageSequence.tag)
             .expect("Have contour image seq");
-        assert_eq!(cont_img_sq.get_item_count(), 11);
-        assert_eq!(cont_img_sq.get_child_count(), 1);
+        assert_eq!(11, cont_img_sq.get_item_count());
+        assert_eq!(1, cont_img_sq.get_child_count());
 
         let cont_img_sq_child: &DicomObject = cont_img_sq
             .iter_child_nodes()
@@ -383,11 +383,11 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
             .expect("Get only child of contour image seq")
             .1;
         assert_eq!(
+            tags::SequenceDelimitationItem.tag,
             cont_img_sq_child.as_element().get_tag(),
-            tags::SequenceDelimitationItem.tag
         );
-        assert_eq!(cont_img_sq_child.get_child_count(), 0);
-        assert_eq!(cont_img_sq_child.get_item_count(), 0);
+        assert_eq!(0, cont_img_sq_child.get_child_count());
+        assert_eq!(0, cont_img_sq_child.get_item_count());
 
         let last_sop_uid: &DicomElement = cont_img_sq
             .get_item_by_index(11)
@@ -397,8 +397,8 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
             .as_element();
         let last_sop_uid_bytes: &[u8] = last_sop_uid.get_data().as_ref();
         assert_eq!(
+            "1.2.246.352.91.0000217.20050503182534671465\0".as_bytes(),
             last_sop_uid_bytes,
-            "1.2.246.352.91.0000217.20050503182534671465\0".as_bytes()
         );
     }
 
@@ -406,7 +406,7 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
     let ssroi_sq: &DicomObject = dcmroot
         .get_child_by_tag(tags::StructureSetROISequence.tag)
         .expect("Should have StructureSetROISequence");
-    assert_eq!(ssroi_sq.get_item_count(), 4);
+    assert_eq!(4, ssroi_sq.get_item_count());
 
     // ContourData's implicit VR is DS, however the first contour in this dataset is encoded
     // explicitly with UN. Verify that it still parses as UN and not DS.
@@ -423,9 +423,9 @@ fn test_dicom_object_sequences(with_std: bool) -> Result<()> {
         .expect("Have contour data")
         .as_element();
 
-    assert_eq!(contour_data.get_vr(), &vr::UN);
-    assert_eq!(contour_data.get_vl(), ValueLength::Explicit(107074));
-    assert_eq!(contour_data.get_data().len(), 107074);
+    assert_eq!(&vr::UN, contour_data.get_vr());
+    assert_eq!(ValueLength::Explicit(107074), contour_data.get_vl());
+    assert_eq!(107074, contour_data.get_data().len());
 
     Ok(())
 }
@@ -453,10 +453,10 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<()> {
         .get_child_by_tag(tags::ReferencedStudySequence.tag)
         .expect("Should be able to parse ReferencedStudySequence");
     // does contain a child item which is the delimitation item
-    assert_eq!(rss_obj.get_child_count(), 1);
+    assert_eq!(1, rss_obj.get_child_count());
 
     let rss_elem: &DicomElement = rss_obj.as_element();
-    assert_eq!(rss_elem.get_vl(), ValueLength::UndefinedLength);
+    assert_eq!(ValueLength::UndefinedLength, rss_elem.get_vl());
 
     let sdi_elem: &DicomElement = rss_obj
         .iter_child_nodes()
@@ -464,7 +464,7 @@ fn test_empty_seq_undefined_length(with_std: bool) -> Result<()> {
         .expect("Should be able to get single child item")
         .1
         .as_element();
-    assert_eq!(sdi_elem.get_tag(), tags::SequenceDelimitationItem.tag);
+    assert_eq!(tags::SequenceDelimitationItem.tag, sdi_elem.get_tag());
 
     Ok(())
 }
@@ -492,23 +492,23 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
         .expect("This sequence should have 1 sequence item")
         .get_child_by_tag(0x2005_140E)
         .expect("This sequence should have private element as child");
-    assert_eq!(private_un_seq_obj.get_item_count(), 1);
-    assert_eq!(private_un_seq_obj.get_child_count(), 1);
+    assert_eq!(1, private_un_seq_obj.get_item_count());
+    assert_eq!(1, private_un_seq_obj.get_child_count());
 
     let private_un_seq_elem: &DicomElement = private_un_seq_obj.as_element();
-    assert_eq!(private_un_seq_elem.get_vr(), &vr::UN);
-    assert_eq!(private_un_seq_elem.get_vl(), ValueLength::UndefinedLength);
-    assert_eq!(private_un_seq_elem.is_seq_like(), true);
-    assert_eq!(private_un_seq_elem.get_data().len(), 0);
+    assert_eq!(&vr::UN, private_un_seq_elem.get_vr());
+    assert_eq!(ValueLength::UndefinedLength, private_un_seq_elem.get_vl());
+    assert_eq!(true, private_un_seq_elem.is_seq_like());
+    assert_eq!(0, private_un_seq_elem.get_data().len());
 
     let child_obj: &DicomObject = private_un_seq_obj
         .get_item_by_index(1)
         .expect("Private sequence should have one item");
     // The item has 26 elements, plus item delimiter
-    assert_eq!(child_obj.get_child_count(), 27);
+    assert_eq!(27, child_obj.get_child_count());
     assert_eq!(
+        tags::ItemDelimitationItem.tag,
         *child_obj.iter_child_nodes().last().unwrap().0,
-        tags::ItemDelimitationItem.tag
     );
 
     let sopuid: &DicomElement = child_obj
@@ -519,16 +519,16 @@ fn test_private_tag_un_sq(with_std: bool) -> Result<()> {
     // Only if we detect the VR as UI (when using standard dictionary) then the value should
     // match exactly when parsed as a string otherwise we have to check it with the null byte.
     if with_std {
-        assert_eq!(String::try_from(sopuid)?, uids::MRImageStorage.uid);
+        assert_eq!(uids::MRImageStorage.uid, String::try_from(sopuid)?);
     } else {
         assert_eq!(
+            format!("{}\u{0}", uids::MRImageStorage.uid),
             String::try_from(sopuid)?,
-            format!("{}\u{0}", uids::MRImageStorage.uid)
         );
         // force parsing as UI should match exactly
         assert_eq!(
+            uids::MRImageStorage.uid,
             String::try_from(ElementWithVr(sopuid, &vr::UI))?,
-            uids::MRImageStorage.uid
         );
     }
 
@@ -554,7 +554,7 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
         "./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
         with_std,
     )?;
-    assert_eq!(dcmroot.get_ts(), &ts::ExplicitVRBigEndian);
+    assert_eq!(&ts::ExplicitVRBigEndian, dcmroot.get_ts());
 
     let sis_obj: &DicomObject = dcmroot
         .get_child_by_tag(tags::SourceImageSequence.tag)
@@ -562,12 +562,12 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
 
     // The SourceImageSequence is explicitly set with VR of UN, even though the standard dictionary
     // will properly indicate it's SQ. As it's explicitly UN it will not be parsed as a sequence.
-    assert_eq!(sis_obj.get_item_count(), 0);
+    assert_eq!(0, sis_obj.get_item_count());
 
     // Source Image Sequence should not implicitly be parsed as a sequence as it's explicitly
     // encoded with a VR of UN instead of SQ.
     let sis_elem: &DicomElement = sis_obj.as_element();
-    assert_eq!(sis_elem.get_ts(), dcmroot.get_ts());
+    assert_eq!(dcmroot.get_ts(), sis_elem.get_ts());
 
     // Manually parse the contents of Source Image Sequence as a sequence.
     let data: &Vec<u8> = sis_obj.as_element().get_data();
@@ -586,18 +586,18 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> Result<()> {
         .get_item_by_index(1)
         .expect("Should be able to get child object");
 
-    assert_eq!(item_obj.get_child_count(), 2);
+    assert_eq!(2, item_obj.get_child_count());
 
     let item_elem: &DicomElement = item_obj.as_element();
-    assert_eq!(item_elem.get_tag(), tags::Item.tag);
-    assert_eq!(item_elem.get_ts(), &ts::ImplicitVRLittleEndian);
+    assert_eq!(tags::Item.tag, item_elem.get_tag());
+    assert_eq!(&ts::ImplicitVRLittleEndian, item_elem.get_ts());
 
     for (_tag, inner_obj) in item_obj.iter_child_nodes() {
         let elem: &DicomElement = inner_obj.as_element();
         // This assertion seems wrong (should be EVRBE) based on Part 5, Section 7.5 --
         // However, the Data Set within the Value Field of the Data Element Item (FFFE,E000) shall
         // be encoded according to the rules conveyed by the Transfer Syntax.
-        assert_eq!(elem.get_ts(), &ts::ImplicitVRLittleEndian);
+        assert_eq!(&ts::ImplicitVRLittleEndian, elem.get_ts());
     }
 
     Ok(())
@@ -629,10 +629,10 @@ fn test_missing_preamble(with_std: bool) -> Result<()> {
     let first_elem: DicomElement = parser.next().expect("First element should be parsable")?;
 
     // first tag is a group length tag
-    assert_eq!(first_elem.get_tag(), 0x0008_0000);
+    assert_eq!(0x0008_0000, first_elem.get_tag());
     // should immediately jump past preamble/prefix, group length, and file meta
-    assert_eq!(parser.get_parser_state(), ParseState::Element);
-    assert_eq!(parser.get_ts(), &ts::ImplicitVRLittleEndian);
+    assert_eq!(ParseState::Element, parser.get_parser_state());
+    assert_eq!(&ts::ImplicitVRLittleEndian, parser.get_ts());
 
     assert!(parser.get_file_preamble().is_none());
     assert!(parser.get_dicom_prefix().is_none());
@@ -640,7 +640,7 @@ fn test_missing_preamble(with_std: bool) -> Result<()> {
     // parse the rest of the dataset into an object
     let dcmroot: DicomRoot<'_> =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
-    assert_eq!(dcmroot.get_child_count(), 32);
+    assert_eq!(32, dcmroot.get_child_count());
     Ok(())
 }
 
@@ -674,14 +674,14 @@ fn test_undefined_charset(with_std: bool) -> Result<()> {
 
     let pn: String = String::try_from(pat_name)?;
     if with_std {
-        assert_eq!(pn, "6063^Anon17216");
+        assert_eq!("6063^Anon17216", pn);
     } else {
         // The patient name won't be trimmed because without knowing it's a PN element the padding
         // isn't considered in parsing.
-        assert_eq!(pn, "6063^Anon17216      ");
+        assert_eq!("6063^Anon17216      ", pn);
         // Forcing the parse using a specific VR should trim the value though
         let pn: String = String::try_from(ElementWithVr(pat_name, &vr::PN))?;
-        assert_eq!(pn, "6063^Anon17216");
+        assert_eq!("6063^Anon17216", pn);
     }
 
     let pat_com: &DicomElement = dcmroot
@@ -702,7 +702,7 @@ fn test_undefined_charset(with_std: bool) -> Result<()> {
         })?
     };
 
-    assert_eq!(pc, pc_expected);
+    assert_eq!(pc_expected, pc);
 
     Ok(())
 }
@@ -775,7 +775,7 @@ fn test_illegal_cp246(with_std: bool) -> Result<()> {
 
     let ref_sop_class_uid: String = ref_sop_class_uid_elem.try_into()?;
 
-    assert_eq!(ref_sop_class_uid, uids::EnhancedMRImageStorage.uid);
+    assert_eq!(uids::EnhancedMRImageStorage.uid, ref_sop_class_uid);
 
     let ref_sop_class_uid: String = dcmroot
         .get_child_by_tagpath(
@@ -790,7 +790,7 @@ fn test_illegal_cp246(with_std: bool) -> Result<()> {
         .as_element()
         .try_into()?;
 
-    assert_eq!(ref_sop_class_uid, uids::EnhancedMRImageStorage.uid);
+    assert_eq!(uids::EnhancedMRImageStorage.uid, ref_sop_class_uid);
 
     let elem_tagpath: TagPath = ref_sop_class_uid_elem.get_tagpath();
 
@@ -800,7 +800,7 @@ fn test_illegal_cp246(with_std: bool) -> Result<()> {
         .as_element()
         .try_into()?;
 
-    assert_eq!(ref_sop_class_uid, uids::EnhancedMRImageStorage.uid);
+    assert_eq!(uids::EnhancedMRImageStorage.uid, ref_sop_class_uid);
 
     Ok(())
 }
@@ -826,7 +826,7 @@ fn test_incomplete_dicom_file(with_std: bool) -> Result<()> {
 
     let err = result.unwrap_err();
     if let ParseError::DetailedIOError { source, detail: _ } = err {
-        assert_eq!(source.kind(), ErrorKind::UnexpectedEof);
+        assert_eq!(ErrorKind::UnexpectedEof, source.kind());
     } else {
         panic!("Error should be ParseError::DetailedIOError");
     }
@@ -851,7 +851,7 @@ fn test_no_preamble_start_with_0005(with_std: bool) -> Result<()> {
         with_std,
     )?;
 
-    assert_eq!(dcmroot.get_ts(), &ts::ImplicitVRLittleEndian);
+    assert_eq!(&ts::ImplicitVRLittleEndian, dcmroot.get_ts());
 
     let study_desc_elem: &DicomElement = dcmroot
         .get_child_by_tag(tags::StudyDescription.tag)
@@ -861,14 +861,14 @@ fn test_no_preamble_start_with_0005(with_std: bool) -> Result<()> {
     let study_desc: String = study_desc_elem.try_into()?;
 
     if with_std {
-        assert_eq!(study_desc, "ABDOMEN");
+        assert_eq!("ABDOMEN", study_desc);
     } else {
         // parsing without dictionary doesn't know VR since parsed as implicit, so it won't know to
         // remove padding value.
-        assert_eq!(study_desc, "ABDOMEN ");
+        assert_eq!("ABDOMEN ", study_desc);
         // force parsing using the actual VR should trim the padding
         let study_desc: String = String::try_from(ElementWithVr(study_desc_elem, &vr::LO))?;
-        assert_eq!(study_desc, "ABDOMEN");
+        assert_eq!("ABDOMEN", study_desc);
     }
 
     Ok(())
@@ -898,7 +898,7 @@ fn test_no_dicomv3_preamble(with_std: bool) -> Result<()> {
         .as_element()
         .try_into()?;
 
-    assert_eq!(fme_length, 84);
+    assert_eq!(84, fme_length);
 
     Ok(())
 }
@@ -1158,42 +1158,42 @@ fn test_ul_is_2bytes(with_std: bool) -> Result<()> {
         .get_child_by_tag(0x0009_1130)
         .expect("Element should exist")
         .as_element();
-    assert_eq!(element1.get_vr(), &vr::UL);
-    assert_eq!(element1.get_vl(), ValueLength::Explicit(2));
+    assert_eq!(&vr::UL, element1.get_vr());
+    assert_eq!(ValueLength::Explicit(2), element1.get_vl());
     // should be able to parse the value as u16 since it has 2 bytes
     let element1_val: u16 = element1.try_into()?;
-    assert_eq!(element1_val, 0x0800);
+    assert_eq!(0x0800, element1_val);
 
     let element2: &DicomElement = dcmroot
         .get_child_by_tag(0x0009_1131)
         .expect("Element should exist")
         .as_element();
-    assert_eq!(element2.get_vr(), &vr::UL);
-    assert_eq!(element2.get_vl(), ValueLength::Explicit(2));
+    assert_eq!(&vr::UL, element2.get_vr());
+    assert_eq!(ValueLength::Explicit(2), element2.get_vl());
     // should be able to parse the value as u16 since it has 2 bytes
     let element2_val: u16 = element1.try_into()?;
-    assert_eq!(element2_val, 0x0800);
+    assert_eq!(0x0800, element2_val);
 
     let element3: &DicomElement = dcmroot
         .get_child_by_tag(0x0009_1140)
         .expect("Element should exist")
         .as_element();
-    assert_eq!(element3.get_vr(), &vr::UL);
-    assert_eq!(element3.get_vl(), ValueLength::Explicit(2));
+    assert_eq!(&vr::UL, element3.get_vr());
+    assert_eq!(ValueLength::Explicit(2), element3.get_vl());
     // should be able to parse the value as u16 since it has 2 bytes
     let element3_val: u16 = element1.try_into()?;
-    assert_eq!(element3_val, 0x0800);
+    assert_eq!(0x0800, element3_val);
 
     // check that we can properly parse the element after the ones with incorrect value length
     let element4: &DicomElement = dcmroot
         .get_child_by_tag(0x0009_1141)
         .expect("Element should exist")
         .as_element();
-    assert_eq!(element4.get_vr(), &vr::UL);
-    assert_eq!(element4.get_vl(), ValueLength::Explicit(4));
+    assert_eq!(&vr::UL, element4.get_vr());
+    assert_eq!(ValueLength::Explicit(4), element4.get_vl());
 
     let element4_val: u32 = u32::try_from(element4)?;
-    assert_eq!(element4_val, 0x2_0000);
+    assert_eq!(0x2_0000, element4_val);
 
     // this will return an error
     TryInto::<u32>::try_into(element1)?;
@@ -1292,7 +1292,7 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bo
         .get_child_by_tagnode(&(&tags::SourceImageSequence).into())
         .expect("Parse SourceImageSequence");
 
-    assert_eq!(sis_obj.get_item_count(), 1);
+    assert_eq!(1, sis_obj.get_item_count());
 
     let tagpath: TagPath = vec![&tags::SourceImageSequence, &tags::ReferencedSOPInstanceUID]
         .as_slice()
@@ -1305,8 +1305,8 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(with_std: bo
     let ref_sop_uid: RawValue = ref_sop_obj.as_element().parse_value()?;
     if let RawValue::Uid(uid) = ref_sop_uid {
         assert_eq!(
+            "1.3.46.670589.11.0.0.11.4.2.0.5701.5.5248.2003110619383806273",
             uid,
-            "1.3.46.670589.11.0.0.11.4.2.0.5701.5.5248.2003110619383806273"
         );
     } else {
         panic!("Parsed UID should be RawValue::Uid");
@@ -1373,7 +1373,7 @@ fn test_jpeg_lossless3a(with_std: bool) -> Result<()> {
 
     let dcmroot = DicomRoot::parse(&mut parser)?.expect("Parse partial object");
     // Verify a bunch of dicom was parsed.
-    assert_eq!(dcmroot.get_child_count(), 106);
+    assert_eq!(106, dcmroot.get_child_count());
     parse_all_dcmroot_values(&dcmroot)?;
 
     Ok(())
@@ -1425,7 +1425,10 @@ fn test_empty_string_parsed_as_number(with_std: bool) -> Result<()> {
     if let RawValue::Doubles(vals) = value {
         assert!(vals.is_empty());
     } else {
-        panic!("PatientsWeight should parse as a list of doubles but was {:?}", value);
+        panic!(
+            "PatientsWeight should parse as a list of doubles but was {:?}",
+            value
+        );
     }
 
     Ok(())

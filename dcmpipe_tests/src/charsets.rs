@@ -114,18 +114,18 @@ fn test_nested_charset(
         .nth(0)
         .expect("Should have at least one value for SCS");
 
-    assert_eq!(item_scs, scs);
+    assert_eq!(scs, item_scs);
 
     let item_pn: &DicomElement = item
         .get_child_by_tag(tags::PatientsName.tag)
         .expect("Item should have PN")
         .as_element();
 
-    assert_eq!(item_pn.get_cs().name(), cs.name());
+    assert_eq!(cs.name(), item_pn.get_cs().name());
 
     let item_pn_value: String = String::try_from(item_pn)?;
 
-    assert_eq!(item_pn_value, pn);
+    assert_eq!(pn, item_pn_value);
 
     Ok(())
 }
@@ -256,7 +256,7 @@ fn test_scs_x2() -> Result<()> {
 fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> Result<()> {
     let dcmroot: DicomRoot<'_> = parse_file(path, with_std)?;
 
-    assert_eq!(dcmroot.get_cs().name(), cs.name());
+    assert_eq!(cs.name(), dcmroot.get_cs().name());
 
     let scs_elem: &DicomElement = dcmroot
         .get_child_by_tag(tags::SpecificCharacterSet.tag)
@@ -269,7 +269,7 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
         .filter(|cs_entry: &String| !cs_entry.is_empty())
         .nth(0)
         .expect("Should have at least one value for SCS");
-    assert_eq!(scs_val, scs);
+    assert_eq!(scs, scs_val);
 
     let pn_elem: &DicomElement = dcmroot
         .get_child_by_tag(tags::PatientsName.tag)
@@ -277,7 +277,7 @@ fn test_scs_file(with_std: bool, path: &str, cs: CSRef, scs: &str, pn: &str) -> 
         .as_element();
 
     let pn_val: String = String::try_from(pn_elem)?;
-    assert_eq!(pn_val, pn);
+    assert_eq!(pn, pn_val);
 
     Ok(())
 }

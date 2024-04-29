@@ -7,7 +7,7 @@ use dcmpipe_lib::{
     core::{
         dcmelement::{DicomElement, RawValue},
         dcmobject::DicomRoot,
-        read::ParserBuilder,
+        read::{Parser, ParserBuilder},
         write::{error::WriteError, writer::Writer},
     },
     defn::vr,
@@ -75,7 +75,7 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
     writer.write_elements(elements.iter())?;
 
     let bytes: Vec<u8> = writer.into_dataset()?;
-    assert_eq!(bytes, mockdata::STANDARD_HEADER);
+    assert_eq!(mockdata::STANDARD_HEADER, bytes);
     Ok(())
 }
 
@@ -100,11 +100,10 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
     let mut file: File = File::open(file_path)?;
     file.read_to_end(&mut file_bytes)?;
 
-    assert_byte_chunks(&written_bytes, &file_bytes);
+    assert_byte_chunks(&file_bytes, &written_bytes);
 
     Ok(())
 }
-
 
 #[test]
 pub fn test_reencoded_values() -> Result<(), WriteError> {
@@ -120,7 +119,11 @@ pub fn test_reencoded_values() -> Result<(), WriteError> {
         elem.encode_value(value, Some(elem.get_vl()))?;
         let reencoded_data = elem.get_data().clone();
 
-        assert_eq!(reencoded_data, data, "Element did not re-encode the same: {:?}", elem);
+        assert_eq!(
+            data, reencoded_data,
+            "Element did not re-encode the same: {:?}",
+            elem
+        );
     }
 
     Ok(())
@@ -151,12 +154,12 @@ pub fn test_write_reencoded_values() -> Result<(), WriteError> {
     let mut file: File = File::open(file_path)?;
     file.read_to_end(&mut file_bytes)?;
 
-    assert_byte_chunks(&written_bytes, &file_bytes);
+    assert_byte_chunks(&file_bytes, &written_bytes);
 
     Ok(())
 }
 
-fn assert_byte_chunks(written_bytes: &Vec<u8>, file_bytes: &Vec<u8>) {
+fn assert_byte_chunks(file_bytes: &Vec<u8>, written_bytes: &Vec<u8>) {
     let chunk_size = 0x1000;
     let written_chunks = written_bytes
         .chunks(chunk_size)
@@ -168,6 +171,38 @@ fn assert_byte_chunks(written_bytes: &Vec<u8>, file_bytes: &Vec<u8>) {
         .collect::<Vec<Vec<u8>>>();
 
     for i in 0..written_chunks.len() {
-        assert_eq!(written_chunks.get(i).unwrap(), file_chunks.get(i).unwrap(), "chunk mismatch: {}", i);
+        assert_eq!(
+            file_chunks.get(i).unwrap(),
+            written_chunks.get(i).unwrap(),
+            "chunk mismatch: {}",
+            i
+        );
     }
+}
+
+#[test]
+#[ignore]
+pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
+    for path in crate::get_dicom_file_paths() {
+        let path_str: &str = path.to_str().expect("path");
+
+        let mut parser: Parser<'_, File> = ParserBuilder::default()
+            .dictionary(&STANDARD_DICOM_DICTIONARY)
+            .build(File::open(path.clone())?);
+
+        while let Some(Ok(mut elem)) = parser.next() {
+            let orig_parsed_data = elem.get_data().clone();
+            let value = elem.parse_value()?;
+            elem.encode_value(value, Some(elem.get_vl()))?;
+            let reencoded_data = elem.get_data().clone();
+
+            assert_eq!(
+                orig_parsed_data, reencoded_data,
+                "Element did not re-encode the same. {} : {:?}",
+                path_str, elem
+            );
+        }
+    }
+
+    Ok(())
 }
