@@ -1,6 +1,8 @@
 //! This module contains implementations for decodign values from a DICOM element's value field
 //! bytes, based on the element's value representation and transfer syntax.
 
+use std::{any::type_name, fmt::Display, mem::size_of, str::FromStr};
+
 use crate::{
     core::{
         dcmelement::DicomElement,
@@ -14,15 +16,6 @@ use crate::{
 };
 
 use super::error::ParseErrorInfo;
-
-pub(crate) const I16_SIZE: usize = std::mem::size_of::<i16>();
-pub(crate) const U16_SIZE: usize = std::mem::size_of::<u16>();
-pub(crate) const I32_SIZE: usize = std::mem::size_of::<i32>();
-pub(crate) const U32_SIZE: usize = std::mem::size_of::<u32>();
-pub(crate) const I64_SIZE: usize = std::mem::size_of::<i64>();
-pub(crate) const U64_SIZE: usize = std::mem::size_of::<u64>();
-pub(crate) const F32_SIZE: usize = std::mem::size_of::<f32>();
-pub(crate) const F64_SIZE: usize = std::mem::size_of::<f64>();
 
 impl TryFrom<&DicomElement> for RawValue {
     type Error = ParseError;
@@ -93,31 +86,16 @@ impl TryFrom<&DicomElement> for Vec<Attribute> {
     /// Parses the value for this element as an attribute (aka a tag)
     /// Associated VRs: AT
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_data().len() % U32_SIZE != 0 {
+        let shorts: Vec<u16> = value.try_into()?;
+        if shorts.len() % 2 != 0 {
             return Err(ParseErrorInfo(value, "value is not a multiple of 4 bytes", None).into());
         }
 
-        let num_attrs = value.get_data().len() / U32_SIZE;
-        let mut buf: [u8; 2] = [0; 2];
-
+        let num_attrs = shorts.len() / 2;
         let mut attrs: Vec<Attribute> = Vec::with_capacity(num_attrs);
-        for i in 0..num_attrs {
-            let idx = i * U32_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + 2)]);
-            let first: u32 = if value.get_ts().is_big_endian() {
-                u32::from(u16::from_be_bytes(buf)) << 16
-            } else {
-                u32::from(u16::from_le_bytes(buf)) << 16
-            };
-
-            buf.copy_from_slice(&value.get_data()[(idx + 2)..(idx + 4)]);
-            let second: u32 = if value.get_ts().is_big_endian() {
-                u32::from(u16::from_be_bytes(buf))
-            } else {
-                u32::from(u16::from_le_bytes(buf))
-            };
-            let result: u32 = first + second;
-            attrs.push(Attribute(result));
+        for chunk in shorts.chunks(2) {
+            let attr: u32 = ((chunk[0] as u32) << 16) + (chunk[1] as u32);
+            attrs.push(Attribute(attr));
         }
         Ok(attrs)
     }
@@ -253,6 +231,72 @@ impl<'elem> From<ElementWithVr<'elem>> for BytesWithoutPadding<'elem> {
     }
 }
 
+fn str_parse_nums<T>(value: &DicomElement) -> ParseResult<Vec<T>>
+where
+    T: FromStr,
+    <T as FromStr>::Err: Display,
+{
+    let (values, errors): (Vec<ParseResult<T>>, Vec<ParseResult<T>>) =
+        Vec::<String>::try_from(value)?
+            .into_iter()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| {
+                s.trim()
+                    .parse::<T>()
+                    .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
+            })
+            .partition(ParseResult::is_ok);
+    if let Some(Err(e)) = errors.into_iter().last() {
+        return Err(e);
+    }
+    let values: Vec<T> = values
+        .into_iter()
+        .map(ParseResult::unwrap)
+        .collect::<Vec<T>>();
+    return Ok(values);
+}
+
+fn bin_parse_nums<T, FLE, FBE>(value: &DicomElement, le: FLE, be: FBE) -> ParseResult<Vec<T>>
+where
+    FLE: Fn(&[u8]) -> ParseResult<T>,
+    FBE: Fn(&[u8]) -> ParseResult<T>,
+{
+    let num_bytes: usize = value.get_data().len();
+    if num_bytes == 0 {
+        return Ok(Vec::with_capacity(0));
+    }
+
+    let t_size = size_of::<T>();
+    if num_bytes % t_size != 0 {
+        let t_name = type_name::<T>();
+        return Err(ParseErrorInfo(
+            value,
+            &format!("num bytes not multiple of size of {}", t_name),
+            None,
+        )
+        .into());
+    }
+
+    let num_items: usize = num_bytes / t_size;
+    // The bit-wise largest number-type being parsed takes up 8 bytes.
+    let mut buf: [u8; 8] = [0; 8];
+    // Create a slice of the array of the right size for the type, required by copy_from_slice().
+    let buf = &mut buf[..t_size];
+    let mut result: Vec<T> = Vec::with_capacity(num_items);
+
+    for item_num in 0..num_items {
+        let idx = item_num * t_size;
+        buf.copy_from_slice(&value.get_data()[idx..(idx + t_size)]);
+        let val: T = if value.get_ts().is_big_endian() {
+            be(buf)?
+        } else {
+            le(buf)?
+        };
+        result.push(val);
+    }
+    Ok(result)
+}
+
 impl TryFrom<&DicomElement> for i16 {
     type Error = ParseError;
 
@@ -273,51 +317,21 @@ impl TryFrom<&DicomElement> for Vec<i16> {
     /// Associated VRs: SS
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeShorts = Vec<ParseResult<i16>>;
-            let (values, errors): (MaybeShorts, MaybeShorts) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<i16>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<i16> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<i16>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % I16_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of i16", None).into(),
-            );
-        }
-
-        let mut buf: [u8; I16_SIZE] = [0; I16_SIZE];
-        let num_i16s: usize = num_bytes / I16_SIZE;
-        let mut result: Vec<i16> = Vec::with_capacity(num_i16s);
-        // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
-        for i in 0..num_i16s {
-            let idx = i * I16_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + I16_SIZE)]);
-            let val: i16 = if value.get_ts().is_big_endian() {
-                i16::from_be_bytes(buf)
-            } else {
-                i16::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(i16::from_le_bytes(
+                TryInto::<[u8; 2]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(i16::from_be_bytes(
+                TryInto::<[u8; 2]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }
 
@@ -341,50 +355,21 @@ impl TryFrom<&DicomElement> for Vec<u16> {
     /// Associated VRs: US, OW
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeUshorts = Vec<ParseResult<u16>>;
-            let (values, errors): (MaybeUshorts, MaybeUshorts) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<u16>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<u16> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<u16>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % U16_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of u16", None).into(),
-            );
-        }
-
-        let mut buf: [u8; U16_SIZE] = [0; U16_SIZE];
-        let num_u16s: usize = num_bytes / U16_SIZE;
-        let mut result: Vec<u16> = Vec::with_capacity(num_u16s);
-        for i in 0..num_u16s {
-            let idx = i * U16_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + U16_SIZE)]);
-            let val: u16 = if value.get_ts().is_big_endian() {
-                u16::from_be_bytes(buf)
-            } else {
-                u16::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(u16::from_le_bytes(
+                TryInto::<[u8; 2]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(u16::from_be_bytes(
+                TryInto::<[u8; 2]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }
 
@@ -408,50 +393,21 @@ impl TryFrom<&DicomElement> for Vec<i32> {
     /// Associated VRs: IS, SL
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeInts = Vec<ParseResult<i32>>;
-            let (values, errors): (MaybeInts, MaybeInts) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<i32>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<i32> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<i32>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % I32_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of i32", None).into(),
-            );
-        }
-
-        let mut buf: [u8; I32_SIZE] = [0; I32_SIZE];
-        let num_i32s: usize = num_bytes / I32_SIZE;
-        let mut result: Vec<i32> = Vec::with_capacity(num_i32s);
-        for i in 0..num_i32s {
-            let idx = i * I32_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + I32_SIZE)]);
-            let val: i32 = if value.get_ts().is_big_endian() {
-                i32::from_be_bytes(buf)
-            } else {
-                i32::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(i32::from_le_bytes(
+                TryInto::<[u8; 4]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(i32::from_be_bytes(
+                TryInto::<[u8; 4]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }
 
@@ -475,50 +431,21 @@ impl TryFrom<&DicomElement> for Vec<u32> {
     /// Associated VRs: UL, OL
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeUints = Vec<ParseResult<u32>>;
-            let (values, errors): (MaybeUints, MaybeUints) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<u32>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<u32> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<u32>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % U32_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of u32", None).into(),
-            );
-        }
-
-        let mut buf: [u8; U32_SIZE] = [0; U32_SIZE];
-        let num_u32s: usize = num_bytes / U32_SIZE;
-        let mut result: Vec<u32> = Vec::with_capacity(num_u32s);
-        for i in 0..num_u32s {
-            let idx = i * U32_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + U32_SIZE)]);
-            let val: u32 = if value.get_ts().is_big_endian() {
-                u32::from_be_bytes(buf)
-            } else {
-                u32::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(u32::from_le_bytes(
+                TryInto::<[u8; 4]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(u32::from_be_bytes(
+                TryInto::<[u8; 4]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }
 
@@ -529,50 +456,21 @@ impl TryFrom<&DicomElement> for Vec<i64> {
     /// Associated VRs: SV
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeLongs = Vec<ParseResult<i64>>;
-            let (values, errors): (MaybeLongs, MaybeLongs) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<i64>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<i64> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<i64>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % I64_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of i64", None).into(),
-            );
-        }
-
-        let mut buf: [u8; I64_SIZE] = [0; I64_SIZE];
-        let num_i64s: usize = num_bytes / I64_SIZE;
-        let mut result: Vec<i64> = Vec::with_capacity(num_i64s);
-        for i in 0..num_i64s {
-            let idx = i * I64_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + I64_SIZE)]);
-            let val: i64 = if value.get_ts().is_big_endian() {
-                i64::from_be_bytes(buf)
-            } else {
-                i64::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(i64::from_le_bytes(
+                TryInto::<[u8; 8]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(i64::from_be_bytes(
+                TryInto::<[u8; 8]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }
 
@@ -583,50 +481,21 @@ impl TryFrom<&DicomElement> for Vec<u64> {
     /// Associated VRs: UV
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeUlongs = Vec<ParseResult<u64>>;
-            let (values, errors): (MaybeUlongs, MaybeUlongs) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<u64>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<u64> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<u64>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % U64_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of u64", None).into(),
-            );
-        }
-
-        let mut buf: [u8; U64_SIZE] = [0; U64_SIZE];
-        let num_u64s: usize = num_bytes / U64_SIZE;
-        let mut result: Vec<u64> = Vec::with_capacity(num_u64s);
-        for i in 0..num_u64s {
-            let idx = i * U64_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + U64_SIZE)]);
-            let val: u64 = if value.get_ts().is_big_endian() {
-                u64::from_be_bytes(buf)
-            } else {
-                u64::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(u64::from_le_bytes(
+                TryInto::<[u8; 8]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(u64::from_be_bytes(
+                TryInto::<[u8; 8]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }
 
@@ -650,51 +519,21 @@ impl TryFrom<&DicomElement> for Vec<f32> {
     /// Associated VRs: FD, OF
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeFloats = Vec<ParseResult<f32>>;
-            let (values, errors): (MaybeFloats, MaybeFloats) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<f32>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<f32> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<f32>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % F32_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of f32", None).into(),
-            );
-        }
-
-        let mut buf: [u8; F32_SIZE] = [0; F32_SIZE];
-        let num_bytes: usize = value.get_data().len();
-        let num_f32s: usize = num_bytes / F32_SIZE;
-        let mut result: Vec<f32> = Vec::with_capacity(num_f32s);
-        for i in 0..num_f32s {
-            let idx = i * F32_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + F32_SIZE)]);
-            let val: f32 = if value.get_ts().is_big_endian() {
-                f32::from_be_bytes(buf)
-            } else {
-                f32::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(f32::from_le_bytes(
+                TryInto::<[u8; 4]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(f32::from_be_bytes(
+                TryInto::<[u8; 4]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }
 
@@ -718,49 +557,20 @@ impl TryFrom<&DicomElement> for Vec<f64> {
     /// Associated VRs: DS, OD, FL -- and a fallback for IS.
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
         if value.get_vr().is_character_string {
-            type MaybeDoubles = Vec<ParseResult<f64>>;
-            let (values, errors): (MaybeDoubles, MaybeDoubles) = Vec::<String>::try_from(value)?
-                .into_iter()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| {
-                    s.trim()
-                        .parse::<f64>()
-                        .map_err(|e| ParseErrorInfo(value, e.to_string().as_str(), None).into())
-                })
-                .partition(ParseResult::is_ok);
-            if let Some(Err(e)) = errors.into_iter().last() {
-                return Err(e);
-            }
-            let values: Vec<f64> = values
-                .into_iter()
-                .map(ParseResult::unwrap)
-                .collect::<Vec<f64>>();
-            return Ok(values);
+            return str_parse_nums(value);
         }
-
-        let num_bytes: usize = value.get_data().len();
-        if num_bytes == 0 {
-            return Ok(Vec::with_capacity(0));
-        }
-        if num_bytes % F64_SIZE != 0 {
-            return Err(
-                ParseErrorInfo(value, "num bytes not multiple of size of f64", None).into(),
-            );
-        }
-
-        let mut buf: [u8; F64_SIZE] = [0; F64_SIZE];
-        let num_f64s: usize = num_bytes / F64_SIZE;
-        let mut result: Vec<f64> = Vec::with_capacity(num_f64s);
-        for i in 0..num_f64s {
-            let idx = i * F64_SIZE;
-            buf.copy_from_slice(&value.get_data()[idx..(idx + F64_SIZE)]);
-            let val: f64 = if value.get_ts().is_big_endian() {
-                f64::from_be_bytes(buf)
-            } else {
-                f64::from_le_bytes(buf)
-            };
-            result.push(val);
-        }
-        Ok(result)
+        let le = |b: &[u8]| {
+            Ok(f64::from_le_bytes(
+                TryInto::<[u8; 8]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        let be = |b: &[u8]| {
+            Ok(f64::from_be_bytes(
+                TryInto::<[u8; 8]>::try_into(b)
+                    .map_err(|e| ParseError::from(ParseErrorInfo(value, &e.to_string(), None)))?,
+            ))
+        };
+        bin_parse_nums(value, le, be)
     }
 }

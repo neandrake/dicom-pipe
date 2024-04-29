@@ -1,12 +1,12 @@
 //! This module contains implementations for encoding values for a DICOM element's value field
 //! bytes, based on the element's value representation and transfer syntax.
 
-use std::iter::once;
+use std::{iter::once, mem::size_of};
 
 use crate::{
     core::{
         dcmelement::DicomElement,
-        read::{valdecode::U32_SIZE, ParseError, ParseResult},
+        read::{ParseError, ParseResult},
         values::{Attribute, RawValue},
     },
     defn::vr::{CS_SEPARATOR, CS_SEPARATOR_BYTE},
@@ -65,6 +65,7 @@ impl<'a> From<ElemAndAttributes<'a>> for Vec<u8> {
         let elem = value.0;
         let attrs = value.1;
 
+        const U32_SIZE: usize = size_of::<u32>();
         let num_attrs = attrs.len();
         let mut bytes: Vec<u8> = vec![0u8; U32_SIZE * num_attrs];
         for (i, attr) in attrs.iter().enumerate() {
