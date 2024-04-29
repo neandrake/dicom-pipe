@@ -3,7 +3,7 @@
 use std::{
     collections::{btree_map, BTreeMap},
     fmt,
-    io::Read,
+    io::{stdout, Error, Read, Write},
 };
 
 use crate::core::{
@@ -19,7 +19,7 @@ use crate::core::{
     read::{ParseError, Parser},
 };
 
-use super::RawValue;
+use super::{inspect::FormattedElement, RawValue};
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It
 /// does not contain a `DicomElement` itself but will have either children or items.
@@ -184,6 +184,19 @@ impl DicomRoot {
         self.add_element(elem)
     }
 
+    pub fn dbg_dump(&self) -> Result<(), Error> {
+        let elems = self
+            .flatten()
+            .iter()
+            .map(|o| FormattedElement::default(o))
+            .collect::<Vec<FormattedElement>>();
+        let mut stdout = stdout().lock();
+        for elem in elems {
+            stdout.write_all(format!("{elem}\n").as_ref())?;
+        }
+        Ok(())
+    }
+
     /// Parses elements to build a `DicomObject` to represent the parsed dataset as an in-memory tree.
     /// Returns `None` if the parser's first element fails to parse properly, assumed to be a non-DICOM
     /// dataset. Any errors after a successful first element being parsed are returned as `Result::Err`.
@@ -312,7 +325,7 @@ impl std::fmt::Debug for DicomRoot {
         write!(
             f,
             "<DicomRoot {} {}> {:?}",
-            self.ts().uid().name(),
+            self.ts().uid().ident(),
             self.cs.name(),
             &self.sentinel
         )

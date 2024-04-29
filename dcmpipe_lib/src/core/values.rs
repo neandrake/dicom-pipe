@@ -44,8 +44,11 @@ impl RawValue {
     }
 
     /// Convenience for `RawValue::Strings(vec![string])`
-    pub fn string(string: String) -> RawValue {
-        RawValue::Strings(vec![string])
+    pub fn string<S>(string: S) -> RawValue
+    where
+        String: From<S>,
+    {
+        RawValue::Strings(vec![String::from(string)])
     }
 
     /// Convenience for `RawValue::Shorts(vec![short])`

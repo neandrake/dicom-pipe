@@ -3,18 +3,18 @@
 #[cfg(feature = "compress")]
 pub(crate) mod dataset {
     use libflate::deflate::Encoder;
-    use std::io::{BufWriter, Result, Write};
+    use std::io::{Result, Write};
 
     #[derive(Debug)]
     pub(crate) struct Dataset<W: Write> {
-        encoder: Encoder<BufWriter<W>>,
+        encoder: Encoder<W>,
         write_deflated: bool,
     }
 
     impl<W: Write> Dataset<W> {
-        pub fn new(dataset: W, buffsize: usize) -> Dataset<W> {
+        pub fn new(dataset: W) -> Dataset<W> {
             Dataset {
-                encoder: Encoder::new(BufWriter::with_capacity(buffsize, dataset)),
+                encoder: Encoder::new(dataset),
                 write_deflated: false,
             }
         }
@@ -23,11 +23,8 @@ pub(crate) mod dataset {
             self.write_deflated = write_deflated;
         }
 
-        pub fn into_inner(self) -> Result<W> {
-            self.encoder
-                .into_inner()
-                .into_inner()
-                .map_err(|err| err.into())
+        pub fn into_inner(self) -> W {
+            self.encoder.into_inner()
         }
     }
 
@@ -52,7 +49,7 @@ pub(crate) mod dataset {
 
 #[cfg(not(feature = "compress"))]
 pub(crate) mod dataset {
-    use std::io::{BufWriter, Result, Write};
+    use std::io::{Result, Write};
 
     #[derive(Debug)]
     pub(crate) struct Dataset<W: Write> {
@@ -60,14 +57,12 @@ pub(crate) mod dataset {
     }
 
     impl<W: Write> Dataset<W> {
-        pub fn new(dataset: W, buffsize: usize) -> Dataset<W> {
-            Dataset {
-                dataset: BufWriter::with_capacity(buffsize, dataset),
-            }
+        pub fn new(dataset: W) -> Dataset<W> {
+            Dataset { dataset }
         }
 
-        pub fn into_inner(self) -> Result<W> {
-            self.dataset.into_inner().map_err(|err| err.into())
+        pub fn into_inner(self) -> W {
+            self.dataset.into_inner()
         }
     }
 

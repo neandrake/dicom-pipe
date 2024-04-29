@@ -3,18 +3,18 @@
 #[cfg(feature = "compress")]
 pub(crate) mod dataset {
     use libflate::deflate::Decoder;
-    use std::io::{BufReader, Read, Result};
+    use std::io::{Read, Result};
 
     #[derive(Debug)]
     pub(crate) struct Dataset<R: Read> {
-        decoder: Decoder<BufReader<R>>,
+        decoder: Decoder<R>,
         read_deflated: bool,
     }
 
     impl<R: Read> Dataset<R> {
-        pub fn new(dataset: R, buffsize: usize) -> Dataset<R> {
+        pub fn new(dataset: R) -> Dataset<R> {
             Dataset {
-                decoder: Decoder::new(BufReader::with_capacity(buffsize, dataset)),
+                decoder: Decoder::new(dataset),
                 read_deflated: false,
             }
         }
@@ -37,18 +37,16 @@ pub(crate) mod dataset {
 
 #[cfg(not(feature = "compress"))]
 pub(crate) mod dataset {
-    use std::io::{BufReader, Read, Result};
+    use std::io::{Read, Result};
 
     #[derive(Debug)]
     pub(crate) struct Dataset<R: Read> {
-        dataset: BufReader<R>,
+        dataset: R,
     }
 
     impl<R: Read> Dataset<R> {
-        pub fn new(dataset: R, buffsize: usize) -> Dataset<R> {
-            Dataset {
-                dataset: BufReader::with_capacity(buffsize, dataset),
-            }
+        pub fn new(dataset: R) -> Dataset<R> {
+            Dataset { dataset }
         }
     }
 

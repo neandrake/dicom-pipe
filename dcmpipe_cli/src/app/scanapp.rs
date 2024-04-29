@@ -57,12 +57,11 @@ impl ScanApp {
 
 impl CommandApplication for ScanApp {
     fn run(&mut self) -> Result<()> {
-        let parser_builder: ParserBuilder<'_> =
-            ParserBuilder::default().dictionary(&STANDARD_DICOM_DICTIONARY);
+        let parser_builder: ParserBuilder = ParserBuilder::default();
 
         for path in self.get_files() {
             let file: File = File::open(path.clone())?;
-            let parser: Parser<'_, File> = parser_builder.build(file);
+            let parser: Parser<'_, File> = parser_builder.build(file, &STANDARD_DICOM_DICTIONARY);
 
             let relative_path: &str = path
                 .strip_prefix(&self.args.folder)?

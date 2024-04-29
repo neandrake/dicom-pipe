@@ -6,7 +6,7 @@ use super::stop::ParseStop;
 pub struct ParseBehavior {
     /// Specifies when the parser should stop parsing the dataset.
     ///
-    /// Refer to documentatoin on `ParseStop`.
+    /// Refer to documentation on `ParseStop`.
     ///
     /// Default: `ParseStop::EndOfDataset`.
     stop: ParseStop,
@@ -21,18 +21,36 @@ pub struct ParseBehavior {
 }
 
 impl ParseBehavior {
+    /// Specifies when the parser should stop parsing the dataset.
+    ///
+    /// Refer to documentation on `ParseStop`.
+    ///
+    /// Default: `ParseStop::EndOfDataset`.
     pub fn stop(&self) -> &ParseStop {
         &self.stop
     }
 
+    /// Specifies how the parser should handle an error it encounters in the dataset while
+    /// populating a `DicomObject` with elements it parses.
+    ///
+    /// If `true`, a partially-populated `DicomObject` will be returned instead of a `Result::Err`.
+    ///
+    /// Default: `false`.
     pub fn allow_partial_object(&self) -> bool {
         self.allow_partial_object
     }
 
+    /// Specify when the parser should stop parsing the dataset.
+    ///
+    /// Refer to documentation on `ParseStop`.
     pub fn set_stop(&mut self, stop: ParseStop) {
         self.stop = stop;
     }
 
+    /// Specify how the parser should handle an error in encounters in the dataset while populating
+    /// a `DicomObject` with elements it parses.
+    ///
+    /// If `true`, a partially-populated `DicomObject` will be returned instead of a `Result::Err`.
     pub fn set_allow_partial_object(&mut self, allow_partial_object: bool) {
         self.allow_partial_object = allow_partial_object;
     }

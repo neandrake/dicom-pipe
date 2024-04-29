@@ -76,10 +76,8 @@ impl<W: Write> Writer<W> {
         Ok(e)
     }
 
-    pub fn into_dataset(self) -> WriteResult<W> {
-        self.dataset
-            .into_inner()
-            .map_err(|err| WriteError::IOError { source: err })
+    pub fn into_dataset(self) -> W {
+        self.dataset.into_inner()
     }
 
     /// Flattens the given `DicomRoot` elements into a stream of `DicomElement` and writes the
@@ -150,11 +148,11 @@ impl<W: Write> Writer<W> {
     /// the range for FileMeta, and SHOULD NOT include a FileMetaInformationGroupLength element.
     fn write_fm_elements(&mut self, fm_elements: &[&DicomElement]) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
-        let mut fm_dataset: Dataset<Vec<u8>> = Dataset::new(Vec::new(), 8 * 1024);
+        let mut fm_dataset: Dataset<Vec<u8>> = Dataset::new(Vec::new());
         for fme in fm_elements {
             Writer::write_element(&mut fm_dataset, fme)?;
         }
-        let fm_bytes: Vec<u8> = fm_dataset.into_inner()?;
+        let fm_bytes: Vec<u8> = fm_dataset.into_inner();
 
         let fm_group_length = Writer::<W>::new_fme(
             tags::FILE_META_INFORMATION_GROUP_LENGTH,

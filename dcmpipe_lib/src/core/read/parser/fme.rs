@@ -9,10 +9,8 @@ use std::io::Read;
 use crate::core::{
     dcmelement::DicomElement,
     defn::{constants::tags, ts::TSRef},
-    read::parser::{
-        ParseError, ParseResult, Parser, ParserState, DICOM_PREFIX, DICOM_PREFIX_LENGTH,
-        FILE_PREAMBLE_LENGTH,
-    },
+    read::parser::{ParseError, ParseResult, Parser, ParserState},
+    DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 
 impl<'d, R: Read> Parser<'d, R> {
@@ -22,7 +20,7 @@ impl<'d, R: Read> Parser<'d, R> {
         self.dataset.read_exact(&mut file_preamble)?;
         self.bytes_read += u64::try_from(file_preamble.len()).unwrap_or_default();
         self.file_preamble = Some(file_preamble);
-        self.state = ParserState::Prefix;
+        self.state = ParserState::ReadPrefix;
         Ok(())
     }
 
@@ -37,7 +35,7 @@ impl<'d, R: Read> Parser<'d, R> {
             }
         }
         self.dicom_prefix = Some(dicom_prefix);
-        self.state = ParserState::GroupLength;
+        self.state = ParserState::ReadGroupLength;
         Ok(())
     }
 
@@ -53,9 +51,9 @@ impl<'d, R: Read> Parser<'d, R> {
 
         if tag != tags::FILE_META_INFORMATION_GROUP_LENGTH {
             if tag > tags::FILE_META_INFORMATION_GROUP_LENGTH && tag < tags::FILE_META_GROUP_END {
-                self.state = ParserState::FileMeta;
+                self.state = ParserState::ReadFileMeta;
             } else {
-                self.state = ParserState::Element;
+                self.state = ParserState::ReadElement;
             }
             return Ok(None);
         }
@@ -63,7 +61,7 @@ impl<'d, R: Read> Parser<'d, R> {
         let grouplength: DicomElement = self.read_dicom_element(tag, ts)?;
         self.fmi_grouplength = u32::try_from(&grouplength)?;
         self.fmi_start = self.bytes_read;
-        self.state = ParserState::FileMeta;
+        self.state = ParserState::ReadFileMeta;
         // reset partial_tag to None
         self.partial_tag.take();
 
@@ -80,7 +78,7 @@ impl<'d, R: Read> Parser<'d, R> {
             // if we never read a transfer syntax in the file-meta then jump back to detecting the
             // transfer syntax of the main dataset.
             self.state = if self.dataset_ts.is_some() {
-                ParserState::Element
+                ParserState::ReadElement
             } else {
                 ParserState::DetectTransferSyntax
             };
@@ -116,7 +114,7 @@ impl<'d, R: Read> Parser<'d, R> {
             // the dictionary used for parsing then flip to DetectState so the implicit vs. explicit
             // can be detected since it's likely to change after file-meta.
             self.state = if self.dataset_ts.is_some() {
-                ParserState::Element
+                ParserState::ReadElement
             } else {
                 ParserState::DetectTransferSyntax
             };

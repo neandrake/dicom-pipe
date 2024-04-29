@@ -164,13 +164,17 @@ fn test_parser_state_without_std() -> ParseResult<()> {
 
 fn test_parser_state(with_std: bool) -> ParseResult<()> {
     let stop = &PixelData;
-    let mut parser: ParserBuilder<'_> = ParserBuilder::default().stop(ParseStop::before(stop));
-    if with_std {
-        parser = parser.dictionary(&STANDARD_DICOM_DICTIONARY);
-    }
-    let mut parser: Parser<'_, File> = parser.build(fixture(
-        "gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
-    )?);
+    let dict: &dyn DicomDictionary = if with_std {
+        &STANDARD_DICOM_DICTIONARY
+    } else {
+        &MINIMAL_DICOM_DICTIONARY
+    };
+    let mut parser: Parser<'_, File> = ParserBuilder::default()
+        .stop(ParseStop::before(stop))
+        .build(
+            fixture("gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?,
+            dict,
+        );
 
     assert_eq!(ParserState::DetectTransferSyntax, parser.parser_state());
 
@@ -178,13 +182,13 @@ fn test_parser_state(with_std: bool) -> ParseResult<()> {
 
     assert_eq!(FileMetaInformationGroupLength.tag, first_elem.tag());
 
-    assert_eq!(ParserState::FileMeta, parser.parser_state());
+    assert_eq!(ParserState::ReadFileMeta, parser.parser_state());
 
     while let Some(_) = parser.next() {
         // read through the entire dataset
     }
 
-    assert_eq!(ParserState::Element, parser.parser_state());
+    assert_eq!(ParserState::ReadElement, parser.parser_state());
 
     // Ability to read dicom elements after FileMetaInformation
     // means that we interpret the transfer syntax properly, as
@@ -222,11 +226,11 @@ fn test_dicom_object(with_std: bool) -> ParseResult<()> {
     };
 
     let mut parser: Parser<'_, File> = ParserBuilder::default()
-        .dictionary(dict)
         .stop(ParseStop::before(&PixelData))
-        .build(fixture(
-            "gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm",
-        )?);
+        .build(
+            fixture("gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?,
+            dict,
+        );
 
     let dcmroot: DicomRoot =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
@@ -262,18 +266,18 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
     };
 
     let mut parser: Parser<'_, File> = ParserBuilder::default()
-        .dictionary(dict)
         .stop(ParseStop::before(&PixelData))
-        .build(fixture(
-            "gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm",
-        )?);
+        .build(
+            fixture("gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm")?,
+            dict,
+        );
 
     let dcmroot: DicomRoot =
         DicomRoot::parse(&mut parser)?.expect("Failed to parse DICOM elements");
 
     // StructureSetTime is the last element before a sequence item
     let ss_time: &DicomElement = dcmroot
-        .get_child_by_tag(StructureSetTime.tag)
+        .get_child_by_tag(&StructureSetTime)
         .expect("Should have StructureSetTime")
         .element();
     // pull value into local var so it can be typed properly, otherwise it defaults type to &Vec<u8>
@@ -322,14 +326,14 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
 
         // the first sequence item in this object
         let rfor_sq: &DicomObject = dcmroot
-            .get_child_by_tag(ReferencedFrameofReferenceSequence.tag)
+            .get_child_by_tag(&ReferencedFrameofReferenceSequence)
             .expect("Should have ReferencedFrameOfReferenceSequence");
 
         assert_eq!(1, rfor_sq.item_count());
         let item_obj: &DicomObject = rfor_sq.get_item_by_index(1).expect("Have first item");
         assert_eq!(2, item_obj.child_count());
         let item_foruid: &DicomObject = item_obj
-            .get_child_by_tag(FrameofReferenceUID.tag)
+            .get_child_by_tag(&FrameofReferenceUID)
             .expect("Have FORUID");
         let item_foruid_bytes: &[u8] = item_foruid.element().data().as_ref();
         assert_eq!(
@@ -346,7 +350,7 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
         assert_eq!(SequenceDelimitationItem.tag, child_obj.element().tag(),);
 
         let rtrss_sq: &DicomObject = item_obj
-            .get_child_by_tag(RTReferencedStudySequence.tag)
+            .get_child_by_tag(&RTReferencedStudySequence)
             .expect("Have RTReferencedStudySequence");
         assert_eq!(1, rtrss_sq.item_count());
         assert_eq!(1, rtrss_sq.child_count());
@@ -354,14 +358,14 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
         let rtrss_sq_item: &DicomObject = rtrss_sq.get_item_by_index(1).expect("Have first item");
         assert_eq!(3, rtrss_sq_item.child_count());
         let ref_sopclass: &DicomElement = rtrss_sq_item
-            .get_child_by_tag(ReferencedSOPClassUID.tag)
+            .get_child_by_tag(&ReferencedSOPClassUID)
             .expect("Have ref sop class")
             .element();
         let ref_sopclass_bytes: &[u8] = ref_sopclass.data().as_ref();
         assert_eq!("1.2.840.10008.3.1.2.3.1\0".as_bytes(), ref_sopclass_bytes);
 
         let ref_sopuid: &DicomElement = rtrss_sq_item
-            .get_child_by_tag(ReferencedSOPInstanceUID.tag)
+            .get_child_by_tag(&ReferencedSOPInstanceUID)
             .expect("Have ref sop instance uid")
             .element();
         let ref_sopuid_bytes: &[u8] = ref_sopuid.data().as_ref();
@@ -371,7 +375,7 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
         );
 
         let rtref_ser_sq: &DicomObject = rtrss_sq_item
-            .get_child_by_tag(RTReferencedSeriesSequence.tag)
+            .get_child_by_tag(&RTReferencedSeriesSequence)
             .expect("Have ref series seq");
         assert_eq!(1, rtref_ser_sq.item_count());
         assert_eq!(1, rtref_ser_sq.child_count());
@@ -380,7 +384,7 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
             rtref_ser_sq.get_item_by_index(1).expect("Have first item");
         assert_eq!(2, rtref_ser_item.child_count());
         let rtref_ser_uid: &DicomElement = rtref_ser_item
-            .get_child_by_tag(SeriesInstanceUID.tag)
+            .get_child_by_tag(&SeriesInstanceUID)
             .expect("Have series uid")
             .element();
         let rtref_ser_uid_bytes: &[u8] = rtref_ser_uid.data().as_ref();
@@ -390,7 +394,7 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
         );
 
         let cont_img_sq: &DicomObject = rtref_ser_item
-            .get_child_by_tag(ContourImageSequence.tag)
+            .get_child_by_tag(&ContourImageSequence)
             .expect("Have contour image seq");
         assert_eq!(11, cont_img_sq.item_count());
         assert_eq!(1, cont_img_sq.child_count());
@@ -410,7 +414,7 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
         let last_sop_uid: &DicomElement = cont_img_sq
             .get_item_by_index(11)
             .expect("Get last item")
-            .get_child_by_tag(ReferencedSOPInstanceUID.tag)
+            .get_child_by_tag(&ReferencedSOPInstanceUID)
             .expect("Get last item's ref sop uid")
             .element();
         let last_sop_uid_bytes: &[u8] = last_sop_uid.data().as_ref();
@@ -422,22 +426,22 @@ fn test_dicom_object_sequences(with_std: bool) -> ParseResult<()> {
 
     // test next tag after the first sequence
     let ssroi_sq: &DicomObject = dcmroot
-        .get_child_by_tag(StructureSetROISequence.tag)
+        .get_child_by_tag(&StructureSetROISequence)
         .expect("Should have StructureSetROISequence");
     assert_eq!(4, ssroi_sq.item_count());
 
     // ContourData's implicit VR is DS, however the first contour in this dataset is encoded
     // explicitly with UN. Verify that it still parses as UN and not DS.
     let contour_data: &DicomElement = dcmroot
-        .get_child_by_tag(ROIContourSequence.tag)
+        .get_child_by_tag(&ROIContourSequence)
         .expect("Have roi contour seq")
         .get_item_by_index(1)
         .expect("Have first item")
-        .get_child_by_tag(ContourSequence.tag)
+        .get_child_by_tag(&ContourSequence)
         .expect("Have contour sequence")
         .get_item_by_index(1)
         .expect("Have first item")
-        .get_child_by_tag(ContourData.tag)
+        .get_child_by_tag(&ContourData)
         .expect("Have contour data")
         .element();
 
@@ -594,9 +598,9 @@ fn test_seq_switch_to_ivrle(with_std: bool) -> ParseResult<()> {
     // Initialize the parser to start with Element rather than file-stuff, specifying IVRLE since
     // the contents _must_ be encoded that way in a sequence.
     let mut parser = ParserBuilder::default()
-        .state(ParserState::Element)
+        .state(ParserState::ReadElement)
         .dataset_ts(&ImplicitVRLittleEndian)
-        .build(Cursor::new(data));
+        .build(Cursor::new(data), &MINIMAL_DICOM_DICTIONARY);
 
     let sq_contents_root = DicomRoot::parse(&mut parser)
         .expect("Parse of sequence contents should not error")
@@ -641,16 +645,17 @@ fn test_missing_preamble(with_std: bool) -> ParseResult<()> {
         &MINIMAL_DICOM_DICTIONARY
     };
 
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
-        .dictionary(dict)
-        .build(fixture("gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?);
+    let mut parser: Parser<'_, File> = ParserBuilder::default().build(
+        fixture("gdcm/gdcmConformanceTests/OT-PAL-8-face.dcm")?,
+        dict,
+    );
 
     let first_elem: DicomElement = parser.next().expect("First element should be parsable")?;
 
     // first tag is a group length tag
     assert_eq!(0x0008_0000, first_elem.tag());
     // should immediately jump past preamble/prefix, group length, and file meta
-    assert_eq!(ParserState::Element, parser.parser_state());
+    assert_eq!(ParserState::ReadElement, parser.parser_state());
     assert_eq!(&ImplicitVRLittleEndian, parser.ts());
 
     assert!(parser.file_preamble().is_none());
@@ -1292,11 +1297,11 @@ fn test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(
     };
 
     let mut parser: Parser<'_, File> = ParserBuilder::default()
-        .dictionary(dict)
         .stop(ParseStop::after(&SourceImageSequence))
-        .build(fixture(
-            "gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm",
-        )?);
+        .build(
+            fixture("gdcm/gdcmData/ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm")?,
+            dict,
+        );
 
     let dcmroot: DicomRoot = DicomRoot::parse(&mut parser)?.expect("Parse into object");
     let sis_obj: &DicomObject = dcmroot
@@ -1367,9 +1372,7 @@ fn test_jpeg_lossless3a(with_std: bool) -> ParseResult<()> {
 
     let path: &str = "gdcm/gdcmData/gdcm-JPEG-LossLess3a.dcm";
     // Parse with default configuration, should result in error.
-    let mut parser: Parser<'_, File> = ParserBuilder::default()
-        .dictionary(dict)
-        .build(fixture(path)?);
+    let mut parser: Parser<'_, File> = ParserBuilder::default().build(fixture(path)?, dict);
 
     let res: ParseResult<Option<DicomRoot>> = DicomRoot::parse(&mut parser);
     assert!(res.is_err());
@@ -1377,8 +1380,7 @@ fn test_jpeg_lossless3a(with_std: bool) -> ParseResult<()> {
     // Parse again but allow a partial DicomObject result. This dataset
     let mut parser: Parser<'_, File> = ParserBuilder::default()
         .allow_partial_object(true)
-        .dictionary(dict)
-        .build(fixture(path)?);
+        .build(fixture(path)?, dict);
 
     let dcmroot = DicomRoot::parse(&mut parser)?.expect("Parse partial object");
     // Verify a bunch of dicom was parsed.

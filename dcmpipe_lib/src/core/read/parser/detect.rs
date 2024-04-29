@@ -94,7 +94,7 @@ impl<'d, R: Read> Parser<'d, R> {
                 self.detected_ts = &ImplicitVRLittleEndian;
                 self.partial_tag = Some(tag);
                 self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
-                self.state = ParserState::Element;
+                self.state = ParserState::ReadElement;
                 return Ok(());
             }
 
@@ -118,7 +118,7 @@ impl<'d, R: Read> Parser<'d, R> {
                     self.detected_ts = &ImplicitVRLittleEndian;
                     self.partial_tag = Some(tag);
                     self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
-                    self.state = ParserState::Element;
+                    self.state = ParserState::ReadElement;
                     return Ok(());
                 }
 
@@ -148,7 +148,7 @@ impl<'d, R: Read> Parser<'d, R> {
             self.detected_ts = &ImplicitVRLittleEndian;
             self.partial_tag = Some(tag);
             self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
-            self.state = ParserState::Element;
+            self.state = ParserState::ReadElement;
             return Ok(());
         }
 
@@ -226,12 +226,12 @@ impl<'d, R: Read> Parser<'d, R> {
                 // this is implicit we skip to Element which will follow self.ts
                 if tag < FILE_META_GROUP_END {
                     if tag == FILE_META_INFORMATION_GROUP_LENGTH {
-                        self.state = ParserState::GroupLength;
+                        self.state = ParserState::ReadGroupLength;
                     } else {
-                        self.state = ParserState::FileMeta;
+                        self.state = ParserState::ReadFileMeta;
                     }
                 } else {
-                    self.state = ParserState::Element;
+                    self.state = ParserState::ReadElement;
                 }
                 return Ok(());
             }
@@ -242,7 +242,7 @@ impl<'d, R: Read> Parser<'d, R> {
             self.partial_tag = Some(tag);
             self.partial_vl = Some(vl);
             self.bytes_read += u64::try_from(bytes_read).unwrap_or_default();
-            self.state = ParserState::Element;
+            self.state = ParserState::ReadElement;
             return Ok(());
         }
 

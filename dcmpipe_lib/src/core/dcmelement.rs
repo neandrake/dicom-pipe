@@ -22,6 +22,8 @@ use crate::core::{
     write::valencode::ElemAndRawValue,
 };
 
+use super::values::ElementWithVr;
+
 /// Represents a DICOM Element including its Tag, VR, and Value
 /// Provides methods for parsing the element value as different native types
 pub struct DicomElement {
@@ -40,7 +42,7 @@ impl fmt::Debug for DicomElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}: VR[{:?}], VL[{:?}], TS[{:?}]",
+            "{}: VR[{:?}], VL[{:?}], TS[{}]",
             Tag::format_tag_to_display(self.tag()),
             self.vr(),
             self.vl(),
@@ -212,6 +214,12 @@ impl DicomElement {
     /// Parses this element's data into native/raw value type.
     pub fn parse_value(&self) -> ParseResult<RawValue> {
         RawValue::try_from(self)
+    }
+
+    /// Parses this element's data into native/raw value type, using a specific value
+    /// representation.
+    pub fn parse_value_as(&self, vr: VRRef) -> ParseResult<RawValue> {
+        RawValue::try_from(ElementWithVr(self, vr))
     }
 
     /// Encodes a `RawValue` into the binary data for this element.
