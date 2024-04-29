@@ -33,7 +33,9 @@ use crate::{
         tags::{QueryRetrieveLevel, SOPClassUID, SOPInstanceUID, SpecificCharacterSet},
         uids::{
             DICOMApplicationContextName, PatientRootQueryRetrieveInformationModelFIND,
-            StudyRootQueryRetrieveInformationModelFIND, VerificationSOPClass,
+            PatientRootQueryRetrieveInformationModelMOVE,
+            StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelMOVE,
+            VerificationSOPClass,
         },
     },
     dimse::{
@@ -72,7 +74,7 @@ impl UserAssoc {
     /// abstract syntax.
     ///
     /// # Errors
-    /// `AssocError` may occur if the requested or negotiated presentation context cannot be
+    /// - `AssocError` may occur if the requested or negotiated presentation context cannot be
     /// resolved, or if a known transfer syntax for it cannot be resolved.
     pub fn get_rq_pres_ctx_and_ts_by_ab(
         &self,
@@ -119,8 +121,8 @@ impl UserAssoc {
     /// `Some(DimseMsg)` to indicate which response was received.
     ///
     /// # Errors
-    /// I/O errors may occur with the reader/writer.
-    /// `DimseError` may be returned if: an unexpected PDU was received during negotiation, or if
+    /// - I/O errors may occur with the reader/writer.
+    /// - `DimseError` may be returned if: an unexpected PDU was received during negotiation, or if
     /// no presentation contexts could be negotiated.
     pub fn request_association<R: Read, W: Write>(
         &mut self,
@@ -202,9 +204,9 @@ impl UserAssoc {
     /// Release the association and confirm the RELEASE-RP
     ///
     /// # Errors
-    /// I/O errors may occur with the reader/writer.
-    /// `DimseError` may occur for protocol errors.
-    /// Other `DimseError::GeneralError` may occur if a RELEASE-RP was not received in response.
+    /// - I/O errors may occur with the reader/writer.
+    /// - `DimseError` may occur for protocol errors.
+    /// - Other `DimseError::GeneralError` may occur if a RELEASE-RP was not received in response.
     pub fn release_association<R: Read, W: Write>(
         &mut self,
         reader: &mut R,
@@ -223,9 +225,9 @@ impl UserAssoc {
     /// Issue a C-ECHO request.
     ///
     /// # Errors
-    /// I/O errors may occur with the reader/writer.
-    /// Errors will also be returned if there are protocol errors.
-    /// An error will be returned if the response is not successful.
+    /// - I/O errors may occur with the reader/writer.
+    /// - `DimseError` will be returned if there are protocol errors.
+    /// - An error will be returned if the response is not successful.
     pub fn c_echo_rq<R: Read, W: Write>(
         &mut self,
         mut reader: R,
@@ -266,8 +268,8 @@ impl UserAssoc {
     /// present and contain the search result. All other statuses indicate the end of the stream.
     ///
     /// # Errors
-    /// I/O errors may occur while using the reader/writer.
-    /// `DimseError` may occur if no associated negotatiated presentation context can be found.
+    /// - I/O errors may occur while using the reader/writer.
+    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
     pub fn c_find_req<R: Read, W: Write>(
         &mut self,
         reader: R,
@@ -284,7 +286,6 @@ impl UserAssoc {
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
         let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
-        self.common.write_command(&cmd, &mut writer)?;
 
         let mut dcm_root = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
         dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
@@ -292,6 +293,7 @@ impl UserAssoc {
             dcm_root.add_child_with_val(tag, val);
         }
 
+        self.common.write_command(&cmd, &mut writer)?;
         self.common.write_dataset(ctx_id, &dcm_root, &mut writer)?;
 
         Ok(CommandIter::new(
@@ -304,8 +306,8 @@ impl UserAssoc {
     /// Issue a C-STORE request.
     ///
     /// # Errors
-    /// I/O errors may occur while using the reader/writer.
-    /// `DimseError` may occur if no associated negotatiated presentation context can be found.
+    /// - I/O errors may occur while using the reader/writer.
+    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
     pub fn c_store_req<PR: Read, R: Read, W: Write>(
         &mut self,
         mut reader: R,
@@ -396,6 +398,46 @@ impl UserAssoc {
 
         let rsp = self.common.next_msg(&mut reader, &mut writer)?;
         Ok(Some(rsp))
+    }
+
+    /// Issue a C-MOVE request.
+    ///
+    /// # Errors
+    /// - I/O errors may occur using the reader/writer.
+    /// - `DimseError` will occur if there are protocol errors.
+    pub fn c_move_req<R: Read, W: Write>(
+        &mut self,
+        reader: R,
+        mut writer: W,
+        ql: QueryLevel,
+        dcm_query: Vec<(&Tag, RawValue)>,
+    ) -> Result<CommandIter<R>, AssocError> {
+        let sop_class_uid = if ql == QueryLevel::Patient {
+            &PatientRootQueryRetrieveInformationModelMOVE
+        } else {
+            &StudyRootQueryRetrieveInformationModelMOVE
+        };
+        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+        let ctx_id = pres_ctx.ctx_id();
+        let msg_id = self.next_msg_id();
+        let cmd = CommandMessage::c_move_req(ctx_id, msg_id, sop_class_uid.uid());
+
+        let mut dcm_root = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
+        dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
+        for (tag, val) in dcm_query {
+            dcm_root.add_child_with_val(tag, val);
+        }
+
+        self.common().write_command(&cmd, &mut writer)?;
+        self.common()
+            .write_dataset(ctx_id, &dcm_root, &mut writer)?;
+
+        // Iterator over potential progress responses. The SCP should report at least one.
+        Ok(CommandIter::new(
+            reader,
+            ts,
+            self.common.get_pdu_max_rcv_size(),
+        ))
     }
 }
 

@@ -16,7 +16,13 @@
 
 //! Constants for DIMSE, DICOM Message Exchangy
 
-use crate::core::RawValue;
+use crate::{
+    core::{defn::tag::Tag, RawValue},
+    dict::tags::{
+        NumberofCompletedSuboperations, NumberofFailedSuboperations,
+        NumberofRemainingSuboperations, NumberofWarningSuboperations,
+    },
+};
 
 pub mod messages;
 
@@ -244,6 +250,7 @@ impl CommandStatus {
         CommandStatus::Success(0)
     }
 
+    /// Whether this status is the success code.
     #[must_use]
     pub fn is_success(&self) -> bool {
         self == &CommandStatus::Success(0)
@@ -255,6 +262,16 @@ impl CommandStatus {
         CommandStatus::Pending(0xFF00)
     }
 
+    /// Convenience for `CommandStatus::Pending(0xFF01)`.
+    ///
+    /// - CFIND: Matches are continuing - Warning that one or more Optional Keys were not supported for
+    /// existence and/or matching for this Identifier.
+    #[must_use]
+    pub fn pending_missing_match() -> CommandStatus {
+        CommandStatus::Pending(0xFF01)
+    }
+
+    /// Whether this status is either of the "pending" codes.
     #[must_use]
     pub fn is_pending(&self) -> bool {
         self == &CommandStatus::Pending(0xFF00) || self == &CommandStatus::Pending(0xFF01)
@@ -266,9 +283,92 @@ impl CommandStatus {
         CommandStatus::Cancel(0xFE00)
     }
 
+    /// Whether this status is the "cancel" code.
     #[must_use]
-    pub fn is_cancel(&self) -> bool {
-        self == &CommandStatus::Cancel(0x0FFF)
+    pub fn is_canceled(&self) -> bool {
+        self == &CommandStatus::Cancel(0xFE00)
+    }
+
+    /// Convenience for `CommandStatus::Warning(0xB000)`.
+    ///
+    /// - CMOVE: Sub-operations Complete - One or more Failures.
+    /// - CGET: Sub-operations Complete - One or more Failures or Warnings.
+    #[must_use]
+    pub fn warn_one_or_more_fails() -> CommandStatus {
+        CommandStatus::Warning(0xB000)
+    }
+
+    /// Whether this status is any of the "warning" codes.
+    #[must_use]
+    pub fn is_warning(&self) -> bool {
+        if let CommandStatus::Warning(code) = self {
+            *code == 0x0001 || *code == 0x0107 || *code == 0x0116 || *code & 0xF000 == 0xB000
+        } else {
+            false
+        }
+    }
+
+    /// Convenience for `CommandStatus::Failure(0xA700)`.
+    ///
+    /// - CFIND: Refused: Out of resources.
+    #[must_use]
+    pub fn fail_rsrc() -> CommandStatus {
+        CommandStatus::Failure(0xA700)
+    }
+
+    /// Convenience for `CommandStatus::Failure(0xA701)`.
+    ///
+    /// - CMOVE: Refused: Out of resources - Unable to calculate number of matches.
+    #[must_use]
+    pub fn fail_rsrc_calcmatch() -> CommandStatus {
+        CommandStatus::Failure(0xA701)
+    }
+
+    /// Convenience for `CommandStatus::Failure(0xA702)`.
+    ///
+    /// - CMOVE: Refused: Out of resources - Unable to perform sub-operations.
+    #[must_use]
+    pub fn fail_subops() -> CommandStatus {
+        CommandStatus::Failure(0xA702)
+    }
+
+    /// Convenience for `CommandStatus::Failure(0xA801)`.
+    ///
+    /// - CMOVE: Refused: Move Destination unknown.
+    #[must_use]
+    pub fn fail_unknown_dest() -> CommandStatus {
+        CommandStatus::Failure(0xA801)
+    }
+
+    /// Convenience for `CommandStatus::Failure(0xA900)`.
+    ///
+    /// - CFIND: Error: Data Set does not match SOP Class.
+    /// - CMOVE: Error: Data Set does not match SOP Class.
+    #[must_use]
+    pub fn fail_sop_mismatch() -> CommandStatus {
+        CommandStatus::Failure(0xA900)
+    }
+
+    /// Convenience for `CommandStatus::Failure(0xC000)`.
+    ///
+    /// - CFIND: Failed: Unable to process.
+    /// - CMOVE: Failed: Unable to process.
+    #[must_use]
+    pub fn fail() -> CommandStatus {
+        CommandStatus::Failure(0xC000)
+    }
+
+    /// Whether this status is any of the "failure" codes.
+    #[must_use]
+    pub fn is_failed(&self) -> bool {
+        if let CommandStatus::Failure(code) = self {
+            *code & 0xF000 == 0xA000
+                || *code & 0xF000 == 0xC000
+                || *code & 0x0F00 == 0x0100
+                || *code & 0x0F00 == 0x0200
+        } else {
+            false
+        }
     }
 }
 
@@ -291,13 +391,13 @@ impl From<u16> for CommandStatus {
             return CommandStatus::Success(value);
         }
 
-        if value == 0x0001 || value == 0x0107 || value == 0x0116 || value >> 12 == 0x000B {
+        if value == 0x0001 || value == 0x0107 || value == 0x0116 || value & 0xF000 == 0xB000 {
             return CommandStatus::Warning(value);
         }
-        if value >> 12 == 0x000A
-            || value >> 12 == 0x000C
-            || value >> 8 == 0x0001
-            || value >> 8 == 0x0002
+        if value & 0xF000 == 0xA000
+            || value & 0xF000 == 0xC000
+            || value & 0x0F00 == 0x0100
+            || value & 0x0F00 == 0x0200
         {
             return CommandStatus::Failure(value);
         }
@@ -315,3 +415,21 @@ impl From<u16> for CommandStatus {
 /// When reporting progress of C-MOVE transfers. The order of progress fields are: (remaining,
 /// completed, failed, warning)
 pub struct MoveProgress(pub u16, pub u16, pub u16, pub u16);
+
+impl MoveProgress {
+    /// Create the individual elements that will report this progress.
+    #[must_use]
+    pub fn as_elements(&self, status: &CommandStatus) -> Vec<(&Tag, RawValue)> {
+        // A status of successful, failed, or warning shall NOT contain Number of Remaining.
+        let mut elements = Vec::<(&Tag, RawValue)>::with_capacity(4);
+        if status.is_pending() || status.is_canceled() {
+            elements.push((&NumberofRemainingSuboperations, RawValue::of_ushort(self.0)));
+        }
+        elements.append(&mut vec![
+            (&NumberofCompletedSuboperations, RawValue::of_ushort(self.1)),
+            (&NumberofFailedSuboperations, RawValue::of_ushort(self.2)),
+            (&NumberofWarningSuboperations, RawValue::of_ushort(self.3)),
+        ]);
+        elements
+    }
+}

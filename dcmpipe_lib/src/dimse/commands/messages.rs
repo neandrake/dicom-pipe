@@ -24,9 +24,7 @@ use crate::{
     dict::tags::{
         AffectedSOPClassUID, AffectedSOPInstanceUID, CommandDataSetType, CommandField,
         CommandGroupLength, MessageID, MessageIDBeingRespondedTo,
-        MoveOriginatorApplicationEntityTitle, MoveOriginatorMessageID,
-        NumberofCompletedSuboperations, NumberofFailedSuboperations,
-        NumberofRemainingSuboperations, NumberofWarningSuboperations, Priority, Status,
+        MoveOriginatorApplicationEntityTitle, MoveOriginatorMessageID, Priority, Status,
     },
     dimse::{
         commands::{CommandPriority, CommandStatus, CommandType},
@@ -389,6 +387,26 @@ impl CommandMessage {
         )
     }
 
+    #[must_use]
+    pub fn c_move_req(ctx_id: u8, msg_id: u16, aff_sop_class_uid: &str) -> Self {
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CMoveReq)),
+                ),
+                (&MessageID, RawValue::of_ushort(msg_id)),
+                (&Priority, RawValue::from(&CommandPriority::Medium)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_SOME),
+                ),
+            ],
+        )
+    }
+
     /// Create a C-STORE response.
     #[must_use]
     pub fn c_move_rsp(
@@ -396,40 +414,23 @@ impl CommandMessage {
         msg_id: u16,
         aff_sop_class_uid: &str,
         status: &CommandStatus,
-        progress: MoveProgress,
+        progress: &MoveProgress,
     ) -> Self {
-        CommandMessage::create(
-            ctx_id,
-            vec![
-                (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
-                (
-                    &CommandField,
-                    RawValue::of_ushort(u16::from(&CommandType::CMoveRsp)),
-                ),
-                (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
-                (
-                    &CommandDataSetType,
-                    RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
-                ),
-                (&Status, RawValue::from(status)),
-                (
-                    &NumberofRemainingSuboperations,
-                    RawValue::of_ushort(progress.0),
-                ),
-                (
-                    &NumberofCompletedSuboperations,
-                    RawValue::of_ushort(progress.1),
-                ),
-                (
-                    &NumberofFailedSuboperations,
-                    RawValue::of_ushort(progress.2),
-                ),
-                (
-                    &NumberofWarningSuboperations,
-                    RawValue::of_ushort(progress.3),
-                ),
-            ],
-        )
+        let mut elements = vec![
+            (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
+            (
+                &CommandField,
+                RawValue::of_ushort(u16::from(&CommandType::CMoveRsp)),
+            ),
+            (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
+            (
+                &CommandDataSetType,
+                RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
+            ),
+            (&Status, RawValue::from(status)),
+        ];
+        elements.append(&mut progress.as_elements(status));
+        CommandMessage::create(ctx_id, elements)
     }
 }
 

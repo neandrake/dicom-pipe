@@ -29,13 +29,54 @@ use dcmpipe_lib::{
         tags::{AffectedSOPClassUID, MessageID, MoveDestination},
     },
     dimse::{
-        assoc::{scu::UserAssocBuilder, DimseMsg},
+        assoc::{
+            scu::{UserAssoc, UserAssocBuilder},
+            DimseMsg,
+        },
         commands::{messages::CommandMessage, CommandStatus, MoveProgress},
         error::{AssocError, DimseError},
     },
 };
 
 use crate::app::{indexapp::DicomDoc, scpapp::AssociationDevice};
+
+// Shrink name for brevity.
+type Stat = CommandStatus;
+
+fn fail(msg: String) -> Result<(), AssocError> {
+    Err(AssocError::ab_failure(DimseError::GeneralError(msg)))
+}
+
+fn mvprog(remaining: u16, completed: u16, failed: u16, warning: u16) -> MoveProgress {
+    MoveProgress(remaining, completed, failed, warning)
+}
+
+struct StatusMsgBuilder {
+    ctx_id: u8,
+    msg_id: u16,
+    aff_sop_class: String,
+}
+
+impl StatusMsgBuilder {
+    fn new(ctx_id: u8, msg_id: u16, aff_sop_class: String) -> Self {
+        Self {
+            ctx_id,
+            msg_id,
+            aff_sop_class,
+        }
+    }
+
+    fn msg(&self, status: &Stat, progress: &MoveProgress) -> CommandMessage {
+        // TODO: Also populate &ErrorComment and &OffendingElement.
+        CommandMessage::c_move_rsp(
+            self.ctx_id,
+            self.msg_id,
+            &self.aff_sop_class,
+            status,
+            progress,
+        )
+    }
+}
 
 #[allow(unused_variables)]
 impl<R: Read, W: Write> AssociationDevice<R, W> {
@@ -45,92 +86,72 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
+
+        let statter = StatusMsgBuilder::new(ctx_id, msg_id, aff_sop_class);
+
         let dest = cmd
             .get_string(&MoveDestination)
             .map_err(AssocError::ab_failure)?;
-
-        let report_status = |writer: &mut W, status: &CommandStatus, progress: MoveProgress| {
-            // TODO: Add error comment to failures.
-            let status =
-                CommandMessage::c_move_rsp(ctx_id, msg_id, &aff_sop_class, status, progress);
-            self.assoc.common().write_command(&status, writer)
-        };
-
         let Some(aet_host) = self.assoc.aet_host(&dest).cloned() else {
             // Report failed progress to C-MOVE requestor. The query for matching SOPs happens
             // after validating the AE title so we can't report any numbers for progress.
-            report_status(
+            self.assoc.common().write_command(
+                &statter.msg(&Stat::fail_unknown_dest(), &mvprog(0, 0, 0, 0)),
                 &mut self.writer,
-                &CommandStatus::Failure(0xA801),
-                MoveProgress(0, 0, 0, 0),
             )?;
-            return Ok(());
+            return Err(AssocError::ab_failure(DimseError::InvalidAeTitle(
+                dest.into_bytes(),
+            )));
         };
 
         let (_pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;
-
         let dcm_query =
             self.assoc
                 .common()
                 .read_dataset_in_mem(&mut self.reader, &mut self.writer, ts)?;
 
         let query_results = self.query_database(&dcm_query)?;
-
         let path_map = Self::resolve_to_files(query_results.group_map);
 
         let sop_count = path_map.values().map(Vec::len).sum::<usize>();
         let sop_count = u16::try_from(sop_count).unwrap_or_default();
-        report_status(
+        self.assoc.common().write_command(
+            &statter.msg(&Stat::pending(), &mvprog(sop_count, 0, 0, 0)),
             &mut self.writer,
-            &CommandStatus::pending(),
-            MoveProgress(sop_count, 0, 0, 0),
         )?;
+
+        let mut scu_assoc = self.create_sub_assoc(&dest);
 
         let stream = TcpStream::connect(aet_host)
             .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
-
-        let mut scu_assoc = UserAssocBuilder::new()
-            .my_ae(self.assoc.common().this_ae().clone())
-            .service_ae(dest.clone())
-            .supported_abs(self.assoc.common().supported_abs().clone())
-            .supported_ts(self.assoc.common().supported_ts().clone())
-            .pdu_rcv_max_len(
-                u32::try_from(self.assoc.common().get_pdu_max_rcv_size()).unwrap_or_default(),
-            )
-            .build();
-
         let mut dest_reader = BufReader::new(&stream);
         let mut dest_writer = BufWriter::new(&stream);
         if let Some(msg) = scu_assoc.request_association(&mut dest_reader, &mut dest_writer)? {
-            // All failed.
-            report_status(
+            self.assoc.common().write_command(
+                &statter.msg(&Stat::fail(), &mvprog(0, 0, sop_count, 0)),
                 &mut self.writer,
-                &CommandStatus::Failure(0xC000),
-                MoveProgress(0, 0, sop_count, 0),
             )?;
-            return Ok(());
+            return fail(format!("Association to {dest} failed"));
         }
 
         let mut successful: u16 = 0;
         let mut remaining: u16 = sop_count;
         for (_key, paths) in path_map {
             for path in paths {
-                let file = match File::open(path)
+                let file = match File::open(&path)
                     .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))
                 {
                     Ok(file) => file,
                     Err(err) => {
                         // Abort the C-STORE association with the destination AE.
-                        err.write(&mut dest_writer)
-                            .map_err(AssocError::ab_failure)?;
+                        let _ = err.write(&mut dest_writer);
 
                         // For now, if one fails then do not attempt the rest.
-                        report_status(
+                        self.assoc.common().write_command(
+                            &statter.msg(&Stat::fail(), &mvprog(0, successful, remaining, 0)),
                             &mut self.writer,
-                            &CommandStatus::Failure(0xC000),
-                            MoveProgress(0, successful, remaining, 0),
                         )?;
-                        return Ok(());
+                        return fail(format!("Failed resolving {path:?}"));
                     }
                 };
 
@@ -143,46 +164,54 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     msg_id,
                 );
 
-                let Ok(Some(DimseMsg::Cmd(cmd_rsp))) = store_rsp else {
-                    report_status(
-                        &mut self.writer,
-                        &CommandStatus::Failure(0xC000),
-                        MoveProgress(0, successful, remaining, 0),
-                    )?;
-                    return Ok(());
-                };
-
-                if !cmd_rsp.status().is_success() {
-                    report_status(
-                        &mut self.writer,
-                        &CommandStatus::Failure(0xC000),
-                        MoveProgress(0, successful, remaining, 0),
-                    )?;
-                    return Ok(());
+                if let Err(e) = self.interpret_cstore_rsp(
+                    store_rsp,
+                    &statter,
+                    &mvprog(0, successful, remaining, 0),
+                ) {
+                    let _ = e.write(&mut dest_writer);
+                    return Err(e);
                 }
 
                 successful += 1;
                 remaining -= 1;
 
-                report_status(
+                if let Err(e) = self.assoc.common().write_command(
+                    &statter.msg(&Stat::pending(), &mvprog(remaining, successful, 0, 0)),
                     &mut self.writer,
-                    &CommandStatus::pending(),
-                    MoveProgress(remaining, successful, 0, 0),
-                )?;
+                ) {
+                    // Create error to abort the sub-association but return the original error.
+                    let _ = AssocError::ab_failure(DimseError::GeneralError(String::new()))
+                        .write(&mut dest_writer);
+                    return Err(e);
+                }
             }
         }
 
         // If there's an error releasing the association don't propagate as an error.
         let _ = scu_assoc.release_association(&mut dest_reader, &mut dest_writer);
 
-        report_status(
+        self.assoc.common().write_command(
+            &statter.msg(&Stat::success(), &mvprog(remaining, successful, 0, 0)),
             &mut self.writer,
-            &CommandStatus::success(),
-            MoveProgress(remaining, successful, 0, 0),
         )?;
         Ok(())
     }
 
+    /// Creates a new association for communicating with the destination AE.
+    fn create_sub_assoc(&self, dest_ae: &str) -> UserAssoc {
+        UserAssocBuilder::new()
+            .my_ae(self.assoc.common().this_ae().clone())
+            .service_ae(dest_ae.to_owned())
+            .supported_abs(self.assoc.common().supported_abs().clone())
+            .supported_ts(self.assoc.common().supported_ts().clone())
+            .pdu_rcv_max_len(
+                u32::try_from(self.assoc.common().get_pdu_max_rcv_size()).unwrap_or_default(),
+            )
+            .build()
+    }
+
+    /// Flat-maps the search results from UID/Key -> Series to UID/Key -> Files.
     fn resolve_to_files(
         group_map: HashMap<String, Vec<DicomDoc>>,
     ) -> HashMap<String, Vec<PathBuf>> {
@@ -203,5 +232,45 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             path_map.insert(group_id, paths);
         }
         path_map
+    }
+
+    /// Inspects the response of the C-STORE for errors, reporting error progress to C-MOVE
+    /// initiator and returning a `Result::Err`.
+    fn interpret_cstore_rsp(
+        &mut self,
+        store_rsp: Result<Option<DimseMsg>, AssocError>,
+        stat_rpt: &StatusMsgBuilder,
+        progress: &MoveProgress,
+    ) -> Result<(), AssocError> {
+        let cmd_rsp = match store_rsp {
+            Ok(Some(DimseMsg::Cmd(cmd))) => cmd,
+            Ok(Some(rp)) => {
+                self.assoc
+                    .common()
+                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                return fail(format!("Sub-operation C-STORE failed: {rp:?}"));
+            }
+            Ok(None) => {
+                self.assoc
+                    .common()
+                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                return fail("Sub-operation C-STORE failed: No response from AE".to_owned());
+            }
+            Err(e) => {
+                self.assoc
+                    .common()
+                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                return Err(e);
+            }
+        };
+
+        if !cmd_rsp.status().is_success() {
+            self.assoc
+                .common()
+                .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+            return fail(format!("Sub-operation C-STORE failed: {cmd_rsp:?}"));
+        }
+
+        Ok(())
     }
 }

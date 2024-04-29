@@ -48,27 +48,47 @@ fn assert_status_eq(status: CommandStatus) {
 fn test_c_service_status_roundtrip() {
     // Success
     assert_status_eq(CommandStatus::Success(0x0000));
+    assert!(CommandStatus::from(0).is_success());
 
     // Refused: SOP Class not supported
     assert_status_eq(CommandStatus::Failure(0x0122));
+    assert!(CommandStatus::from(0x0122).is_failed());
 
     // Duplicate invocation
     assert_status_eq(CommandStatus::Failure(0x0210));
+    assert!(CommandStatus::from(0x0210).is_failed());
 
     // Invalid SOP Instance
     assert_status_eq(CommandStatus::Failure(0x0117));
+    assert!(CommandStatus::from(0x0117).is_failed());
 
     // Mistyped argument
     assert_status_eq(CommandStatus::Failure(0x0212));
+    assert!(CommandStatus::from(0x0212).is_failed());
 
     // Unrecognized operation
     assert_status_eq(CommandStatus::Failure(0x0211));
+    assert!(CommandStatus::from(0x0211).is_failed());
 
     // Refused: Not authorized
     assert_status_eq(CommandStatus::Failure(0x0124));
+    assert!(CommandStatus::from(0x0124).is_failed());
+
+    // Warning
+    assert_status_eq(CommandStatus::Warning(0x0116));
+    assert!(CommandStatus::from(0x0116).is_warning());
+
+    // Warning
+    assert_status_eq(CommandStatus::Warning(0x0107));
+    assert!(CommandStatus::from(0x0107).is_warning());
+
+    // Warning
+    assert_status_eq(CommandStatus::Warning(0xB000));
+    assert!(CommandStatus::from(0xB000).is_warning());
 
     // Cancel
     assert_status_eq(CommandStatus::Cancel(0xFE00));
+    assert!(CommandStatus::from(0xFE00).is_canceled());
 }
 
 #[test]
