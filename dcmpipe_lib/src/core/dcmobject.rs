@@ -287,7 +287,7 @@ impl DicomObject {
         }
     }
 
-    pub fn as_element(&self) -> &DicomElement {
+    pub fn get_element(&self) -> &DicomElement {
         &self.element
     }
 
@@ -345,11 +345,11 @@ impl DicomObject {
         // List items + contents first, as SQ objects will include both items for its contents as
         // well as the sequence delimiter as a child node.
         for dcmobj in self.iter_items() {
-            elements.push(dcmobj.as_element());
+            elements.push(dcmobj.get_element());
             elements.append(&mut (dcmobj.flatten()?));
         }
         for (_tag, dcmobj) in self.iter_child_nodes() {
-            elements.push(dcmobj.as_element());
+            elements.push(dcmobj.get_element());
             elements.append(&mut (dcmobj.flatten()?));
         }
 
