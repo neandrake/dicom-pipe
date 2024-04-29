@@ -4,6 +4,7 @@ use std::fmt;
 
 const UNDEFINED_LENGTH: u32 = 0xFFFF_FFFF;
 
+#[derive(PartialEq, Eq)]
 pub enum ValueLength {
     UndefinedLength,
     Explicit(u32),
