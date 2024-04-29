@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 /// Explore DICOM
 pub struct Arguments {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub command: Command,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
     Print {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         /// Process the dataset as a stream instead of loading fully into memory.
         ///
         /// If printing a DICOM dataset which fails to fully parse and this argument is not
@@ -41,11 +41,11 @@ pub enum Command {
     ///
     /// Recursively scans a folder for DICOM datasets, indexing them into a database.
     Index {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         /// The db URI of the index.
         db: String,
 
-        #[structopt(subcommand)]
+        #[clap(subcommand)]
         /// Index sub-command
         cmd: IndexCommand,
     },
@@ -64,7 +64,7 @@ pub enum Command {
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum IndexCommand {
     /// Recursively scans a folder for DICOM datasets, indexing them into a database.
     Scan {

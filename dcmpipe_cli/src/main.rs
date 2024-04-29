@@ -1,6 +1,6 @@
 use std::process;
 
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::app::archiveapp::ArchiveApp;
 use crate::app::editapp::EditApp;
@@ -22,7 +22,7 @@ fn main() {
 }
 
 fn make_app() -> Box<dyn CommandApplication> {
-    let args: Arguments = Arguments::from_args();
+    let args: Arguments = Arguments::parse();
 
     match args.command {
         Command::Print { stream, file } => Box::new(PrintApp::new(stream, file)),
