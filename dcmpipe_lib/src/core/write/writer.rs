@@ -236,8 +236,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
     fn write_vl(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
-        let write_as_u32: bool =
-            !element.ts().explicit_vr() || element.vr().has_explicit_2byte_pad;
+        let write_as_u32: bool = !element.ts().explicit_vr() || element.vr().has_explicit_2byte_pad;
 
         match element.vl() {
             ValueLength::UndefinedLength => {

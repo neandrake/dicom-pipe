@@ -194,13 +194,11 @@ impl<'model> DicomNodeModel<'model> {
 
         let mut cells: Vec<Cell> = Vec::with_capacity(5);
         cells.push(
-            Cell::from(
-                if child.child_count() > 0 || child.item_count() > 0 {
-                    "+"
-                } else {
-                    ""
-                },
-            )
+            Cell::from(if child.child_count() > 0 || child.item_count() > 0 {
+                "+"
+            } else {
+                ""
+            })
             .style(Style::default().fg(Color::DarkGray)),
         );
 
@@ -225,8 +223,7 @@ impl<'model> DicomNodeModel<'model> {
         }
 
         cells.push(
-            Cell::from(child.element().vr().ident)
-                .style(Style::default().fg(Color::DarkGray)),
+            Cell::from(child.element().vr().ident).style(Style::default().fg(Color::DarkGray)),
         );
 
         let cell = match elem_value {

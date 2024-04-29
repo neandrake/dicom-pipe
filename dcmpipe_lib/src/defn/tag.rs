@@ -372,10 +372,7 @@ impl TagPath {
     ///  (0x3006_0016, Some(11)),
     ///  (0x0004_1504, None)]
     /// ```
-    pub fn parse(
-        value: &str,
-        dict: Option<&dyn DicomDictionary>,
-    ) -> Result<TagPath, ParseError> {
+    pub fn parse(value: &str, dict: Option<&dyn DicomDictionary>) -> Result<TagPath, ParseError> {
         let tags = value.split('.').collect::<Vec<&str>>();
         let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
         for (i, tag) in tags.iter().enumerate() {

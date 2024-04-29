@@ -39,8 +39,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let tag: u32 = if let Some(partial_tag) = self.partial_tag {
             partial_tag
         } else {
-            let tag: u32 =
-                read::util::read_tag_from_dataset(&mut self.dataset, ts.big_endian())?;
+            let tag: u32 = read::util::read_tag_from_dataset(&mut self.dataset, ts.big_endian())?;
             self.bytes_read += 4;
             self.partial_tag.replace(tag);
             tag

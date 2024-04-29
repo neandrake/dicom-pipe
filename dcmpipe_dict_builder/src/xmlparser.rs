@@ -22,6 +22,7 @@ pub enum XmlDicomDefinition {
     DirStructureElement(XmlDicomElement),
     Uid(XmlDicomUid),
     TransferSyntax(XmlDicomUid),
+    CommandElement(XmlDicomElement),
 }
 
 /// The contents of a DICOM Element defined in the xml document.
@@ -53,6 +54,7 @@ enum XmlDicomDefinitionTable {
     FileMetaElements,
     DirStructureElements,
     Uids,
+    CommandElements,
     Unknown,
 }
 
@@ -236,6 +238,15 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                             self.table = XmlDicomDefinitionTable::Uids;
                                             self.state = XmlDicomReadingState::InTable;
                                         }
+                                        // XXX: This table exists in Part 7 document while all
+                                        // other tables parsed here are in Part 6 document. This
+                                        // parser currently doesn't make any distinguishes between
+                                        // the two documents, as coincidentally the table IDs do
+                                        // not overlap.
+                                        b"table_E.1-1" => {
+                                            self.table = XmlDicomDefinitionTable::CommandElements;
+                                            self.state = XmlDicomReadingState::InTable;
+                                        }
                                         // Unknown table, set the initial state.
                                         _ => {
                                             self.table = XmlDicomDefinitionTable::Unknown;
@@ -262,7 +273,8 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                 match self.table {
                                     XmlDicomDefinitionTable::DicomElements
                                     | XmlDicomDefinitionTable::FileMetaElements
-                                    | XmlDicomDefinitionTable::DirStructureElements => {
+                                    | XmlDicomDefinitionTable::DirStructureElements
+                                    | XmlDicomDefinitionTable::CommandElements => {
                                         // The first cell in these tables is the Tag number.
                                         self.state = XmlDicomReadingState::InDicomElementCell(
                                             XmlDicomElementCell::RowStart,
@@ -399,6 +411,11 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                                 XmlDicomDefinition::DirStructureElement(out),
                                             ))
                                         }
+                                        XmlDicomDefinitionTable::CommandElements => {
+                                            return Some(Ok(XmlDicomDefinition::CommandElement(
+                                                out,
+                                            )))
+                                        }
                                         // All fields for dicom element filled but we're in UIDs
                                         // table??
                                         XmlDicomDefinitionTable::Uids => {}
@@ -442,7 +459,8 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         // table??
                                         XmlDicomDefinitionTable::DicomElements
                                         | XmlDicomDefinitionTable::FileMetaElements
-                                        | XmlDicomDefinitionTable::DirStructureElements => {}
+                                        | XmlDicomDefinitionTable::DirStructureElements
+                                        | XmlDicomDefinitionTable::CommandElements => {}
                                         // Unexpected state.
                                         XmlDicomDefinitionTable::Unknown => {}
                                     }

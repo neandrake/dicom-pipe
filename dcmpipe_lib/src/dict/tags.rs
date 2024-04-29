@@ -6,6 +6,318 @@ use crate::defn::tag::Tag;
 use crate::defn::vm::VM;
 use crate::defn::vr;
 
+/// Command Group Length
+///
+/// - **Tag:** (0000,0000)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static CommandGroupLength: Tag = Tag {
+    ident: "CommandGroupLength",
+    tag: 0x0000_0000,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Command Group Length",
+};
+
+/// Affected SOP Class UID
+///
+/// - **Tag:** (0000,0002)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static AffectedSOPClassUID: Tag = Tag {
+    ident: "AffectedSOPClassUID",
+    tag: 0x0000_0002,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Affected SOP Class UID",
+};
+
+/// Requested SOP Class UID
+///
+/// - **Tag:** (0000,0003)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static RequestedSOPClassUID: Tag = Tag {
+    ident: "RequestedSOPClassUID",
+    tag: 0x0000_0003,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Requested SOP Class UID",
+};
+
+/// Command Field
+///
+/// - **Tag:** (0000,0100)
+/// - **VR:** US
+/// - **VM:** 1
+pub static CommandField: Tag = Tag {
+    ident: "CommandField",
+    tag: 0x0000_0100,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Command Field",
+};
+
+/// Message ID
+///
+/// - **Tag:** (0000,0110)
+/// - **VR:** US
+/// - **VM:** 1
+pub static MessageID: Tag = Tag {
+    ident: "MessageID",
+    tag: 0x0000_0110,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Message ID",
+};
+
+/// Message ID Being Responded To
+///
+/// - **Tag:** (0000,0120)
+/// - **VR:** US
+/// - **VM:** 1
+pub static MessageIDBeingRespondedTo: Tag = Tag {
+    ident: "MessageIDBeingRespondedTo",
+    tag: 0x0000_0120,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Message ID Being Responded To",
+};
+
+/// Move Destination
+///
+/// - **Tag:** (0000,0600)
+/// - **VR:** AE
+/// - **VM:** 1
+pub static MoveDestination: Tag = Tag {
+    ident: "MoveDestination",
+    tag: 0x0000_0600,
+    implicit_vr: Some(&vr::AE),
+    vm: &VM::Distinct(1),
+    desc: "Move Destination",
+};
+
+/// Priority
+///
+/// - **Tag:** (0000,0700)
+/// - **VR:** US
+/// - **VM:** 1
+pub static Priority: Tag = Tag {
+    ident: "Priority",
+    tag: 0x0000_0700,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Priority",
+};
+
+/// Command Data Set Type
+///
+/// - **Tag:** (0000,0800)
+/// - **VR:** US
+/// - **VM:** 1
+pub static CommandDataSetType: Tag = Tag {
+    ident: "CommandDataSetType",
+    tag: 0x0000_0800,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Command Data Set Type",
+};
+
+/// Status
+///
+/// - **Tag:** (0000,0900)
+/// - **VR:** US
+/// - **VM:** 1
+pub static Status: Tag = Tag {
+    ident: "Status",
+    tag: 0x0000_0900,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Status",
+};
+
+/// Offending Element
+///
+/// - **Tag:** (0000,0901)
+/// - **VR:** AT
+/// - **VM:** 1-n
+pub static OffendingElement: Tag = Tag {
+    ident: "OffendingElement",
+    tag: 0x0000_0901,
+    implicit_vr: Some(&vr::AT),
+    vm: &VM::AtLeast(1),
+    desc: "Offending Element",
+};
+
+/// Error Comment
+///
+/// - **Tag:** (0000,0902)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static ErrorComment: Tag = Tag {
+    ident: "ErrorComment",
+    tag: 0x0000_0902,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Error Comment",
+};
+
+/// Error ID
+///
+/// - **Tag:** (0000,0903)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ErrorID: Tag = Tag {
+    ident: "ErrorID",
+    tag: 0x0000_0903,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Error ID",
+};
+
+/// Affected SOP Instance UID
+///
+/// - **Tag:** (0000,1000)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static AffectedSOPInstanceUID: Tag = Tag {
+    ident: "AffectedSOPInstanceUID",
+    tag: 0x0000_1000,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Affected SOP Instance UID",
+};
+
+/// Requested SOP Instance UID
+///
+/// - **Tag:** (0000,1001)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static RequestedSOPInstanceUID: Tag = Tag {
+    ident: "RequestedSOPInstanceUID",
+    tag: 0x0000_1001,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Requested SOP Instance UID",
+};
+
+/// Event Type ID
+///
+/// - **Tag:** (0000,1002)
+/// - **VR:** US
+/// - **VM:** 1
+pub static EventTypeID: Tag = Tag {
+    ident: "EventTypeID",
+    tag: 0x0000_1002,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Event Type ID",
+};
+
+/// Attribute Identifier List
+///
+/// - **Tag:** (0000,1005)
+/// - **VR:** AT
+/// - **VM:** 1-n
+pub static AttributeIdentifierList: Tag = Tag {
+    ident: "AttributeIdentifierList",
+    tag: 0x0000_1005,
+    implicit_vr: Some(&vr::AT),
+    vm: &VM::AtLeast(1),
+    desc: "Attribute Identifier List",
+};
+
+/// Action Type ID
+///
+/// - **Tag:** (0000,1008)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ActionTypeID: Tag = Tag {
+    ident: "ActionTypeID",
+    tag: 0x0000_1008,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Action Type ID",
+};
+
+/// Number of Remaining Sub-operations
+///
+/// - **Tag:** (0000,1020)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofRemainingSuboperations: Tag = Tag {
+    ident: "NumberofRemainingSuboperations",
+    tag: 0x0000_1020,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Remaining Sub-operations",
+};
+
+/// Number of Completed Sub-operations
+///
+/// - **Tag:** (0000,1021)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofCompletedSuboperations: Tag = Tag {
+    ident: "NumberofCompletedSuboperations",
+    tag: 0x0000_1021,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Completed Sub-operations",
+};
+
+/// Number of Failed Sub-operations
+///
+/// - **Tag:** (0000,1022)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofFailedSuboperations: Tag = Tag {
+    ident: "NumberofFailedSuboperations",
+    tag: 0x0000_1022,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Failed Sub-operations",
+};
+
+/// Number of Warning Sub-operations
+///
+/// - **Tag:** (0000,1023)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofWarningSuboperations: Tag = Tag {
+    ident: "NumberofWarningSuboperations",
+    tag: 0x0000_1023,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Warning Sub-operations",
+};
+
+/// Move Originator Application Entity Title
+///
+/// - **Tag:** (0000,1030)
+/// - **VR:** AE
+/// - **VM:** 1
+pub static MoveOriginatorApplicationEntityTitle: Tag = Tag {
+    ident: "MoveOriginatorApplicationEntityTitle",
+    tag: 0x0000_1030,
+    implicit_vr: Some(&vr::AE),
+    vm: &VM::Distinct(1),
+    desc: "Move Originator Application Entity Title",
+};
+
+/// Move Originator Message ID
+///
+/// - **Tag:** (0000,1031)
+/// - **VR:** US
+/// - **VM:** 1
+pub static MoveOriginatorMessageID: Tag = Tag {
+    ident: "MoveOriginatorMessageID",
+    tag: 0x0000_1031,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Move Originator Message ID",
+};
+
 /// File Meta Information Group Length
 ///
 /// - **Tag:** (0002,0000)

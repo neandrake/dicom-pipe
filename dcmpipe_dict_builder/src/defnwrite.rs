@@ -105,13 +105,19 @@ pub static {}: Tag = Tag {{
     };
 }
 
-pub fn process_xml_file(file: File, folder: &Path) -> Result<(), Error> {
-    let bufread: BufReader<File> = BufReader::new(file);
-    let xml_definitions: Vec<XmlDicomDefinition> = XmlDicomDefinitionIterator::new(bufread)
-        .map(|item: XmlDicomDefinitionResult| {
-            item.unwrap_or_else(|_| panic!("Error parsing XML dicom entry"))
-        })
-        .collect::<Vec<XmlDicomDefinition>>();
+pub fn process_xml_files(files: Vec<File>, folder: &Path) -> Result<(), Error> {
+    let mut xml_definitions: Vec<XmlDicomDefinition> = Vec::new();
+
+    for file in files {
+        let bufread: BufReader<File> = BufReader::new(file);
+        let mut file_definitions: Vec<XmlDicomDefinition> =
+            XmlDicomDefinitionIterator::new(bufread)
+                .map(|item: XmlDicomDefinitionResult| {
+                    item.unwrap_or_else(|_| panic!("Error parsing XML dicom entry"))
+                })
+                .collect::<Vec<XmlDicomDefinition>>();
+        xml_definitions.append(&mut file_definitions);
+    }
 
     process_entries(xml_definitions, folder)?;
 
@@ -137,6 +143,7 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
             XmlDicomDefinition::DicomElement(e) => xml_dicom_elements.push(e),
             XmlDicomDefinition::FileMetaElement(e) => xml_dicom_elements.push(e),
             XmlDicomDefinition::DirStructureElement(e) => xml_dicom_elements.push(e),
+            XmlDicomDefinition::CommandElement(e) => xml_dicom_elements.push(e),
             XmlDicomDefinition::Uid(uid) => xml_uids.push(uid),
             XmlDicomDefinition::TransferSyntax(uid) => {
                 xml_uids.push(uid.clone());
@@ -378,10 +385,6 @@ fn process_element(
 ) -> Option<String> {
     let var_name: String = sanitize_var_name(&element.name);
     if var_name.is_empty() {
-        return None;
-    }
-
-    if element.tag == 0 {
         return None;
     }
 

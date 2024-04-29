@@ -5,7 +5,7 @@ use std::io::{Cursor, ErrorKind};
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomObject, DicomRoot};
 use dcmpipe_lib::core::read::stop::ParseStop;
-use dcmpipe_lib::core::read::{ParseError, ParseResult, ParserState, Parser, ParserBuilder};
+use dcmpipe_lib::core::read::{ParseError, ParseResult, Parser, ParserBuilder, ParserState};
 use dcmpipe_lib::core::values::{ElementWithVr, RawValue};
 use dcmpipe_lib::defn::constants::lookup::MINIMAL_DICOM_DICTIONARY;
 use dcmpipe_lib::defn::dcmdict::DicomDictionary;
@@ -109,9 +109,7 @@ fn test_unknown_explicit_vr_parses_as_invalid() {
     // zero tag is not technically valid but itself should't cause a parse error). for an implicit
     // vr transfer syntax the VR will be selected as UN and should parse
     let first_elem: DicomElement = parser
-        .skip_while(|x| {
-            x.is_ok() && x.as_ref().unwrap().tag() <= tags::SpecificCharacterSet.tag
-        })
+        .skip_while(|x| x.is_ok() && x.as_ref().unwrap().tag() <= tags::SpecificCharacterSet.tag)
         .next()
         .expect("Should have returned Some(Ok(elem))")
         .expect("Should have returned Ok(elem)");
@@ -125,9 +123,7 @@ fn test_trailing_zeroes_does_not_error() {
         MockDicomDataset::build_mock_parser(&[STANDARD_HEADER, NULL_ELEMENT]);
 
     let first_non_fme: Option<std::result::Result<DicomElement, ParseError>> = parser
-        .skip_while(|x| {
-            x.is_ok() && x.as_ref().unwrap().tag() <= tags::SpecificCharacterSet.tag
-        })
+        .skip_while(|x| x.is_ok() && x.as_ref().unwrap().tag() <= tags::SpecificCharacterSet.tag)
         .next();
 
     assert_eq!(true, first_non_fme.is_none());
@@ -158,10 +154,7 @@ fn test_parser_state(with_std: bool) -> ParseResult<()> {
 
     let first_elem: DicomElement = parser.next().expect("First element should be Some")?;
 
-    assert_eq!(
-        tags::FileMetaInformationGroupLength.tag,
-        first_elem.tag(),
-    );
+    assert_eq!(tags::FileMetaInformationGroupLength.tag, first_elem.tag(),);
 
     assert_eq!(ParserState::FileMeta, parser.parser_state());
 

@@ -16,7 +16,7 @@ use std::io::{Cursor, Read};
 use crate::{
     core::read::{
         self,
-        parser::{ParseError, ParseResult, ParserState, Parser, FILE_PREAMBLE_LENGTH},
+        parser::{ParseError, ParseResult, Parser, ParserState, FILE_PREAMBLE_LENGTH},
     },
     defn::{
         constants::{tags, ts},

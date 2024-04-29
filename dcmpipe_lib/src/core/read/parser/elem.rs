@@ -61,8 +61,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         // if the file-meta state was skipped due to the initial detection we may still need to
         // switch transfer syntax -- only do this if the element is at the root of the dataset
-        if element.tag() == tags::TRANSFER_SYNTAX_UID && element.sequence_path().is_empty()
-        {
+        if element.tag() == tags::TRANSFER_SYNTAX_UID && element.sequence_path().is_empty() {
             self.dataset_ts = self
                 .parse_transfer_syntax(&element)?
                 .or(Some(&ts::ImplicitVRLittleEndian));

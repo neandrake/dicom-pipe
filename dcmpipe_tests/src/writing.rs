@@ -22,7 +22,9 @@ use crate::mockdata;
 /// as `mockdata::STANDARD_HEADER`.
 #[test]
 fn test_write_mock_standard_header() -> Result<(), WriteError> {
-    let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file().ts(&ts::ExplicitVRLittleEndian).build(Vec::new());
+    let mut writer: Writer<Vec<u8>> = WriterBuilder::for_file()
+        .ts(&ts::ExplicitVRLittleEndian)
+        .build(Vec::new());
 
     let mut elements: Vec<DicomElement> = Vec::new();
 

@@ -3,8 +3,8 @@
 use std::io::Read;
 
 use super::behavior::ParseBehavior;
-use super::parser::ParserState;
 use super::parser::Parser;
+use super::parser::ParserState;
 use crate::core::charset::DEFAULT_CHARACTER_SET;
 use crate::core::read::ds::dataset::Dataset;
 use crate::core::read::stop::ParseStop;
