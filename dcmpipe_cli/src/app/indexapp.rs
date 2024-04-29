@@ -323,6 +323,15 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
         RawValue::Uid(uid) => {
             dicom_doc.insert(key, uid);
         }
+        RawValue::Floats(floats) => {
+            if !floats.is_empty() {
+                if floats.len() == 1 {
+                    dicom_doc.insert(key, floats[0]);
+                } else {
+                    dicom_doc.insert(key, floats);
+                }
+            }
+        }
         RawValue::Doubles(doubles) => {
             if !doubles.is_empty() {
                 if doubles.len() == 1 {
@@ -340,6 +349,16 @@ fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()
                     dicom_doc.insert(key, shorts[0]);
                 } else {
                     dicom_doc.insert(key, shorts);
+                }
+            }
+        }
+        RawValue::UnsignedShorts(ushorts) => {
+            if !ushorts.is_empty() {
+                if ushorts.len() == 1 {
+                    dicom_doc.insert(key, ushorts[0] as u32);
+                } else {
+                    let uints = ushorts.into_iter().map(|ushort: u16| ushort as u32).collect::<Vec<u32>>();
+                    dicom_doc.insert(key, uints);
                 }
             }
         }

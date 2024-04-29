@@ -273,6 +273,11 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
                 }
             });
         }
+        RawValue::Floats(floats) => {
+            sep = " / ";
+            ellipses =
+                format_vec_to_strings(floats, &mut str_vals, |val: f32| format!("{:.2}", val));
+        }
         RawValue::Doubles(doubles) => {
             sep = " / ";
             ellipses =
@@ -281,6 +286,10 @@ pub fn render_value(elem: &DicomElement) -> Result<String> {
         RawValue::Shorts(shorts) => {
             sep = " / ";
             ellipses = format_vec_to_strings(shorts, &mut str_vals, |val: i16| format!("{}", val));
+        }
+        RawValue::UnsignedShorts(ushorts) => {
+            sep = " / ";
+            ellipses = format_vec_to_strings(ushorts, &mut str_vals, |val: u16| format!("{}", val));
         }
         RawValue::Integers(ints) => {
             sep = " / ";

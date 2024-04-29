@@ -40,8 +40,10 @@ pub enum RawValue {
     Attribute(Attribute),
     Uid(String),
     Strings(Vec<String>),
+    Floats(Vec<f32>),
     Doubles(Vec<f64>),
     Shorts(Vec<i16>),
+    UnsignedShorts(Vec<u16>),
     Integers(Vec<i32>),
     UnsignedIntegers(Vec<u32>),
     Bytes(Vec<u8>),
@@ -134,13 +136,14 @@ impl DicomElement {
             .into()
     }
 
-    /// Parses this element's data into native/raw value type
+    /// Parses this element's data into native/raw value type.
     pub fn parse_value(&self) -> Result<RawValue> {
         RawValue::try_from(self)
     }
 
+    /// Encodes a RawValue into the binary data for this element.
     pub fn encode_value(&mut self, value: RawValue) -> Result<()> {
-        let bytes: Vec<u8> = match value {
+        let mut bytes: Vec<u8> = match value {
             RawValue::Attribute(Attribute(attr)) => {
                 let mut bytes: Vec<u8> = Vec::with_capacity(4);
                 let group_number: u16 = ((attr >> 16) | 0xFF) as u16;
@@ -161,32 +164,183 @@ impl DicomElement {
             RawValue::Strings(strings) => {
                 let (values, errs): (Vec<Result<Vec<u8>>>, Vec<Result<Vec<u8>>>) = strings.iter()
                     .map(|s| self.cs.encode(s, EncoderTrap::Strict)
-                         .map_err(|e: Cow<'static, str>| error(e.as_ref(), &self)))
+                        // Add the separator after each encoded value. Below the last separator
+                        // will be popped off.
+                        .map(|mut v| {
+                            v.push(CHARACTER_STRING_SEPARATOR as u8);
+                            v
+                        })
+                        .map_err(|e: Cow<'static, str>| error(e.as_ref(), &self)))
                     .partition(Result::is_ok);
 
                 if let Some(Err(e)) = errs.into_iter().last() {
                     return Err(e);
                 }
 
-                // TODO: This needs separator between Vec<u8> before collecting
-                values.into_iter().map(Result::unwrap).flatten().collect::<Vec<u8>>()
+                // Flatten the bytes for all strings.
+                let mut bytes: Vec<u8> = values.into_iter()
+                    .map(Result::unwrap)
+                    .flatten()
+                    .collect::<Vec<u8>>();
+                // Remove last separator.
+                bytes.pop();
+                bytes
+            },
+            RawValue::Floats(floats) => {
+                if self.vr.is_character_string {
+                    // This should only be the case for a VR of DS.
+                    floats.into_iter()
+                        .filter(|float: &f32| float.is_finite())
+                        // In theory this should use the default character set, but this
+                        // relies on f32::to_string only using ascii which falls under that.
+                        .map(|float: f32| float.to_string().into_bytes())
+                        .flat_map(|v| v.into_iter())
+                        .collect::<Vec<u8>>()
+                } else {
+                    // This should only be the case for a VR of FL.
+                    floats.into_iter()
+                        .filter(|float: &f32| float.is_finite())
+                        .flat_map(|float: f32| {
+                            if self.ts.is_big_endian() {
+                                float.to_be_bytes()
+                            } else {
+                                float.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
             },
             RawValue::Doubles(doubles) => {
-                vec![]
+                if self.vr.is_character_string {
+                    // This should only be the case for a VR of DS.
+                    doubles.into_iter()
+                        .filter(|double: &f64| double.is_finite())
+                        // In theory this should use the default character set, but this
+                        // relies on f64::to_string only using ascii which falls under that.
+                        .map(|double: f64| double.to_string().into_bytes())
+                        .flat_map(|v| v.into_iter())
+                        .collect::<Vec<u8>>()
+                } else {
+                    // This should only be the case for a VR of FL.
+                    doubles.into_iter()
+                        .filter(|double: &f64| double.is_finite())
+                        .flat_map(|double: f64| {
+                            if self.ts.is_big_endian() {
+                                double.to_be_bytes()
+                            } else {
+                                double.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
             },
             RawValue::Shorts(shorts) => {
-                vec![]
+                if self.vr.is_character_string {
+                    // This should only be the case for a VR of IS.
+                    shorts.into_iter()
+                        // In theory this should use the default character set, but this
+                        // relies on i16::to_string only using ascii which falls under that.
+                        .map(|short: i16| short.to_string().into_bytes())
+                        .flat_map(|v| v.into_iter())
+                        .collect::<Vec<u8>>()
+                } else {
+                    // This should only be the case for a VR of SS
+                    shorts.into_iter()
+                        .flat_map(|short: i16| {
+                            if self.ts.is_big_endian() {
+                                short.to_be_bytes()
+                            } else {
+                                short.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
+            },
+            RawValue::UnsignedShorts(ushorts) => {
+                if self.vr.is_character_string {
+                    // This should only be the case for a VR of IS.
+                    ushorts.into_iter()
+                        // In theory this should use the default character set, but this
+                        // relies on u16::to_string only using ascii which falls under that.
+                        .map(|ushort: u16| ushort.to_string().into_bytes())
+                        .flat_map(|v| v.into_iter())
+                        .collect::<Vec<u8>>()
+                } else {
+                    // This should only be the case for a VR of US
+                    ushorts.into_iter()
+                        .flat_map(|ushort: u16| {
+                            if self.ts.is_big_endian() {
+                                ushort.to_be_bytes()
+                            } else {
+                                ushort.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
             },
             RawValue::Integers(ints) => {
-                vec![]
+                if self.vr.is_character_string {
+                    // This should only be the case for a VR of IS.
+                    ints.into_iter()
+                        // In theory this should use the default character set, but this
+                        // relies on i32::to_string only using ascii which falls under that.
+                        .map(|int: i32| int.to_string().into_bytes())
+                        .flat_map(|v| v.into_iter())
+                        .collect::<Vec<u8>>()
+                } else {
+                    // This should only be the case for a VR of SL.
+                    ints.into_iter()
+                        .flat_map(|int: i32| {
+                            if self.ts.is_big_endian() {
+                                int.to_be_bytes()
+                            } else {
+                                int.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
             },
             RawValue::UnsignedIntegers(uints) => {
-                vec![]
+                if self.vr.is_character_string {
+                    // XXX: This shouldn't happen. Unsigned integers should only ever be encoded
+                    // as binary.
+                    uints.into_iter()
+                        // In theory this should use the default character set, but this
+                        // relies on i16::to_string only using ascii which falls under that.
+                        .map(|uint: u32| uint.to_string().into_bytes())
+                        .flat_map(|v| v.into_iter())
+                        .collect::<Vec<u8>>()
+                } else {
+                    // This should only be the case for a VR of UL.
+                    uints.into_iter()
+                        .flat_map(|uint: u32| {
+                            if self.ts.is_big_endian() {
+                                uint.to_be_bytes()
+                            } else {
+                                uint.to_le_bytes()
+                            }
+                        })
+                        .collect::<Vec<u8>>()
+                }
             },
             RawValue::Bytes(bytes) => {
-                vec![]
+                bytes
             },
         };
+
+        // All fields are required to be of even length, with padding added as necessary. Note
+        // that the standard refers to values of "character string" however binary values are
+        // expected to always result in even number of bytes.
+        //
+        // Part 5, Ch 6.4:
+        // Each string Value in a multiple valued character string may be of even or odd length,
+        // but the length of the entire Value Field (including "\" delimiters) shall be of even
+        // length. If padding is required to make the Value Field of even length, a single padding
+        // character shall be applied to the end of the Value Field (to the last Value), in which
+        // case the length of the last Value may exceed the Length of Value by 1.
+        if bytes.len() % 2 != 0 {
+            bytes.push(self.vr.padding);
+        }
 
         self.data = bytes;
         self.vl = ValueLength::Explicit(
@@ -200,6 +354,12 @@ impl DicomElement {
 impl TryFrom<&DicomElement> for RawValue {
     type Error = ParseError;
 
+    /// Based on the VR of this element, parses the binary data into a RawValue.
+    /// Note that not all RawValue variants can be returned. There is only one
+    /// way to encode floats as strings which is VR of DS, which will always return
+    /// a Vec<f64> instead of Vec<f32>. There is only one way to encode unsigned
+    /// shorts which is VR of UL, which will always return a Vec<u32> instead of
+    /// Vec<u16>.
     fn try_from(value: &DicomElement) -> Result<Self> {
         if value.vr == &vr::AT {
             let attr: Attribute = Attribute::try_from(value)?;
@@ -208,22 +368,9 @@ impl TryFrom<&DicomElement> for RawValue {
             let uid: String = String::try_from(value)?;
             Ok(RawValue::Uid(uid))
         } else if value.vr == &vr::DS {
-            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(value);
-            if let Ok(doubles) = parsed {
-                Ok(RawValue::Doubles(doubles))
-            } else {
-                let parsed: Vec<String> = Vec::<String>::try_from(value)?;
-                Ok(RawValue::Strings(parsed))
-            }
+            Ok(RawValue::Doubles(Vec::<f64>::try_from(value)?))
         } else if value.vr == &vr::IS {
-            let parsed: Result<Vec<f64>> = Vec::<f64>::try_from(value);
-            if let Ok(doubles) = parsed {
-                let ints: Vec<i32> = doubles.into_iter().map(|v| v as i32).collect::<Vec<i32>>();
-                Ok(RawValue::Integers(ints))
-            } else {
-                let parsed: Vec<String> = Vec::<String>::try_from(value)?;
-                Ok(RawValue::Strings(parsed))
-            }
+            Ok(RawValue::Integers(Vec::<i32>::try_from(value)?))
         } else if value.vr.is_character_string {
             let strings: Vec<String> = Vec::<String>::try_from(value)?;
             Ok(RawValue::Strings(strings))
@@ -232,6 +379,7 @@ impl TryFrom<&DicomElement> for RawValue {
             || value.vr == &vr::OD
             || value.vr == &vr::FL
         {
+            // XXX: This isn't right for OF or OD!!
             let doubles: Vec<f64> = match value.vl {
                 ValueLength::Explicit(len)
                     if (value.vr == &vr::OD || value.vr == &vr::FL) && len > 0 && len % 8 == 0 =>
@@ -277,6 +425,7 @@ impl TryFrom<&DicomElement> for RawValue {
             || value.vr == &vr::OW
             || value.vr == &vr::US
         {
+            // XXX: This isn't right for OL or OW!!
             let uints: Vec<u32> = match value.vl {
                 ValueLength::Explicit(len)
                     if (value.vr == &vr::UL || value.vr == &vr::OL) && len > 0 && len % 4 == 0 =>
@@ -483,7 +632,7 @@ impl TryFrom<&DicomElement> for Vec<f32> {
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
-                    .map(|s| s.parse::<f32>().map_err(|e| error(&e.to_string(), value)))
+                    .map(|s| s.trim().parse::<f32>().map_err(|e| error(&e.to_string(), value)))
                     .partition(Result::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
@@ -538,7 +687,7 @@ impl TryFrom<&DicomElement> for Vec<f64> {
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
-                    .map(|s| s.parse::<f64>().map_err(|e| error(&e.to_string(), value)))
+                    .map(|s| s.trim().parse::<f64>().map_err(|e| error(&e.to_string(), value)))
                     .partition(Result::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
@@ -592,7 +741,7 @@ impl TryFrom<&DicomElement> for Vec<i16> {
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
-                    .map(|s| s.parse::<i16>().map_err(|e| error(&e.to_string(), value)))
+                    .map(|s| s.trim().parse::<i16>().map_err(|e| error(&e.to_string(), value)))
                     .partition(Result::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
@@ -647,7 +796,7 @@ impl TryFrom<&DicomElement> for Vec<i32> {
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
-                    .map(|s| s.parse::<i32>().map_err(|e| error(&e.to_string(), value)))
+                    .map(|s| s.trim().parse::<i32>().map_err(|e| error(&e.to_string(), value)))
                     .partition(Result::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
@@ -701,7 +850,7 @@ impl TryFrom<&DicomElement> for Vec<u32> {
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
-                    .map(|s| s.parse::<u32>().map_err(|e| error(&e.to_string(), value)))
+                    .map(|s| s.trim().parse::<u32>().map_err(|e| error(&e.to_string(), value)))
                     .partition(Result::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
@@ -755,7 +904,7 @@ impl TryFrom<&DicomElement> for Vec<u16> {
                 Vec::<String>::try_from(value)?
                     .into_iter()
                     .filter(|s| !s.is_empty())
-                    .map(|s| s.parse::<u16>().map_err(|e| error(&e.to_string(), value)))
+                    .map(|s| s.trim().parse::<u16>().map_err(|e| error(&e.to_string(), value)))
                     .partition(Result::is_ok);
             if let Some(Err(e)) = errors.into_iter().last() {
                 return Err(e);
