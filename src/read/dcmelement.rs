@@ -3,12 +3,32 @@ use core::vl::ValueLength;
 use core::vr;
 
 use std::fmt;
+use std::io::Cursor;
 
 pub struct DicomElement {
     pub tag: u32,
     pub vr: &'static vr::VR,
     pub vl: ValueLength,
-    pub bytes: Vec<u8>,
+    value: Cursor<Vec<u8>>,
+}
+
+impl DicomElement {
+    pub fn new(tag: u32, vr: &'static vr::VR, vl: ValueLength, value: Vec<u8>) -> DicomElement {
+        DicomElement {
+            tag: tag,
+            vr: vr,
+            vl: vl,
+            value: Cursor::new(value),
+        }
+    }
+
+    pub fn get_value(&self) -> &Cursor<Vec<u8>> {
+        &self.value
+    }
+
+    pub fn get_value_mut(&mut self) -> &mut Cursor<Vec<u8>> {
+        &mut self.value
+    }
 }
 
 impl fmt::Debug for DicomElement {
