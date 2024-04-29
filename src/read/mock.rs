@@ -22,7 +22,7 @@ impl MockDicomStream {
         })
     }
 
-    pub fn invalid_dicom_preamble() -> DicomStream<MockDicomStream> {
+    pub fn invalid_dicom_prefix() -> DicomStream<MockDicomStream> {
         DicomStream::new(MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];
@@ -36,21 +36,21 @@ impl MockDicomStream {
         })
     }
 
-    pub fn invalid_size_preamble() -> DicomStream<MockDicomStream> {
+    pub fn nonzero_preamble() -> DicomStream<MockDicomStream> {
         DicomStream::new(MockDicomStream {
             data: {
-                let mut data: Vec<u8> = vec![0u8;132];
-                data[127] = 'D' as u8;
-                data[128] = 'I' as u8;
-                data[129] = 'C' as u8;
-                data[130] = 'M' as u8;
+                let mut data: Vec<u8> = vec![0xFFu8;132];
+                data[128] = 'D' as u8;
+                data[129] = 'I' as u8;
+                data[130] = 'C' as u8;
+                data[131] = 'M' as u8;
                 data
             },
             pos: 0,
         })
     }
 
-    pub fn standard_dicom_preamble_diff_startpos() -> DicomStream<MockDicomStream> {
+    pub fn standard_dicom_preamble_diff_startpos_and_short_stream() -> DicomStream<MockDicomStream> {
         DicomStream::new(MockDicomStream {
             data: {
                 let mut data: Vec<u8> = vec![0u8;132];

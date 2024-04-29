@@ -1,21 +1,73 @@
 #![allow(dead_code)]
 #![allow(non_upper_case_globals)]
 
+use std::collections::hash_map::{HashMap, Iter};
 use std::hash::{Hash, Hasher};
 
 use util::uids::UID;
 
-#[derive(Debug)]
-pub struct TransferSyntax<'uid_lifetime> {
-    uid: &'uid_lifetime UID,
+
+pub struct TransferSyntaxLookup<'uid_lt, 'ident_lt> {
+    uid_to_ts: HashMap<&'uid_lt UID, TransferSyntax<'uid_lt>>,
+    ident_to_ts: HashMap<&'ident_lt str, TransferSyntax<'uid_lt>>,
+}
+
+impl<'uid_lt, 'ident_lt> TransferSyntaxLookup<'uid_lt, 'ident_lt> {
+    pub fn new<'new_uid_lt, 'new_ident_lt>() -> TransferSyntaxLookup<'new_uid_lt, 'new_ident_lt> {
+        let mut uid_to_ts: HashMap<&UID, TransferSyntax> = HashMap::new();
+        let mut ident_to_ts: HashMap<&str, TransferSyntax> = HashMap::new();
+        
+        uid_to_ts.insert(ImplicitVRLittleEndian.uid, ImplicitVRLittleEndian.clone());
+        ident_to_ts.insert(ImplicitVRLittleEndian.uid.get_ident(), ImplicitVRLittleEndian.clone());
+        
+        uid_to_ts.insert(ImplicitVRBigEndian.uid, ImplicitVRBigEndian.clone());
+        ident_to_ts.insert(ImplicitVRBigEndian.uid.get_ident(), ImplicitVRBigEndian.clone());
+
+        uid_to_ts.insert(ExplicitVRLittleEndian.uid, ExplicitVRLittleEndian.clone());
+        ident_to_ts.insert(ExplicitVRLittleEndian.uid.get_ident(), ExplicitVRLittleEndian.clone());
+
+        uid_to_ts.insert(ExplicitVRBigEndian.uid, ExplicitVRBigEndian.clone());
+        ident_to_ts.insert(ExplicitVRBigEndian.uid.get_ident(), ExplicitVRBigEndian.clone());
+
+        uid_to_ts.insert(DeflatedExplicitVRLittleEndian.uid, DeflatedExplicitVRLittleEndian.clone());
+        ident_to_ts.insert(DeflatedExplicitVRLittleEndian.uid.get_ident(), DeflatedExplicitVRLittleEndian.clone());
+
+        uid_to_ts.insert(NoPixelData.uid, NoPixelData.clone());
+        ident_to_ts.insert(NoPixelData.uid.get_ident(), NoPixelData.clone());
+
+        uid_to_ts.insert(NoPixelDataDeflate.uid, NoPixelDataDeflate.clone());
+        ident_to_ts.insert(NoPixelDataDeflate.uid.get_ident(), NoPixelDataDeflate.clone());
+
+        TransferSyntaxLookup {
+            uid_to_ts: uid_to_ts,
+            ident_to_ts: ident_to_ts,
+        }
+    }
+
+    pub fn get_by_uid(&self, uid: &UID) -> Option<&TransferSyntax<'uid_lt>> {
+        self.uid_to_ts.get(uid)
+    }
+
+    pub fn get_by_ident(&self, ident: &str) -> Option<&TransferSyntax<'uid_lt>> {
+        self.ident_to_ts.get(ident)
+    }
+
+    pub fn iter(&self) -> Iter<&UID, TransferSyntax> {
+        self.uid_to_ts.iter()
+    }
+}
+
+#[derive(Clone, Debug, Eq)]
+pub struct TransferSyntax<'uid_lt> {
+    uid: &'uid_lt UID,
     explicit_vr: bool,
     big_endian: bool,
     deflated: bool,
     encapsulated: bool,
 }
 
-impl<'uid_lifetime> TransferSyntax<'uid_lifetime> {
-    pub fn new<'new_uid_lifetime>(uid: &'new_uid_lifetime UID,
+impl<'uid_lt> TransferSyntax<'uid_lt> {
+    pub fn new<'new_uid_lt>(uid: &'new_uid_lt UID,
         explicit_vr: bool,
         big_endian: bool,
         deflated: bool,
@@ -29,7 +81,7 @@ impl<'uid_lifetime> TransferSyntax<'uid_lifetime> {
         }
     }
 
-    pub fn get_uid(&self) -> &'uid_lifetime UID {
+    pub fn get_uid(&self) -> &'uid_lt UID {
         self.uid
     }
 
@@ -54,13 +106,13 @@ impl<'uid_lifetime> TransferSyntax<'uid_lifetime> {
     }
 }
 
-impl<'uid_lifetime> PartialEq for TransferSyntax<'uid_lifetime> {
+impl<'uid_lt> PartialEq for TransferSyntax<'uid_lt> {
     fn eq(&self, other: &TransferSyntax) -> bool {
         self.uid.eq(other.uid)
     }
 }
 
-impl<'uid_lifetime> Hash for TransferSyntax<'uid_lifetime> {
+impl<'uid_lt> Hash for TransferSyntax<'uid_lt> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.uid.hash(state);
     }
@@ -142,22 +194,29 @@ fn test_diff_instances_eq() {
     assert_eq!(&ImplicitVRLittleEndian, &implicit_vr_le);
 }
 
+#[test]
+fn test_lookup() {
+    let lookup: TransferSyntaxLookup = TransferSyntaxLookup::new();
+    let ts: &TransferSyntax = lookup.get_by_uid(&::util::uids::ImplicitVRLittleEndian).expect("Unable to lookup TransferSyntax by UID");
+    assert_eq!(ts, &ImplicitVRLittleEndian);
+
+    let ts_opt: Option<&TransferSyntax> = lookup.get_by_uid(&::util::uids::CTImageStorage);
+    assert_eq!(ts_opt.is_none(), true);
+
+    let ts: &TransferSyntax = lookup.get_by_ident("ImplicitVRLittleEndian").expect("Unable to lookup TransferSyntax by ident");
+    assert_eq!(ts, &ImplicitVRLittleEndian);
+
+    let ts_opt: Option<&TransferSyntax> = lookup.get_by_ident("Implicit VR Little Endian");
+    assert!(ts_opt.is_none(), true);
+}
+
 /// Sanity-check of the pre-defined TransferSyntax's to ensure
 /// that their defined properties reflect the UID's name.
 /// May catch issues with improperly copying over values from definitions.
 #[test]
 fn test_name_vs_properties() {
-    let known_ts: Vec<&TransferSyntax> = vec![
-        &ImplicitVRLittleEndian,
-        &ImplicitVRBigEndian,
-        &ExplicitVRLittleEndian,
-        &ExplicitVRBigEndian,
-        &DeflatedExplicitVRLittleEndian,
-        &NoPixelData,
-        &NoPixelDataDeflate,
-    ];
-
-    for ts in known_ts {
+    let lookup: TransferSyntaxLookup = TransferSyntaxLookup::new();
+    for (_, ts) in lookup.iter() {
         let contains_little: bool = ts.uid.get_ident().contains("LittleEndian");
         let contains_big: bool = ts.uid.get_ident().contains("BigEndian");
         let contains_explicit: bool = ts.uid.get_ident().contains("ExplicitVR");
