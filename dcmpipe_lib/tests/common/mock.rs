@@ -6,6 +6,7 @@ use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 use dcmpipe_lib::core::read::stop::ParseStop;
 use dcmpipe_lib::core::read::{Parser, ParserBuilder};
 
+#[allow(clippy::module_name_repetitions)]
 pub struct MockDicomDataset {
     pub data: Vec<u8>,
     pub pos: usize,
@@ -105,7 +106,7 @@ impl Read for MockDicomDataset {
             buf[count] = self.data[i];
             count += 1;
         }
-        self.pos = self.pos + count;
+        self.pos += count;
         Result::Ok(count)
     }
 }
@@ -130,7 +131,7 @@ impl Seek for MockDicomDataset {
 
         Result::Err(Error::new(
             ErrorKind::UnexpectedEof,
-            format!("seek to invalid position: {:?}", newpos),
+            format!("seek to invalid position: {newpos:?}"),
         ))
     }
 }

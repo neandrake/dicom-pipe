@@ -1,14 +1,14 @@
 //! This module contains the primary logic for reading the components of a DICOM Element from the
 //! dataset.
 //!
-//! The functionality contained within should only be called when reading FileMetaElements or
-//! regular DICOM DataSet Elements.
+//! The functionality contained within should only be called when reading `FileMetaElements` or
+//! regular DICOM `DataSet` Elements.
 //!
 //! The parsing logic is intended to be minimal and lenient in order to handle old or
 //! improperly-encoded DICOM. References to the DICOM Standard are made in inline comments to
 //! clarify or justify the logic. This parsing does not attempt to interpret or decode the bytes of
 //! the value field, and it does not validate the structure of sequences (i.e. the proper uses of
-//! the Item, ItemDelimitationItem, and SequenceDelimitationItem elements.
+//! the Item, `ItemDelimitationItem`, and `SequenceDelimitationItem` elements.
 
 use std::io::{ErrorKind, Read};
 
@@ -162,7 +162,7 @@ impl<'d, R: Read> Parser<'d, R> {
         Ok(DicomElement::new(tag, vr, vl, ts, cs, bytes, ancestors))
     }
 
-    /// Reads VR from the dataset. This should only be done for ExplicitVR transfer syntaxes.
+    /// Reads VR from the dataset. This should only be done for `ExplicitVR` transfer syntaxes.
     /// If the VR read from the dataset indicates it contains additional 2-byte-padding for
     /// explicit VRs then those bytes are also read (and thrown away). If the bytes do not
     /// correspond to a valid/known VR then `ParseError::UnknownExplicitVR` is returned.

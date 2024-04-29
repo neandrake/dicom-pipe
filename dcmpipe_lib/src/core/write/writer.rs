@@ -149,12 +149,12 @@ impl<W: Write> Writer<W> {
         Ok(bytes_written)
     }
 
-    /// Writes all the given FileMeta elements to an in-memory buffer, computes the length of the
-    /// resulting bytes, and generates a FileMetaInformationGroupLength element, writes it to the
+    /// Writes all the given `FileMeta` elements to an in-memory buffer, computes the length of the
+    /// resulting bytes, and generates a `FileMetaInformationGroupLength` element, writes it to the
     /// dataset, then writes the in-memory buffer to the dataset as well.
     ///
     /// `fm_elements`: Slice of `&DicomElement`s which should all be elements with tag numbers in
-    /// the range for FileMeta, and SHOULD NOT include a FileMetaInformationGroupLength element.
+    /// the range for `FileMeta`, and SHOULD NOT include a `FileMetaInformationGroupLength` element.
     fn write_fm_elements(&mut self, fm_elements: &[&DicomElement]) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
         let mut fm_dataset: Dataset<Vec<u8>> = Dataset::new(Vec::new());
