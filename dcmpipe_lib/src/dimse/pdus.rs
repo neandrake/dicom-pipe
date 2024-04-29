@@ -272,7 +272,7 @@ impl Pdu {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset
             .read_exact(&mut buf)
-            .map_err(|e| DimseError::IOError { source: e })?;
+            .map_err(DimseError::IOError)?;
 
         let pdu_type: PduType = PduType::from(buf[0]);
 
@@ -377,7 +377,7 @@ impl UserPdu {
         let mut buf: [u8; 2] = [0u8; 2];
         dataset
             .read_exact(&mut buf)
-            .map_err(|e| DimseError::IOError { source: e })?;
+            .map_err(DimseError::IOError)?;
 
         let pdu_type: UserPduType = UserPduType::from(buf[0]);
 

@@ -1,8 +1,7 @@
-use thiserror::Error;
-
-use crate::core::read::ParseError;
+use crate::dimse::error::DimseError;
 
 pub mod commands;
+pub mod error;
 pub mod pduiter;
 pub mod pdus;
 
@@ -34,35 +33,4 @@ impl From<AeTitle> for [u8; 16] {
     fn from(value: AeTitle) -> Self {
         value.0
     }
-}
-
-#[derive(Debug, Error)]
-pub enum DimseError {
-    #[error("invalid pdu type: {0:04X}")]
-    InvalidPduType(u8),
-
-    #[error("invalid ae title: {0:?}")]
-    InvalidAeTitle(Vec<u8>),
-
-    #[error("unexpected end of byte stream")]
-    UnexpectedEOF,
-
-    #[error("element missing from request: {0}")]
-    ElementMissingFromRequest(String),
-
-    #[error("invalid pdu parse state")]
-    InvalidPduParseState(String),
-
-    #[error("error parsing value from request")]
-    ParseError {
-        #[from]
-        source: ParseError,
-    },
-
-    /// Wrapper around `std::io::Error`.
-    #[error("i/o error reading from dataset")]
-    IOError {
-        #[from]
-        source: std::io::Error,
-    },
 }

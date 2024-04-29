@@ -112,7 +112,7 @@ impl<R: Read> Iterator for PduIter<R> {
                             )));
                         }
                         Ok(None) => return None,
-                        Err(source) => return Some(Err(DimseError::ParseError { source })),
+                        Err(source) => return Some(Err(DimseError::ParseError(source))),
                     }
                 }
             }
