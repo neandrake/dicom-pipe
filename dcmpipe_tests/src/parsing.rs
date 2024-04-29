@@ -1,8 +1,7 @@
 use crate::mock::MockDicomDataset;
 use crate::{is_standard_dcm_file, parse_all_dicom_files, parse_file};
-use dcmpipe_dict::dict::dicom_elements as tags;
-use dcmpipe_dict::dict::file_meta_elements as fme;
 use dcmpipe_dict::dict::stdlookup::STANDARD_DICOM_DICTIONARY;
+use dcmpipe_dict::dict::tags;
 use dcmpipe_dict::dict::transfer_syntaxes as ts;
 use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::{DicomElement, ElementWithVr};
@@ -107,7 +106,7 @@ fn test_parser_state(with_std: bool) -> Result<(), Error> {
 
     let first_elem: DicomElement = parser.next().expect("First element should be Some")?;
 
-    assert_eq!(first_elem.tag, fme::FileMetaInformationGroupLength.tag);
+    assert_eq!(first_elem.tag, tags::FileMetaInformationGroupLength.tag);
 
     assert_eq!(parser.get_parser_state(), ParseState::FileMeta);
 
@@ -554,7 +553,7 @@ fn test_no_dicomv3_preamble(with_std: bool) -> Result<(), Error> {
 
     // check we can read the first element just fine
     let fme_length: u32 = dcmroot
-        .get_child(fme::FileMetaInformationGroupLength.tag)
+        .get_child(tags::FileMetaInformationGroupLength.tag)
         .expect("Should have FileMetaInfo GroupLength tag")
         .as_element()
         .try_into()?;

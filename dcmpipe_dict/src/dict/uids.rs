@@ -3678,8 +3678,8 @@ pub static DICOMContentMappingResource: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.1
 /// - **UID Type:** LDAP OID
-pub static dicomDeviceName: UID = UID {
-    ident: "dicomDeviceName",
+pub static DicomDeviceName: UID = UID {
+    ident: "DicomDeviceName",
     uid: "1.2.840.10008.15.0.3.1",
     name: "dicomDeviceName",
 };
@@ -3688,8 +3688,8 @@ pub static dicomDeviceName: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.2
 /// - **UID Type:** LDAP OID
-pub static dicomDescription: UID = UID {
-    ident: "dicomDescription",
+pub static DicomDescription: UID = UID {
+    ident: "DicomDescription",
     uid: "1.2.840.10008.15.0.3.2",
     name: "dicomDescription",
 };
@@ -3698,8 +3698,8 @@ pub static dicomDescription: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.3
 /// - **UID Type:** LDAP OID
-pub static dicomManufacturer: UID = UID {
-    ident: "dicomManufacturer",
+pub static DicomManufacturer: UID = UID {
+    ident: "DicomManufacturer",
     uid: "1.2.840.10008.15.0.3.3",
     name: "dicomManufacturer",
 };
@@ -3708,8 +3708,8 @@ pub static dicomManufacturer: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.4
 /// - **UID Type:** LDAP OID
-pub static dicomManufacturerModelName: UID = UID {
-    ident: "dicomManufacturerModelName",
+pub static DicomManufacturerModelName: UID = UID {
+    ident: "DicomManufacturerModelName",
     uid: "1.2.840.10008.15.0.3.4",
     name: "dicomManufacturerModelName",
 };
@@ -3718,8 +3718,8 @@ pub static dicomManufacturerModelName: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.5
 /// - **UID Type:** LDAP OID
-pub static dicomSoftwareVersion: UID = UID {
-    ident: "dicomSoftwareVersion",
+pub static DicomSoftwareVersion: UID = UID {
+    ident: "DicomSoftwareVersion",
     uid: "1.2.840.10008.15.0.3.5",
     name: "dicomSoftwareVersion",
 };
@@ -3728,8 +3728,8 @@ pub static dicomSoftwareVersion: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.6
 /// - **UID Type:** LDAP OID
-pub static dicomVendorData: UID = UID {
-    ident: "dicomVendorData",
+pub static DicomVendorData: UID = UID {
+    ident: "DicomVendorData",
     uid: "1.2.840.10008.15.0.3.6",
     name: "dicomVendorData",
 };
@@ -3738,8 +3738,8 @@ pub static dicomVendorData: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.7
 /// - **UID Type:** LDAP OID
-pub static dicomAETitle: UID = UID {
-    ident: "dicomAETitle",
+pub static DicomAETitle: UID = UID {
+    ident: "DicomAETitle",
     uid: "1.2.840.10008.15.0.3.7",
     name: "dicomAETitle",
 };
@@ -3748,8 +3748,8 @@ pub static dicomAETitle: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.8
 /// - **UID Type:** LDAP OID
-pub static dicomNetworkConnectionReference: UID = UID {
-    ident: "dicomNetworkConnectionReference",
+pub static DicomNetworkConnectionReference: UID = UID {
+    ident: "DicomNetworkConnectionReference",
     uid: "1.2.840.10008.15.0.3.8",
     name: "dicomNetworkConnectionReference",
 };
@@ -3758,8 +3758,8 @@ pub static dicomNetworkConnectionReference: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.9
 /// - **UID Type:** LDAP OID
-pub static dicomApplicationCluster: UID = UID {
-    ident: "dicomApplicationCluster",
+pub static DicomApplicationCluster: UID = UID {
+    ident: "DicomApplicationCluster",
     uid: "1.2.840.10008.15.0.3.9",
     name: "dicomApplicationCluster",
 };
@@ -3768,8 +3768,8 @@ pub static dicomApplicationCluster: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.10
 /// - **UID Type:** LDAP OID
-pub static dicomAssociationInitiator: UID = UID {
-    ident: "dicomAssociationInitiator",
+pub static DicomAssociationInitiator: UID = UID {
+    ident: "DicomAssociationInitiator",
     uid: "1.2.840.10008.15.0.3.10",
     name: "dicomAssociationInitiator",
 };
@@ -3778,8 +3778,8 @@ pub static dicomAssociationInitiator: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.11
 /// - **UID Type:** LDAP OID
-pub static dicomAssociationAcceptor: UID = UID {
-    ident: "dicomAssociationAcceptor",
+pub static DicomAssociationAcceptor: UID = UID {
+    ident: "DicomAssociationAcceptor",
     uid: "1.2.840.10008.15.0.3.11",
     name: "dicomAssociationAcceptor",
 };
@@ -3788,8 +3788,8 @@ pub static dicomAssociationAcceptor: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.12
 /// - **UID Type:** LDAP OID
-pub static dicomHostname: UID = UID {
-    ident: "dicomHostname",
+pub static DicomHostname: UID = UID {
+    ident: "DicomHostname",
     uid: "1.2.840.10008.15.0.3.12",
     name: "dicomHostname",
 };
@@ -3798,8 +3798,8 @@ pub static dicomHostname: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.13
 /// - **UID Type:** LDAP OID
-pub static dicomPort: UID = UID {
-    ident: "dicomPort",
+pub static DicomPort: UID = UID {
+    ident: "DicomPort",
     uid: "1.2.840.10008.15.0.3.13",
     name: "dicomPort",
 };
@@ -3808,8 +3808,8 @@ pub static dicomPort: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.14
 /// - **UID Type:** LDAP OID
-pub static dicomSOPClass: UID = UID {
-    ident: "dicomSOPClass",
+pub static DicomSOPClass: UID = UID {
+    ident: "DicomSOPClass",
     uid: "1.2.840.10008.15.0.3.14",
     name: "dicomSOPClass",
 };
@@ -3818,8 +3818,8 @@ pub static dicomSOPClass: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.15
 /// - **UID Type:** LDAP OID
-pub static dicomTransferRole: UID = UID {
-    ident: "dicomTransferRole",
+pub static DicomTransferRole: UID = UID {
+    ident: "DicomTransferRole",
     uid: "1.2.840.10008.15.0.3.15",
     name: "dicomTransferRole",
 };
@@ -3828,8 +3828,8 @@ pub static dicomTransferRole: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.16
 /// - **UID Type:** LDAP OID
-pub static dicomTransferSyntax: UID = UID {
-    ident: "dicomTransferSyntax",
+pub static DicomTransferSyntax: UID = UID {
+    ident: "DicomTransferSyntax",
     uid: "1.2.840.10008.15.0.3.16",
     name: "dicomTransferSyntax",
 };
@@ -3838,8 +3838,8 @@ pub static dicomTransferSyntax: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.17
 /// - **UID Type:** LDAP OID
-pub static dicomPrimaryDeviceType: UID = UID {
-    ident: "dicomPrimaryDeviceType",
+pub static DicomPrimaryDeviceType: UID = UID {
+    ident: "DicomPrimaryDeviceType",
     uid: "1.2.840.10008.15.0.3.17",
     name: "dicomPrimaryDeviceType",
 };
@@ -3848,8 +3848,8 @@ pub static dicomPrimaryDeviceType: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.18
 /// - **UID Type:** LDAP OID
-pub static dicomRelatedDeviceReference: UID = UID {
-    ident: "dicomRelatedDeviceReference",
+pub static DicomRelatedDeviceReference: UID = UID {
+    ident: "DicomRelatedDeviceReference",
     uid: "1.2.840.10008.15.0.3.18",
     name: "dicomRelatedDeviceReference",
 };
@@ -3858,8 +3858,8 @@ pub static dicomRelatedDeviceReference: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.19
 /// - **UID Type:** LDAP OID
-pub static dicomPreferredCalledAETitle: UID = UID {
-    ident: "dicomPreferredCalledAETitle",
+pub static DicomPreferredCalledAETitle: UID = UID {
+    ident: "DicomPreferredCalledAETitle",
     uid: "1.2.840.10008.15.0.3.19",
     name: "dicomPreferredCalledAETitle",
 };
@@ -3868,8 +3868,8 @@ pub static dicomPreferredCalledAETitle: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.20
 /// - **UID Type:** LDAP OID
-pub static dicomTLSCyphersuite: UID = UID {
-    ident: "dicomTLSCyphersuite",
+pub static DicomTLSCyphersuite: UID = UID {
+    ident: "DicomTLSCyphersuite",
     uid: "1.2.840.10008.15.0.3.20",
     name: "dicomTLSCyphersuite",
 };
@@ -3878,8 +3878,8 @@ pub static dicomTLSCyphersuite: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.21
 /// - **UID Type:** LDAP OID
-pub static dicomAuthorizedNodeCertificateReference: UID = UID {
-    ident: "dicomAuthorizedNodeCertificateReference",
+pub static DicomAuthorizedNodeCertificateReference: UID = UID {
+    ident: "DicomAuthorizedNodeCertificateReference",
     uid: "1.2.840.10008.15.0.3.21",
     name: "dicomAuthorizedNodeCertificateReference",
 };
@@ -3888,8 +3888,8 @@ pub static dicomAuthorizedNodeCertificateReference: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.22
 /// - **UID Type:** LDAP OID
-pub static dicomThisNodeCertificateReference: UID = UID {
-    ident: "dicomThisNodeCertificateReference",
+pub static DicomThisNodeCertificateReference: UID = UID {
+    ident: "DicomThisNodeCertificateReference",
     uid: "1.2.840.10008.15.0.3.22",
     name: "dicomThisNodeCertificateReference",
 };
@@ -3898,8 +3898,8 @@ pub static dicomThisNodeCertificateReference: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.23
 /// - **UID Type:** LDAP OID
-pub static dicomInstalled: UID = UID {
-    ident: "dicomInstalled",
+pub static DicomInstalled: UID = UID {
+    ident: "DicomInstalled",
     uid: "1.2.840.10008.15.0.3.23",
     name: "dicomInstalled",
 };
@@ -3908,8 +3908,8 @@ pub static dicomInstalled: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.24
 /// - **UID Type:** LDAP OID
-pub static dicomStationName: UID = UID {
-    ident: "dicomStationName",
+pub static DicomStationName: UID = UID {
+    ident: "DicomStationName",
     uid: "1.2.840.10008.15.0.3.24",
     name: "dicomStationName",
 };
@@ -3918,8 +3918,8 @@ pub static dicomStationName: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.25
 /// - **UID Type:** LDAP OID
-pub static dicomDeviceSerialNumber: UID = UID {
-    ident: "dicomDeviceSerialNumber",
+pub static DicomDeviceSerialNumber: UID = UID {
+    ident: "DicomDeviceSerialNumber",
     uid: "1.2.840.10008.15.0.3.25",
     name: "dicomDeviceSerialNumber",
 };
@@ -3928,8 +3928,8 @@ pub static dicomDeviceSerialNumber: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.26
 /// - **UID Type:** LDAP OID
-pub static dicomInstitutionName: UID = UID {
-    ident: "dicomInstitutionName",
+pub static DicomInstitutionName: UID = UID {
+    ident: "DicomInstitutionName",
     uid: "1.2.840.10008.15.0.3.26",
     name: "dicomInstitutionName",
 };
@@ -3938,8 +3938,8 @@ pub static dicomInstitutionName: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.27
 /// - **UID Type:** LDAP OID
-pub static dicomInstitutionAddress: UID = UID {
-    ident: "dicomInstitutionAddress",
+pub static DicomInstitutionAddress: UID = UID {
+    ident: "DicomInstitutionAddress",
     uid: "1.2.840.10008.15.0.3.27",
     name: "dicomInstitutionAddress",
 };
@@ -3948,8 +3948,8 @@ pub static dicomInstitutionAddress: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.28
 /// - **UID Type:** LDAP OID
-pub static dicomInstitutionDepartmentName: UID = UID {
-    ident: "dicomInstitutionDepartmentName",
+pub static DicomInstitutionDepartmentName: UID = UID {
+    ident: "DicomInstitutionDepartmentName",
     uid: "1.2.840.10008.15.0.3.28",
     name: "dicomInstitutionDepartmentName",
 };
@@ -3958,8 +3958,8 @@ pub static dicomInstitutionDepartmentName: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.29
 /// - **UID Type:** LDAP OID
-pub static dicomIssuerOfPatientID: UID = UID {
-    ident: "dicomIssuerOfPatientID",
+pub static DicomIssuerOfPatientID: UID = UID {
+    ident: "DicomIssuerOfPatientID",
     uid: "1.2.840.10008.15.0.3.29",
     name: "dicomIssuerOfPatientID",
 };
@@ -3968,8 +3968,8 @@ pub static dicomIssuerOfPatientID: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.30
 /// - **UID Type:** LDAP OID
-pub static dicomPreferredCallingAETitle: UID = UID {
-    ident: "dicomPreferredCallingAETitle",
+pub static DicomPreferredCallingAETitle: UID = UID {
+    ident: "DicomPreferredCallingAETitle",
     uid: "1.2.840.10008.15.0.3.30",
     name: "dicomPreferredCallingAETitle",
 };
@@ -3978,8 +3978,8 @@ pub static dicomPreferredCallingAETitle: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.3.31
 /// - **UID Type:** LDAP OID
-pub static dicomSupportedCharacterSet: UID = UID {
-    ident: "dicomSupportedCharacterSet",
+pub static DicomSupportedCharacterSet: UID = UID {
+    ident: "DicomSupportedCharacterSet",
     uid: "1.2.840.10008.15.0.3.31",
     name: "dicomSupportedCharacterSet",
 };
@@ -3988,8 +3988,8 @@ pub static dicomSupportedCharacterSet: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.1
 /// - **UID Type:** LDAP OID
-pub static dicomConfigurationRoot: UID = UID {
-    ident: "dicomConfigurationRoot",
+pub static DicomConfigurationRoot: UID = UID {
+    ident: "DicomConfigurationRoot",
     uid: "1.2.840.10008.15.0.4.1",
     name: "dicomConfigurationRoot",
 };
@@ -3998,8 +3998,8 @@ pub static dicomConfigurationRoot: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.2
 /// - **UID Type:** LDAP OID
-pub static dicomDevicesRoot: UID = UID {
-    ident: "dicomDevicesRoot",
+pub static DicomDevicesRoot: UID = UID {
+    ident: "DicomDevicesRoot",
     uid: "1.2.840.10008.15.0.4.2",
     name: "dicomDevicesRoot",
 };
@@ -4008,8 +4008,8 @@ pub static dicomDevicesRoot: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.3
 /// - **UID Type:** LDAP OID
-pub static dicomUniqueAETitlesRegistryRoot: UID = UID {
-    ident: "dicomUniqueAETitlesRegistryRoot",
+pub static DicomUniqueAETitlesRegistryRoot: UID = UID {
+    ident: "DicomUniqueAETitlesRegistryRoot",
     uid: "1.2.840.10008.15.0.4.3",
     name: "dicomUniqueAETitlesRegistryRoot",
 };
@@ -4018,8 +4018,8 @@ pub static dicomUniqueAETitlesRegistryRoot: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.4
 /// - **UID Type:** LDAP OID
-pub static dicomDevice: UID = UID {
-    ident: "dicomDevice",
+pub static DicomDevice: UID = UID {
+    ident: "DicomDevice",
     uid: "1.2.840.10008.15.0.4.4",
     name: "dicomDevice",
 };
@@ -4028,8 +4028,8 @@ pub static dicomDevice: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.5
 /// - **UID Type:** LDAP OID
-pub static dicomNetworkAE: UID = UID {
-    ident: "dicomNetworkAE",
+pub static DicomNetworkAE: UID = UID {
+    ident: "DicomNetworkAE",
     uid: "1.2.840.10008.15.0.4.5",
     name: "dicomNetworkAE",
 };
@@ -4038,8 +4038,8 @@ pub static dicomNetworkAE: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.6
 /// - **UID Type:** LDAP OID
-pub static dicomNetworkConnection: UID = UID {
-    ident: "dicomNetworkConnection",
+pub static DicomNetworkConnection: UID = UID {
+    ident: "DicomNetworkConnection",
     uid: "1.2.840.10008.15.0.4.6",
     name: "dicomNetworkConnection",
 };
@@ -4048,8 +4048,8 @@ pub static dicomNetworkConnection: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.7
 /// - **UID Type:** LDAP OID
-pub static dicomUniqueAETitle: UID = UID {
-    ident: "dicomUniqueAETitle",
+pub static DicomUniqueAETitle: UID = UID {
+    ident: "DicomUniqueAETitle",
     uid: "1.2.840.10008.15.0.4.7",
     name: "dicomUniqueAETitle",
 };
@@ -4058,8 +4058,8 @@ pub static dicomUniqueAETitle: UID = UID {
 ///
 /// - **UID:** 1.2.840.10008.15.0.4.8
 /// - **UID Type:** LDAP OID
-pub static dicomTransferCapability: UID = UID {
-    ident: "dicomTransferCapability",
+pub static DicomTransferCapability: UID = UID {
+    ident: "DicomTransferCapability",
     uid: "1.2.840.10008.15.0.4.8",
     name: "dicomTransferCapability",
 };
