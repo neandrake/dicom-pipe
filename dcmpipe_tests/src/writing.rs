@@ -240,7 +240,7 @@ pub fn test_write_attr() -> Result<(), WriteError> {
 
 #[test]
 pub fn test_write_double() -> Result<(), WriteError> {
-    let tag:u32 = 0x7fe1_1052;
+    let tag: u32 = 0x7fe1_1052;
     let mut elem = DicomElement::new_empty(tag, &vr::FD, &ts::JPEGBaselineProcess1);
 
     let value = vec![3499.9999999999995];
@@ -273,10 +273,16 @@ pub fn test_write_double() -> Result<(), WriteError> {
 #[test]
 #[ignore]
 pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
+    let mut any_failed = false;
     for path in crate::get_dicom_file_paths() {
         if let Err(e) = reencode_file_elements(path.clone()) {
+            any_failed = true;
             eprintln!("Error in file: {:?}\n\t{:?}", path, e);
         }
+    }
+
+    if any_failed {
+        panic!("Failed reencoding element values");
     }
 
     Ok(())
@@ -290,18 +296,7 @@ fn reencode_file_elements(path: PathBuf) -> Result<(), WriteError> {
         .build(File::open(path.clone())?);
 
     while let Some(Ok(mut elem)) = parser.next() {
-        if let Err(e) = assert_reencode_element(path_str, &mut elem) {
-            panic!(
-                "Error re-encoding element:\n\tfile: {}\n\ttagpath: {}\n\telem: {:?}\n\terr: {:?}",
-                path_str,
-                TagPath::format_tagpath_to_display(
-                    &elem.get_tagpath(),
-                    Some(&STANDARD_DICOM_DICTIONARY)
-                ),
-                elem,
-                e
-            );
-        }
+        assert_reencode_element(path_str, &mut elem)?;
     }
     Ok(())
 }
@@ -310,16 +305,7 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
     let orig_parsed_data = elem.get_data().clone();
     let value = elem.parse_value();
     if let Err(e) = value {
-        eprintln!(
-            "Parsing error in file.\n\tfile: {}\n\ttagpath: {}\n\telem: {:?}\n\terr: {:?}",
-            path_str,
-            TagPath::format_tagpath_to_display(
-                &elem.get_tagpath(),
-                Some(&STANDARD_DICOM_DICTIONARY)
-            ),
-            elem,
-            e
-        );
+        eprintln!("Parsing error in file.\n\tfile: {path_str}\n\terr: {e:?}");
         return Ok(());
     }
     let value = value?;
