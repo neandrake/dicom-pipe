@@ -1,13 +1,13 @@
 use std::io::Write;
 
-use crate::core::charset::{self, CSRef, DEFAULT_CHARACTER_SET};
+use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, RawValue};
 use crate::core::dcmsqelem::SequenceElement;
+use crate::core::read::ParseError;
 use crate::core::write::ds::dataset::Dataset;
 use crate::core::write::error::WriteError;
 use crate::core::{DICOM_PREFIX, FILE_PREAMBLE_LENGTH};
 use crate::defn::constants::{tags, ts};
-use crate::defn::tag::Tag;
 use crate::defn::ts::TSRef;
 use crate::defn::vl::{ValueLength, UNDEFINED_LENGTH};
 use crate::defn::vr::{self, VRRef};
@@ -79,22 +79,23 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let fme_length: u32 = 0;
         let group_len_element: DicomElement = self.new_fme(
             tags::FILE_META_INFORMATION_GROUP_LENGTH, &vr::UL,
-            RawValue::UnsignedIntegers(vec![fme_length]));
+            RawValue::UnsignedIntegers(vec![fme_length]))?;
 
         bytes_written += self.write_element(&group_len_element)?;
 
         Ok(bytes_written)
     }
 
-    fn new_fme(&self, tag: u32, vr: VRRef, value: RawValue) -> DicomElement {
+    fn new_fme(&self, tag: u32, vr: VRRef, value: RawValue) -> Result<DicomElement> {
         let mut element = DicomElement::new(tag, vr,
                           ValueLength::UndefinedLength,
                           &ts::ExplicitVRLittleEndian, DEFAULT_CHARACTER_SET,
                           Vec::with_capacity(0), Vec::with_capacity(0));
 
-        element.encode_value(value);
+        element.encode_value(value)
+            .map_err(|err| <ParseError as Into<WriteError>>::into(err))?;
 
-        element
+        Ok(element)
     }
 
     pub fn write_element(&mut self, element: &DicomElement) -> Result<usize> {
