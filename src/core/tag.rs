@@ -40,6 +40,12 @@ impl Tag {
     pub fn get_vm(&self) -> VMRef {
         self.vm
     }
+
+    pub fn format_tag_to_display(tag: u32) -> String {
+        let tag_upper: u32 = tag >> 16;
+        let tag_lower: u32 = tag & 0x0000FFFF;
+        format!("({:04X},{:04X})", tag_upper, tag_lower)
+    }
 }
 
 impl PartialEq for Tag {

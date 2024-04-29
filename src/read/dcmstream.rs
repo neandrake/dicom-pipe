@@ -291,7 +291,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 
     pub fn read_file_meta<F>(&mut self, each: F) -> Result<(), Error>
-        where F: Fn(&DicomElement) {
+        where F: Fn(&mut Self, u32) {
         // This is required for "well-formed" DICOM files however it's not 100% required
         // so somehow detect reading of FileMetaInformationGroupLength maybe?
         self.read_file_preamble()?;
@@ -320,8 +320,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
                 transfer_syntax = self.parse_transfer_syntax()?;
             }
 
-            let element: &DicomElement = self.get_element(element_tag)?;
-            each(element);
+            each(self, element_tag);
         }
 
         // don't set the transfer syntax until after reading all FileMeta, otherwise it 
@@ -332,7 +331,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
     }
 
     pub fn read_until<F>(&mut self, tagstop: TagStop, each: F) -> Result<(), Error>
-        where F: Fn(&DicomElement) {
+        where F: Fn(&mut Self, u32) {
         while !self.is_at_tag_stop(&tagstop)? {
             let element_tag: u32 = self.read_dicom_element()?;
 
@@ -340,8 +339,7 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
                 self.cs = self.parse_specific_character_set()?;
             }
 
-            let element: &DicomElement = self.get_element(element_tag)?;
-            each(element);
+            each(self, element_tag);
         }
         Ok(())
     }
@@ -360,5 +358,25 @@ impl<StreamType: ReadBytesExt> DicomStream<StreamType> {
         };
 
         Ok(is_at_tag_stop)
+    }
+
+    pub fn print_element(&mut self, element_tag: u32) -> Result<String, Error> {
+        let is_big_endian: bool = self.ts.big_endian;
+        let elem: &mut DicomElement = self.get_element_mut(element_tag)?;
+        let tag_num: String = Tag::format_tag_to_display(elem.tag);
+
+        let tag_name: String = if let Some(tag) = TAG_BY_VALUE.get(&elem.tag) {
+            format!("{}", tag.ident)
+        } else {
+            format!("{{Unknown Tag}}")
+        };
+
+        let tag_value: String = if is_big_endian {
+            elem.fmt_string_value::<BigEndian>()?
+        } else {
+            elem.fmt_string_value::<LittleEndian>()?
+        };
+
+        Ok(format!("{} {} {} => {}", tag_num, elem.vr.ident, tag_name, tag_value))
     }
 }

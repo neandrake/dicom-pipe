@@ -6,14 +6,14 @@ extern crate walkdir;
 use byteorder::ReadBytesExt;
 
 use core::dict::dicom_elements as tags;
+use core::tag::TagRef;
 
-use read::dcmelement::DicomElement;
 use read::dcmstream::{DicomStream, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH};
 use read::mock::MockDicomStream;
 use read::tagstop::TagStop;
 
 use std::fs::File;
-use std::io::Seek;
+use std::io::{Seek, stdout, Write};
 use std::path::Path;
 
 use walkdir::{DirEntry, WalkDir};
@@ -70,6 +70,62 @@ fn test_failure_to_read_preamble() {
 
 #[test]	// slow
 fn test_parse_known_dicom_files() {
+    let mut dstream: DicomStream<File> = get_first_file_stream();
+
+    println!("\n# Dicom-File-Format File\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}", dstream.get_ts().uid.ident);
+    dstream.read_file_meta(|ds: &mut DicomStream<File>, element_tag: u32| {
+            if let Ok(strval) = ds.print_element(element_tag) {
+                writeln!(&mut stdout(), "{}", strval)
+                    .expect("Failed printing to stdout");
+            } else {
+                panic!("Unable to print element");
+            }
+        })
+        .expect(&format!("Unable to read FileMetaInformation"));
+
+    let is_dcm = is_standard_preamble(&dstream);
+    assert!(is_dcm);
+
+    // Ability to read dicom elements after FileMetaInformation
+    // means that we interpret the transfer syntax properly, as
+    // the fixtures are implicit VR (FMI is encoded as explicit)
+    println!("\n\n# Dicom-Data-Set\n# Used TransferSyntax: {}", dstream.get_ts().uid.ident);
+
+    let read_until_before_tag: TagRef = &tags::PixelData;
+    dstream.read_until(
+        TagStop::BeforeTag(read_until_before_tag.tag),
+        |ds: &mut DicomStream<File>, element_tag: u32| {
+            if let Ok(strval) = ds.print_element(element_tag) {
+                writeln!(&mut stdout(), "{}", strval)
+                    .expect("Failed printing to stdout");
+            } else {
+                panic!("Unable to print element");
+            }
+        })
+        .expect(&format!("Error reading elements"));
+    
+    // read_until() should have stopped just prior to reading PixelData
+    let next_tag: u32 = dstream.read_next_tag()
+        .expect("Unable to read next tag");
+    assert_eq!(next_tag, read_until_before_tag.tag);
+    println!("Next Tag: {}", read_until_before_tag.ident);
+
+    // subsequent call to read_next_tag() should not advance reading elements
+    let next_tag: u32 = dstream.read_next_tag()
+        .expect("Unable to read next tag");
+    assert_eq!(next_tag, read_until_before_tag.tag);
+
+    // read_until() being given the same tag to read until should not
+    // read any elements
+    dstream.read_until(
+        TagStop::BeforeTag(read_until_before_tag.tag),
+        |_ds: &mut DicomStream<File>, _element_tag: u32| {
+            panic!("Should not read additional elements");
+        })
+        .expect(&format!("Error reading elements"));
+}
+
+fn get_first_file_stream() -> DicomStream<File> {
     let dirwalker: WalkDir = WalkDir::new(FIXTURE_DATASET1_FOLDER)
         .min_depth(1)
         .max_depth(1);
@@ -80,27 +136,11 @@ fn test_parse_known_dicom_files() {
 
         let mut dstream: DicomStream<File> = DicomStream::new_from_path(path)
             .expect(&format!("Unable to read file: {:?}", path));
-
-        println!("\n# Dicom-File-Format File: {:?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}", path, dstream.get_ts().uid.name);
-        dstream.read_file_meta(|elem: &DicomElement| {
-                println!("{:?}", elem);
-            })
-            .expect(&format!("Unable to read FileMetaInformation: {:?}", path));
-
-        let is_dcm = is_standard_preamble(&dstream);
-        assert!(is_dcm);
-
-        // Ability to read dicom elements after FileMetaInformation
-        // means that we interpret the transfer syntax properly, as
-        // the fixtures are implicit VR (FMI is encoded as explicit)
-        println!("\n\n# Dicom-Data-Set\n# Used TransferSyntax: {}", dstream.get_ts().uid.name);
-        dstream.read_until(
-            TagStop::BeforeTag(tags::PixelData.tag),
-            |elem: &DicomElement| {
-                println!("{:?}", elem);
-            })
-            .expect(&format!("Error reading elements: {:?}", path));
+        
+        return dstream;
     }
+
+    panic!("No DICOM files found");
 }
 
 /// Checks that the first 132 bytes are 128 0's followed by 'DICM'
