@@ -1,6 +1,7 @@
 use std::io::BufRead;
 
 use quick_xml::events::{BytesText, Event};
+use quick_xml::name::{LocalName, QName};
 use quick_xml::Error as XmlError;
 use quick_xml::Reader;
 
@@ -113,7 +114,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
     }
 
     fn parse_text_bytes(&self, data: &BytesText<'_>) -> String {
-        data.unescape_and_decode(&self.parser)
+        data.unescape()
             .unwrap_or_else(|_| panic!("Error parsing DICOM Entry Name: {:?}", data))
             .trim()
             .replace("\u{200b}", "")
@@ -168,17 +169,18 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
             // TODO: Move buffer into a reusable field that gets cleared before each use here.
             // Currently unsure how to do this because it causes borrow problems.
             let mut buf: Vec<u8> = Vec::new();
-            let res: Result<Event<'_>, XmlError> = self.parser.read_event(&mut buf);
+            let res: Result<Event<'_>, XmlError> = self.parser.read_event_into(&mut buf);
             match res {
                 Ok(Event::Start(ref e)) => {
-                    let local_name: &[u8] = e.local_name();
+                    let local_name: LocalName = e.local_name();
                     match self.state {
                         XmlDicomReadingState::Off => {
-                            if local_name == b"table" {
+                            if local_name == QName(b"table").into() {
                                 if let Some(xml_id_attr) = e
                                     .attributes()
                                     .find(|attr| {
-                                        !attr.is_err() && attr.as_ref().unwrap().key == b"xml:id"
+                                        !attr.is_err()
+                                            && attr.as_ref().unwrap().key == QName(b"xml:id")
                                     })
                                     .map(|attr| attr.unwrap())
                                 {
@@ -206,12 +208,12 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                             }
                         }
                         XmlDicomReadingState::InTableHead => {
-                            if local_name == b"tbody" {
+                            if local_name == QName(b"tbody").into() {
                                 self.state = XmlDicomReadingState::InTable;
                             }
                         }
                         XmlDicomReadingState::InTable => {
-                            if local_name == b"para" {
+                            if local_name == QName(b"para").into() {
                                 match self.table {
                                     XmlDicomDefinitionTable::DicomElements
                                     | XmlDicomDefinitionTable::FileMetaElements
@@ -230,7 +232,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                             }
                         }
                         XmlDicomReadingState::InDicomElementCell(element_cell) => {
-                            if local_name == b"para" {
+                            if local_name == QName(b"para").into() {
                                 self.state = match element_cell {
                                     XmlDicomElementCell::Tag => {
                                         XmlDicomReadingState::InDicomElementCell(
@@ -262,7 +264,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                             }
                         }
                         XmlDicomReadingState::InDicomUidCell(uid_cell) => {
-                            if local_name == b"para" {
+                            if local_name == QName(b"para").into() {
                                 self.state = match uid_cell {
                                     XmlDicomUidCell::Value => {
                                         XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Name)
@@ -280,11 +282,11 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                     }
                 }
                 Ok(Event::End(ref e)) => {
-                    let local_name: &[u8] = e.local_name();
+                    let local_name: LocalName = e.local_name();
                     match self.state {
                         XmlDicomReadingState::Off => {}
                         _ => {
-                            if local_name == b"tr" {
+                            if local_name == QName(b"tr").into() {
                                 if self.is_next_element_fully_read() {
                                     let out = XmlDicomElement {
                                         tag: self.element_tag.take().unwrap(),
@@ -342,7 +344,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         _ => {}
                                     }
                                 }
-                            } else if local_name == b"tbody" {
+                            } else if local_name == QName(b"tbody").into() {
                                 self.state = XmlDicomReadingState::Off;
                                 self.table = XmlDicomDefinitionTable::Unknown;
                             }

@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1" }
-phf = "0.10"
+phf = "0.11"
 
 [build-dependencies]
 dcmpipe_dict_builder = { path = "../dcmpipe_dict_builder", version = "0.1" }
