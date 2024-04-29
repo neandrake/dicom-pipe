@@ -27,10 +27,10 @@ const F64_SIZE: usize = std::mem::size_of::<f64>();
 const MAX_BYTES_IN_ERROR: usize = 16;
 
 /// Wrapper around `&[u8]` for getting a slice of the element value without the padding values
-struct BytesWithoutPadding<'me>(&'me [u8]);
+struct BytesWithoutPadding<'bytes>(&'bytes [u8]);
 
 /// For parsing an element value as a string with a specific VR
-pub struct ElementWithVr<'me>(pub &'me DicomElement, pub VRRef);
+pub struct ElementWithVr<'elem>(pub &'elem DicomElement, pub VRRef);
 
 /// Wrapper around `u32` for parsing DICOM Attributes
 #[derive(Debug)]
@@ -415,7 +415,9 @@ impl TryFrom<&DicomElement> for RawValue {
     /// There is only one way to encode unsigned shorts which is VR of UL, which will always return
     /// a `Vec<u32>` instead of `Vec<u16>`.
     fn try_from(value: &DicomElement) -> Result<Self> {
-        if value.vr == &vr::AT {
+        if value.get_data().is_empty() {
+            Ok(RawValue::Bytes(Vec::with_capacity(0)))
+        } else if value.vr == &vr::AT {
             let attr: Attribute = Attribute::try_from(value)?;
             Ok(RawValue::Attribute(attr))
         } else if value.vr == &vr::UI {
@@ -556,7 +558,7 @@ impl TryFrom<&DicomElement> for String {
     }
 }
 
-impl<'me> TryFrom<ElementWithVr<'me>> for String {
+impl<'elem> TryFrom<ElementWithVr<'elem>> for String {
     type Error = ParseError;
 
     /// Parses the value of this element as a string using the element's encoding and the specified
@@ -587,7 +589,7 @@ impl TryFrom<&DicomElement> for Vec<String> {
     }
 }
 
-impl<'me> TryFrom<ElementWithVr<'me>> for Vec<String> {
+impl<'elem> TryFrom<ElementWithVr<'elem>> for Vec<String> {
     type Error = ParseError;
 
     /// Parses the value of this element as a list of strings using the element's encoding and the
@@ -617,11 +619,11 @@ impl<'me> TryFrom<ElementWithVr<'me>> for Vec<String> {
     }
 }
 
-impl<'me> From<ElementWithVr<'me>> for BytesWithoutPadding<'me> {
+impl<'elem> From<ElementWithVr<'elem>> for BytesWithoutPadding<'elem> {
     /// Returns the value as a slice with the padding character
     /// removed per the specification of whether the VR indicates leading/trailing
     /// padding is significant.
-    fn from(value: ElementWithVr<'me>) -> Self {
+    fn from(value: ElementWithVr<'elem>) -> Self {
         // grab the position to start reading bytes from prior to computing the new bytes_read
         let mut lindex: usize = 0;
 
@@ -712,7 +714,10 @@ impl TryFrom<&DicomElement> for Vec<f32> {
         }
 
         let num_bytes: usize = value.data.len();
-        if num_bytes < F32_SIZE || num_bytes % F32_SIZE != 0 {
+        if num_bytes == 0 {
+            return Ok(Vec::with_capacity(0));
+        }
+        if num_bytes % F32_SIZE != 0 {
             return Err(error("num bytes not multiple of size of f32", value));
         }
 
@@ -771,7 +776,10 @@ impl TryFrom<&DicomElement> for Vec<f64> {
         }
 
         let num_bytes: usize = value.data.len();
-        if num_bytes < F64_SIZE || num_bytes % F64_SIZE != 0 {
+        if num_bytes == 0 {
+            return Ok(Vec::with_capacity(0));
+        }
+        if num_bytes % F64_SIZE != 0 {
             return Err(error("num bytes not multiple of size of f64", value));
         }
 
@@ -829,7 +837,10 @@ impl TryFrom<&DicomElement> for Vec<i16> {
         }
 
         let num_bytes: usize = value.data.len();
-        if num_bytes < I16_SIZE || num_bytes % I16_SIZE != 0 {
+        if num_bytes == 0 {
+            return Ok(Vec::with_capacity(0));
+        }
+        if num_bytes % I16_SIZE != 0 {
             return Err(error("num bytes not multiple of size of i16", value));
         }
 
@@ -888,7 +899,10 @@ impl TryFrom<&DicomElement> for Vec<i32> {
         }
 
         let num_bytes: usize = value.data.len();
-        if num_bytes < I32_SIZE || num_bytes % I32_SIZE != 0 {
+        if num_bytes == 0 {
+            return Ok(Vec::with_capacity(0));
+        }
+        if num_bytes % I32_SIZE != 0 {
             return Err(error("num bytes not multiple of size of i32", value));
         }
 
@@ -946,7 +960,10 @@ impl TryFrom<&DicomElement> for Vec<u32> {
         }
 
         let num_bytes: usize = value.data.len();
-        if num_bytes < U32_SIZE || num_bytes % U32_SIZE != 0 {
+        if num_bytes == 0 {
+            return Ok(Vec::with_capacity(0));
+        }
+        if num_bytes % U32_SIZE != 0 {
             return Err(error("num bytes not multiple of size of u32", value));
         }
 
@@ -1004,7 +1021,10 @@ impl TryFrom<&DicomElement> for Vec<u16> {
         }
 
         let num_bytes: usize = value.data.len();
-        if num_bytes < U16_SIZE || num_bytes % U16_SIZE != 0 {
+        if num_bytes == 0 {
+            return Ok(Vec::with_capacity(0));
+        }
+        if num_bytes % U16_SIZE != 0 {
             return Err(error("num bytes not multiple of size of u16", value));
         }
 
