@@ -25,8 +25,7 @@ pub struct DicomValueCache {
     uints: HashMap<u32, u32>,
 }
 
-impl DicomValueCache {
-}
+impl DicomValueCache {}
 
 /// Implements the parsing and caching of DicomElements to different native types
 impl DicomValueCache {

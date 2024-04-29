@@ -1,5 +1,4 @@
 pub mod charset;
-mod constants;
 pub mod dcmelement;
 pub mod dcmobject;
 pub mod dcmparser;
