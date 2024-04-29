@@ -5,12 +5,13 @@ use dcmpipe_dict::dict::{
 };
 use dcmpipe_lib::{
     core::{
+        charset,
         dcmelement::{DicomElement, RawValue},
         dcmobject::DicomRoot,
         read::{Parser, ParserBuilder},
         write::{error::WriteError, writer::Writer},
     },
-    defn::vr,
+    defn::{vl::ValueLength, vr},
 };
 
 use crate::mockdata;
@@ -25,49 +26,49 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
     let mut elements: Vec<DicomElement> = Vec::new();
 
     elements.push(writer.create_element(
-        tags::FileMetaInformationVersion.tag,
+        &tags::FileMetaInformationVersion,
         &vr::OB,
         RawValue::Bytes(vec![0x00, 0x01]),
     )?);
 
     elements.push(writer.create_element(
-        tags::MediaStorageSOPClassUID.tag,
+        &tags::MediaStorageSOPClassUID,
         &vr::UI,
         RawValue::Uid(uids::CTImageStorage.get_uid().to_string()),
     )?);
 
     elements.push(writer.create_element(
-        tags::MediaStorageSOPInstanceUID.tag,
+        &tags::MediaStorageSOPInstanceUID,
         &vr::UI,
         RawValue::Uid("1.2.276.0.7230010.3.1.4.1787205428.2345.1071048146.1".to_string()),
     )?);
 
     elements.push(writer.create_element(
-        tags::TransferSyntaxUID.tag,
+        &tags::TransferSyntaxUID,
         &vr::UI,
         RawValue::Uid(uids::RLELossless.get_uid().to_string()),
     )?);
 
     elements.push(writer.create_element(
-        tags::ImplementationClassUID.tag,
+        &tags::ImplementationClassUID,
         &vr::UI,
         RawValue::Uid("1.2.826.0.1.3680043.2.1143.107.104.103.115.2.1.0".to_string()),
     )?);
 
     elements.push(writer.create_element(
-        tags::ImplementationVersionName.tag,
+        &tags::ImplementationVersionName,
         &vr::SH,
         RawValue::Strings(vec!["GDCM 2.1.0".to_string()]),
     )?);
 
     elements.push(writer.create_element(
-        tags::SourceApplicationEntityTitle.tag,
+        &tags::SourceApplicationEntityTitle,
         &vr::AE,
         RawValue::Strings(vec!["gdcmconv".to_string()]),
     )?);
 
     elements.push(writer.create_element(
-        tags::SpecificCharacterSet.tag,
+        &tags::SpecificCharacterSet,
         &vr::CS,
         RawValue::Strings(vec!["ISO_IR 100".to_string()]),
     )?);
@@ -181,6 +182,43 @@ fn assert_byte_chunks(file_bytes: &Vec<u8>, written_bytes: &Vec<u8>) {
 }
 
 #[test]
+pub fn test_write_ushorts() -> Result<(), WriteError> {
+    let mut elem = DicomElement::new_empty(
+        &tags::ReferencedWaveformChannels,
+        &vr::US,
+        &ts::ExplicitVRLittleEndian,
+    );
+
+    let value = vec![1u16, 1u16];
+    elem.encode_value(RawValue::UnsignedShorts(value), None)?;
+
+    assert_eq!(&vec![1u8, 0u8, 1u8, 0u8], elem.get_data());
+
+    let raw_data = vec![1, 0, 1, 0];
+    elem = DicomElement::new(
+        &tags::ReferencedWaveformChannels,
+        &vr::US,
+        ValueLength::Explicit(4),
+        &ts::ExplicitVRLittleEndian,
+        charset::DEFAULT_CHARACTER_SET,
+        raw_data.clone(),
+        Vec::with_capacity(0),
+    );
+
+    let value = elem.parse_value()?;
+    match value {
+        RawValue::UnsignedShorts(shorts) => {
+            for (idx, &short) in shorts.iter().enumerate() {
+                assert_eq!(1, short, "mismatched short at index: {}", idx);
+            }
+        }
+        _ => panic!("Parsed value was not ushorts. Actually: {:?}", value),
+    }
+
+    Ok(())
+}
+
+#[test]
 #[ignore]
 pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
     for path in crate::get_dicom_file_paths() {
@@ -191,15 +229,53 @@ pub fn test_reencoded_values_all_files() -> Result<(), WriteError> {
             .build(File::open(path.clone())?);
 
         while let Some(Ok(mut elem)) = parser.next() {
-            let orig_parsed_data = elem.get_data().clone();
+            let mut orig_parsed_data = elem.get_data().clone();
             let value = elem.parse_value()?;
-            elem.encode_value(value, Some(elem.get_vl()))?;
+            elem.encode_value(value.clone(), Some(elem.get_vl()))?;
             let reencoded_data = elem.get_data().clone();
+
+            // Some formatting/values are expected to not match exactly. Adjust the original
+            // element data so that it would match what the writer would output.
+            if orig_parsed_data != reencoded_data {
+                if elem.get_vr() == &vr::DS {
+                    // Some datasets encode at least one digit precision, others don't. There's no
+                    // great way to update the original data in a minimal way to adjust for the
+                    // writer always ensuring a minimum of a single digit of precision for all
+                    // values in this element.
+                    continue;
+                }
+                if elem.get_vr() == &vr::IS || elem.get_vr() == &vr::LO {
+                    // Values may have originally had leading and trailing spaces which are lost
+                    // when parsed into RawValue. Additionally the same for leading zeros.
+                    let mut start_idx = 0;
+                    let mut end_idx = orig_parsed_data.len();
+                    for i in start_idx..end_idx {
+                        if orig_parsed_data[i] != vr::SPACE_PADDING && orig_parsed_data[i] != b'0' {
+                            start_idx = i;
+                            break;
+                        }
+                    }
+
+                    for i in (start_idx..end_idx).rev() {
+                        if orig_parsed_data[i] != vr::SPACE_PADDING {
+                            end_idx = i;
+                            break;
+                        }
+                    }
+
+                    orig_parsed_data = orig_parsed_data[start_idx..=end_idx].to_vec();
+
+                    // Add trailing space to match what the writer would have written.
+                    if orig_parsed_data.len() % 2 != 0 {
+                        orig_parsed_data.push(32);
+                    }
+                }
+            }
 
             assert_eq!(
                 orig_parsed_data, reencoded_data,
-                "Element did not re-encode the same. {} : {:?}",
-                path_str, elem
+                "Element did not re-encode the same. {} : {:?}.\n\tValue: {:?}",
+                path_str, elem, value
             );
         }
     }

@@ -17,12 +17,12 @@ use crate::defn::vr::{self, VRRef, CS_SEPARATOR};
 
 use super::charset::DEFAULT_CHARACTER_SET;
 
-const U16_SIZE: usize = std::mem::size_of::<u16>();
 const I16_SIZE: usize = std::mem::size_of::<i16>();
-const U32_SIZE: usize = std::mem::size_of::<u32>();
+const U16_SIZE: usize = std::mem::size_of::<u16>();
 const I32_SIZE: usize = std::mem::size_of::<i32>();
-const U64_SIZE: usize = std::mem::size_of::<u64>();
+const U32_SIZE: usize = std::mem::size_of::<u32>();
 const I64_SIZE: usize = std::mem::size_of::<i64>();
+const U64_SIZE: usize = std::mem::size_of::<u64>();
 const F32_SIZE: usize = std::mem::size_of::<f32>();
 const F64_SIZE: usize = std::mem::size_of::<f64>();
 
@@ -35,25 +35,26 @@ struct BytesWithoutPadding<'bytes>(&'bytes [u8]);
 pub struct ElementWithVr<'elem>(pub &'elem DicomElement, pub VRRef);
 
 /// Wrapper around `u32` for parsing DICOM Attributes
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Attribute(pub u32);
 
 /// Wrapper around an element's value parsed into a native/raw type
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RawValue {
     Attribute(Attribute),
     Uid(String),
     Strings(Vec<String>),
-    Floats(Vec<f32>),
-    Doubles(Vec<f64>),
     Shorts(Vec<i16>),
     UnsignedShorts(Vec<u16>),
     Integers(Vec<i32>),
     UnsignedIntegers(Vec<u32>),
     Longs(Vec<i64>),
     UnsignedLongs(Vec<u64>),
+    Floats(Vec<f32>),
+    Doubles(Vec<f64>),
     Bytes(Vec<u8>),
     Words(Vec<u16>),
+    DoubleWords(Vec<u32>),
 }
 
 fn error(message: &str, value: &DicomElement) -> ParseError {
@@ -101,18 +102,21 @@ impl fmt::Debug for DicomElement {
 }
 
 impl DicomElement {
-    pub fn new(
-        tag: u32,
+    pub fn new<T>(
+        tag: T,
         vr: VRRef,
         vl: ValueLength,
         ts: TSRef,
         cs: CSRef,
         data: Vec<u8>,
         sq_path: Vec<SequenceElement>,
-    ) -> Self {
+    ) -> Self
+    where
+        T: Into<u32>,
+    {
         let cs: CSRef = vr.get_proper_cs(cs);
         DicomElement {
-            tag,
+            tag: Into::<u32>::into(tag),
             vr,
             vl,
             data,
@@ -122,10 +126,13 @@ impl DicomElement {
         }
     }
 
-    pub fn new_empty(tag: u32, vr: VRRef, ts: TSRef) -> Self {
+    pub fn new_empty<T>(tag: T, vr: VRRef, ts: TSRef) -> Self
+    where
+        T: Into<u32>,
+    {
         let cs: CSRef = vr.get_proper_cs(DEFAULT_CHARACTER_SET);
         DicomElement {
-            tag,
+            tag: Into::<u32>::into(tag),
             vr,
             vl: ValueLength::UndefinedLength,
             data: Vec::with_capacity(0),
@@ -376,7 +383,8 @@ impl DicomElement {
             RawValue::Integers(ints) => {
                 if self.vr.is_character_string {
                     // This should only be the case for a VR of IS.
-                    let mut encoded = ints.into_iter()
+                    let mut encoded = ints
+                        .into_iter()
                         // In theory this should use the default character set, but this
                         // relies on i32::to_string only using ascii which falls under that.
                         .map(|int: i32| int.to_string().into_bytes())
@@ -488,6 +496,17 @@ impl DicomElement {
                 })
                 .flatten()
                 .collect::<Vec<u8>>(),
+            RawValue::DoubleWords(dwords) => dwords
+                .into_iter()
+                .map(|dword| {
+                    if self.ts.is_big_endian() {
+                        dword.to_be_bytes()
+                    } else {
+                        dword.to_le_bytes()
+                    }
+                })
+                .flatten()
+                .collect::<Vec<u8>>(),
             RawValue::Bytes(bytes) => bytes,
         };
 
@@ -535,7 +554,7 @@ impl TryFrom<&DicomElement> for RawValue {
         } else if value.vr == &vr::SS {
             Ok(RawValue::Shorts(Vec::<i16>::try_from(value)?))
         } else if value.vr == &vr::US {
-            Ok(RawValue::Words(Vec::<u16>::try_from(value)?))
+            Ok(RawValue::UnsignedShorts(Vec::<u16>::try_from(value)?))
         } else if value.vr == &vr::OW {
             Ok(RawValue::Words(Vec::<u16>::try_from(value)?))
         } else if value.vr == &vr::IS {
@@ -551,7 +570,7 @@ impl TryFrom<&DicomElement> for RawValue {
         } else if value.vr == &vr::UL {
             Ok(RawValue::UnsignedIntegers(Vec::<u32>::try_from(value)?))
         } else if value.vr == &vr::OL {
-            Ok(RawValue::UnsignedIntegers(Vec::<u32>::try_from(value)?))
+            Ok(RawValue::DoubleWords(Vec::<u32>::try_from(value)?))
         } else if value.vr == &vr::SV {
             Ok(RawValue::Longs(Vec::<i64>::try_from(value)?))
         } else if value.vr == &vr::UV {
@@ -792,7 +811,8 @@ impl TryFrom<&DicomElement> for Vec<f32> {
         let num_f32s: usize = num_bytes / F32_SIZE;
         let mut result: Vec<f32> = Vec::with_capacity(num_f32s);
         for i in 0..num_f32s {
-            buf.copy_from_slice(&value.data[i..(i + F32_SIZE)]);
+            let idx = i * F32_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + F32_SIZE)]);
             let val: f32 = if value.ts.is_big_endian() {
                 f32::from_be_bytes(buf)
             } else {
@@ -853,7 +873,8 @@ impl TryFrom<&DicomElement> for Vec<f64> {
         let num_f64s: usize = num_bytes / F64_SIZE;
         let mut result: Vec<f64> = Vec::with_capacity(num_f64s);
         for i in 0..num_f64s {
-            buf.copy_from_slice(&value.data[i..(i + F64_SIZE)]);
+            let idx = i * F64_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + F64_SIZE)]);
             let val: f64 = if value.ts.is_big_endian() {
                 f64::from_be_bytes(buf)
             } else {
@@ -915,7 +936,8 @@ impl TryFrom<&DicomElement> for Vec<i16> {
         let mut result: Vec<i16> = Vec::with_capacity(num_i16s);
         // TODO: Verify that we're parsing as 2s complement (not sure Endian should be considered?)
         for i in 0..num_i16s {
-            buf.copy_from_slice(&value.data[i..(i + I16_SIZE)]);
+            let idx = i * I16_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + I16_SIZE)]);
             let val: i16 = if value.ts.is_big_endian() {
                 i16::from_be_bytes(buf)
             } else {
@@ -976,7 +998,8 @@ impl TryFrom<&DicomElement> for Vec<i32> {
         let num_i32s: usize = num_bytes / I32_SIZE;
         let mut result: Vec<i32> = Vec::with_capacity(num_i32s);
         for i in 0..num_i32s {
-            buf.copy_from_slice(&value.data[i..(i + I32_SIZE)]);
+            let idx = i * I32_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + I32_SIZE)]);
             let val: i32 = if value.ts.is_big_endian() {
                 i32::from_be_bytes(buf)
             } else {
@@ -1037,7 +1060,8 @@ impl TryFrom<&DicomElement> for Vec<u32> {
         let num_u32s: usize = num_bytes / U32_SIZE;
         let mut result: Vec<u32> = Vec::with_capacity(num_u32s);
         for i in 0..num_u32s {
-            buf.copy_from_slice(&value.data[i..(i + U32_SIZE)]);
+            let idx = i * U32_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + U32_SIZE)]);
             let val: u32 = if value.ts.is_big_endian() {
                 u32::from_be_bytes(buf)
             } else {
@@ -1085,7 +1109,8 @@ impl TryFrom<&DicomElement> for Vec<u64> {
         let num_u64s: usize = num_bytes / U64_SIZE;
         let mut result: Vec<u64> = Vec::with_capacity(num_u64s);
         for i in 0..num_u64s {
-            buf.copy_from_slice(&value.data[i..(i + U64_SIZE)]);
+            let idx = i * U64_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + U64_SIZE)]);
             let val: u64 = if value.ts.is_big_endian() {
                 u64::from_be_bytes(buf)
             } else {
@@ -1133,7 +1158,8 @@ impl TryFrom<&DicomElement> for Vec<i64> {
         let num_i64s: usize = num_bytes / I64_SIZE;
         let mut result: Vec<i64> = Vec::with_capacity(num_i64s);
         for i in 0..num_i64s {
-            buf.copy_from_slice(&value.data[i..(i + I64_SIZE)]);
+            let idx = i * I64_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + I64_SIZE)]);
             let val: i64 = if value.ts.is_big_endian() {
                 i64::from_be_bytes(buf)
             } else {
@@ -1194,7 +1220,8 @@ impl TryFrom<&DicomElement> for Vec<u16> {
         let num_u16s: usize = num_bytes / U16_SIZE;
         let mut result: Vec<u16> = Vec::with_capacity(num_u16s);
         for i in 0..num_u16s {
-            buf.copy_from_slice(&value.data[i..(i + U16_SIZE)]);
+            let idx = i * U16_SIZE;
+            buf.copy_from_slice(&value.data[idx..(idx + U16_SIZE)]);
             let val: u16 = if value.ts.is_big_endian() {
                 u16::from_be_bytes(buf)
             } else {

@@ -82,7 +82,11 @@ impl<DatasetType: Write> Writer<DatasetType> {
         self
     }
 
-    pub fn create_element(&self, tag: u32, vr: VRRef, value: RawValue) -> Result<DicomElement> {
+    pub fn create_element<T>(&self, tag: T, vr: VRRef, value: RawValue) -> Result<DicomElement>
+    where
+        T: Into<u32>,
+    {
+        let tag: u32 = tag.into();
         let mut e = DicomElement::new_empty(tag, vr, self.ts);
         e.encode_value(value, None)?;
         Ok(e)

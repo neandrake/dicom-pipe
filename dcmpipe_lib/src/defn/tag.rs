@@ -56,7 +56,11 @@ impl Tag {
 
     /// Detects if the given tag is a private creator, which is defined to be an odd-numbered group
     /// number with an element number between 0x0010-0x00FF.
-    pub fn is_private_creator(tag: u32) -> bool {
+    pub fn is_private_creator<T>(tag: T) -> bool
+    where
+        T: Into<u32>,
+    {
+        let tag: u32 = tag.into();
         if !Tag::is_private(tag) {
             return false;
         }
@@ -66,7 +70,11 @@ impl Tag {
 
     /// Detects if the given tag is a private group length. These tags are deprecated according to
     /// the dicom standard.
-    pub fn is_private_group_length(tag: u32) -> bool {
+    pub fn is_private_group_length<T>(tag: T) -> bool
+    where
+        T: Into<u32>,
+    {
+        let tag: u32 = tag.into();
         if !Tag::is_private(tag) {
             return false;
         }
@@ -74,13 +82,21 @@ impl Tag {
     }
 
     /// Detects if the given tag is a group length tag, defined to have an element value of 0.
-    pub fn is_group_length(tag: u32) -> bool {
+    pub fn is_group_length<T>(tag: T) -> bool
+    where
+        T: Into<u32>,
+    {
+        let tag: u32 = tag.into();
         (tag & 0x0000_FFFF) == 0
     }
 
     /// Detects if the given tag is a private tag. This is only a basic/rudimentary check and is
     /// not based on previously registered private creators.
-    pub fn is_private(tag: u32) -> bool {
+    pub fn is_private<T>(tag: T) -> bool
+    where
+        T: Into<u32>,
+    {
+        let tag: u32 = tag.into();
         let tag_group: u32 = tag >> 16;
         // See Part 5, Section 7.1:
         // Private Data Elements have an odd Group Number that is not (0001,eeee), (0003,eeee),
@@ -89,14 +105,22 @@ impl Tag {
     }
 
     /// Renders the tag number as `(gggg,eeee)`.
-    pub fn format_tag_to_display(tag: u32) -> String {
+    pub fn format_tag_to_display<T>(tag: T) -> String
+    where
+        T: Into<u32>,
+    {
+        let tag: u32 = tag.into();
         let tag_group: u32 = tag >> 16;
         let tag_elem: u32 = tag & 0x0000_FFFF;
         format!("({:04X},{:04X})", tag_group, tag_elem)
     }
 
     /// Renders the tag number as `ggggeeee`.
-    pub fn format_tag_to_path_display(tag: u32) -> String {
+    pub fn format_tag_to_path_display<T>(tag: T) -> String
+    where
+        T: Into<u32>,
+    {
+        let tag: u32 = tag.into();
         let tag_group: u32 = tag >> 16;
         let tag_elem: u32 = tag & 0x0000_FFFF;
         format!("{:04X}{:04X}", tag_group, tag_elem)
@@ -114,6 +138,13 @@ impl PartialEq for Tag {
 impl Hash for Tag {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tag.hash(state);
+    }
+}
+
+/// Access the numeric tag, to allow functions to take `Into<u32>` rather than plain u32.
+impl Into<u32> for &Tag {
+    fn into(self) -> u32 {
+        self.tag
     }
 }
 

@@ -139,7 +139,7 @@ fn test_parser_state_without_std() -> Result<()> {
 }
 
 fn test_parser_state(with_std: bool) -> Result<()> {
-    let stop: u32 = tags::PixelData.tag;
+    let stop = &tags::PixelData;
     let file: File =
         File::open("./fixtures/gdcm/gdcmConformanceTests/D_CLUNIE_CT1_IVRLE_BigEndian.dcm")?;
     let mut parser: ParserBuilder<'_> =
