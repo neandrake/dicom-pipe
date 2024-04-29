@@ -99,7 +99,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         let element: DicomElement = self.read_dicom_element(tag, ts)?;
-        if element.get_tag() == tags::TRANSFER_SYNTAX_UID {
+        if element.tag() == tags::TRANSFER_SYNTAX_UID {
             match self.parse_transfer_syntax(&element) {
                 Ok(Some(ts)) => {
                     self.dataset_ts = Some(ts);

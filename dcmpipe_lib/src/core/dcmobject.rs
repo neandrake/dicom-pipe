@@ -56,26 +56,22 @@ impl<'dict> DicomRoot<'dict> {
     }
 
     /// Get the transfer syntax used to encode the dataset.
-    pub fn get_ts(&self) -> TSRef {
+    pub fn ts(&self) -> TSRef {
         self.ts
     }
 
     /// Get the character set used to encode string values.
-    pub fn get_cs(&self) -> CSRef {
+    pub fn cs(&self) -> CSRef {
         self.cs
     }
 
     /// Get the dictionary used to encode the dataset.
-    pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
+    pub fn dictionary(&self) -> &'dict dyn DicomDictionary {
         self.dictionary
     }
 
-    pub fn get_element(&self) -> Option<&DicomElement> {
-        None
-    }
-
     pub fn get_child_count(&self) -> usize {
-        self.facade.get_child_count()
+        self.facade.child_count()
     }
 
     pub fn get_child_by_tag(&self, tag: u32) -> Option<&DicomObject> {
@@ -86,8 +82,8 @@ impl<'dict> DicomRoot<'dict> {
         self.facade.iter_child_nodes()
     }
 
-    pub fn get_item_count(&self) -> usize {
-        self.facade.get_item_count()
+    pub fn item_count(&self) -> usize {
+        self.facade.item_count()
     }
 
     pub fn get_item_by_index(&self, index: usize) -> Option<&DicomObject> {
@@ -125,7 +121,7 @@ impl<'dict> DicomRoot<'dict> {
         let parse_result: Option<Result<DicomElement, ParseError>> =
             DicomRoot::parse_recurse(parser, &mut child_nodes, &mut items, true);
 
-        if !parser.get_behavior().allow_partial_object {
+        if !parser.behavior().allow_partial_object {
             if let Some(Err(e)) = parse_result {
                 return Err(e);
             }
@@ -139,9 +135,9 @@ impl<'dict> DicomRoot<'dict> {
         // Copy the parser state only after having parsed elements, to get appropriate transfer syntax
         // and specific character set.
         let root: DicomRoot<'_> = DicomRoot::new(
-            parser.get_ts(),
-            parser.get_cs(),
-            parser.get_dictionary(),
+            parser.ts(),
+            parser.cs(),
+            parser.dictionary(),
             child_nodes,
             items,
         );
@@ -175,8 +171,8 @@ impl<'dict> DicomRoot<'dict> {
         }
 
         while let Some(Ok(element)) = next_element {
-            let tag: u32 = element.get_tag();
-            let cur_seq_path_len: usize = element.get_sequence_path().len() + 1;
+            let tag: u32 = element.tag();
+            let cur_seq_path_len: usize = element.sequence_path().len() + 1;
 
             if prev_seq_path_len == 0 {
                 prev_seq_path_len = cur_seq_path_len;
@@ -193,7 +189,7 @@ impl<'dict> DicomRoot<'dict> {
             // does not read a value for those elements but lets the parser read its value as
             // separate elements which we're considering child elements.
             let dcmobj: DicomObject = if element.is_seq_like()
-                || (tag == tags::ITEM && element.get_vl() != ValueLength::Explicit(0))
+                || (tag == tags::ITEM && element.vl() != ValueLength::Explicit(0))
             {
                 let mut child_nodes: BTreeMap<u32, DicomObject> = BTreeMap::new();
                 let mut items: Vec<DicomObject> = Vec::new();
@@ -215,7 +211,7 @@ impl<'dict> DicomRoot<'dict> {
             // into an element which is not a child of the node we passed into the recursive call and
             // it should instead be added elsewhere up the tree.
             if let Some(Ok(next_elem)) = possible_next_elem {
-                let next_seq_path_len: usize = next_elem.get_sequence_path().len() + 1;
+                let next_seq_path_len: usize = next_elem.sequence_path().len() + 1;
                 match next_seq_path_len {
                     val if val < cur_seq_path_len => {
                         // If that element is still shorter than the current then it needs passed up further.
@@ -249,7 +245,7 @@ impl std::fmt::Debug for DicomRoot<'_> {
         write!(
             f,
             "<DicomRoot {} {}>",
-            self.get_ts().get_uid().get_name(),
+            self.ts().uid().name(),
             self.cs.name()
         )
     }
@@ -287,11 +283,11 @@ impl DicomObject {
         }
     }
 
-    pub fn get_element(&self) -> &DicomElement {
+    pub fn element(&self) -> &DicomElement {
         &self.element
     }
 
-    pub fn get_child_count(&self) -> usize {
+    pub fn child_count(&self) -> usize {
         self.child_nodes.len()
     }
 
@@ -303,7 +299,7 @@ impl DicomObject {
         self.child_nodes.iter()
     }
 
-    pub fn get_item_count(&self) -> usize {
+    pub fn item_count(&self) -> usize {
         self.items.len()
     }
 
@@ -317,8 +313,8 @@ impl DicomObject {
 
     /// Get a child node with the given `TagNode`.
     pub fn get_child_by_tagnode(&self, tag_node: &TagNode) -> Option<&DicomObject> {
-        self.get_child_by_tag(tag_node.get_tag())
-            .and_then(|o| match tag_node.get_item() {
+        self.get_child_by_tag(tag_node.tag())
+            .and_then(|o| match tag_node.item() {
                 None => Some(o),
                 Some(item_num) => o.get_item_by_index(item_num),
             })
@@ -345,11 +341,11 @@ impl DicomObject {
         // List items + contents first, as SQ objects will include both items for its contents as
         // well as the sequence delimiter as a child node.
         for dcmobj in self.iter_items() {
-            elements.push(dcmobj.get_element());
+            elements.push(dcmobj.element());
             elements.append(&mut (dcmobj.flatten()?));
         }
         for (_tag, dcmobj) in self.iter_child_nodes() {
-            elements.push(dcmobj.get_element());
+            elements.push(dcmobj.element());
             elements.append(&mut (dcmobj.flatten()?));
         }
 

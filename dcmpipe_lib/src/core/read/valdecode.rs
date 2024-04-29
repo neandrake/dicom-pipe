@@ -23,7 +23,7 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for RawValue {
     fn try_from(value: ElementWithVr<'elem>) -> Result<Self, Self::Error> {
         let elem = value.0;
         let vr = value.1;
-        if elem.get_data().is_empty() {
+        if elem.data().is_empty() {
             Ok(RawValue::Bytes(Vec::with_capacity(0)))
         } else if vr == &vr::AT {
             Ok(RawValue::Attribute(Vec::<Attribute>::try_from(elem)?))
@@ -63,7 +63,7 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for RawValue {
             // Check is_character_string last, as that will be true for a number of VRs above which
             // whose try_from will attempt to parse stringified numeric elems into native values.
             Ok(RawValue::Strings(Vec::<String>::try_from(elem)?))
-        } else if vr == &vr::UN && Tag::is_private_creator(elem.get_tag()) {
+        } else if vr == &vr::UN && Tag::is_private_creator(elem.tag()) {
             // See Part 5 Section 6.2.2
             // Some dicom datasets seem to explicitly encode their private creator UIDs with VR of UN
             // and in the case of Implicit VR the private tag will also not be known/lookup.
@@ -71,10 +71,10 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for RawValue {
             if let Ok(uid) = possible_uid {
                 Ok(RawValue::Uid(uid))
             } else {
-                Ok(RawValue::Bytes(elem.get_data().clone()))
+                Ok(RawValue::Bytes(elem.data().clone()))
             }
         } else {
-            Ok(RawValue::Bytes(elem.get_data().clone()))
+            Ok(RawValue::Bytes(elem.data().clone()))
         }
     }
 }
@@ -84,7 +84,7 @@ impl TryFrom<&DicomElement> for RawValue {
 
     /// Based on the VR of this element, parses the binary data into a RawValue.
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        TryFrom::try_from(ElementWithVr(value, value.get_vr()))
+        TryFrom::try_from(ElementWithVr(value, value.vr()))
     }
 }
 
@@ -117,7 +117,7 @@ impl TryFrom<&DicomElement> for String {
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        String::try_from(ElementWithVr(value, value.get_vr()))
+        String::try_from(ElementWithVr(value, value.vr()))
     }
 }
 
@@ -134,7 +134,7 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for String {
         let element: &DicomElement = value.0;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
-            .get_cs()
+            .cs()
             .decode(data)
             .map_err(|e| ParseError::CharsetError { source: e })
     }
@@ -148,7 +148,7 @@ impl TryFrom<&DicomElement> for Vec<String> {
     /// All character string VR's -- subsequent interpretation of String is necessary based on VR
     /// AE, AS, CS, DA, DS, DT, IS, LO, LT, PN, SH, ST, TM, UC, UI, UR, UT
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        Vec::<String>::try_from(ElementWithVr(value, value.get_vr()))
+        Vec::<String>::try_from(ElementWithVr(value, value.vr()))
     }
 }
 
@@ -166,7 +166,7 @@ impl<'elem> TryFrom<ElementWithVr<'elem>> for Vec<String> {
         let vr: VRRef = value.1;
         let data: &[u8] = BytesWithoutPadding::from(value).0;
         element
-            .get_cs()
+            .cs()
             .decode(data)
             .map_err(|e| ParseError::CharsetError { source: e })
             .map(|multivalue: String| {
@@ -190,7 +190,7 @@ impl<'elem> From<ElementWithVr<'elem>> for BytesWithoutPadding<'elem> {
         // grab the position to start reading bytes from prior to computing the new bytes_read
         let mut lindex: usize = 0;
 
-        let data: &[u8] = value.0.get_data().as_slice();
+        let data: &[u8] = value.0.data().as_slice();
         if data.is_empty() {
             return BytesWithoutPadding(data);
         }
@@ -269,7 +269,7 @@ where
     FLE: Fn(&[u8]) -> ParseResult<T>,
     FBE: Fn(&[u8]) -> ParseResult<T>,
 {
-    let num_bytes: usize = value.get_data().len();
+    let num_bytes: usize = value.data().len();
     if num_bytes == 0 {
         return Ok(Vec::with_capacity(0));
     }
@@ -294,8 +294,8 @@ where
 
     for item_num in 0..num_items {
         let idx = item_num * t_size;
-        buf.copy_from_slice(&value.get_data()[idx..(idx + t_size)]);
-        let val: T = if value.get_ts().is_big_endian() {
+        buf.copy_from_slice(&value.data()[idx..(idx + t_size)]);
+        let val: T = if value.ts().big_endian() {
             be(buf)?
         } else {
             le(buf)?
@@ -324,7 +324,7 @@ impl TryFrom<&DicomElement> for Vec<i16> {
     /// Parses the value for this element as a list of signed 16bit integer values
     /// Associated VRs: SS
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {
@@ -362,7 +362,7 @@ impl TryFrom<&DicomElement> for Vec<u16> {
     /// Parses the value for this element as a list of unsigned 16bit integer values
     /// Associated VRs: US, OW
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {
@@ -400,7 +400,7 @@ impl TryFrom<&DicomElement> for Vec<i32> {
     /// Parses the value for this element as a list of signed 32bit integer values
     /// Associated VRs: IS, SL
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {
@@ -438,7 +438,7 @@ impl TryFrom<&DicomElement> for Vec<u32> {
     /// Parses the value for this element as a list of unsigned 32bit integer values
     /// Associated VRs: UL, OL
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {
@@ -463,7 +463,7 @@ impl TryFrom<&DicomElement> for Vec<i64> {
     /// Parses the value for this element as a list of signed 64bit integer values
     /// Associated VRs: SV
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {
@@ -488,7 +488,7 @@ impl TryFrom<&DicomElement> for Vec<u64> {
     /// Parses the value for this element as a list of unsigned 64bit integer values
     /// Associated VRs: UV
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {
@@ -526,7 +526,7 @@ impl TryFrom<&DicomElement> for Vec<f32> {
     /// Parses the value for this element as a list of 32bit floating point values
     /// Associated VRs: FD, OF
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {
@@ -564,7 +564,7 @@ impl TryFrom<&DicomElement> for Vec<f64> {
     /// Parses the value for this element as a list of 64bit floating point values
     /// Associated VRs: DS, OD, FL -- and a fallback for IS.
     fn try_from(value: &DicomElement) -> ParseResult<Self> {
-        if value.get_vr().is_character_string {
+        if value.vr().is_character_string {
             return str_parse_nums(value);
         }
         let le = |b: &[u8]| {

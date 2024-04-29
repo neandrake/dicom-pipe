@@ -24,14 +24,14 @@ impl<'a> From<ParseErrorInfo<'a>> for ParseError {
         let message = value.1;
 
         // TODO: How to get a dicom dictionary here for better error messages?
-        let tagstring = TagPath::format_tagpath_to_display(&elem.get_tagpath(), None);
+        let tagstring = TagPath::format_tagpath_to_display(&elem.create_tagpath(), None);
         ParseError::ValueParseError {
             message: message.to_owned(),
             tagstring,
-            vr: elem.get_vr(),
-            cs: elem.get_cs(),
+            vr: elem.vr(),
+            cs: elem.cs(),
             bytes: elem
-                .get_data()
+                .data()
                 .iter()
                 .take(MAX_BYTES_IN_ERROR)
                 .cloned()

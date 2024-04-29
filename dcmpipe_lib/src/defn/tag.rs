@@ -36,22 +36,22 @@ pub struct Tag {
 
 impl Tag {
     /// Get the tag's identifier.
-    pub fn get_ident(&self) -> &'static str {
+    pub fn ident(&self) -> &'static str {
         self.ident
     }
 
     /// Get the tag's number.
-    pub fn get_tag(&self) -> u32 {
+    pub fn tag(&self) -> u32 {
         self.tag
     }
 
     /// Get the tag's implicit value representation, if it has one.
-    pub fn get_implicit_vr(&self) -> Option<VRRef> {
+    pub fn implicit_vr(&self) -> Option<VRRef> {
         self.implicit_vr
     }
 
     /// Get the tag's value multiplicity.
-    pub fn get_vm(&self) -> VMRef {
+    pub fn vm(&self) -> VMRef {
         self.vm
     }
 
@@ -165,17 +165,17 @@ impl TagNode {
     }
 
     /// Get the tag number for this node.
-    pub fn get_tag(&self) -> u32 {
+    pub fn tag(&self) -> u32 {
         self.tag
     }
 
     /// Get the 1-based item number this node references if this is a non-leaf node.
-    pub fn get_item(&self) -> Option<usize> {
+    pub fn item(&self) -> Option<usize> {
         self.item
     }
 
     /// Get the modifiable 1-based item number this node references if this is a non-leaf node.
-    pub fn get_item_mut(&mut self) -> &mut Option<usize> {
+    pub fn item_mut(&mut self) -> &mut Option<usize> {
         &mut self.item
     }
 
@@ -193,7 +193,7 @@ impl TagNode {
     /// "ReferencedFrameOfReferenceSequence[1]" => (0x3006_0010, Some(1))
     /// "(3006,0010)[1]" => (0x3006_0010, Some(1))
     /// ```
-    pub fn from_str(value: &str, dict: Option<&dyn DicomDictionary>) -> Result<Self, ParseError> {
+    pub fn parse(value: &str, dict: Option<&dyn DicomDictionary>) -> Result<Self, ParseError> {
         let value = value.trim();
         let mut index = None;
         let mut tag_id = value;
@@ -279,15 +279,15 @@ impl From<&Tag> for TagNode {
 
 impl From<SequenceElement> for TagNode {
     fn from(value: SequenceElement) -> Self {
-        value.get_node().clone()
+        value.node().clone()
     }
 }
 
 impl From<&SequenceElement> for TagNode {
     fn from(element: &SequenceElement) -> Self {
         TagNode {
-            tag: element.get_seq_tag(),
-            item: element.get_item_number(),
+            tag: element.seq_tag(),
+            item: element.item(),
         }
     }
 }
@@ -372,17 +372,17 @@ impl TagPath {
     ///  (0x3006_0016, Some(11)),
     ///  (0x0004_1504, None)]
     /// ```
-    pub fn from_str(
+    pub fn parse(
         value: &str,
         dict: Option<&dyn DicomDictionary>,
     ) -> Result<TagPath, ParseError> {
         let tags = value.split('.').collect::<Vec<&str>>();
         let mut nodes: Vec<TagNode> = Vec::with_capacity(tags.len());
         for (i, tag) in tags.iter().enumerate() {
-            let mut node = TagNode::from_str(tag, dict)?;
+            let mut node = TagNode::parse(tag, dict)?;
             // Assume item #1 for all but the last TagNode if no item is supplied.
             if i < tags.len() - 1 {
-                node.get_item_mut().get_or_insert(1);
+                node.item_mut().get_or_insert(1);
             }
             nodes.push(node);
         }
@@ -415,12 +415,12 @@ impl<T: Into<TagNode>> From<Vec<T>> for TagPath {
             // which defaults with an index of `None`, however unless it's the last node it should
             // not have an index of `None`. Assume `Some(1)` is the appropriate item index.
             let item = if i < len - 1 {
-                tag_node.get_item().or(Some(1))
+                tag_node.item().or(Some(1))
             } else {
-                tag_node.get_item()
+                tag_node.item()
             };
             nodes.push(TagNode {
-                tag: tag_node.get_tag(),
+                tag: tag_node.tag(),
                 item,
             })
         }
@@ -468,7 +468,7 @@ impl From<&[&SequenceElement]> for TagPath {
     fn from(elements: &[&SequenceElement]) -> Self {
         elements
             .iter()
-            .map(|sq_el| sq_el.get_node().clone())
+            .map(|sq_el| sq_el.node().clone())
             .collect::<Vec<TagNode>>()
             .into()
     }

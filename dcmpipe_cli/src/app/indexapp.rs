@@ -114,7 +114,7 @@ impl IndexApp {
                         entry.path().display()
                     )
                 })?;
-            let uid_key: String = uid_obj.get_element().try_into()?;
+            let uid_key: String = uid_obj.element().try_into()?;
             let entry_key: String = uid_key.clone();
             let dicom_doc: &mut DicomDoc = uid_to_doc
                 .entry(entry_key)
@@ -135,7 +135,7 @@ impl IndexApp {
             metadata_doc.insert("serieskey", uid_key);
 
             for (_child_tag, child_obj) in dcm_root.iter_child_nodes() {
-                let child_elem: &DicomElement = child_obj.get_element();
+                let child_elem: &DicomElement = child_obj.element();
                 if child_elem.is_seq_like() {
                     // TODO: handle sequences
                 } else {
@@ -312,7 +312,7 @@ impl IndexApp {
 
 /// Builds a bson value from the given `DicomElement` and inserts it into the bson document
 fn insert_elem_entry(elem: &DicomElement, dicom_doc: &mut Document) -> Result<()> {
-    let key: String = Tag::format_tag_to_path_display(elem.get_tag());
+    let key: String = Tag::format_tag_to_path_display(elem.tag());
     let raw_value: RawValue = elem.parse_value()?;
     match raw_value {
         RawValue::Attribute(attrs) => {

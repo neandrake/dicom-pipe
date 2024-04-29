@@ -43,8 +43,8 @@ impl ParseStop {
     }
 
     fn is_before_tag_value((target, current): (&TagNode, &TagNode)) -> bool {
-        let target_tag = target.get_tag();
-        match current.get_tag() {
+        let target_tag = target.tag();
+        match current.tag() {
             // The target tag has not yet been encountered, do not stop parsing.
             current_tag if current_tag < target_tag => false,
 
@@ -53,8 +53,8 @@ impl ParseStop {
 
             _current_tag => {
                 // The target tag is encountered, compare target index.
-                if let Some(cur_idx) = current.get_item() {
-                    match target.get_item() {
+                if let Some(cur_idx) = current.item() {
+                    match target.item() {
                         // If at or past (shouldn't occur) the target index then stop parsing.
                         Some(target_idx) => cur_idx >= target_idx,
 
@@ -70,8 +70,8 @@ impl ParseStop {
     }
 
     fn is_after_tag_value((target, current): (&TagNode, &TagNode)) -> bool {
-        let target_tag = target.get_tag();
-        match current.get_tag() {
+        let target_tag = target.tag();
+        match current.tag() {
             // The target tag has not yet been encountered, do not stop parsing.
             current_tag if current_tag < target_tag => false,
 
@@ -81,8 +81,8 @@ impl ParseStop {
 
             _current_tag => {
                 // The target tag is encountered, compare target index.
-                if let Some(cur_idx) = current.get_item() {
-                    match target.get_item() {
+                if let Some(cur_idx) = current.item() {
+                    match target.item() {
                         // If past the target index then stop parsing.
                         Some(target_idx) => cur_idx > target_idx,
 

@@ -6,6 +6,7 @@ edition = "2021"
 
 [features]
 index = ["dep:mongodb", "dep:bson"]
+default = ["index"]
 
 [dependencies]
 anyhow = "1.0"

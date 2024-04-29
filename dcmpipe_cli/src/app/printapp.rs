@@ -45,7 +45,7 @@ impl CommandApplication for PrintApp {
         stdout.write_all(format!(
             "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
             path,
-            parser.get_ts().uid.ident).as_ref()
+            parser.ts().uid.ident).as_ref()
         )?;
 
         let mut prev_was_file_meta: bool = true;
@@ -53,18 +53,18 @@ impl CommandApplication for PrintApp {
         while let Some(elem) = parser.next() {
             let elem: DicomElement = elem?;
 
-            if prev_was_file_meta && elem.get_tag() > FILE_META_GROUP_END {
+            if prev_was_file_meta && elem.tag() > FILE_META_GROUP_END {
                 stdout.write_all(
                     format!(
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
-                        parser.get_ts().uid.ident
+                        parser.ts().uid.ident
                     )
                     .as_ref(),
                 )?;
                 prev_was_file_meta = false;
             }
 
-            let printed: Option<String> = render_element(parser.get_ts(), &elem)?;
+            let printed: Option<String> = render_element(parser.ts(), &elem)?;
 
             if let Some(printed) = printed {
                 stdout.write_all(format!("{}\n", printed).as_ref())?;
@@ -86,37 +86,37 @@ impl CommandApplication for PrintApp {
 /// Names for unknown tags will render as `<UnknownTag>`
 fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
     // Group Length tags are deprecated, see note on Part 5 Section 7.2
-    if HIDE_GROUP_TAGS && element.get_tag().trailing_zeros() >= 16 {
+    if HIDE_GROUP_TAGS && element.tag().trailing_zeros() >= 16 {
         return Ok(None);
     }
 
     // These are delimiter items that are not very useful to see
     if HIDE_DELIMITATION_TAGS
-        && (element.get_tag() == tags::ItemDelimitationItem.tag
-            || element.get_tag() == tags::SequenceDelimitationItem.tag)
+        && (element.tag() == tags::ItemDelimitationItem.tag
+            || element.tag() == tags::SequenceDelimitationItem.tag)
     {
         return Ok(None);
     }
 
     // Some (malformed?) datasets have a bunch of zeroes between elements.
-    if element.get_tag() == 0
-        && ((ts.is_explicit_vr() && element.get_vr() == &vr::INVALID)
-            || (!ts.is_explicit_vr() && element.get_vr() == &vr::UN))
-        && element.get_vl() == ValueLength::Explicit(0)
+    if element.tag() == 0
+        && ((ts.explicit_vr() && element.vr() == &vr::INVALID)
+            || (!ts.explicit_vr() && element.vr() == &vr::UN))
+        && element.vl() == ValueLength::Explicit(0)
     {
         return Ok(None);
     }
 
-    let tag_num: String = Tag::format_tag_to_display(element.get_tag());
+    let tag_num: String = Tag::format_tag_to_display(element.tag());
     let tag_name: TagCategory = element.into();
-    let vr: &str = element.get_vr().ident;
+    let vr: &str = element.vr().ident;
 
-    let vl: String = match element.get_vl() {
+    let vl: String = match element.vl() {
         ValueLength::Explicit(len) => {
             if len % 2 != 0 {
-                format!("[*{:?}]", element.get_vl())
+                format!("[*{:?}]", element.vl())
             } else {
-                format!("[{:?}]", element.get_vl())
+                format!("[{:?}]", element.vl())
             }
         }
         ValueLength::UndefinedLength => "[u/l]".to_string(),
@@ -125,28 +125,28 @@ fn render_element(ts: TSRef, element: &DicomElement) -> Result<Option<String>> {
     // Sequence path will nest tags under ITEM elements. Double the indentation level for the
     // number of nested sequences (non-ITEM), and each ITEM element should be nested one level.
     // If the current element is a delimiter then reduce the associated indentation level.
-    let seq_path: &Vec<SequenceElement> = element.get_sequence_path();
+    let seq_path: &Vec<SequenceElement> = element.sequence_path();
     let non_item_parents = seq_path
         .iter()
-        .filter(|sq_el| sq_el.get_seq_tag() != tags::Item.tag)
+        .filter(|sq_el| sq_el.seq_tag() != tags::Item.tag)
         .count();
     let item_parents = seq_path
         .iter()
-        .filter(|sq_el| sq_el.get_seq_tag() == tags::Item.tag)
+        .filter(|sq_el| sq_el.seq_tag() == tags::Item.tag)
         .count();
     let mut indent_width = non_item_parents * 2 + item_parents;
-    if element.get_tag() == tags::ItemDelimitationItem.tag {
+    if element.tag() == tags::ItemDelimitationItem.tag {
         indent_width -= 1;
-    } else if element.get_tag() == tags::SequenceDelimitationItem.tag {
+    } else if element.tag() == tags::SequenceDelimitationItem.tag {
         indent_width -= 2;
     }
 
-    if element.get_tag() == tags::Item.tag {
+    if element.tag() == tags::Item.tag {
         let item_desc: String = if let Some(last_seq_elem) = seq_path.last() {
             format!(
                 "{} {} {}",
                 last_seq_elem
-                    .get_item_number()
+                    .item()
                     .map(|item_no: usize| format!("#{}", item_no))
                     .unwrap_or_else(|| "#[NO ITEM NUMBER]".to_string()),
                 vr,

@@ -108,10 +108,10 @@ pub(crate) fn read_value_length_from_dataset(
     ts: TSRef,
     vr: VRRef,
 ) -> ParseResult<ValueLength> {
-    let value_length: u32 = if !ts.is_explicit_vr() || vr.has_explicit_2byte_pad {
+    let value_length: u32 = if !ts.explicit_vr() || vr.has_explicit_2byte_pad {
         let mut buf: [u8; 4] = [0; 4];
         dataset.read_exact(&mut buf)?;
-        if ts.is_big_endian() {
+        if ts.big_endian() {
             u32::from_be_bytes(buf)
         } else {
             u32::from_le_bytes(buf)
@@ -119,11 +119,11 @@ pub(crate) fn read_value_length_from_dataset(
     } else {
         let mut buf: [u8; 2] = [0; 2];
         dataset.read_exact(&mut buf)?;
-        if ts.is_big_endian() {
+        if ts.big_endian() {
             u16::from_be_bytes(buf) as u32
         } else {
             u16::from_le_bytes(buf) as u32
         }
     };
-    Ok(vl::from_value_length(value_length))
+    Ok(vl::from_u32(value_length))
 }

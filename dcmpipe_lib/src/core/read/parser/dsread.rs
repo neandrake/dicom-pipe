@@ -40,7 +40,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             partial_tag
         } else {
             let tag: u32 =
-                read::util::read_tag_from_dataset(&mut self.dataset, ts.is_big_endian())?;
+                read::util::read_tag_from_dataset(&mut self.dataset, ts.big_endian())?;
             self.bytes_read += 4;
             self.partial_tag.replace(tag);
             tag
@@ -73,12 +73,12 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         // XXX: ?? Elements within a Private Sequence with VR of SQ and VL of Explicit should be in
         //   ImplicitVR.
         let is_parent_priv_seq = self.current_path.iter().rev().any(|sq_el| {
-            Tag::is_private(sq_el.get_seq_tag())
-                && is_non_standard_seq(sq_el.get_seq_tag(), sq_el.get_vr(), sq_el.get_vl())
+            Tag::is_private(sq_el.seq_tag())
+                && is_non_standard_seq(sq_el.seq_tag(), sq_el.vr(), sq_el.vl())
         });
 
         let ts: TSRef = if is_seq_delim || is_parent_priv_seq {
-            if elem_ts.is_big_endian() {
+            if elem_ts.big_endian() {
                 &ts::ImplicitVRBigEndian
             } else {
                 &ts::ImplicitVRLittleEndian
@@ -121,7 +121,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
         let parse_as_seq: bool = read::util::is_non_standard_seq(tag, vr, vl);
         let ts: TSRef = if parse_as_seq {
-            if !ts.is_big_endian() {
+            if !ts.big_endian() {
                 &ts::ImplicitVRLittleEndian
             } else {
                 &ts::ImplicitVRBigEndian
@@ -152,7 +152,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         let ancestors: Vec<SequenceElement> = self.current_path.clone();
 
         let cs: CSRef = if let Some(sq) = ancestors.last() {
-            sq.get_cs()
+            sq.cs()
         } else {
             self.cs
         };
@@ -184,7 +184,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     fn lookup_vr(&self, tag: u32) -> Option<VRRef> {
         self.dictionary
             .get_tag_by_number(tag)
-            .and_then(|read_tag: &Tag| read_tag.get_implicit_vr())
+            .and_then(|read_tag: &Tag| read_tag.implicit_vr())
     }
 
     /// Reads a Value Length attribute from the dataset using the given transfer syntax. The number
@@ -196,7 +196,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         if result.is_ok() {
             // For Implicit VR or Explicit w/ 2-byte pad then Value Length is read as a u32,
             // otherwise it's read as a u16.
-            if !ts.is_explicit_vr() || vr.has_explicit_2byte_pad {
+            if !ts.explicit_vr() || vr.has_explicit_2byte_pad {
                 self.bytes_read += 4;
             } else {
                 self.bytes_read += 2;

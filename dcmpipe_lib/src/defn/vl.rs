@@ -23,7 +23,7 @@ impl fmt::Debug for ValueLength {
 }
 
 /// Creates a value length from the given numeric value.
-pub fn from_value_length(vl: u32) -> ValueLength {
+pub fn from_u32(vl: u32) -> ValueLength {
     if vl == UNDEFINED_LENGTH {
         ValueLength::UndefinedLength
     } else {

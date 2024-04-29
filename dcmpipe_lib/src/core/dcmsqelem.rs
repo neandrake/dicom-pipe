@@ -60,31 +60,31 @@ impl SequenceElement {
         }
     }
 
-    pub fn get_node(&self) -> &TagNode {
+    pub fn node(&self) -> &TagNode {
         &self.node
     }
 
-    pub fn get_seq_tag(&self) -> u32 {
-        self.node.get_tag()
+    pub fn seq_tag(&self) -> u32 {
+        self.node.tag()
     }
 
-    pub fn get_seq_end_pos(&self) -> Option<u64> {
+    pub fn item(&self) -> Option<usize> {
+        self.node.item()
+    }
+
+    pub fn seq_end_pos(&self) -> Option<u64> {
         self.seq_end_pos
     }
 
-    pub fn get_vr(&self) -> VRRef {
+    pub fn vr(&self) -> VRRef {
         self.vr
     }
 
-    pub fn get_vl(&self) -> ValueLength {
+    pub fn vl(&self) -> ValueLength {
         self.vl
     }
 
-    pub fn get_item_number(&self) -> Option<usize> {
-        self.node.get_item()
-    }
-
-    pub fn get_cs(&self) -> CSRef {
+    pub fn cs(&self) -> CSRef {
         self.cs
     }
 
@@ -92,25 +92,26 @@ impl SequenceElement {
         self.cs = cs;
     }
 
-    pub fn increment_item_num(&mut self) {
-        match self.node.get_item() {
+    pub fn increment_item(&mut self) {
+        match self.node.item() {
             None => {
-                self.node.get_item_mut().replace(1);
+                // Item numbers start at 1.
+                self.node.item_mut().replace(1);
             }
             Some(val) => {
-                self.node.get_item_mut().replace(val + 1);
+                self.node.item_mut().replace(val + 1);
             }
         }
     }
 
-    pub fn decrement_item_num(&mut self) {
-        match self.node.get_item() {
+    pub fn decrement_item(&mut self) {
+        match self.node.item() {
             None => {}
             Some(val) if val > 1 => {
-                self.node.get_item_mut().replace(val - 1);
+                self.node.item_mut().replace(val - 1);
             }
             Some(_) => {
-                self.node.get_item_mut().take();
+                self.node.item_mut().take();
             }
         }
     }

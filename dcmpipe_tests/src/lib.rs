@@ -101,7 +101,7 @@ pub fn is_standard_dcm_file<DatasetType>(parser: &Parser<'_, DatasetType>) -> bo
 where
     DatasetType: Read,
 {
-    match parser.get_file_preamble() {
+    match parser.file_preamble() {
         Some(file_preamble) => {
             for b in file_preamble.iter().take(FILE_PREAMBLE_LENGTH) {
                 if *b != 0 {
@@ -113,7 +113,7 @@ where
         None => {}
     }
 
-    match parser.get_dicom_prefix() {
+    match parser.dicom_prefix() {
         Some(prefix) => {
             for i in 0..DICOM_PREFIX_LENGTH {
                 if prefix[i] != DICOM_PREFIX[i] {
@@ -139,7 +139,7 @@ pub fn parse_all_dcmroot_values(dcmroot: &DicomRoot<'_>) -> ParseResult<()> {
 
 fn parse_all_dcmobj_values(dcmobj: &DicomObject) -> ParseResult<()> {
     // Parse current element value before moving on to items/children.
-    dcmobj.get_element().parse_value()?;
+    dcmobj.element().parse_value()?;
     for item_dcmobj in dcmobj.iter_items() {
         parse_all_dcmobj_values(item_dcmobj)?;
     }

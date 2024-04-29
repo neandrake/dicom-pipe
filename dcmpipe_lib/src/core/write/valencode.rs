@@ -52,7 +52,7 @@ impl<'a> TryFrom<ElemAndRawValue<'a>> for Vec<u8> {
         // character shall be applied to the end of the Value Field (to the last Value), in which
         // case the length of the last Value may exceed the Length of Value by 1.
         if bytes.len() % 2 != 0 {
-            bytes.push(elem.get_vr().padding);
+            bytes.push(elem.vr().padding);
         }
 
         Ok(bytes)
@@ -73,7 +73,7 @@ impl<'a> From<ElemAndAttributes<'a>> for Vec<u8> {
             let group_number: u16 = ((attr >> 16) & 0xFFFF) as u16;
             let elem_number: u16 = (attr & 0xFFFF) as u16;
             let idx = i * U32_SIZE;
-            if elem.get_ts().is_big_endian() {
+            if elem.ts().big_endian() {
                 bytes[idx..(idx + 2)].copy_from_slice(&group_number.to_be_bytes());
                 bytes[(idx + 2)..(idx + 4)].copy_from_slice(&elem_number.to_be_bytes());
             } else {
@@ -92,7 +92,7 @@ impl<'a> TryFrom<ElemAndUid<'a>> for Vec<u8> {
     fn try_from(value: ElemAndUid<'a>) -> Result<Self, Self::Error> {
         let elem = value.0;
         let uid = value.1;
-        elem.get_cs()
+        elem.cs()
             .encode(&uid)
             .map_err(|e| ParseError::CharsetError { source: e })
     }
@@ -110,7 +110,7 @@ impl<'a> TryFrom<ElemAndStrings<'a>> for Vec<u8> {
         let (values, errs): (MaybeBytes, MaybeBytes) = strings
             .iter()
             .map(|s| {
-                elem.get_cs()
+                elem.cs()
                     .encode(s)
                     // Add the separator after each encoded value. Below the last separator
                     // will be popped off.
@@ -143,7 +143,7 @@ impl<'a> From<ElemAndShorts<'a>> for Vec<u8> {
         let elem = value.0;
         let shorts = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // This should only be the case for a VR of IS.
             let mut encoded = shorts
                 .into_iter()
@@ -159,7 +159,7 @@ impl<'a> From<ElemAndShorts<'a>> for Vec<u8> {
             shorts
                 .into_iter()
                 .flat_map(|short: i16| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         short.to_be_bytes()
                     } else {
                         short.to_le_bytes()
@@ -176,7 +176,7 @@ impl<'a> From<ElemAndUnsignedShorts<'a>> for Vec<u8> {
         let elem = value.0;
         let ushorts = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // This should only be the case for a VR of IS.
             let mut encoded = ushorts
                 .into_iter()
@@ -192,7 +192,7 @@ impl<'a> From<ElemAndUnsignedShorts<'a>> for Vec<u8> {
             ushorts
                 .into_iter()
                 .flat_map(|ushort: u16| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         ushort.to_be_bytes()
                     } else {
                         ushort.to_le_bytes()
@@ -209,7 +209,7 @@ impl<'a> From<ElemAndIntegers<'a>> for Vec<u8> {
         let elem = value.0;
         let ints = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // This should only be the case for a VR of IS.
             let mut encoded = ints
                 .into_iter()
@@ -224,7 +224,7 @@ impl<'a> From<ElemAndIntegers<'a>> for Vec<u8> {
             // This should only be the case for a VR of SL.
             ints.into_iter()
                 .flat_map(|int: i32| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         int.to_be_bytes()
                     } else {
                         int.to_le_bytes()
@@ -241,7 +241,7 @@ impl<'a> From<ElemAndUnsignedIntegers<'a>> for Vec<u8> {
         let elem = value.0;
         let uints = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // XXX: This shouldn't happen. Unsigned integers should only ever be encoded
             // as binary.
             let mut encoded = uints
@@ -258,7 +258,7 @@ impl<'a> From<ElemAndUnsignedIntegers<'a>> for Vec<u8> {
             uints
                 .into_iter()
                 .flat_map(|uint: u32| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         uint.to_be_bytes()
                     } else {
                         uint.to_le_bytes()
@@ -275,7 +275,7 @@ impl<'a> From<ElemAndLongs<'a>> for Vec<u8> {
         let elem = value.0;
         let longs = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // This should only be the case for a VR of IS.
             let mut encoded = longs
                 .into_iter()
@@ -291,7 +291,7 @@ impl<'a> From<ElemAndLongs<'a>> for Vec<u8> {
             longs
                 .into_iter()
                 .flat_map(|long: i64| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         long.to_be_bytes()
                     } else {
                         long.to_le_bytes()
@@ -308,7 +308,7 @@ impl<'a> From<ElemAndUnsignedLongs<'a>> for Vec<u8> {
         let elem = value.0;
         let ulongs = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // XXX: This shouldn't happen. Unsigned integers should only ever be encoded
             // as binary.
             let mut encoded = ulongs
@@ -325,7 +325,7 @@ impl<'a> From<ElemAndUnsignedLongs<'a>> for Vec<u8> {
             ulongs
                 .into_iter()
                 .flat_map(|ulong: u64| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         ulong.to_be_bytes()
                     } else {
                         ulong.to_le_bytes()
@@ -342,7 +342,7 @@ impl<'a> From<ElemAndFloats<'a>> for Vec<u8> {
         let elem = value.0;
         let floats = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // This should only be the case for a VR of DS.
             let mut encoded = floats
                 .into_iter()
@@ -367,7 +367,7 @@ impl<'a> From<ElemAndFloats<'a>> for Vec<u8> {
                 .into_iter()
                 .filter(|float: &f32| float.is_finite())
                 .flat_map(|float: f32| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         float.to_be_bytes()
                     } else {
                         float.to_le_bytes()
@@ -384,7 +384,7 @@ impl<'a> From<ElemAndDoubles<'a>> for Vec<u8> {
         let elem = value.0;
         let doubles = value.1;
 
-        if elem.get_vr().is_character_string {
+        if elem.vr().is_character_string {
             // This should only be the case for a VR of DS.
             let mut encoded = doubles
                 .into_iter()
@@ -409,7 +409,7 @@ impl<'a> From<ElemAndDoubles<'a>> for Vec<u8> {
                 .into_iter()
                 .filter(|double: &f64| double.is_finite())
                 .flat_map(|double: f64| {
-                    if elem.get_ts().is_big_endian() {
+                    if elem.ts().big_endian() {
                         double.to_be_bytes()
                     } else {
                         double.to_le_bytes()
@@ -429,7 +429,7 @@ impl<'a> From<ElemAndWords<'a>> for Vec<u8> {
         words
             .into_iter()
             .flat_map(|word| {
-                if elem.get_ts().is_big_endian() {
+                if elem.ts().big_endian() {
                     word.to_be_bytes()
                 } else {
                     word.to_le_bytes()
@@ -448,7 +448,7 @@ impl<'a> From<ElemAndDoubleWords<'a>> for Vec<u8> {
         dwords
             .into_iter()
             .flat_map(|dword| {
-                if elem.get_ts().is_big_endian() {
+                if elem.ts().big_endian() {
                     dword.to_be_bytes()
                 } else {
                     dword.to_le_bytes()
@@ -467,7 +467,7 @@ impl<'a> From<ElemAndQuadWords<'a>> for Vec<u8> {
         qwords
             .into_iter()
             .flat_map(|qword| {
-                if elem.get_ts().is_big_endian() {
+                if elem.ts().big_endian() {
                     qword.to_be_bytes()
                 } else {
                     qword.to_le_bytes()

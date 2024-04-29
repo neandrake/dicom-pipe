@@ -76,7 +76,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         bytes_read += buf.len();
         let mut cursor: Cursor<&[u8]> = Cursor::new(&buf);
 
-        let mut tag: u32 = read::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
+        let mut tag: u32 = read::util::read_tag_from_dataset(&mut cursor, ts.big_endian())?;
 
         if tag == 0 {
             // if tag is zero then assume preamble, jump forward and attempt to detect tag after it
@@ -103,7 +103,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
-            tag = read::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
+            tag = read::util::read_tag_from_dataset(&mut cursor, ts.big_endian())?;
 
             // if switching endian didn't result in a valid tag then try skipping preamble/prefix
             if !(tags::FILE_META_INFORMATION_GROUP_LENGTH..=tags::SOP_INSTANCE_UID).contains(&tag) {
@@ -128,12 +128,12 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
         }
 
         // if not an expected non-file-meta tag then try big-endian
-        if !ts.is_big_endian() && tag < tags::FILE_META_INFORMATION_GROUP_LENGTH
+        if !ts.big_endian() && tag < tags::FILE_META_INFORMATION_GROUP_LENGTH
             || tag > tags::SOP_INSTANCE_UID
         {
             cursor.set_position(0);
             ts = &ts::ExplicitVRBigEndian;
-            tag = read::util::read_tag_from_dataset(&mut cursor, ts.is_big_endian())?;
+            tag = read::util::read_tag_from_dataset(&mut cursor, ts.big_endian())?;
         }
 
         // doesn't appear to be a valid tag in either big or little endian
@@ -181,7 +181,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                     cursor.set_position(2);
                 }
 
-                if ts.is_big_endian() {
+                if ts.big_endian() {
                     ts = &ts::ExplicitVRBigEndian;
                 } else {
                     ts = &ts::ExplicitVRLittleEndian;
@@ -192,7 +192,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 // unknown VR so this was likely a value length read in, reset the 4-byte buffer
                 // read in as vr and next read it as value length.
                 cursor.set_position(0);
-                if ts.is_big_endian() {
+                if ts.big_endian() {
                     ts = &ts::ImplicitVRBigEndian;
                 } else {
                     ts = &ts::ImplicitVRLittleEndian;

@@ -59,20 +59,20 @@ pub(crate) enum TagCategory {
 
 impl From<&DicomElement> for TagCategory {
     fn from(element: &DicomElement) -> Self {
-        if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.get_tag()) {
+        if let Some(tag) = STANDARD_DICOM_DICTIONARY.get_tag_by_number(element.tag()) {
             TagCategory::Known(tag.tag, tag.ident.to_string())
-        } else if Tag::is_private_creator(element.get_tag()) {
-            TagCategory::PrivateCreator(element.get_tag())
-        } else if Tag::is_private(element.get_tag()) && element.is_seq_like() {
-            TagCategory::PrivateSequence(element.get_tag())
-        } else if Tag::is_private_group_length(element.get_tag()) {
-            TagCategory::PrivateGroupLength(element.get_tag())
-        } else if Tag::is_private(element.get_tag()) {
-            TagCategory::Private(element.get_tag())
-        } else if Tag::is_group_length(element.get_tag()) {
-            TagCategory::GroupLength(element.get_tag())
+        } else if Tag::is_private_creator(element.tag()) {
+            TagCategory::PrivateCreator(element.tag())
+        } else if Tag::is_private(element.tag()) && element.is_seq_like() {
+            TagCategory::PrivateSequence(element.tag())
+        } else if Tag::is_private_group_length(element.tag()) {
+            TagCategory::PrivateGroupLength(element.tag())
+        } else if Tag::is_private(element.tag()) {
+            TagCategory::Private(element.tag())
+        } else if Tag::is_group_length(element.tag()) {
+            TagCategory::GroupLength(element.tag())
         } else {
-            TagCategory::Unknown(element.get_tag())
+            TagCategory::Unknown(element.tag())
         }
     }
 }

@@ -85,12 +85,12 @@ pub fn test_uids_lookup() {
 #[test]
 fn test_ts_name_vs_properties() {
     for (_, ts) in TS_BY_IDENT.entries() {
-        let contains_little: bool = ts.uid.get_ident().contains("LittleEndian");
-        let contains_big: bool = ts.uid.get_ident().contains("BigEndian");
-        let contains_explicit: bool = ts.uid.get_ident().contains("ExplicitVR");
-        let contains_implicit: bool = ts.uid.get_ident().contains("ImplicitVR");
-        let contains_deflate: bool = ts.uid.get_ident().contains("Deflate");
-        let contains_encapsulated: bool = ts.uid.get_ident().contains("Encapsulated");
+        let contains_little: bool = ts.uid.ident().contains("LittleEndian");
+        let contains_big: bool = ts.uid.ident().contains("BigEndian");
+        let contains_explicit: bool = ts.uid.ident().contains("ExplicitVR");
+        let contains_implicit: bool = ts.uid.ident().contains("ImplicitVR");
+        let contains_deflate: bool = ts.uid.ident().contains("Deflate");
+        let contains_encapsulated: bool = ts.uid.ident().contains("Encapsulated");
 
         if contains_little {
             assert!(

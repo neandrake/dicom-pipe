@@ -59,22 +59,22 @@ impl<DatasetType: Write> Writer<DatasetType> {
     }
 
     /// Get the number of bytes read from the dataset.
-    pub fn get_bytes_written(&self) -> u64 {
+    pub fn bytes_written(&self) -> u64 {
         self.bytes_written
     }
 
     /// Get the current state of the parser.
-    pub fn get_write_state(&self) -> WriteState {
+    pub fn write_state(&self) -> WriteState {
         self.state
     }
 
     /// Get the transfer syntax the dataset is encoded in.
-    pub fn get_ts(&self) -> TSRef {
+    pub fn ts(&self) -> TSRef {
         self.ts
     }
 
     /// Get the character set string values are encoded in.
-    pub fn get_cs(&self) -> CSRef {
+    pub fn cs(&self) -> CSRef {
         self.cs
     }
 
@@ -88,6 +88,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
         self
     }
 
+    /// Creates a new `DicomElement` with the given value encoded with the given VR.
     pub fn create_element<T>(&self, tag: T, vr: VRRef, value: RawValue) -> WriteResult<DicomElement>
     where
         T: Into<u32>,
@@ -104,11 +105,15 @@ impl<DatasetType: Write> Writer<DatasetType> {
             .map_err(|err| WriteError::IOError { source: err })
     }
 
+    /// Flattens the given `DicomRoot` elements into a stream of `DicomElement` and writes the
+    /// resulting elements into the dataset.
     pub fn write_dcmroot(&mut self, dcmroot: &DicomRoot) -> WriteResult<usize> {
         let elements = dcmroot.flatten()?;
         self.write_elements(elements.into_iter())
     }
 
+    /// Write the iterator of `DicomElement` to the dataset. If the `WriteState` is set to any
+    /// valid state for file media, this will handle appropriate encoding for file meta group.
     pub fn write_elements<'a, E>(&mut self, elements: E) -> WriteResult<usize>
     where
         E: Iterator<Item = &'a DicomElement>,
@@ -128,9 +133,9 @@ impl<DatasetType: Write> Writer<DatasetType> {
             // Collect all the FileMeta elements to write them in one go, as their total byte
             // length is needed for the first element, FileMetaInformationGroupLength.
             if self.state == WriteState::FileMeta {
-                if element.get_tag() <= tags::FILE_META_GROUP_END {
+                if element.tag() <= tags::FILE_META_GROUP_END {
                     // Ignore FileMetaInformationGroupLength in place of one made below.
-                    if element.get_tag() != tags::FILE_META_INFORMATION_GROUP_LENGTH {
+                    if element.tag() != tags::FILE_META_INFORMATION_GROUP_LENGTH {
                         fm_elements.push(element);
                     }
                     continue;
@@ -213,34 +218,36 @@ impl<DatasetType: Write> Writer<DatasetType> {
     fn write_tag(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
         let mut bytes_written: usize = 0;
 
-        if element.get_ts().is_big_endian() {
+        if element.ts().big_endian() {
             bytes_written += dataset.write(&u16::to_be_bytes(
-                (element.get_tag() >> 16 & 0x0000_FFFF) as u16,
+                (element.tag() >> 16 & 0x0000_FFFF) as u16,
             ))?;
             bytes_written +=
-                dataset.write(&u16::to_be_bytes((element.get_tag() & 0x0000_FFFF) as u16))?;
+                dataset.write(&u16::to_be_bytes((element.tag() & 0x0000_FFFF) as u16))?;
         } else {
             bytes_written += dataset.write(&u16::to_le_bytes(
-                (element.get_tag() >> 16 & 0x0000_FFFF) as u16,
+                (element.tag() >> 16 & 0x0000_FFFF) as u16,
             ))?;
             bytes_written +=
-                dataset.write(&u16::to_le_bytes((element.get_tag() & 0x0000_FFFF) as u16))?;
+                dataset.write(&u16::to_le_bytes((element.tag() & 0x0000_FFFF) as u16))?;
         }
 
         Ok(bytes_written)
     }
 
+    /// Writes the VR to the dataset, if the transfer syntax requires explicit VR. If the transfer
+    /// syntax requires implicit VR then nothing is written to the dataset.
     fn write_vr(dataset: &mut Dataset<DatasetType>, element: &DicomElement) -> WriteResult<usize> {
-        let mut bytes_written: usize = 0;
-
-        if element.get_ts().is_explicit_vr() {
-            bytes_written += dataset.write(element.get_vr().ident.as_bytes())?;
+        if !element.ts().explicit_vr() {
+            return Ok(0);
         }
+
+        let mut bytes_written: usize = dataset.write(element.vr().ident.as_bytes())?;
 
         // When using Explicit VR and the VR specifies a 2byte padding then write out 16bits of
         // zeroes after the VR.
         // See Part 5, Ch 7.1.2
-        if element.get_ts().is_explicit_vr() && element.get_vr().has_explicit_2byte_pad {
+        if element.vr().has_explicit_2byte_pad {
             bytes_written += dataset.write(&[0u8, 0u8])?;
         }
 
@@ -251,15 +258,15 @@ impl<DatasetType: Write> Writer<DatasetType> {
         let mut bytes_written: usize = 0;
 
         let write_as_u32: bool =
-            !element.get_ts().is_explicit_vr() || element.get_vr().has_explicit_2byte_pad;
+            !element.ts().explicit_vr() || element.vr().has_explicit_2byte_pad;
 
-        match element.get_vl() {
+        match element.vl() {
             ValueLength::UndefinedLength => {
                 if !write_as_u32 {
                     return Err(WriteError::InvalidUndefinedValueLengthError);
                 }
 
-                if element.get_ts().is_big_endian() {
+                if element.ts().big_endian() {
                     bytes_written += dataset.write(&UNDEFINED_LENGTH.to_be_bytes())?;
                 } else {
                     bytes_written += dataset.write(&UNDEFINED_LENGTH.to_le_bytes())?;
@@ -268,7 +275,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
             ValueLength::Explicit(length) => {
                 if write_as_u32 {
-                    if element.get_ts().is_big_endian() {
+                    if element.ts().big_endian() {
                         bytes_written += dataset.write(&length.to_be_bytes())?;
                     } else {
                         bytes_written += dataset.write(&length.to_le_bytes())?;
@@ -276,7 +283,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
                 } else {
                     let length: u16 = (length & 0x0000_FFFF) as u16;
 
-                    if element.get_ts().is_big_endian() {
+                    if element.ts().big_endian() {
                         bytes_written += dataset.write(&length.to_be_bytes())?;
                     } else {
                         bytes_written += dataset.write(&length.to_le_bytes())?;
@@ -296,10 +303,10 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
         #[cfg(feature = "compress")]
         {
-            dataset.set_write_deflated(element.get_ts().is_deflated());
+            dataset.set_write_deflated(element.ts().deflated());
         }
 
-        bytes_written += dataset.write(element.get_data().as_slice())?;
+        bytes_written += dataset.write(element.data().as_slice())?;
         Ok(bytes_written)
     }
 }

@@ -35,7 +35,7 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
     elements.push(writer.create_element(
         &tags::MediaStorageSOPClassUID,
         &vr::UI,
-        RawValue::Uid(uids::CTImageStorage.get_uid().to_string()),
+        RawValue::Uid(uids::CTImageStorage.uid().to_string()),
     )?);
 
     elements.push(writer.create_element(
@@ -47,7 +47,7 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
     elements.push(writer.create_element(
         &tags::TransferSyntaxUID,
         &vr::UI,
-        RawValue::Uid(uids::RLELossless.get_uid().to_string()),
+        RawValue::Uid(uids::RLELossless.uid().to_string()),
     )?);
 
     elements.push(writer.create_element(
@@ -93,7 +93,7 @@ pub fn test_write_same_object() -> Result<(), WriteError> {
     let dcmroot = DicomRoot::parse(&mut parser)?.expect("Parse file into DicomObject");
 
     let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
-    writer.set_ts(parser.get_ts());
+    writer.set_ts(parser.ts());
     writer.write_dcmroot(&dcmroot)?;
     let written_bytes: Vec<u8> = writer.into_dataset()?;
 
@@ -134,7 +134,7 @@ pub fn test_write_reencoded_values() -> Result<(), WriteError> {
     let mut elements: Vec<DicomElement> = Vec::new();
     while let Some(Ok(mut elem)) = parser.next() {
         let value = elem.parse_value()?;
-        elem.encode_value(value, Some(elem.get_vl()))?;
+        elem.encode_value(value, Some(elem.vl()))?;
         elements.push(elem);
     }
 
@@ -185,7 +185,7 @@ pub fn test_write_ushorts() -> Result<(), WriteError> {
     elem.encode_value(RawValue::UnsignedShorts(value.clone()), None)?;
 
     let raw_data = vec![1u8, 0u8, 1u8, 0u8];
-    assert_eq!(&raw_data, elem.get_data());
+    assert_eq!(&raw_data, elem.data());
 
     elem = DicomElement::new(
         &tags::ReferencedWaveformChannels,
@@ -216,7 +216,7 @@ pub fn test_write_attr() -> Result<(), WriteError> {
     elem.encode_value(RawValue::Attribute(value.clone()), None)?;
 
     let raw_data = vec![0x18u8, 0u8, 0x63u8, 0x10u8];
-    assert_eq!(&raw_data, elem.get_data(), "encoding of attribute failed");
+    assert_eq!(&raw_data, elem.data(), "encoding of attribute failed");
 
     elem = DicomElement::new(
         &tags::FrameIncrementPointer,
@@ -248,7 +248,7 @@ pub fn test_write_double() -> Result<(), WriteError> {
     elem.encode_value(RawValue::Doubles(value.clone()), None)?;
 
     let raw_data = vec![255, 255, 255, 255, 255, 87, 171, 64];
-    assert_eq!(&raw_data, elem.get_data(), "encoding of attribute failed");
+    assert_eq!(&raw_data, elem.data(), "encoding of attribute failed");
 
     elem = DicomElement::new(
         tag,
@@ -303,15 +303,15 @@ fn reencode_file_elements(path: PathBuf) -> Result<(), WriteError> {
 }
 
 fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<(), WriteError> {
-    let orig_parsed_data = elem.get_data().clone();
+    let orig_parsed_data = elem.data().clone();
     let value = elem.parse_value();
     if let Err(e) = value {
         eprintln!("Parsing error in file.\n\tfile: {path_str}\n\terr: {e:?}");
         return Ok(());
     }
     let value = value?;
-    elem.encode_value(value.clone(), Some(elem.get_vl()))?;
-    let reencoded_data = elem.get_data().clone();
+    elem.encode_value(value.clone(), Some(elem.vl()))?;
+    let reencoded_data = elem.data().clone();
 
     if orig_parsed_data == reencoded_data {
         return Ok(());
@@ -324,12 +324,12 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
     // great way to update the original data in a minimal way to adjust for the
     // writer always ensuring a minimum of a single digit of precision for all
     // values in this element.
-    if elem.get_vr() == &vr::DS {
+    if elem.vr() == &vr::DS {
         return Ok(());
     }
 
     // If strings consist of only the padding character then ignore size differences.
-    if elem.get_vr().is_character_string {
+    if elem.vr().is_character_string {
         // Some character-based elements seem to include trailing null-byte padding.
         let trimmer = |v: &Vec<u8>| {
             v.iter()
@@ -352,7 +352,7 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
         }
     }
 
-    if elem.get_vr() == &vr::IS || elem.get_vr() == &vr::LO {
+    if elem.vr() == &vr::IS || elem.vr() == &vr::LO {
         // Values may have originally had leading and trailing spaces which are lost
         // when parsed into RawValue. Additionally the same for leading zeros.
         let trimmer = |v: &Vec<u8>| {
@@ -414,7 +414,7 @@ fn assert_reencode_element(path_str: &str, elem: &mut DicomElement) -> Result<()
         reencoded_data,
         "Element did not re-encode the same\n\tfile: {}\n\ttagpath: {}\n\telem: {:?}\n\tvalue: {:?}",
         path_str,
-        TagPath::format_tagpath_to_display(&elem.get_tagpath(), Some(&STANDARD_DICOM_DICTIONARY)),
+        TagPath::format_tagpath_to_display(&elem.create_tagpath(), Some(&STANDARD_DICOM_DICTIONARY)),
         elem,
         value
     );

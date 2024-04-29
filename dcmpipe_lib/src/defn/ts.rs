@@ -60,27 +60,27 @@ impl TransferSyntax {
     }
 
     /// Get the transfer syntax's UID.
-    pub fn get_uid(&self) -> UIDRef {
+    pub fn uid(&self) -> UIDRef {
         self.uid
     }
 
     /// Indicates whether this transfer syntax uses Explicit or Implicit VR.
-    pub fn is_explicit_vr(&self) -> bool {
+    pub fn explicit_vr(&self) -> bool {
         self.explicit_vr
     }
 
     /// Indicates whether this transfer syntax uses big or little endian.
-    pub fn is_big_endian(&self) -> bool {
+    pub fn big_endian(&self) -> bool {
         self.big_endian
     }
 
     /// Indicates whether this transfer syntax uses compression/deflation.
-    pub fn is_deflated(&self) -> bool {
+    pub fn deflated(&self) -> bool {
         self.deflated
     }
 
     /// Indicates whether this transfer syntax uses encapsulation (?).
-    pub fn is_encapsulated(&self) -> bool {
+    pub fn encapsulated(&self) -> bool {
         self.encapsulated
     }
 

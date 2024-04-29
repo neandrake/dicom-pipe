@@ -148,7 +148,7 @@ impl<'app> DicomDocumentModel<'app> {
 
 impl<'model> DicomNodeModel<'model> {
     fn parse(dcmobj: &DicomObject) -> HashMap<TagPath, DicomNodeModel<'model>> {
-        let total_sub_items = dcmobj.get_item_count() + dcmobj.get_child_count();
+        let total_sub_items = dcmobj.item_count() + dcmobj.child_count();
         let mut map: HashMap<TagPath, DicomNodeModel<'model>> =
             HashMap::with_capacity(total_sub_items);
         let mut rows: Vec<Row<'model>> = Vec::with_capacity(total_sub_items);
@@ -181,21 +181,21 @@ impl<'model> DicomNodeModel<'model> {
         child: &DicomObject,
     ) -> (Row<'model>, HashMap<TagPath, DicomNodeModel<'model>>, u16) {
         let mut map: HashMap<TagPath, DicomNodeModel<'model>> = HashMap::new();
-        let child_tag = child.get_element().get_tag();
-        if child.get_item_count() > 0 || child.get_child_count() > 0 {
+        let child_tag = child.element().tag();
+        if child.item_count() > 0 || child.child_count() > 0 {
             let child_map = DicomNodeModel::parse(child);
             map.extend(child_map);
         }
 
-        let tag_render: TagCategory = child.get_element().into();
+        let tag_render: TagCategory = child.element().into();
         let elem_name = tag_render.to_string();
         let name_len = elem_name.len() as u16;
-        let elem_value: TagValue = ElementWithLineFmt(child.get_element(), false).into();
+        let elem_value: TagValue = ElementWithLineFmt(child.element(), false).into();
 
         let mut cells: Vec<Cell> = Vec::with_capacity(5);
         cells.push(
             Cell::from(
-                if child.get_child_count() > 0 || child.get_item_count() > 0 {
+                if child.child_count() > 0 || child.item_count() > 0 {
                     "+"
                 } else {
                     ""
@@ -225,7 +225,7 @@ impl<'model> DicomNodeModel<'model> {
         }
 
         cells.push(
-            Cell::from(child.get_element().get_vr().ident)
+            Cell::from(child.element().vr().ident)
                 .style(Style::default().fg(Color::DarkGray)),
         );
 
@@ -310,7 +310,7 @@ impl<'app> BrowseApp {
                     } else {
                         TagPath::format_tagpath_to_display(
                             &current_tagpath,
-                            Some(dcmroot.get_dictionary()),
+                            Some(dcmroot.dictionary()),
                         )
                     },
                 });
@@ -387,7 +387,7 @@ impl<'app> BrowseApp {
                 let sel_idx = *sel_idx;
                 let next_path = if current_tagpath.is_empty() {
                     get_nth_child(dcmroot.as_obj(), sel_idx)
-                        .map(|o| o.get_element().get_tagpath())
+                        .map(|o| o.element().create_tagpath())
                         .unwrap_or_else(|| current_tagpath.clone())
                 } else {
                     if dcmroot.get_child_by_tagpath(&current_tagpath).is_none() {
@@ -398,17 +398,17 @@ impl<'app> BrowseApp {
                         .and_then(|c| {
                             // Check items first and children second. Sequences will have a
                             // single child which is the delimiter at the end.
-                            if c.get_item_count() > 0 {
-                                if sel_idx < c.get_item_count() {
+                            if c.item_count() > 0 {
+                                if sel_idx < c.item_count() {
                                     c.get_item_by_index(sel_idx + 1)
-                                } else if c.get_child_count() > 0 {
+                                } else if c.child_count() > 0 {
                                     // Subtract the # items because children appear after items
                                     // when both are present.
-                                    get_nth_child(c, sel_idx - c.get_item_count())
+                                    get_nth_child(c, sel_idx - c.item_count())
                                 } else {
                                     None
                                 }
-                            } else if c.get_child_count() > 0 {
+                            } else if c.child_count() > 0 {
                                 get_nth_child(c, sel_idx)
                             } else {
                                 None
@@ -603,7 +603,7 @@ fn get_nth_child(dcmobj: &DicomObject, index: usize) -> Option<&DicomObject> {
 /// - For elements at the root of the document this returns `TagPath::empty()`.
 /// - For items within a sequence the trailing `constants::tags::ITEM` node is removed.
 fn get_tagpath(dcmobj: &DicomObject) -> TagPath {
-    let tagpath = dcmobj.get_element().get_tagpath();
+    let tagpath = dcmobj.element().create_tagpath();
     strip_last_item(tagpath)
 }
 
@@ -615,8 +615,8 @@ fn get_prev_path(mut current: TagPath) -> TagPath {
 
     // If the last item is indexed, instead of removing the node remove the index.
     if let Some(last) = current.nodes.last_mut() {
-        if last.get_item().is_some() {
-            last.get_item_mut().take();
+        if last.item().is_some() {
+            last.item_mut().take();
             return current;
         }
     }
@@ -632,7 +632,7 @@ fn get_prev_path(mut current: TagPath) -> TagPath {
 /// Removes the last node in the given path if it's an ITEM.
 fn strip_last_item(mut tagpath: TagPath) -> TagPath {
     if let Some(last) = tagpath.nodes.last() {
-        if last.get_tag() == constants::tags::ITEM {
+        if last.tag() == constants::tags::ITEM {
             return tagpath
                 .nodes
                 .drain(..tagpath.nodes.len().saturating_sub(1))

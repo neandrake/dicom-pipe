@@ -170,51 +170,51 @@ pub struct Parser<'dict, DatasetType: Read> {
 }
 
 impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
-    pub(crate) fn get_behavior(&self) -> &ParseBehavior {
+    pub(crate) fn behavior(&self) -> &ParseBehavior {
         &self.behavior
     }
 
     /// Get the number of bytes read from the dataset.
-    pub fn get_bytes_read(&self) -> u64 {
+    pub fn bytes_read(&self) -> u64 {
         self.bytes_read
     }
 
     /// Get the last tag read from the dataset. Note that the element for this tag may not have
     /// successfully parsed.
-    pub fn get_tag_last_read(&self) -> u32 {
+    pub fn tag_last_read(&self) -> u32 {
         self.tag_last_read
     }
 
     /// Get the current state of the parser.
-    pub fn get_parser_state(&self) -> ParseState {
+    pub fn parser_state(&self) -> ParseState {
         self.state
     }
 
     /// Get the transfer syntax the dataset is encoded in.
-    pub fn get_ts(&self) -> TSRef {
+    pub fn ts(&self) -> TSRef {
         self.dataset_ts.unwrap_or(self.detected_ts)
     }
 
     /// Get the character set string values are encoded in.
-    pub fn get_cs(&self) -> CSRef {
+    pub fn cs(&self) -> CSRef {
         self.cs
     }
 
     /// Get the dictionary used during parsing.
-    pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
+    pub fn dictionary(&self) -> &'dict dyn DicomDictionary {
         self.dictionary
     }
 
     /// Get the file preamble (128-bytes) read from the dataset. If the dataset did not have a file
     /// preamble or if it has not yet been read from the dataset then this will be `None`.
-    pub fn get_file_preamble(&self) -> &Option<[u8; FILE_PREAMBLE_LENGTH]> {
+    pub fn file_preamble(&self) -> &Option<[u8; FILE_PREAMBLE_LENGTH]> {
         &self.file_preamble
     }
 
     /// The standard DICOM 4-byte prefix parsed from the dataset.  If this has not yet been parsed
     /// from the dataset this will be `None`. According to the DICOM standard this should always be
     /// the value `DICM`.
-    pub fn get_dicom_prefix(&self) -> &Option<[u8; DICOM_PREFIX_LENGTH]> {
+    pub fn dicom_prefix(&self) -> &Option<[u8; DICOM_PREFIX_LENGTH]> {
         &self.dicom_prefix
     }
 
@@ -232,7 +232,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
                 let current: TagPath = self
                     .current_path
                     .iter()
-                    .map(|sq_el| sq_el.get_node().clone())
+                    .map(|sq_el| sq_el.node().clone())
                     .chain(once(TagNode::new(self.tag_last_read, None)))
                     .collect::<Vec<TagNode>>()
                     .into();
@@ -244,16 +244,16 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// Checks if the current path is within a pixeldata tag.
     fn is_in_pixeldata(&self) -> bool {
         for seq_elem in self.current_path.iter().rev() {
-            if seq_elem.get_seq_tag() == tags::FLOAT_PIXEL_DATA
-                || seq_elem.get_seq_tag() == tags::DOUBLE_PIXEL_DATA
-                || seq_elem.get_seq_tag() == tags::PIXEL_DATA
+            if seq_elem.seq_tag() == tags::FLOAT_PIXEL_DATA
+                || seq_elem.seq_tag() == tags::DOUBLE_PIXEL_DATA
+                || seq_elem.seq_tag() == tags::PIXEL_DATA
             {
                 return true;
             }
             // If the parent element is an ITEM then keep walking up the chain to check against the
             // actual sequence element -- if it's not ITEM and not a PixelData then it's something
             // else and we can assume to not be within PixelData.
-            if seq_elem.get_seq_tag() != tags::ITEM {
+            if seq_elem.seq_tag() != tags::ITEM {
                 break;
             }
         }
@@ -265,7 +265,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     /// the stream has already passed this position.
     fn pop_sequence_items_base_on_byte_pos(&mut self) {
         while let Some(seq_elem) = self.current_path.last() {
-            if let Some(seq_end_pos) = seq_elem.get_seq_end_pos() {
+            if let Some(seq_end_pos) = seq_elem.seq_end_pos() {
                 if self.bytes_read >= seq_end_pos {
                     self.current_path.pop();
                 } else {
@@ -308,7 +308,7 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
     ///     vr: OB, vl: 128, ts: ImplicitVRLittleEndian
     ///     tagpath: ReferenceSequence[1].(00A1,0000)
     /// ```
-    pub(super) fn get_current_debug_str(&self) -> String {
+    pub(super) fn current_debug_str(&self) -> String {
         // Render the full tag path
         let tag = self.tag_last_read;
         let mut full_path: TagPath = (&self.current_path).into();

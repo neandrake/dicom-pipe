@@ -40,10 +40,10 @@ impl fmt::Debug for DicomElement {
         write!(
             f,
             "{}: VR[{:?}], VL[{:?}], TS[{:?}]",
-            Tag::format_tag_to_display(self.get_tag()),
-            self.get_vr(),
-            self.get_vl(),
-            self.get_ts().get_uid().get_ident()
+            Tag::format_tag_to_display(self.tag()),
+            self.vr(),
+            self.vl(),
+            self.ts().uid().ident()
         )
     }
 }
@@ -89,53 +89,53 @@ impl DicomElement {
         }
     }
 
-    pub fn get_tag(&self) -> u32 {
+    pub fn tag(&self) -> u32 {
         self.tag
     }
 
-    pub fn get_vl(&self) -> ValueLength {
+    pub fn vl(&self) -> ValueLength {
         self.vl
     }
 
-    pub fn get_vr(&self) -> VRRef {
+    pub fn vr(&self) -> VRRef {
         self.vr
     }
 
-    pub fn get_ts(&self) -> TSRef {
+    pub fn ts(&self) -> TSRef {
         self.ts
     }
 
-    pub fn get_cs(&self) -> CSRef {
+    pub fn cs(&self) -> CSRef {
         self.cs
     }
 
-    pub fn get_data(&self) -> &Vec<u8> {
+    pub fn data(&self) -> &Vec<u8> {
         &self.data
     }
 
-    pub fn get_sequence_path(&self) -> &Vec<SequenceElement> {
+    pub fn sequence_path(&self) -> &Vec<SequenceElement> {
         &self.sq_path
     }
 
-    /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence
+    /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence.
     pub fn is_seq_like(&self) -> bool {
         self.vr == &vr::SQ || read::util::is_non_standard_seq(self.tag, self.vr, self.vl)
     }
 
-    /// Returns whether the the size of the value for this element is zero
+    /// Returns whether the the size of the value for this element is zero.
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }
 
-    /// Creates a `TagPath` for the current element
-    pub fn get_tagpath(&self) -> TagPath {
+    /// Creates a `TagPath` for the current element.
+    pub fn create_tagpath(&self) -> TagPath {
         if self.tag == 0 {
             TagPath::empty()
         } else {
             self.sq_path
                 .iter()
-                .filter(|sq| sq.get_seq_tag() != tags::ITEM)
-                .map(|sq| sq.get_node().clone())
+                .filter(|sq| sq.seq_tag() != tags::ITEM)
+                .map(|sq| sq.node().clone())
                 .chain(once(self.tag.into()))
                 .collect::<Vec<TagNode>>()
                 .into()

@@ -23,17 +23,17 @@ impl UID {
     }
 
     /// Get the identifier or name for this UID.
-    pub fn get_ident(&self) -> &'static str {
+    pub fn ident(&self) -> &'static str {
         self.ident
     }
 
     /// Get the string representation of the UID.
-    pub fn get_uid(&self) -> &'static str {
+    pub fn uid(&self) -> &'static str {
         self.uid
     }
 
     /// Get the longer name or description of this UID.
-    pub fn get_name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         self.name
     }
 }
