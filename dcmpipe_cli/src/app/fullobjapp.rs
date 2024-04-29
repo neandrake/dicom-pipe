@@ -30,7 +30,7 @@ impl FullObjApp {
         }
 
         let file: File = File::open(path)?;
-        let mut dicom_iter: Parser<File> = ParserBuilder::new(file)
+        let mut parser: Parser<File> = ParserBuilder::new(file)
             .tag_by_value(&TAG_BY_VALUE)
             .ts_by_uid(&TS_BY_UID)
             .build();
@@ -40,12 +40,12 @@ impl FullObjApp {
         stdout.write_all(format!(
             "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
             path,
-            dicom_iter.get_ts().uid.ident).as_ref()
+            parser.get_ts().uid.ident).as_ref()
         )?;
 
-        let dcmobj: DicomObject = parse_stream(&mut dicom_iter)?;
+        let dcmobj: DicomObject = parse_stream(&mut parser)?;
         let obj_iter: Iter<u32, DicomObject> = dcmobj.iter();
-        self.render_objects(obj_iter, true, dicom_iter.get_ts(), &mut stdout)?;
+        self.render_objects(obj_iter, true, parser.get_ts(), &mut stdout)?;
         Ok(())
     }
 

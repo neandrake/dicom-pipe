@@ -18,6 +18,7 @@ pub type TagByValueLookup = &'static phf::Map<u32, TagRef>;
 pub type TsByUidLookup = &'static phf::Map<&'static str, TSRef>;
 
 /// The different parsing behaviors of the stream
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum ParseState {
     /// An initial state in which we're trying to detect if there is a preamble/prefix
     DetectState,
@@ -185,12 +186,16 @@ pub struct Parser<StreamType: Read> {
 }
 
 impl<StreamType: Read> Parser<StreamType> {
-    pub fn bytes_read(&self) -> u64 {
+    pub fn get_bytes_read(&self) -> u64 {
         self.bytes_read
     }
 
-    pub fn partial_tag(&self) -> Option<u32> {
+    pub fn get_partial_tag(&self) -> Option<u32> {
         self.partial_tag
+    }
+
+    pub fn get_parser_state(&self) -> ParseState {
+        self.state
     }
 
     pub fn get_ts(&self) -> TSRef {
