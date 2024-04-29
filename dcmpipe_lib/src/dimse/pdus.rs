@@ -12,9 +12,9 @@ pub enum PduType {
 
     PresentationDataItem = 0x04,
 
-    AssocReleaseReq = 0x05,
-    AssocReleaseRsp = 0x06,
-    AssocAbort = 0x07,
+    ReleaseRQ = 0x05,
+    ReleaseRP = 0x06,
+    Abort = 0x07,
 
     ApplicationContextItem = 0x10,
 
@@ -26,7 +26,10 @@ pub enum PduType {
     UserInformationItem = 0x50,
 
     MaxLengthItem = 0x51,
-
+    ImplementationClassUIDItem = 0x52,
+    AsyncOperationsWindowItem = 0x53,
+    RoleSelectionItem = 0x54,
+    ImplementationVersionNameItem = 0x55,
     SOPClassExtendedNegotiationItem = 0x56,
     SOPClassCommonExtendedNegotiationItem = 0x57,
     UserIdentityItem = 0x58,
@@ -44,9 +47,9 @@ impl TryFrom<u8> for PduType {
 
             0x04 => Ok(PduType::PresentationDataItem),
 
-            0x05 => Ok(PduType::AssocReleaseReq),
-            0x06 => Ok(PduType::AssocReleaseRsp),
-            0x07 => Ok(PduType::AssocAbort),
+            0x05 => Ok(PduType::ReleaseRQ),
+            0x06 => Ok(PduType::ReleaseRP),
+            0x07 => Ok(PduType::Abort),
 
             0x10 => Ok(PduType::ApplicationContextItem),
 
@@ -58,37 +61,14 @@ impl TryFrom<u8> for PduType {
             0x50 => Ok(PduType::UserInformationItem),
 
             0x51 => Ok(PduType::MaxLengthItem),
-
+            0x52 => Ok(PduType::ImplementationClassUIDItem),
+            0x53 => Ok(PduType::AsyncOperationsWindowItem),
+            0x54 => Ok(PduType::RoleSelectionItem),
+            0x55 => Ok(PduType::ImplementationVersionNameItem),
             0x56 => Ok(PduType::SOPClassExtendedNegotiationItem),
             0x57 => Ok(PduType::SOPClassCommonExtendedNegotiationItem),
             0x58 => Ok(PduType::UserIdentityItem),
             0x59 => Ok(PduType::UserIdentityNegotiationItem),
-
-            _ => Err(()),
-        }
-    }
-}
-
-#[repr(u8)]
-#[derive(Debug, PartialEq, Eq)]
-pub enum UserIdentityType {
-    Username = 1,
-    UsernameAndPasscode = 2,
-    KerberosServiceTicket = 3,
-    SAMLAssertion = 4,
-    JWT = 5,
-}
-
-impl TryFrom<u8> for UserIdentityType {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(UserIdentityType::Username),
-            2 => Ok(UserIdentityType::UsernameAndPasscode),
-            3 => Ok(UserIdentityType::KerberosServiceTicket),
-            4 => Ok(UserIdentityType::SAMLAssertion),
-            5 => Ok(UserIdentityType::JWT),
 
             _ => Err(()),
         }
@@ -101,7 +81,7 @@ pub struct AssocRQ {
     pdu_type: PduType,
 
     /// The number of bytes from the first byte of the following field to the last byte of the
-    /// variable field.
+    /// variable field (User Information).
     length: u32,
 
     /// Reserved, should be zero.
@@ -125,9 +105,219 @@ pub struct AssocRQ {
     /// Reserved, should be zeros.
     reserved_3: [u8; 32],
 
-    /// The variable items in this PDU. It shall contain one Application Context Item, one or more
-    /// Presentation Context Items, and one User Information Item.
-    items: Vec<u8>,
+    /// Application Context.
+    app_ctx: ApplicationContextItem,
+
+    /// Presentation Contexts, at least one.
+    pres_ctxs: Vec<AssocRQPresentationContext>,
+
+    /// User Information.
+    user_info: UserInformationItem,
+}
+
+#[dervie(Debug)]
+pub struct AssocAC {
+    /// The type of this PDU, `PduType::AssocAC`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved_1: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// variable items field (User Information).
+    length: u32,
+
+    /// Identifies each version of the DICOM Upper Layer protocol supported by the calling
+    /// end-system. Currently this is version 1, identified with bit 0 set.
+    version: u16,
+
+    /// Reserved, should be zeros.
+    reserved_2: [u8; 2],
+
+    /// Reserved, but this should be populated with the Destination AE field from the RQ though
+    /// its value should not be checked.
+    reserved_3: [u8; 16],
+
+    /// Reserved, but this should be populated with the Source AE field from the RQ though its
+    /// value should not be checked.
+    reserved_4: [u8; 16],
+
+    /// Reserved, but this should be populated with the corresponding reserved field from the RQ,
+    /// which should be all zeros though its value should not be checked.
+    reserved_5: [u8; 32],
+
+    /// Application Context.
+    app_ctx: ApplicationContextItem,
+
+    /// Presentation Contexts, at least one.
+    pres_ctxs: Vec<AssocRQPresentationContext>,
+
+    /// User Information.
+    user_info: UserInformationItem,
+}
+
+#[derive(Debug)]
+pub struct AssocRJ {
+    /// The type of this PDU, `PduType::AssocRJ`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved_1: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// Reason/Diag. field.
+    length: u32,
+
+    /// Reserved, should be zero.
+    reserved_2: u8,
+
+    /// Result.
+    ///
+    /// 1 - Rejected-permanent.
+    /// 2 - Rejected-transient.
+    result: u8,
+
+    /// Source.
+    ///
+    /// 1 - DICOM Upper Layer Service User.
+    /// 2 - DICOM Upper Layer Service Provider (ACSE-related function).
+    /// 3 - DICOM Upper Layer Service Provider (Presentation-related function).
+    source: u8,
+
+    /// Reason / Diag.
+    ///
+    /// If Source is 1,
+    ///   1: No reason given.
+    ///   2: Application Context Name not supported.
+    ///   3: Calling AE Title not recognized.
+    ///   4-6: Reserved.
+    ///   7: Called AE Title not recoginzed.
+    ///   8-10: Reserved.
+    ///
+    /// If Source is 2,
+    ///   1: No reason given.
+    ///   2: Protocol version not supported.
+    ///
+    /// If Source is 3,
+    ///   0: Reserved.
+    ///   1: Temporary congestion.
+    ///   2: Local limit exceeded.
+    ///   3-7: Reserved.
+    reason: u8,
+}
+
+#[derive(Debug)]
+pub struct ReleaseRQ {
+    /// The type of this PDU, `PduType::ReleaseRQ`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved_1: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// reserved field. This should be a fixed value of 4.
+    length: u32,
+
+    /// Reserved, should be zeros.
+    reserved_2: [u8; 4],
+}
+
+#[derive(Debug)]
+pub struct ReleaseRP {
+    /// The type of this PDU, `PduType::ReleaseRP`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved_1: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// reserved field. This should be a fixed value of 4.
+    length: u32,
+
+    /// Reserved, should be zeros.
+    reserved_2: [u8; 4],
+}
+
+#[derive(Debug)]
+pub struct Abort {
+    /// The type of this PDU, `PduType::Abort`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved_1: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// Reason/Diag. field. This should be a fixed value of 4.
+    length: u32,
+
+    /// Reserved, should be zero.
+    reserved_2: u8,
+
+    /// Reserved, should be zero.
+    reserved_3: u8,
+
+    /// Source of the Abort.
+    ///
+    /// 0: DICOM Upper Layer service-user (initiated abort).
+    /// 1: Reserved.
+    /// 2: DICOM Upper Layer service-provider (initiated abort).
+    source: u8,
+
+    /// Reason/Diag.
+    ///
+    /// 0: Reason not specified.
+    /// 1: Unrecognized PDU.
+    /// 2: Unexpected PDU.
+    /// 3: Reserved.
+    /// 4: Unrecognized PDU parameter.
+    /// 5: Unexpected PDU parameter.
+    /// 6: Invalid PDU parameter.
+    ///
+    /// If the source field has a value of 0 (service-user) then this field shall not be
+    /// significant and should be set to zero, but unchecked.
+    reason: u8,
+}
+
+#[derive(Debug)]
+pub struct PresentationDataItem {
+    /// The type of this PDU, `PduType::PresentationDataItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// variable field (Presentation Data values).
+    length: u32,
+
+    /// Presentation Data values.
+    pres_data: Vec<>,
+}
+
+#[derive(Debug)]
+pub struct PresentationDataValue {
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// presentation data value field.
+    length: u32,
+
+    /// Context ID, an odd number between 1-255.
+    ctx_id: u8,
+
+    /// Message Header, interpreted as bit fields.
+    ///
+    /// LSB 0,
+    ///   0: The message contains a DICOM Data Set.
+    ///   1: The message contains a Command.
+    ///
+    /// LSB 1,
+    ///   0: The message fragment is not the last fragment.
+    ///   1: The message fragment is the last fragment.
+    ///
+    /// The other bits shall be zeros, but unchecked.
+    msg_header: u8,
+
+    /// Presentation data, a fragment. Either a Command or a DICOM Data Set.
+    data: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -159,7 +349,7 @@ pub struct AssocRQPresentationContext {
     length: u16,
 
     /// Presentation context ID, an odd number between 1 and 255.
-    pres_context_id: u8,
+    ctx_id: u8,
 
     /// Reserved, should be zero.
     reserved_2: u8,
@@ -178,6 +368,42 @@ pub struct AssocRQPresentationContext {
 }
 
 #[derive(Debug)]
+pub struct AssocACPresentationContext {
+    /// The type of this PDU, `PduType::AssocACPresentationContext`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved_1: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// Transfer Syntax item.
+    length: u16,
+
+    /// Presentation context ID, an odd number between 1 and 255.
+    ctx_id: u8,
+
+    /// Reserved, should be zero.
+    reserved_2: u8,
+
+    /// Result/Reason.
+    ///
+    /// 0: Acceptance.
+    /// 1: User-rejection.
+    /// 2: No reason (provider rejection).
+    /// 3: Abstract Syntax not supported (provider rejection).
+    /// 4: Transfer Syntaxes not supported (provider rejection).
+    result: u8,
+
+    /// Reserved, should be zero.
+    reserved_3: u8,
+
+    /// The selected transfer syntax. When the `result` field has a value other than 0, this field
+    /// shall not be significant and should be ignored. The `TransferSyntaxItem` should contain
+    /// only a single transfer syntax.
+    transfer_syntax: TransferSyntaxItem,
+}
+
+#[derive(Debug)]
 pub struct AbstractSyntaxItem {
     /// The type of this PDU, `PduType::AbstractSyntaxItem`.
     pdu_type: PduType,
@@ -191,7 +417,7 @@ pub struct AbstractSyntaxItem {
 
     /// The abstract syntax tree related to the proposed presentation context. This is essentially
     /// a UID.
-    abstract_syntax_name: Vec<u8>,
+    abstract_syntax: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -206,8 +432,7 @@ pub struct TransferSyntaxItem {
     /// transfer syntax name fields.
     length: u16,
 
-    /// The transfer syntax names related to the proposed presentation context. This is essentially
-    /// a list of UIDs.
+    /// The transfer syntax UIDs related to the proposed presentation context.
     transfer_syntaxes: Vec<u8>,
 }
 
@@ -236,11 +461,91 @@ pub struct MaxLengthItem {
     reserved: u8,
 
     /// The number of bytes from the first byte of the following field to the last byte of the user
-    /// data fields. This should always be 4.
+    /// data fields. This should be a fixed value of 4.
     length: u16,
 
     /// The maximum length.
     max_length: u32,
+}
+
+#[derive(Debug)]
+pub struct ImplementationClassUIDItem {
+    /// The type of this PDU, `PduType::ImplementationClassUIDItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes in the following Implementation Class UID field.
+    length: u16,
+
+    /// The Implementation Class UID.
+    impl_class_uid: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct AsyncOperationsWindowItem {
+    /// The type of this PDU, `PduType::AsyncOperationsWindowItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the
+    /// Maximum Number Operations Performed field. This should be a fixed value of 4.
+    length: u16,
+
+    /// Maximum Number of Operations Invoked.
+    max_ops_invoked: u16,
+
+    /// Maximum Number of Operations Performed.
+    max_ops_performed: u16,
+}
+
+#[derive(Debug)]
+pub struct RoleSelectionItem {
+    /// The type of this PDU, `PduType::RoleSelectionItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes from the first byte of the following field to the last byte of the SCP
+    /// Role field.
+    length: u16,
+
+    /// The number of bytes in the SOP Class UID field.
+    uid_length: u16,
+
+    /// The SOP Class UID field.
+    sop_class_uid: Vec<u8>,
+
+    /// Support for the SCU role.
+    ///
+    /// 0: non-support of the SCU role.
+    /// 1: support of the SCU role.
+    scu_role: u8,
+
+    /// Support for the SCP role.
+    ///
+    /// 0: non-support of the SCP role.
+    /// 1: support of the SCP role.
+    scp_role: u8,
+}
+
+#[derive(Debug)]
+pub struct ImplementationVersionNameItem {
+    /// The type of this PDU, `PduType::ImplementationVersionNameItem`.
+    pdu_type: PduType,
+
+    /// Reserved, should be zero.
+    reserved: u8,
+
+    /// The number of bytes in the Implementation Version Name field.
+    length: u16,
+
+    /// Implementation Version Name.
+    impl_ver_name: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -318,7 +623,13 @@ pub struct UserIdentityItem {
     length: u16,
 
     /// The user identity type.
-    identity_type: UserIdentityType,
+    ///
+    /// 1: Username.
+    /// 2: Username and Passcode.
+    /// 3: Kerberos Service Ticket.
+    /// 4: SAML Assertion.
+    /// 5: JSON Web Token.
+    identity_type: u8,
 
     /// Positive response requested.
     ///
@@ -333,11 +644,10 @@ pub struct UserIdentityItem {
     pri_value: Vec<u8>,
 
     /// The length of the secondary field. This field should only be non-zero if the identity type
-    /// is 2, `UserIdentityType::UsernameAndPasscode`.
+    /// is 2.
     sec_length: u16,
 
-    /// The secondary field. Only present if the identity type is 2,
-    /// `UserIdentityType::UsernameAndPasscode`.
+    /// The secondary field. Only present if the identity type is 2.
     sec_value: Vec<u8>,
 }
 
@@ -388,16 +698,16 @@ mod tests {
         );
 
         assert_eq!(
-            PduType::AssocReleaseReq,
-            (PduType::AssocReleaseReq as u8).try_into().unwrap()
+            PduType::ReleaseRQ,
+            (PduType::ReleaseRQ as u8).try_into().unwrap()
         );
         assert_eq!(
-            PduType::AssocReleaseRsp,
-            (PduType::AssocReleaseRsp as u8).try_into().unwrap()
+            PduType::ReleaseRP,
+            (PduType::ReleaseRP as u8).try_into().unwrap()
         );
         assert_eq!(
-            PduType::AssocAbort,
-            (PduType::AssocAbort as u8).try_into().unwrap()
+            PduType::Abort,
+            (PduType::Abort as u8).try_into().unwrap()
         );
 
         assert_eq!(
@@ -437,6 +747,28 @@ mod tests {
         );
 
         assert_eq!(
+            PduType::ImplementationClassUIDItem,
+            (PduType::ImplementationClassUIDItem as u8)
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
+            PduType::AsyncOperationsWindowItem,
+            (PduType::AsyncOperationsWindowItem as u8)
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
+            PduType::RoleSelectionItem,
+            (PduType::RoleSelectionItem as u8).try_into().unwrap()
+        );
+        assert_eq!(
+            PduType::ImplementationVersionNameItem,
+            (PduType::ImplementationVersionNameItem as u8)
+                .try_into()
+                .unwrap()
+        );
+        assert_eq!(
             PduType::SOPClassExtendedNegotiationItem,
             (PduType::SOPClassExtendedNegotiationItem as u8)
                 .try_into()
@@ -457,34 +789,6 @@ mod tests {
             (PduType::UserIdentityNegotiationItem as u8)
                 .try_into()
                 .unwrap()
-        );
-    }
-
-    #[test]
-    fn test_user_identity_roundtrip() {
-        assert_eq!(
-            UserIdentityType::Username,
-            (UserIdentityType::Username as u8).try_into().unwrap()
-        );
-        assert_eq!(
-            UserIdentityType::UsernameAndPasscode,
-            (UserIdentityType::UsernameAndPasscode as u8)
-                .try_into()
-                .unwrap()
-        );
-        assert_eq!(
-            UserIdentityType::KerberosServiceTicket,
-            (UserIdentityType::KerberosServiceTicket as u8)
-                .try_into()
-                .unwrap()
-        );
-        assert_eq!(
-            UserIdentityType::SAMLAssertion,
-            (UserIdentityType::SAMLAssertion as u8).try_into().unwrap()
-        );
-        assert_eq!(
-            UserIdentityType::JWT,
-            (UserIdentityType::JWT as u8).try_into().unwrap()
         );
     }
 }
