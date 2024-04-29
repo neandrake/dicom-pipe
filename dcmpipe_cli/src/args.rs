@@ -25,6 +25,7 @@ pub enum Command {
     /// Manage a database index of DICOM on disk.
     ///
     /// Recursively scans a folder for DICOM datasets, indexing them into a database.
+    #[cfg(feature = "index")]
     Index(IndexArgs),
 
     /// Archives DICOM datasets from a source folder into a destination folder.

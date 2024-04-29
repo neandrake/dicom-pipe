@@ -12,6 +12,7 @@ use dcmpipe_lib::defn::tag::Tag;
 
 pub(crate) mod archiveapp;
 pub(crate) mod browseapp;
+#[cfg(feature = "index")]
 pub(crate) mod indexapp;
 pub(crate) mod printapp;
 pub(crate) mod scanapp;

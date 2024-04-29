@@ -4,14 +4,17 @@ version = "0.1.0"
 authors = ["neandrake <die.drachen@gmail.com>"]
 edition = "2021"
 
+[features]
+index = ["dep:mongodb", "dep:bson"]
+
 [dependencies]
 anyhow = "1.0"
-bson = "2.8"
+bson = { version = "2.8", optional = true }
 clap = { version = "4.4", features = ["derive"] }
 crossterm = "0.27"
 dcmpipe_dict = { path = "../dcmpipe_dict", version = "0.1" }
 dcmpipe_lib = { path = "../dcmpipe_lib", version = "0.1", features = ["compress"] }
-mongodb = { version = "2.8", default-features = false, features = ["sync"] }
+mongodb = { version = "2.8", default-features = false, features = ["sync"], optional = true }
 ratatui = "0.25"
 walkdir = "2.4"
 
