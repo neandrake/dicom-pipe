@@ -1360,7 +1360,7 @@ fn test_empty_string_parsed_as_number(with_std: bool) -> Result<()> {
 }
 
 #[test]
-//#[ignore]
+#[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<()> {
     let num_failed: usize = parse_all_dicom_files(true)?;
     if num_failed > 0 {

@@ -828,6 +828,8 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
 
     /// Performs the `ParserState::GroupLength` iteration
     fn iterate_group_length(&mut self) -> Result<Option<DicomElement>> {
+        // See comment on `detected_ts` for further details on why this is being used as to
+        // hard-coded to ExplicitVRLittleEndian, as the standard defines File Meta to use.
         let ts: TSRef = self.detected_ts;
         let tag: u32 = self.read_tag(ts)?;
         if self.is_at_parse_stop() {
@@ -870,12 +872,16 @@ impl<'dict, DatasetType: Read> Parser<'dict, DatasetType> {
             return Ok(None);
         }
 
-        let tag: u32 = self.read_tag(&ts::ExplicitVRLittleEndian)?;
+        // See comment on `detected_ts` for further details on why this is being used as to
+        // hard-coded to ExplicitVRLittleEndian, as the standard defines File Meta to use.
+        let ts: TSRef = self.detected_ts;
+
+        let tag: u32 = self.read_tag(ts)?;
         if self.is_at_parse_stop() {
             return Ok(None);
         }
 
-        let element: DicomElement = self.read_dicom_element(tag, self.detected_ts)?;
+        let element: DicomElement = self.read_dicom_element(tag, ts)?;
         if element.get_tag() == tags::TRANSFER_SYNTAX_UID {
             match self.parse_transfer_syntax(&element) {
                 Ok(Some(ts)) => {
