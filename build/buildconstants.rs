@@ -25,6 +25,7 @@
 
 extern crate csv;
 extern crate htmltbl2csv;
+extern crate phf_codegen;
 extern crate rustc_serialize;
 extern crate walkdir;
 
@@ -34,7 +35,7 @@ use htmltbl2csv::CsvTable;
 
 use std::ascii::AsciiExt;
 use std::fs::File;
-use std::io::{Cursor, Error, ErrorKind, Write};
+use std::io::{BufWriter, Cursor, Error, ErrorKind, Write};
 use std::path::Path;
 
 use walkdir::{DirEntry, WalkDir};
@@ -83,9 +84,15 @@ fn print_rerun_if_changed(files: &[DirEntry]) -> Result<(), Error> {
 /// Processes the HTML files in the given directory into CSV
 /// the converts the CSV format into code, writing files into src/core/
 fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
-    let mut tag_lookup_content: String = String::new();
-    let mut uid_lookup_content: String = String::new();
-    let mut transfer_syntax_lookup_content: String = String::new();
+    let mut tag_ident_lookup_phf: phf_codegen::Map<String> = phf_codegen::Map::new();
+    let mut tag_tag_lookup_phf: phf_codegen::Map<u32> = phf_codegen::Map::new();
+
+    let mut uid_ident_lookup_phf: phf_codegen::Map<String> = phf_codegen::Map::new();
+    let mut uid_id_lookup_phf: phf_codegen::Map<String> = phf_codegen::Map::new();
+
+    let mut ts_ident_lookup_phf: phf_codegen::Map<String> = phf_codegen::Map::new();
+    let mut ts_id_lookup_phf: phf_codegen::Map<String> = phf_codegen::Map::new();
+
     let mut transfer_syntaxes: String = String::new();
     for entry in files {
         let path: &Path = entry.path();
@@ -108,11 +115,8 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
                 .map_err(|e: csv::Error| Error::new(ErrorKind::InvalidData, e))?;
             
             for element in elements {
-                if let Some(code) = table_type.process_element(&element) {
+                if let Some(code) = table_type.process_element(&element, &mut tag_ident_lookup_phf, &mut tag_tag_lookup_phf) {
                     defns.push_str(&code);
-                }
-                if let Some(code) = table_type.process_element_lookup(&element) {
-                    tag_lookup_content.push_str(&code);
                 }
             }
         } else {
@@ -121,19 +125,13 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
                 .map_err(|e: csv::Error| Error::new(ErrorKind::InvalidData, e))?;
 
             for uid in uids {
-                if let Some(code) = table_type.process_uid(&uid) {
+                if let Some(code) = table_type.process_uid(&uid, &mut uid_ident_lookup_phf, &mut uid_id_lookup_phf) {
                     defns.push_str(&code);
-                }
-                if let Some(code) = table_type.process_uid_lookup(&uid) {
-                    uid_lookup_content.push_str(&code);
                 }
 
                 if uid.uid_type == "Transfer Syntax" {
-                    if let Some(code) = table_type.process_transfer_syntax(&uid) {
+                    if let Some(code) = table_type.process_transfer_syntax(&uid, &mut ts_ident_lookup_phf, &mut ts_id_lookup_phf) {
                         transfer_syntaxes.push_str(&code);
-                    }
-                    if let Some(code) = table_type.process_transfer_syntax_lookup(&uid) {
-                        transfer_syntax_lookup_content.push_str(&code);
                     }
                 }
             }
@@ -146,29 +144,44 @@ fn process_html_files(files: &[DirEntry]) -> Result<(), Error> {
         save_codefile(&TableType::TransferSyntaxes, &transfer_syntaxes)?;
     }
 
-    if !tag_lookup_content.is_empty() {
-        let code: String = get_element_lookup(&tag_lookup_content);
-        let mut out_rs_file: File = File::create("src/core/dict/tag_lookup.rs")?;
-        out_rs_file.write_all(code.as_bytes())?;
-        out_rs_file.flush()?;
-        out_rs_file.sync_all()?;
-    }
+    let mut lookup_file: BufWriter<File> = BufWriter::new(File::create("src/core/dict/lookup.rs").unwrap());
+    write!(&mut lookup_file, "//! This is an auto-generated file. Do not make modifications here.
 
-    if !uid_lookup_content.is_empty() {
-        let code: String = get_uid_lookup(&uid_lookup_content);
-        let mut out_rs_file: File = File::create("src/core/dict/uid_lookup.rs")?;
-        out_rs_file.write_all(code.as_bytes())?;
-        out_rs_file.flush()?;
-        out_rs_file.sync_all()?;
-    }
+use core::dict::dicom_elements as tags;
+use core::dict::dir_structure_elements as dse;
+use core::dict::file_meta_elements as fme;
+use core::dict::uids;
+use core::dict::transfer_syntaxes as ts;
+use core::tag::Tag;
+use core::ts::TransferSyntax;
+use core::uid::UID;
 
-    if !transfer_syntax_lookup_content.is_empty() {
-        let code: String = get_transfer_syntax_lookup(&transfer_syntax_lookup_content);
-        let mut out_rs_file: File = File::create("src/core/dict/ts_lookup.rs")?;
-        out_rs_file.write_all(code.as_bytes())?;
-        out_rs_file.flush()?;
-        out_rs_file.sync_all()?;
-    }
+
+")?;
+
+    write!(&mut lookup_file, "pub static TAG_BY_IDENT: ::phf::Map<&'static str, &'static Tag> = ")?;
+    tag_ident_lookup_phf.build(&mut lookup_file)?;
+
+    write!(&mut lookup_file, ";\n\n")?;
+    write!(&mut lookup_file, "pub static TAG_BY_VALUE: ::phf::Map<u32, &'static Tag> = ")?;
+    tag_tag_lookup_phf.build(&mut lookup_file)?;
+
+    write!(&mut lookup_file, ";\n\n")?;
+    write!(&mut lookup_file, "pub static TS_BY_IDENT: ::phf::Map<&'static str, &'static TransferSyntax> = ")?;
+    ts_ident_lookup_phf.build(&mut lookup_file)?;
+
+    write!(&mut lookup_file, ";\n\n")?;
+    write!(&mut lookup_file, "pub static TS_BY_ID: ::phf::Map<&'static str, &'static TransferSyntax> = ")?;
+    ts_id_lookup_phf.build(&mut lookup_file)?;
+
+    write!(&mut lookup_file, ";\n\n")?;
+    write!(&mut lookup_file, "pub static UID_BY_IDENT: ::phf::Map<&'static str, &'static UID> = ")?;
+    uid_ident_lookup_phf.build(&mut lookup_file)?;
+
+    write!(&mut lookup_file, ";\n\n")?;
+    write!(&mut lookup_file, "pub static UID_BY_ID: ::phf::Map<&'static str, &'static UID> = ")?;
+    uid_id_lookup_phf.build(&mut lookup_file)?;
+    write!(&mut lookup_file, ";\n")?;
 
     Ok(())
 }
@@ -182,129 +195,6 @@ fn save_codefile(table_type: &TableType, code: &str) -> Result<(), Error> {
     out_rs_file.flush()?;
     out_rs_file.sync_all()?;
     Ok(())
-}
-
-fn get_element_lookup(content: &str) -> String {
-    format!("//! This is an auto-generated file. Do not make modifications here.
-
-use core::dict::dicom_elements as tags;
-use core::dict::dir_structure_elements as dse;
-use core::dict::file_meta_elements as fme;
-use core::tag::Tag;
-
-use std::collections::hash_map::HashMap;
-
-pub struct TagLookup {{
-\tpub ident_to_elem: HashMap<&'static str, &'static Tag>,
-\tpub tag_to_elem: HashMap<u32, &'static Tag>,
-}}
-
-impl TagLookup {{
-\tpub fn by_ident(&self, ident: &str) -> Option<&'static Tag> {{
-\t\tself.ident_to_elem.get(ident).map(|tag| *tag)
-\t}}
-
-\tpub fn by_tag(&self, tag: u32) -> Option<&'static Tag> {{
-\t\tself.tag_to_elem.get(&tag).map(|tag| *tag)
-\t}}
-
-\tpub fn new() -> TagLookup {{
-\t\tlet mut ident_to_elem: HashMap<&'static str, &'static Tag> = HashMap::new();
-\t\tlet mut tag_to_elem: HashMap<u32, &'static Tag> = HashMap::new();
-{}
-
-\t\tTagLookup {{
-\t\t\tident_to_elem: ident_to_elem,
-\t\t\ttag_to_elem: tag_to_elem,
-\t\t}}
-\t}}
-}}
-
-",
-    content)
-}
-
-fn get_uid_lookup(content: &str) -> String {
-    format!("//! This is an auto-generated file. Do not make modifications here.
-
-use core::dict::uids;
-use core::uid::UID;
-
-use std::collections::hash_map::HashMap;
-
-pub struct UidLookup {{
-\tpub ident_to_uid: HashMap<&'static str, &'static UID>,
-\tpub id_to_uid: HashMap<&'static str, &'static UID>,
-}}
-
-impl UidLookup {{
-\tpub fn by_ident(&self, ident: &str) -> Option<&'static UID> {{
-\t\tself.ident_to_uid.get(ident).map(|uid| *uid)
-\t}}
-
-\tpub fn by_id(&self, id: &str) -> Option<&'static UID> {{
-\t\tself.id_to_uid.get(id).map(|uid| *uid)
-\t}}
-
-\tpub fn new() -> UidLookup {{
-\t\tlet mut ident_to_uid: HashMap<&'static str, &'static UID> = HashMap::new();
-\t\tlet mut id_to_uid: HashMap<&'static str, &'static UID> = HashMap::new();
-{}
-
-\t\tUidLookup {{
-\t\t\tident_to_uid: ident_to_uid,
-\t\t\tid_to_uid: id_to_uid,
-\t\t}}
-\t}}
-}}
-",
-    content)
-}
-
-fn get_transfer_syntax_lookup(content: &str) -> String {
-    format!("//! This is an auto-generated file. Do not make modifications here.
-
-use core::dict::transfer_syntaxes as ts;
-use core::dict::uids;
-use core::ts::TransferSyntax;
-use core::uid::UID;
-
-use std::collections::hash_map::HashMap;
-
-pub struct TransferSyntaxLookup {{
-\tpub ident_to_ts: HashMap<&'static str, &'static TransferSyntax>,
-\tpub id_to_ts: HashMap<&'static str, &'static TransferSyntax>,
-\tpub uid_to_ts: HashMap<&'static UID, &'static TransferSyntax>,
-}}
-
-impl TransferSyntaxLookup {{
-\tpub fn by_ident(&self, ident: &str) -> Option<&'static TransferSyntax> {{
-\t\tself.ident_to_ts.get(ident).map(|ts| *ts)
-\t}}
-
-\tpub fn by_id(&self, id: &str) -> Option<&'static TransferSyntax> {{
-\t\tself.id_to_ts.get(id).map(|ts| *ts)
-\t}}
-
-\tpub fn by_uid(&self, uid: &UID) -> Option<&'static TransferSyntax> {{
-\t\tself.uid_to_ts.get(uid).map(|ts| *ts)
-\t}}
-
-\tpub fn new() -> TransferSyntaxLookup {{
-\t\tlet mut ident_to_ts: HashMap<&'static str, &'static TransferSyntax> = HashMap::new();
-\t\tlet mut id_to_ts: HashMap<&'static str, &'static TransferSyntax> = HashMap::new();
-\t\tlet mut uid_to_ts: HashMap<&'static UID, &'static TransferSyntax> = HashMap::new();
-{}
-
-\t\tTransferSyntaxLookup {{
-\t\t\tident_to_ts: ident_to_ts,
-\t\t\tid_to_ts: id_to_ts,
-\t\t\tuid_to_ts: uid_to_ts,
-\t\t}}
-\t}}
-}}
-",
-    content)
 }
 
 /// The different tables we parse out of the HTML/CSV
@@ -443,7 +333,7 @@ use core::ts::TransferSyntax;
     }
 
     /// Processes a UID entry from CSV and returns the bit of code for it
-    pub fn process_uid(&self, uid: &Uid) -> Option<String> {
+    pub fn process_uid(&self, uid: &Uid, ident_lookup: &mut phf_codegen::Map<String>, id_lookup: &mut phf_codegen::Map<String>) -> Option<String> {
         let var_name: String = TableType::sanitize_var_name(&uid.name);
         if var_name.is_empty() {
             return None;
@@ -465,12 +355,18 @@ pub static {}: UID = UID {{
             uid.name, uid.value, uid.uid_type,
             // definitions
             var_name, var_name, uid.value, uid.name);
+        
+        let var_name_key: String = var_name.clone();
+        ident_lookup.entry(var_name_key, &format!("&uids::{}", var_name));
+
+        let id_val_key: String = uid.value.clone();
+        id_lookup.entry(id_val_key, &format!("&uids::{}", var_name));
 
         Some(code)
     }
 
     /// Processes a UID entry from CSV as a TransferSyntax and returns the bit of code for it
-    pub fn process_transfer_syntax(&self, uid: &Uid) -> Option<String> {
+    pub fn process_transfer_syntax(&self, uid: &Uid, ident_lookup: &mut phf_codegen::Map<String>, id_lookup: &mut phf_codegen::Map<String>) -> Option<String> {
         let var_name: String = TableType::sanitize_var_name(&uid.name);
         if var_name.is_empty() {
             return None;
@@ -514,50 +410,17 @@ pub static {}: TransferSyntax = TransferSyntax {{
             uid.name, uid.value, var_name,
             // definitions
             var_uid, explicit_vr_val, big_endian_val, deflated_val, encapsulated_val);
-
-        Some(code)
-    }
-
-    pub fn process_uid_lookup(&self, uid: &Uid) -> Option<String> {
-        let var_name: String = TableType::sanitize_var_name(&uid.name);
-        if var_name.is_empty() {
-            return None;
-        }
-
-        let code: String = format!(
-"
-\t\tident_to_uid.insert(\"{}\", &uids::{});
-\t\tid_to_uid.insert(\"{}\", &uids::{});
-",
-            var_name, var_name,
-            uid.value, var_name,
-        );
-
-        Some(code)
-    }
-
-    pub fn process_transfer_syntax_lookup(&self, uid: &Uid) -> Option<String> {
-        let var_name: String = TableType::sanitize_var_name(&uid.name);
-        if var_name.is_empty() {
-            return None;
-        }
-
-        let code: String = format!(
-"
-\t\tident_to_ts.insert(\"{}\", &ts::{});
-\t\tid_to_ts.insert(\"{}\", &ts::{});
-\t\tuid_to_ts.insert(&uids::{}, &ts::{});
-",
-            var_name, var_name,
-            uid.value, var_name,
-            var_name, var_name,
-        );
+        
+        let var_name_key: String = var_name.clone();
+        ident_lookup.entry(var_name_key, &format!("&ts::{}", var_name));
+        let id_val_lookup: String = uid.value.clone();
+        id_lookup.entry(id_val_lookup, &format!("&ts::{}", var_name));
 
         Some(code)
     }
 
     /// Processes an element entry from CSV and returns the bit of code for it
-    pub fn process_element(&self, element: &DataElement) -> Option<String> {
+    pub fn process_element(&self, element: &DataElement, ident_lookup: &mut phf_codegen::Map<String>, tag_lookup: &mut phf_codegen::Map<u32>) -> Option<String> {
         let var_name: String = TableType::sanitize_var_name(&element.keyword);
         if var_name.is_empty() {
             return None;
@@ -593,6 +456,13 @@ pub static {}: TransferSyntax = TransferSyntax {{
                 else if let Ok(end_val) = end.parse::<u32>() { format!("&VM::AtMost({})", end_val) }
                 else { format!("&VM::MultipleOf({})", start) }
             };
+        
+        let dict: &str = match *self {
+            TableType::DicomElements => "tags::",
+            TableType::FileMetaElements => "fme::",
+            TableType::DirStructureElements => "dse::",
+            _ => return None
+        };
 
         let code: String = format!(
 "/// {}
@@ -613,42 +483,10 @@ pub static {}: Tag = Tag {{
             element.name, element.tag, vr, element.vm,
             // definitions
             var_name, var_name, tag_value, vr_value, vm, element.name);
-
-        Some(code)
-    }
-
-    fn process_element_lookup(&self, element: &DataElement) -> Option<String> {
-        let var_name: String = TableType::sanitize_var_name(&element.keyword);
-        if var_name.is_empty() {
-            return None;
-        }
-
-        let tag_value: u32 =
-            u32::from_str_radix(
-                &element.tag
-                    .replace("(", "")
-                    .replace(")", "")
-                    .replace(",", ""),
-                16)
-            .unwrap_or(0);
-        if tag_value == 0 {
-            return None;
-        }
-
-        let dict: &str = match *self {
-            TableType::DicomElements => "tags::",
-            TableType::FileMetaElements => "fme::",
-            TableType::DirStructureElements => "dse::",
-            _ => return None
-        };
-
-        let code: String = format!("
-\t\tident_to_elem.insert(\"{}\", &{}{});
-\t\ttag_to_elem.insert(0x{:08X}, &{}{});
-",
-            var_name, dict, var_name,
-            tag_value, dict, var_name,
-        );
+        
+        let var_name_key: String = var_name.clone();
+        ident_lookup.entry(var_name_key, &format!("&{}{}", dict, var_name));
+        tag_lookup.entry(tag_value, &format!("&{}{}", dict, var_name));
 
         Some(code)
     }

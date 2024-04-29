@@ -1,4 +1,5 @@
 extern crate byteorder;
+extern crate phf;
 
 #[cfg(test)]
 extern crate walkdir;
