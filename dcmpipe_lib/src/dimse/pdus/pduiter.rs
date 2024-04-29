@@ -14,18 +14,32 @@
    limitations under the License.
 */
 
-use std::io::{Cursor, Read};
+use std::{
+    borrow::Borrow,
+    io::{Cursor, Read},
+    iter::{once, Peekable},
+    mem::swap,
+};
 
 use crate::{
     core::{
+        charset::CSRef,
+        dcmelement::DicomElement,
         dcmobject::DicomRoot,
         defn::{constants::ts::ImplicitVRLittleEndian, ts::TSRef},
         read::{ParserBuilder, ParserState},
+        write::{
+            builder::WriterBuilder,
+            writer::{Writer, WriterState},
+        },
     },
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
     dimse::{
         commands::messages::CommandMessage,
-        pdus::{mainpdus::PresentationDataValue, Pdu},
+        pdus::{
+            mainpdus::{PresentationDataItem, PresentationDataValue},
+            msg_header, Pdu,
+        },
         DimseError,
     },
 };
@@ -129,6 +143,9 @@ impl<R: Read> Iterator for PduIter<R> {
     }
 }
 
+/// Creates an iterator over the PDU input stream, for parsing incoming `PresentationDataItem` and
+/// combining them into appropriate Command or Dataset. Any PDU which is not a
+/// `PresentationDataItem` will be returned as an error.
 pub struct CommandIter<R: Read> {
     ts: TSRef,
     reader: PduIter<R>,
@@ -197,6 +214,188 @@ impl<R: Read> Iterator for CommandIter<R> {
             Ok(Some(dcm_root)) => Some(Ok((cmd, Some(dcm_root)))),
             Ok(None) => Some(Ok((cmd, None))),
             Err(source) => Some(Err(DimseError::ParseError(source))),
+        }
+    }
+}
+
+/// Wraps an `Iterator<Item = DicomElement>` converting them into `PresentationDataItem`, while
+/// obeying the `MaxLengthItem`.
+pub struct PresDataIter<I, B>
+where
+    B: Borrow<DicomElement>,
+    I: Iterator<Item = B>,
+{
+    finished: bool,
+    ctx_id: u8,
+    max_payload_size: usize,
+    is_command: bool,
+    elements: Peekable<I>,
+    writer: Writer<Vec<u8>>,
+    big_element_data: Vec<u8>,
+}
+
+impl<I, B> PresDataIter<I, B>
+where
+    B: Borrow<DicomElement>,
+    I: Iterator<Item = B>,
+{
+    /// Create a new iterator to wrap the given iterator over elements.
+    ///
+    /// # Params
+    /// `ctx_id` - The `ctx_id` that each resulting `PresentationDataItem` will be assocaited with.
+    /// `max_pdu_size` - The maximum size of each `PresentationDataItem`.
+    /// `is_command` - Whether this is for command messages or for DICOM datasets.
+    /// `elements` - The iterator over elements to convert.
+    /// `ts` - The transfer syntax that the elements should be written with.
+    /// `cs` - The character set for DICOM encoding.
+    #[must_use]
+    pub fn new(
+        ctx_id: u8,
+        max_pdu_size: usize,
+        is_command: bool,
+        elements: I,
+        ts: TSRef,
+        cs: CSRef,
+    ) -> Self {
+        let max_payload_size = max_pdu_size
+            - PresentationDataItem::header_byte_size()
+            - PresentationDataValue::header_byte_size();
+        Self {
+            finished: false,
+            ctx_id,
+            max_payload_size,
+            is_command,
+            elements: elements.peekable(),
+            writer: Self::new_writer(ts, cs, max_payload_size),
+            big_element_data: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    fn create_pdi(&self, payload: Vec<u8>, is_last: bool) -> PresentationDataItem {
+        let msg_header = msg_header(self.is_command, is_last);
+        PresentationDataItem::new(vec![PresentationDataValue::new(
+            self.ctx_id,
+            msg_header,
+            payload,
+        )])
+    }
+
+    #[must_use]
+    fn swap_writer(&mut self) -> Vec<u8> {
+        let mut tmp = Self::new_writer(self.writer.ts(), self.writer.cs(), self.max_payload_size);
+        swap(&mut tmp, &mut self.writer);
+        tmp.into_dataset()
+    }
+
+    /// Create new writer
+    #[must_use]
+    fn new_writer(ts: TSRef, cs: CSRef, max_payload_size: usize) -> Writer<Vec<u8>> {
+        WriterBuilder::default()
+            .ts(ts)
+            .cs(cs)
+            .state(WriterState::WriteElement)
+            .build(Vec::with_capacity(max_payload_size))
+    }
+}
+
+impl<I, B> Iterator for PresDataIter<I, B>
+where
+    B: Borrow<DicomElement>,
+    I: Iterator<Item = B>,
+{
+    type Item = Result<PresentationDataItem, DimseError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+
+        loop {
+            // If a previous iteration placed bytes into this field then the element is too large
+            // to fit into a single PresentationDataItem.
+            if !self.big_element_data.is_empty() {
+                let payload_size = self.max_payload_size.min(self.big_element_data.len());
+                let payload = self
+                    .big_element_data
+                    .drain(0..payload_size)
+                    .collect::<Vec<u8>>();
+                // If there is no more big element data and no more elements then this is the last
+                // chunk.
+                let is_last = self.big_element_data.is_empty() && self.elements.peek().is_none();
+                if is_last {
+                    self.finished = true;
+                }
+                return Some(Ok(self.create_pdi(payload, is_last)));
+            }
+
+            let element = self.elements.next();
+
+            let Some(element) = element else {
+                self.finished = true;
+                if self.writer.bytes_written() == 0 {
+                    return None;
+                }
+
+                let buffer = self.swap_writer();
+                return Some(Ok(self.create_pdi(buffer, true)));
+            };
+
+            let element = element.borrow();
+            let elem_size = element.byte_size();
+            let bytes_written = usize::try_from(self.writer.bytes_written()).unwrap_or_default();
+
+            // If adding this element to the writer will cause it to exceed the max PDU size then
+            // swap out the writer with a new one to write the element to, and return the old one
+            // in a new PresentationDataItem.
+            if bytes_written + elem_size > self.max_payload_size {
+                let big_elem = self.writer.bytes_written() == 0;
+
+                // If the writer hasn't written anything and the element's size is still too large
+                // then we're in a big element like PixelData. Put the bytes into the leftover
+                // field and let the beginning of the loop handle this.
+                if big_elem {
+                    let write_result = self
+                        .writer
+                        .write_elements(once(element))
+                        .map_err(DimseError::from);
+                    if let Err(e) = write_result {
+                        self.finished = true;
+                        return Some(Err(e));
+                    }
+                    self.big_element_data = self.swap_writer();
+                    continue;
+                }
+
+                let buffer = self.swap_writer();
+                let write_result = self
+                    .writer
+                    .write_elements(once(element))
+                    .map_err(DimseError::from);
+
+                // If an error occurred return it immediately, even though there's technically a
+                // full PresentationDataItem that can be returned.
+                if let Err(e) = write_result {
+                    self.finished = true;
+                    return Some(Err(e));
+                }
+
+                let is_last = self.elements.peek().is_none();
+                if is_last {
+                    self.finished = true;
+                }
+                return Some(Ok(self.create_pdi(buffer, is_last)));
+            }
+
+            // Writing this element should not exceed the max PDU size, loop to the next one.
+            let write_result = self
+                .writer
+                .write_elements(once(element))
+                .map_err(DimseError::from);
+            if let Err(e) = write_result {
+                self.finished = true;
+                return Some(Err(e));
+            }
         }
     }
 }

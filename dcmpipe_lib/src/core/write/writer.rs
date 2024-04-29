@@ -167,6 +167,7 @@ impl<W: Write> Writer<W> {
             bytes_written += self.write_fm_elements(fm_elements.as_slice())?;
         }
 
+        self.bytes_written += u64::try_from(bytes_written).unwrap_or_default();
         Ok(bytes_written)
     }
 
@@ -228,6 +229,7 @@ impl<W: Write> Writer<W> {
             bytes_written += self.write_owned_fm_elements(fm_elements.as_slice())?;
         }
 
+        self.bytes_written += u64::try_from(bytes_written).unwrap_or_default();
         Ok(bytes_written)
     }
 

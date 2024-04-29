@@ -50,8 +50,8 @@ use dcmpipe_lib::{
         },
     },
     dimse::{
-        assoc::{scp::ServiceAssoc, QueryLevel},
-        commands::messages::CommandMessage,
+        assoc::QueryLevel,
+        commands::{messages::CommandMessage, CommandStatus},
         error::{AssocError, DimseError},
     },
 };
@@ -144,14 +144,20 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         )?;
 
         for result in dcm_results {
-            let res_rsp =
-                ServiceAssoc::create_cfind_result(ctx_id, msg_id, &aff_sop_class, &result)?;
-            self.assoc.write_pdu(&res_rsp.0, &mut self.writer)?;
-            self.assoc.write_pdu(&res_rsp.1, &mut self.writer)?;
+            let cmd = CommandMessage::c_find_rsp(
+                ctx_id,
+                msg_id,
+                &aff_sop_class,
+                &CommandStatus::pending(),
+            );
+            self.assoc.write_command(&cmd, &mut self.writer)?;
+            self.assoc
+                .write_dataset(ctx_id, &result, &mut self.writer)?;
         }
 
-        let end_rsp = ServiceAssoc::create_cfind_end(ctx_id, msg_id, &aff_sop_class)?;
-        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
+        let cmd =
+            CommandMessage::c_find_rsp(ctx_id, msg_id, &aff_sop_class, &CommandStatus::success());
+        self.assoc.write_command(&cmd, &mut self.writer)?;
 
         Ok(())
     }

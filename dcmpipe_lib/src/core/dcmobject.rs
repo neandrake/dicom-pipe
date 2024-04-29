@@ -603,16 +603,19 @@ impl DicomObject {
     pub fn flatten(&self) -> Vec<&DicomElement> {
         // TODO: Can this instead return an iterator?
 
-        let mut elements: Vec<&DicomElement> = Vec::new();
+        let mut elements: Vec<&DicomElement> =
+            Vec::with_capacity(1 + self.item_count() + self.child_count());
+
+        if !self.element().is_sentinel() {
+            elements.push(self.element());
+        }
 
         // List items + contents first, as SQ objects will include both items for its contents as
         // well as the sequence delimiter as a child node.
         for dcmobj in self.iter_items() {
-            elements.push(dcmobj.element());
             elements.append(&mut (dcmobj.flatten()));
         }
         for (_tag, dcmobj) in self.iter_child_nodes() {
-            elements.push(dcmobj.element());
             elements.append(&mut (dcmobj.flatten()));
         }
 

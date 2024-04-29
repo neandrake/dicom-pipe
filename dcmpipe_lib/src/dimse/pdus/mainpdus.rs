@@ -1025,10 +1025,21 @@ impl PresentationDataItem {
     /// The total number of bytes that this PDU will require to write to a dataset.
     #[must_use]
     pub fn byte_size(&self) -> usize {
+        Self::header_byte_size()
+            + self
+                .pres_data
+                .iter()
+                .map(PresentationDataValue::byte_size)
+                .sum::<usize>()
+    }
+
+    /// The number of bytes that make up the header of `PresentationDataItem`, everything up
+    /// through the variable-sized presentation data values field.
+    #[must_use]
+    pub fn header_byte_size() -> usize {
         size_of::<u8>() // pdu_type
             + size_of::<u8>() // reserved
             + size_of::<u32>() // length
-            + self.pres_data.iter().map(PresentationDataValue::byte_size).sum::<usize>()
     }
 
     /// Write this PDU to the given dataset.
@@ -1165,10 +1176,16 @@ impl PresentationDataValue {
     /// The total number of bytes that this PDU will require to write to a dataset.
     #[must_use]
     pub fn byte_size(&self) -> usize {
+        Self::header_byte_size() + self.data.len()
+    }
+
+    /// The number of bytes that make up the header of `PresentationDataValue`, everything up
+    /// through the variable-sized data field.
+    #[must_use]
+    pub fn header_byte_size() -> usize {
         size_of::<u32>() // length
             + size_of::<u8>() // ctx_id
             + size_of::<u8>() // msg_header
-            + self.data.len()
     }
 
     /// Returns true if this value is a command message, false for a dicom dataset.
@@ -1802,9 +1819,6 @@ impl AbstractSyntaxItem {
 
         let mut abstract_syntax: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut abstract_syntax)?;
-        if abstract_syntax.len() % 2 != 0 {
-            abstract_syntax.push(UI.padding);
-        }
 
         Ok(Self {
             reserved,
@@ -1900,9 +1914,6 @@ impl TransferSyntaxItem {
 
         let mut transfer_syntaxes: Vec<u8> = vec![0u8; length.into()];
         dataset.read_exact(&mut transfer_syntaxes)?;
-        if transfer_syntaxes.len() % 2 != 0 {
-            transfer_syntaxes.push(UI.padding);
-        }
 
         Ok(Self {
             reserved,

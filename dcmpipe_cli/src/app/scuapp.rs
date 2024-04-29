@@ -131,7 +131,17 @@ impl SvcUserApp {
         for f in file {
             let f = File::open(f).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
             let parser = ParserBuilder::default().build(f, &STANDARD_DICOM_DICTIONARY);
-            assoc.c_store_req(&reader, &mut writer, parser, my_ae, 0)?;
+            let rsp = assoc.c_store_req(&mut reader, &mut writer, parser, my_ae, 0)?;
+            let Some(DimseMsg::Cmd(cmd)) = rsp else {
+                return Ok(rsp);
+            };
+
+            if !cmd.status().is_success() {
+                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                    "Transfer of file failed with status: {:?}",
+                    *cmd.status()
+                ))));
+            }
         }
 
         assoc.release_association(&mut reader, &mut writer)

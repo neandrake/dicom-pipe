@@ -20,8 +20,10 @@ use crate::dimse::{
     pdus::{
         mainpdus::{
             Abort, AbstractSyntaxItem, ApplicationContextItem, AssocAC, AssocACPresentationContext,
-            AssocRJ, AssocRQ, AssocRQPresentationContext, PresentationDataItem, ReleaseRP,
-            ReleaseRQ, TransferSyntaxItem, UserInformationItem,
+            AssocRJ, AssocRQ, AssocRQPresentationContext, PresentationDataItem,
+            PresentationDataItemPartial, ReleaseRP, ReleaseRQ, TransferSyntaxItem,
+            UserInformationItem, P_DATA_CMD, P_DATA_CMD_LAST, P_DATA_DCM_DATASET,
+            P_DATA_DCM_DATASET_LAST,
         },
         userpdus::{
             AsyncOperationsWindowItem, ImplementationClassUIDItem, ImplementationVersionNameItem,
@@ -32,11 +34,28 @@ use crate::dimse::{
     DimseError,
 };
 
-use self::mainpdus::PresentationDataItemPartial;
-
 pub mod mainpdus;
 pub mod pduiter;
 pub mod userpdus;
+
+/// Construct a P-DATA message header based on a given state.
+#[must_use]
+pub fn msg_header(is_cmd: bool, is_last: bool) -> u8 {
+    #[allow(clippy::collapsible_else_if)] // The logic here is clearer when not collapsed.
+    if is_cmd {
+        if is_last {
+            P_DATA_CMD_LAST
+        } else {
+            P_DATA_CMD
+        }
+    } else {
+        if is_last {
+            P_DATA_DCM_DATASET_LAST
+        } else {
+            P_DATA_DCM_DATASET
+        }
+    }
+}
 
 #[derive(PartialEq, Eq, Clone)]
 pub enum PduType {

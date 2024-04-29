@@ -20,7 +20,6 @@ use dcmpipe_lib::{
     core::dcmobject::DicomRoot,
     dict::tags::{AffectedSOPClassUID, MessageID},
     dimse::{
-        assoc::scp::ServiceAssoc,
         commands::{messages::CommandMessage, CommandStatus},
         error::AssocError,
     },
@@ -40,13 +39,9 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
-        let end_rsp = ServiceAssoc::create_cstore_end(
-            ctx_id,
-            msg_id,
-            &aff_sop_class,
-            &CommandStatus::success(),
-        )?;
-        self.assoc.write_pdu(&end_rsp, &mut self.writer)?;
+        let cmd =
+            CommandMessage::c_store_rsp(ctx_id, msg_id, &aff_sop_class, &CommandStatus::success());
+        self.assoc.write_command(&cmd, &mut self.writer)?;
 
         Ok(())
     }

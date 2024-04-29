@@ -17,19 +17,12 @@
 use std::str::FromStr;
 
 use crate::{
-    core::{
-        dcmobject::DicomRoot,
-        read::ParseError,
-        write::{builder::WriterBuilder, writer::WriterState},
-    },
+    core::read::ParseError,
     dimse::{
         commands::messages::CommandMessage,
-        error::DimseError,
         pdus::mainpdus::{Abort, AssocRJ, PresentationDataValue},
     },
 };
-
-use super::error::AssocError;
 
 pub mod scp;
 pub mod scu;
@@ -94,21 +87,4 @@ impl FromStr for QueryLevel {
             ))),
         }
     }
-}
-
-/// Serialize the given `DicomRoot` to an in-memory buffer, using the `DicomRoot`'s transfer
-/// syntax.
-///
-/// # Errors
-/// I/O errors may occur when serializing/writing the elements.
-pub fn serialize_in_mem(dcm_root: &DicomRoot) -> Result<Vec<u8>, AssocError> {
-    let mut ds_writer = WriterBuilder::default()
-        .state(WriterState::WriteElement)
-        .ts(dcm_root.ts())
-        .build(Vec::<u8>::with_capacity(dcm_root.byte_size()));
-    ds_writer
-        .write_dcmroot(dcm_root)
-        .map_err(DimseError::from)
-        .map_err(AssocError::ab_failure)?;
-    Ok(ds_writer.into_dataset())
 }

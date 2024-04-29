@@ -19,7 +19,6 @@ use crate::{
         charset::DEFAULT_CHARACTER_SET,
         dcmobject::DicomRoot,
         defn::{constants::ts::ImplicitVRLittleEndian, tag::Tag, vr::US},
-        write::{builder::WriterBuilder, writer::WriterState},
         RawValue,
     },
     dict::tags::{
@@ -170,21 +169,6 @@ impl CommandMessage {
             .get_value_by_tag(tag.clone())
             .and_then(|v| v.string().cloned())
             .ok_or_else(|| DimseError::DimseElementMissing(Tag::format_tag_to_display(tag)))
-    }
-
-    /// Serialize this command message into in-memory bytes, using IVRLE.
-    ///
-    /// # Errors
-    /// An I/O error may occur when writing to the in-memory `Vec`.
-    pub fn serialize(&self) -> Result<Vec<u8>, DimseError> {
-        let mut ds_writer = WriterBuilder::default()
-            .state(WriterState::WriteElement)
-            .ts(&ImplicitVRLittleEndian)
-            .build(Vec::<u8>::with_capacity(self.message.byte_size()));
-        ds_writer
-            .write_dcmroot(&self.message)
-            .map_err(DimseError::from)?;
-        Ok(ds_writer.into_dataset())
     }
 
     /// Create a `CommandMessage` from a list of tag/value pairs.
@@ -367,6 +351,10 @@ impl CommandMessage {
                     RawValue::of_string(origin_ae),
                 ),
                 (&MoveOriginatorMessageID, RawValue::of_ushort(origin_msg_id)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_SOME),
+                ),
             ],
         )
     }

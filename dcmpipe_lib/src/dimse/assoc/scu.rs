@@ -24,9 +24,11 @@ use crate::{
         charset::{lookup_charset, DEFAULT_CHARACTER_SET},
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
-        defn::{dcmdict::DicomDictionary, tag::Tag, ts::TSRef, uid::UIDRef, vr::UI},
+        defn::{
+            constants::ts::ImplicitVRLittleEndian, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
+            uid::UIDRef, vr::UI,
+        },
         read::Parser,
-        write::{builder::WriterBuilder, writer::WriterState},
         RawValue,
     },
     dict::{
@@ -44,19 +46,16 @@ use crate::{
         pdus::{
             mainpdus::{
                 Abort, AbstractSyntaxItem, ApplicationContextItem, AssocACPresentationContext,
-                AssocRQ, AssocRQPresentationContext, PresentationDataItem, PresentationDataValue,
-                ReleaseRP, ReleaseRQ, TransferSyntaxItem, UserInformationItem, P_DATA_CMD_LAST,
-                P_DATA_DCM_DATASET_LAST,
+                AssocRQ, AssocRQPresentationContext, ReleaseRP, ReleaseRQ, TransferSyntaxItem,
+                UserInformationItem,
             },
-            pduiter::{read_next_pdu, CommandIter, PduIterItem},
+            pduiter::{read_next_pdu, CommandIter, PduIterItem, PresDataIter},
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
             Pdu, PduType, UserPdu,
         },
         AeTitle, Syntax,
     },
 };
-
-use super::serialize_in_mem;
 
 pub struct UserAssoc {
     /* Fields configured by this SCU. */
@@ -125,10 +124,10 @@ impl UserAssoc {
     }
 
     #[must_use]
-    pub fn get_pdu_max_snd_size(&self) -> u32 {
+    pub fn get_pdu_max_snd_size(&self) -> usize {
         for user_pdu in &self.their_user_data {
             if let UserPdu::MaxLengthItem(mli) = user_pdu {
-                return mli.max_length();
+                return usize::try_from(mli.max_length()).unwrap_or_default();
             }
         }
         // 0 means no limit specified.
@@ -136,10 +135,10 @@ impl UserAssoc {
     }
 
     #[must_use]
-    pub fn get_pdu_max_rcv_size(&self) -> u32 {
+    pub fn get_pdu_max_rcv_size(&self) -> usize {
         for user_pdu in &self.my_user_data {
             if let UserPdu::MaxLengthItem(mli) = user_pdu {
-                return mli.max_length();
+                return usize::try_from(mli.max_length()).unwrap_or_default();
             }
         }
         // 0 means no limit specified.
@@ -288,6 +287,67 @@ impl UserAssoc {
         Ok(())
     }
 
+    /// Writes the given command, chunking into `PresentationDataItem`s based on the SCU's
+    /// indicated `MaxLengthItem`.
+    ///
+    /// # Errors
+    /// - I/O errors may occur when writing to the stream.
+    /// - Parsing/encoding errors may occur when serializing the given command to
+    /// `PresentationDataItem`s.
+    pub fn write_command<W: Write>(
+        &mut self,
+        cmd: &CommandMessage,
+        mut writer: &mut W,
+    ) -> Result<(), AssocError> {
+        let elements = cmd.message().flatten();
+        let pdi_iter = PresDataIter::new(
+            cmd.ctx_id(),
+            self.get_pdu_max_snd_size(),
+            true,
+            elements.iter().copied(),
+            &ImplicitVRLittleEndian,
+            DEFAULT_CHARACTER_SET,
+        );
+        for pdi in pdi_iter {
+            match pdi {
+                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Err(e) => return Err(AssocError::ab_failure(e)),
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes the given dataset, chunking into `PresentationDataItem`s based on the SCU's
+    /// indicated `MaxLengthItem`.
+    ///
+    /// # Errors
+    /// - I/O errors may occur when writing to the stream.
+    /// - Parsing/encoding errors may occur when serializing the given dataset to
+    /// `PresentationDataItem`s.
+    pub fn write_dataset<W: Write>(
+        &mut self,
+        ctx_id: u8,
+        dcm: &DicomRoot,
+        mut writer: &mut W,
+    ) -> Result<(), AssocError> {
+        let elements = dcm.flatten();
+        let pdi_iter = PresDataIter::new(
+            ctx_id,
+            self.get_pdu_max_snd_size(),
+            false,
+            elements.iter().copied(),
+            dcm.ts(),
+            dcm.cs(),
+        );
+        for pdi in pdi_iter {
+            match pdi {
+                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Err(e) => return Err(AssocError::ab_failure(e)),
+            }
+        }
+        Ok(())
+    }
+
     /// Release the association and confirm the RELEASE-RP
     ///
     /// # Errors
@@ -348,14 +408,8 @@ impl UserAssoc {
 
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
-        let req_cmd = CommandMessage::c_echo_req(ctx_id, msg_id, VerificationSOPClass.uid());
-        let req_cmd_data = req_cmd.serialize().map_err(AssocError::ab_failure)?;
-        let pres_data_item = PresentationDataItem::new(vec![PresentationDataValue::new(
-            ctx_id,
-            P_DATA_CMD_LAST,
-            req_cmd_data,
-        )]);
-        self.write_pdu(&Pdu::PresentationDataItem(pres_data_item), &mut writer)?;
+        let cmd = CommandMessage::c_echo_req(ctx_id, msg_id, VerificationSOPClass.uid());
+        self.write_command(&cmd, &mut writer)?;
 
         let rsp_cmd = self.next_msg(&mut reader, &mut writer)?;
         if let DimseMsg::Dataset(_ds) = rsp_cmd {
@@ -403,14 +457,7 @@ impl UserAssoc {
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
         let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
-
-        let cmd_data = cmd.serialize().map_err(AssocError::ab_failure)?;
-        let pres_data_item = PresentationDataItem::new(vec![PresentationDataValue::new(
-            ctx_id,
-            P_DATA_CMD_LAST,
-            cmd_data,
-        )]);
-        self.write_pdu(&Pdu::PresentationDataItem(pres_data_item), &mut writer)?;
+        self.write_command(&cmd, &mut writer)?;
 
         let mut dcm_root = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
         dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
@@ -418,13 +465,7 @@ impl UserAssoc {
             dcm_root.add_child_with_val(tag, val);
         }
 
-        let dcm_query_data = serialize_in_mem(&dcm_root)?;
-        let pres_data_item = PresentationDataItem::new(vec![PresentationDataValue::new(
-            ctx_id,
-            P_DATA_DCM_DATASET_LAST,
-            dcm_query_data,
-        )]);
-        self.write_pdu(&Pdu::PresentationDataItem(pres_data_item), &mut writer)?;
+        self.write_dataset(ctx_id, &dcm_root, &mut writer)?;
 
         Ok(CommandIter::new(ts, reader))
     }
@@ -436,7 +477,7 @@ impl UserAssoc {
     /// `DimseError` may occur if no associated negotatiated presentation context can be found.
     pub fn c_store_req<PR: Read, R: Read, W: Write>(
         &mut self,
-        _reader: &R,
+        mut reader: R,
         mut writer: W,
         parser: Parser<'_, PR>,
         origin_ae: &str,
@@ -447,7 +488,7 @@ impl UserAssoc {
         let mut spec_char_set: Option<String> = None;
         let mut sop_class_uid: Option<String> = None;
         let mut sop_inst_uid: Option<String> = None;
-        let mut header: Vec<DicomElement> = Vec::new();
+        let mut header_elems: Vec<DicomElement> = Vec::new();
         for elem in parser.by_ref() {
             let tag = elem.tag();
             if tag == SpecificCharacterSet.tag() {
@@ -469,12 +510,12 @@ impl UserAssoc {
                     .string()
                     .cloned();
             }
-            header.push(elem);
+            header_elems.push(elem);
             if tag >= SOPInstanceUID.tag() {
                 break;
             }
         }
-        let stitched_elems = header.into_iter().chain(parser);
+        let stitched_elems = header_elems.into_iter().chain(parser);
 
         let spec_char_set = spec_char_set
             .and_then(|s| lookup_charset(&s))
@@ -505,41 +546,25 @@ impl UserAssoc {
             origin_ae,
             orig_msg_id,
         );
+        self.write_command(&cmd, &mut writer)?;
 
-        let cmd_bytes = cmd.serialize().map_err(AssocError::ab_failure)?;
-        let pdi = PresentationDataItem::new(vec![PresentationDataValue::new(
+        let pdi_iter = PresDataIter::new(
             ctx_id,
-            P_DATA_CMD_LAST,
-            cmd_bytes,
-        )]);
-        self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?;
+            self.get_pdu_max_snd_size(),
+            false,
+            stitched_elems,
+            ts,
+            spec_char_set,
+        );
+        for pdi in pdi_iter {
+            match pdi {
+                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Err(e) => return Err(AssocError::ab_failure(e)),
+            }
+        }
 
-        // XXX: How to pre-compute the length of re-encoded SOP in order to stream the data instead
-        // of loading it all into memory at once? If endian changes that won't change the byte
-        // length, however if Implicit VR vs. Explicit VR changes the bytes will change in a way
-        // that the length won't be known until fully written.
-        // Chunk into PresentationDataItems, each whose length should not exceed MaxLengthItem.
-
-        let mut dcm_writer = WriterBuilder::default()
-            .ts(ts)
-            .cs(spec_char_set)
-            .state(WriterState::WriteElement)
-            .build(Vec::new());
-
-        dcm_writer
-            .write_owned_elements(stitched_elems)
-            .map_err(|e| AssocError::ab_failure(DimseError::WriteError(e)))?;
-
-        let data = dcm_writer.into_dataset();
-
-        let pdi = PresentationDataItem::new(vec![PresentationDataValue::new(
-            ctx_id,
-            P_DATA_DCM_DATASET_LAST,
-            data,
-        )]);
-        self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?;
-
-        Ok(None)
+        let rsp = self.next_msg(&mut reader, &mut writer)?;
+        Ok(Some(rsp))
     }
 }
 

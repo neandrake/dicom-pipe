@@ -21,30 +21,30 @@ use std::{
 
 use crate::{
     core::{
-        charset::DEFAULT_CHARACTER_SET as CS,
+        charset::DEFAULT_CHARACTER_SET,
         dcmobject::DicomRoot,
         defn::{dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef},
     },
-    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, uids::DICOMApplicationContextName},
+    dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian,
+        uids::DICOMApplicationContextName,
+    },
     dimse::{
         assoc::DimseMsg,
-        commands::{messages::CommandMessage, CommandStatus},
+        commands::messages::CommandMessage,
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
-                Abort, AssocAC, AssocACPresentationContext, AssocRQ, PresentationDataItem,
-                PresentationDataValue, ReleaseRP, TransferSyntaxItem, UserInformationItem,
-                P_DATA_CMD_LAST, P_DATA_DCM_DATASET_LAST,
+                Abort, AssocAC, AssocACPresentationContext, AssocRQ, ReleaseRP, TransferSyntaxItem,
+                UserInformationItem,
             },
-            pduiter::{read_next_pdu, PduIterItem},
+            pduiter::{read_next_pdu, PduIterItem, PresDataIter},
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
             Pdu, UserPdu,
         },
         Syntax,
     },
 };
-
-use super::serialize_in_mem;
 
 pub struct ServiceAssoc {
     /* Fields configured by this SCU. */
@@ -64,7 +64,7 @@ impl ServiceAssoc {
     /// Write the given PDU to the given writer.
     ///
     /// # Errors
-    /// I/O errors may occur when writing to the writer or flushing the writer.
+    /// - I/O errors may occur when writing to the writer or flushing the writer.
     pub fn write_pdu<W: Write>(&self, pdu: &Pdu, mut writer: &mut W) -> Result<(), AssocError> {
         pdu.write(&mut writer).map_err(AssocError::error)?;
         writer
@@ -83,7 +83,7 @@ impl ServiceAssoc {
     /// context ID.
     ///
     /// # Errors
-    /// `AssocError` may occur if the negotiated presentation context cannot be resolved, or if a
+    /// - `AssocError` may occur if the negotiated presentation context cannot be resolved, or if a
     /// known transfer syntax for it cannot be resolved.
     pub fn get_pres_ctx_and_ts(
         &self,
@@ -108,10 +108,10 @@ impl ServiceAssoc {
     }
 
     #[must_use]
-    pub fn get_pdu_max_snd_size(&self) -> u32 {
+    pub fn get_pdu_max_snd_size(&self) -> usize {
         for user_pdu in &self.their_user_data {
             if let UserPdu::MaxLengthItem(mli) = user_pdu {
-                return mli.max_length();
+                return usize::try_from(mli.max_length()).unwrap_or_default();
             }
         }
         // 0 means no limit specified.
@@ -119,10 +119,10 @@ impl ServiceAssoc {
     }
 
     #[must_use]
-    pub fn get_pdu_max_rcv_size(&self) -> u32 {
+    pub fn get_pdu_max_rcv_size(&self) -> usize {
         for user_pdu in &self.my_user_data {
             if let UserPdu::MaxLengthItem(mli) = user_pdu {
-                return mli.max_length();
+                return usize::try_from(mli.max_length()).unwrap_or_default();
             }
         }
         // 0 means no limit specified.
@@ -179,11 +179,12 @@ impl ServiceAssoc {
     /// accepted abstract and transfer syntaxes.
     ///
     /// # Errors
-    /// If the result of the request is to reject or abort, those are propagated as an `AssocError`.
+    /// - If the result of the request is to reject or abort, those are propagated as an
+    /// `AssocError`.
     fn validate_assoc_rq(&mut self, rq: &AssocRQ) -> Result<AssocAC, AssocError> {
         let host_ae = self.host_ae.trim();
 
-        let calling_ae = CS
+        let calling_ae = DEFAULT_CHARACTER_SET
             .decode(rq.calling_ae())
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::from(e)))?;
@@ -193,7 +194,7 @@ impl ServiceAssoc {
             )));
         }
 
-        let called_ae = CS
+        let called_ae = DEFAULT_CHARACTER_SET
             .decode(rq.called_ae())
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::CharsetError(e)))?;
@@ -289,7 +290,7 @@ impl ServiceAssoc {
     /// Parse the next message, either a Command, DICOM Dataset, release/abort, or unexpected PDU.
     ///
     /// # Errors
-    /// I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
+    /// - I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
     /// disconnect response to the writer.
     pub fn next_msg<R: Read, W: Write>(
         &self,
@@ -316,7 +317,7 @@ impl ServiceAssoc {
     /// `out_writer` - The destination to write the `PresentationDataValue` data bytes to.
     ///
     /// # Errors
-    /// I/O errors may occur with the reader/writer.
+    /// - I/O errors may occur with the reader/writer.
     pub fn read_dataset<R: Read, W: Write, OW: Write>(
         &self,
         mut reader: &mut R,
@@ -341,8 +342,73 @@ impl ServiceAssoc {
         Ok(())
     }
 
+    /// Writes the given command, chunking into `PresentationDataItem`'s based on the SCU's
+    /// indicated `MaxLengthItem`.
+    ///
+    /// # Errors
+    /// - I/O errors may occur when writing to the stream.
+    /// - Parsing/encoding errors may occur when serializing the given command to
+    /// `PresentationDataItem`s.
+    pub fn write_command<W: Write>(
+        &mut self,
+        cmd: &CommandMessage,
+        mut writer: &mut W,
+    ) -> Result<(), AssocError> {
+        let elements = cmd.message().flatten();
+        let pdi_iter = PresDataIter::new(
+            cmd.ctx_id(),
+            self.get_pdu_max_snd_size(),
+            true,
+            elements.iter().copied(),
+            &ImplicitVRLittleEndian,
+            DEFAULT_CHARACTER_SET,
+        );
+        for pdi in pdi_iter {
+            match pdi {
+                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Err(e) => return Err(AssocError::ab_failure(e)),
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes the given dataset, chunking into `PresentationDataItem`s based on the SCU's
+    /// indicated `MaxLengthItem`.
+    ///
+    /// # Errors
+    /// - I/O errors may occur when writing to the stream.
+    /// - Parsing/encoding errors may occur when serializing the given dataset to
+    /// `PresentationDataItem`s.
+    pub fn write_dataset<W: Write>(
+        &mut self,
+        ctx_id: u8,
+        dataset: &DicomRoot,
+        mut writer: &mut W,
+    ) -> Result<(), AssocError> {
+        let elements = dataset.flatten();
+        let pdi_iter = PresDataIter::new(
+            ctx_id,
+            self.get_pdu_max_snd_size(),
+            false,
+            elements.iter().copied(),
+            dataset.ts(),
+            dataset.cs(),
+        );
+        for pdi in pdi_iter {
+            match pdi {
+                Ok(pdi) => self.write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Err(e) => return Err(AssocError::ab_failure(e)),
+            }
+        }
+        Ok(())
+    }
+
     /// Handles a PDU that is not a `PresentationDataItem`, after the association is negotiated. In
     /// this scenario the only valid PDUs are `ReleaseRQ` or `Abort`.
+    ///
+    /// # Errors
+    /// - I/O errors may occur when writing to the stream.
+    /// - `DimseError`s may occur if the response is unexpected.
     fn handle_disconnect<W: Write>(
         &self,
         pdu: Pdu,
@@ -362,108 +428,6 @@ impl ServiceAssoc {
                 )))
             }
         }
-    }
-
-    /// Create a C-ECHO ending response, as a `PresentationDataItem`.
-    ///
-    /// # Errors
-    /// I/O errors may occur serializing the response object into `PresentationDataItem`.
-    pub fn create_cecho_end(
-        ctx_id: u8,
-        msg_id: u16,
-        aff_sop_class: &str,
-    ) -> Result<Pdu, AssocError> {
-        let status = CommandStatus::success();
-        let rsp_cmd = CommandMessage::c_echo_rsp(ctx_id, msg_id, aff_sop_class, &status);
-
-        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
-        let cmd_rsp_pdi =
-            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
-                ctx_id,
-                P_DATA_CMD_LAST,
-                cmd_rsp_data,
-            )]));
-
-        Ok(cmd_rsp_pdi)
-    }
-
-    /// Create a C-FIND result, as a pair of `PresentationDataItem` to be sent back to the SCU, the
-    /// first for the Command and the second for the DICOM dataset for the query.
-    ///
-    /// # Errors
-    /// I/O errors may occur serializing the response objects into `PresentationDataItem`.
-    pub fn create_cfind_result(
-        ctx_id: u8,
-        msg_id: u16,
-        aff_sop_class: &str,
-        res: &DicomRoot,
-    ) -> Result<(Pdu, Pdu), AssocError> {
-        let status = CommandStatus::pending();
-        let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
-
-        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
-        let cmd_rsp_pdi =
-            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
-                ctx_id,
-                P_DATA_CMD_LAST,
-                cmd_rsp_data,
-            )]));
-
-        let dcm_rsp_data = serialize_in_mem(res)?;
-        let dcm_rsp_pdi =
-            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
-                ctx_id,
-                P_DATA_DCM_DATASET_LAST,
-                dcm_rsp_data,
-            )]));
-
-        Ok((cmd_rsp_pdi, dcm_rsp_pdi))
-    }
-
-    /// Create a C-FIND ending response, as a `PresentationDataItem`.
-    ///
-    /// # Errors
-    /// I/O errors may occur serializing the response object into `PresentationDataItem`.
-    pub fn create_cfind_end(
-        ctx_id: u8,
-        msg_id: u16,
-        aff_sop_class: &str,
-    ) -> Result<Pdu, AssocError> {
-        let status = CommandStatus::success();
-        let rsp_cmd = CommandMessage::c_find_rsp(ctx_id, msg_id, aff_sop_class, &status);
-
-        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
-        let cmd_rsp_pdi =
-            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
-                ctx_id,
-                P_DATA_CMD_LAST,
-                cmd_rsp_data,
-            )]));
-
-        Ok(cmd_rsp_pdi)
-    }
-
-    /// Create a C-STORE ending response, as a `PresentationDataItem`.
-    ///
-    /// # Errors
-    /// I/O errors may occur serializing the response object into `PresentationDataItem`.
-    pub fn create_cstore_end(
-        ctx_id: u8,
-        msg_id: u16,
-        aff_sop_class: &str,
-        status: &CommandStatus,
-    ) -> Result<Pdu, AssocError> {
-        let rsp_cmd = CommandMessage::c_store_rsp(ctx_id, msg_id, aff_sop_class, status);
-
-        let cmd_rsp_data = rsp_cmd.serialize().map_err(AssocError::ab_failure)?;
-        let cmd_rsp_pdi =
-            Pdu::PresentationDataItem(PresentationDataItem::new(vec![PresentationDataValue::new(
-                ctx_id,
-                P_DATA_CMD_LAST,
-                cmd_rsp_data,
-            )]));
-
-        Ok(cmd_rsp_pdi)
     }
 }
 
