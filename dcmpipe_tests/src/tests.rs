@@ -1,3 +1,4 @@
+use crate::{parse_file, is_standard_dcm_file, parse_all_dicom_files};
 use crate::mock::MockDicomStream;
 use dcmpipe_dict::dict::dicom_elements as tags;
 use dcmpipe_dict::dict::file_meta_elements as fme;
@@ -7,16 +8,14 @@ use dcmpipe_dict::dict::uids;
 use dcmpipe_lib::core::dcmelement::DicomElement;
 use dcmpipe_lib::core::dcmobject::{DicomNode, DicomObject, DicomRoot};
 use dcmpipe_lib::core::dcmparser::{
-    ParseState, Parser, ParserBuilder, DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
+    ParseState, Parser, ParserBuilder, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 use dcmpipe_lib::core::dcmreader::parse_stream;
 use dcmpipe_lib::core::tagstop::TagStop;
 use dcmpipe_lib::defn::vl::ValueLength;
 use dcmpipe_lib::defn::vr;
 use std::fs::File;
-use std::io::{Error, Read, ErrorKind};
-use std::path::{Path, PathBuf};
-use walkdir::{DirEntry, WalkDir};
+use std::io::{Error, ErrorKind};
 
 #[test]
 fn test_good_preamble() {
@@ -441,6 +440,41 @@ fn test_deflated_evrle(with_std: bool) -> Result<(), Error> {
 }
 
 #[test]
+fn test_illegal_cp246_with_std() -> Result<(), Error> {
+    test_illegal_cp246(true)
+}
+
+#[test]
+fn test_illegal_cp246_without_std() -> Result<(), Error> {
+    test_illegal_cp246(false)
+}
+
+/// Something funky going on in tag after (5200,9229)[1].(2005,140E)[1], doesn't cause parsing error though
+fn test_illegal_cp246(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) =
+        parse_file("./fixtures/gdcm/gdcmConformanceTests/Enhanced_MR_Image_Storage_Illegal_CP246.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
+fn test_no_preamble_start_with_0005_with_std() -> Result<(), Error> {
+    test_no_preamble_start_with_0005(true)
+}
+
+#[test]
+fn test_no_preamble_start_with_0005_without_std() -> Result<(), Error> {
+    test_no_preamble_start_with_0005(false)
+}
+
+fn test_no_preamble_start_with_0005(with_std: bool) -> Result<(), Error> {
+    let (_parser, _dcmroot) =
+        parse_file("./fixtures/gdcm/gdcmData/US-IRAD-NoPreambleStartWith0005.dcm", with_std)?;
+
+    Ok(())
+}
+
+#[test]
 #[ignore]
 fn test_parse_all_dicom_files_with_std() -> Result<(), Error> {
     let errors: usize = parse_all_dicom_files(true)?;
@@ -458,96 +492,4 @@ fn test_parse_all_dicom_files_without_std() -> Result<(), Error> {
     //assert_eq!(errors, 14);
     assert_eq!(errors, 0);
     Ok(())
-}
-
-/// Parses the given file into a `DicomObject`
-fn parse_file(path: &str, with_std: bool) -> Result<(Parser<File>, DicomRoot), Error> {
-    let file: File = File::open(path)?;
-    let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
-    if with_std {
-        parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
-    }
-    let mut parser: Parser<File> = parser.build();
-    let dcmroot: DicomRoot = parse_stream(&mut parser)?;
-    Ok((parser, dcmroot))
-}
-
-/// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
-/// whether the standard dicom dictionary should be reigstered with the parser.
-fn parse_all_dicom_files(with_std: bool) -> Result<usize, Error> {
-    let mut errors: usize = 0;
-    for mut pair in get_all_dicom_file_parsers(with_std)? {
-        while let Some(element) = pair.1.next() {
-            if let Err(e) = element {
-                errors += 1;
-                eprintln!(
-                    "Error parsing DICOM:\n\t{}\n\t{}",
-                    pair.0.to_str().expect("Should get path"),
-                    e
-                );
-            }
-        }
-    }
-    Ok(errors)
-}
-
-/// Creates parsers for every dicom file in the `fixutres` folder. The `use_std_dict` argument
-/// specifies whether the standard dicom dictionary should be registered with the parser.
-/// See the `readme.md` in this project for information on obtaining test fixtures.
-fn get_all_dicom_file_parsers(with_std: bool) -> Result<Vec<(PathBuf, Parser<File>)>, Error> {
-    let fixtures_path: &Path = Path::new("./fixtures");
-    assert!(
-        fixtures_path.is_dir(),
-        "The fixtures are missing and need downloaded"
-    );
-
-    let dirwalker: WalkDir = WalkDir::new(fixtures_path);
-    let mut parsers: Vec<(PathBuf, Parser<File>)> = Vec::new();
-    for entry_res in dirwalker.into_iter() {
-        let entry: DirEntry = entry_res?;
-        let path: &Path = entry.path();
-
-        let filename = path
-            .file_name()
-            .expect("Should be able to get filename")
-            .to_str()
-            .expect("Should be able to stringify filename");
-
-        // Only attempt to parse .DCM files or files without any extension
-        if (!filename.ends_with(".dcm") && filename.contains(".")) || filename.eq("README") {
-            continue;
-        }
-
-        let file: File = File::open(path)?;
-        if file.metadata()?.is_file() {
-            let mut parser: ParserBuilder<File> = ParserBuilder::new(file);
-            if with_std {
-                parser = parser.tag_by_value(&TAG_BY_VALUE).ts_by_uid(&TS_BY_UID);
-            }
-
-            let parser: Parser<File> = parser.build();
-            parsers.push((path.to_path_buf(), parser));
-        }
-    }
-
-    Ok(parsers)
-}
-
-/// Checks that the first 132 bytes are 128 0's followed by 'DICM'.
-/// DICOM files do not need to abide by this format to be valid, but it's standard.
-fn is_standard_dcm_file<StreamType>(stream: &Parser<StreamType>) -> bool
-where
-    StreamType: Read,
-{
-    for i in 0..FILE_PREAMBLE_LENGTH {
-        if stream.get_file_preamble()[i] != 0 {
-            return false;
-        }
-    }
-    for i in 0..DICOM_PREFIX_LENGTH {
-        if stream.get_dicom_prefix()[i] != DICOM_PREFIX[i] {
-            return false;
-        }
-    }
-    true
 }
