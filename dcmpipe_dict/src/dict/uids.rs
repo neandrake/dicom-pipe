@@ -34,6 +34,16 @@ pub static ExplicitVRLittleEndian: UID = UID {
     name: "Explicit VR Little Endian",
 };
 
+/// Encapsulated Uncompressed Explicit VR Little Endian
+///
+/// - **UID:** 1.2.840.10008.1.2.1.98
+/// - **UID Type:** Transfer Syntax
+pub static EncapsulatedUncompressedExplicitVRLittleEndian: UID = UID {
+    ident: "EncapsulatedUncompressedExplicitVRLittleEndian",
+    uid: "1.2.840.10008.1.2.1.98",
+    name: "Encapsulated Uncompressed Explicit VR Little Endian",
+};
+
 /// Deflated Explicit VR Little Endian
 ///
 /// - **UID:** 1.2.840.10008.1.2.1.99
@@ -324,6 +334,16 @@ pub static MPEG2MainProfileMainLevel: UID = UID {
     name: "MPEG2 Main Profile / Main Level",
 };
 
+/// Fragmentable MPEG2 Main Profile / Main Level
+///
+/// - **UID:** 1.2.840.10008.1.2.4.100.1
+/// - **UID Type:** Transfer Syntax
+pub static FragmentableMPEG2MainProfileMainLevel: UID = UID {
+    ident: "FragmentableMPEG2MainProfileMainLevel",
+    uid: "1.2.840.10008.1.2.4.100.1",
+    name: "Fragmentable MPEG2 Main Profile / Main Level",
+};
+
 /// MPEG2 Main Profile / High Level
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.101
@@ -332,6 +352,16 @@ pub static MPEG2MainProfileHighLevel: UID = UID {
     ident: "MPEG2MainProfileHighLevel",
     uid: "1.2.840.10008.1.2.4.101",
     name: "MPEG2 Main Profile / High Level",
+};
+
+/// Fragmentable MPEG2 Main Profile / High Level
+///
+/// - **UID:** 1.2.840.10008.1.2.4.101.1
+/// - **UID Type:** Transfer Syntax
+pub static FragmentableMPEG2MainProfileHighLevel: UID = UID {
+    ident: "FragmentableMPEG2MainProfileHighLevel",
+    uid: "1.2.840.10008.1.2.4.101.1",
+    name: "Fragmentable MPEG2 Main Profile / High Level",
 };
 
 /// MPEG-4 AVC/H.264 High Profile / Level 4.1
@@ -344,6 +374,16 @@ pub static MPEG4AVCH264HighProfileLevel41: UID = UID {
     name: "MPEG-4 AVC/H.264 High Profile / Level 4.1",
 };
 
+/// Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.1
+///
+/// - **UID:** 1.2.840.10008.1.2.4.102.1
+/// - **UID Type:** Transfer Syntax
+pub static FragmentableMPEG4AVCH264HighProfileLevel41: UID = UID {
+    ident: "FragmentableMPEG4AVCH264HighProfileLevel41",
+    uid: "1.2.840.10008.1.2.4.102.1",
+    name: "Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.1",
+};
+
 /// MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.103
@@ -352,6 +392,16 @@ pub static MPEG4AVCH264BDcompatibleHighProfileLevel41: UID = UID {
     ident: "MPEG4AVCH264BDcompatibleHighProfileLevel41",
     uid: "1.2.840.10008.1.2.4.103",
     name: "MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1",
+};
+
+/// Fragmentable MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1
+///
+/// - **UID:** 1.2.840.10008.1.2.4.103.1
+/// - **UID Type:** Transfer Syntax
+pub static FragmentableMPEG4AVCH264BDcompatibleHighProfileLevel41: UID = UID {
+    ident: "FragmentableMPEG4AVCH264BDcompatibleHighProfileLevel41",
+    uid: "1.2.840.10008.1.2.4.103.1",
+    name: "Fragmentable MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1",
 };
 
 /// MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video
@@ -364,6 +414,16 @@ pub static MPEG4AVCH264HighProfileLevel42For2DVideo: UID = UID {
     name: "MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video",
 };
 
+/// Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video
+///
+/// - **UID:** 1.2.840.10008.1.2.4.104.1
+/// - **UID Type:** Transfer Syntax
+pub static FragmentableMPEG4AVCH264HighProfileLevel42For2DVideo: UID = UID {
+    ident: "FragmentableMPEG4AVCH264HighProfileLevel42For2DVideo",
+    uid: "1.2.840.10008.1.2.4.104.1",
+    name: "Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video",
+};
+
 /// MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.105
@@ -374,6 +434,16 @@ pub static MPEG4AVCH264HighProfileLevel42For3DVideo: UID = UID {
     name: "MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video",
 };
 
+/// Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video
+///
+/// - **UID:** 1.2.840.10008.1.2.4.105.1
+/// - **UID Type:** Transfer Syntax
+pub static FragmentableMPEG4AVCH264HighProfileLevel42For3DVideo: UID = UID {
+    ident: "FragmentableMPEG4AVCH264HighProfileLevel42For3DVideo",
+    uid: "1.2.840.10008.1.2.4.105.1",
+    name: "Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video",
+};
+
 /// MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.106
@@ -382,6 +452,16 @@ pub static MPEG4AVCH264StereoHighProfileLevel42: UID = UID {
     ident: "MPEG4AVCH264StereoHighProfileLevel42",
     uid: "1.2.840.10008.1.2.4.106",
     name: "MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2",
+};
+
+/// Fragmentable MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2
+///
+/// - **UID:** 1.2.840.10008.1.2.4.106.1
+/// - **UID Type:** Transfer Syntax
+pub static FragmentableMPEG4AVCH264StereoHighProfileLevel42: UID = UID {
+    ident: "FragmentableMPEG4AVCH264StereoHighProfileLevel42",
+    uid: "1.2.840.10008.1.2.4.106.1",
+    name: "Fragmentable MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2",
 };
 
 /// HEVC/H.265 Main Profile / Level 5.1
@@ -402,6 +482,56 @@ pub static HEVCH265Main10ProfileLevel51: UID = UID {
     ident: "HEVCH265Main10ProfileLevel51",
     uid: "1.2.840.10008.1.2.4.108",
     name: "HEVC/H.265 Main 10 Profile / Level 5.1",
+};
+
+/// High-Throughput JPEG 2000 Image Compression (Lossless Only)
+///
+/// - **UID:** 1.2.840.10008.1.2.4.201
+/// - **UID Type:** Transfer Syntax
+pub static HighThroughputJPEG2000ImageCompressionLosslessOnly: UID = UID {
+    ident: "HighThroughputJPEG2000ImageCompressionLosslessOnly",
+    uid: "1.2.840.10008.1.2.4.201",
+    name: "High-Throughput JPEG 2000 Image Compression (Lossless Only)",
+};
+
+/// High-Throughput JPEG 2000 with RPCL Options Image Compression (Lossless Only)
+///
+/// - **UID:** 1.2.840.10008.1.2.4.202
+/// - **UID Type:** Transfer Syntax
+pub static HighThroughputJPEG2000withRPCLOptionsImageCompressionLosslessOnly: UID = UID {
+    ident: "HighThroughputJPEG2000withRPCLOptionsImageCompressionLosslessOnly",
+    uid: "1.2.840.10008.1.2.4.202",
+    name: "High-Throughput JPEG 2000 with RPCL Options Image Compression (Lossless Only)",
+};
+
+/// High-Throughput JPEG 2000 Image Compression
+///
+/// - **UID:** 1.2.840.10008.1.2.4.203
+/// - **UID Type:** Transfer Syntax
+pub static HighThroughputJPEG2000ImageCompression: UID = UID {
+    ident: "HighThroughputJPEG2000ImageCompression",
+    uid: "1.2.840.10008.1.2.4.203",
+    name: "High-Throughput JPEG 2000 Image Compression",
+};
+
+/// JPIP HTJ2K Referenced
+///
+/// - **UID:** 1.2.840.10008.1.2.4.204
+/// - **UID Type:** Transfer Syntax
+pub static JPIPHTJ2KReferenced: UID = UID {
+    ident: "JPIPHTJ2KReferenced",
+    uid: "1.2.840.10008.1.2.4.204",
+    name: "JPIP HTJ2K Referenced",
+};
+
+/// JPIP HTJ2K Referenced Deflate
+///
+/// - **UID:** 1.2.840.10008.1.2.4.205
+/// - **UID Type:** Transfer Syntax
+pub static JPIPHTJ2KReferencedDeflate: UID = UID {
+    ident: "JPIPHTJ2KReferencedDeflate",
+    uid: "1.2.840.10008.1.2.4.205",
+    name: "JPIP HTJ2K Referenced Deflate",
 };
 
 /// RLE Lossless
@@ -434,6 +564,36 @@ pub static XMLEncoding: UID = UID {
     name: "XML Encoding (Retired)",
 };
 
+/// SMPTE ST 2110-20 Uncompressed Progressive Active Video
+///
+/// - **UID:** 1.2.840.10008.1.2.7.1
+/// - **UID Type:** Transfer Syntax
+pub static SMPTEST211020UncompressedProgressiveActiveVideo: UID = UID {
+    ident: "SMPTEST211020UncompressedProgressiveActiveVideo",
+    uid: "1.2.840.10008.1.2.7.1",
+    name: "SMPTE ST 2110-20 Uncompressed Progressive Active Video",
+};
+
+/// SMPTE ST 2110-20 Uncompressed Interlaced Active Video
+///
+/// - **UID:** 1.2.840.10008.1.2.7.2
+/// - **UID Type:** Transfer Syntax
+pub static SMPTEST211020UncompressedInterlacedActiveVideo: UID = UID {
+    ident: "SMPTEST211020UncompressedInterlacedActiveVideo",
+    uid: "1.2.840.10008.1.2.7.2",
+    name: "SMPTE ST 2110-20 Uncompressed Interlaced Active Video",
+};
+
+/// SMPTE ST 2110-30 PCM Digital Audio
+///
+/// - **UID:** 1.2.840.10008.1.2.7.3
+/// - **UID Type:** Transfer Syntax
+pub static SMPTEST211030PCMDigitalAudio: UID = UID {
+    ident: "SMPTEST211030PCMDigitalAudio",
+    uid: "1.2.840.10008.1.2.7.3",
+    name: "SMPTE ST 2110-30 PCM Digital Audio",
+};
+
 /// Media Storage Directory Storage
 ///
 /// - **UID:** 1.2.840.10008.1.3.10
@@ -442,206 +602,6 @@ pub static MediaStorageDirectoryStorage: UID = UID {
     ident: "MediaStorageDirectoryStorage",
     uid: "1.2.840.10008.1.3.10",
     name: "Media Storage Directory Storage",
-};
-
-/// Talairach Brain Atlas Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.1
-/// - **UID Type:** Well-known frame of reference
-pub static TalairachBrainAtlasFrameofReference: UID = UID {
-    ident: "TalairachBrainAtlasFrameofReference",
-    uid: "1.2.840.10008.1.4.1.1",
-    name: "Talairach Brain Atlas Frame of Reference",
-};
-
-/// SPM2 T1 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.2
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2T1FrameofReference: UID = UID {
-    ident: "SPM2T1FrameofReference",
-    uid: "1.2.840.10008.1.4.1.2",
-    name: "SPM2 T1 Frame of Reference",
-};
-
-/// SPM2 T2 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.3
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2T2FrameofReference: UID = UID {
-    ident: "SPM2T2FrameofReference",
-    uid: "1.2.840.10008.1.4.1.3",
-    name: "SPM2 T2 Frame of Reference",
-};
-
-/// SPM2 PD Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.4
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2PDFrameofReference: UID = UID {
-    ident: "SPM2PDFrameofReference",
-    uid: "1.2.840.10008.1.4.1.4",
-    name: "SPM2 PD Frame of Reference",
-};
-
-/// SPM2 EPI Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.5
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2EPIFrameofReference: UID = UID {
-    ident: "SPM2EPIFrameofReference",
-    uid: "1.2.840.10008.1.4.1.5",
-    name: "SPM2 EPI Frame of Reference",
-};
-
-/// SPM2 FIL T1 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.6
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2FILT1FrameofReference: UID = UID {
-    ident: "SPM2FILT1FrameofReference",
-    uid: "1.2.840.10008.1.4.1.6",
-    name: "SPM2 FIL T1 Frame of Reference",
-};
-
-/// SPM2 PET Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.7
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2PETFrameofReference: UID = UID {
-    ident: "SPM2PETFrameofReference",
-    uid: "1.2.840.10008.1.4.1.7",
-    name: "SPM2 PET Frame of Reference",
-};
-
-/// SPM2 TRANSM Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.8
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2TRANSMFrameofReference: UID = UID {
-    ident: "SPM2TRANSMFrameofReference",
-    uid: "1.2.840.10008.1.4.1.8",
-    name: "SPM2 TRANSM Frame of Reference",
-};
-
-/// SPM2 SPECT Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.9
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2SPECTFrameofReference: UID = UID {
-    ident: "SPM2SPECTFrameofReference",
-    uid: "1.2.840.10008.1.4.1.9",
-    name: "SPM2 SPECT Frame of Reference",
-};
-
-/// SPM2 GRAY Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.10
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2GRAYFrameofReference: UID = UID {
-    ident: "SPM2GRAYFrameofReference",
-    uid: "1.2.840.10008.1.4.1.10",
-    name: "SPM2 GRAY Frame of Reference",
-};
-
-/// SPM2 WHITE Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.11
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2WHITEFrameofReference: UID = UID {
-    ident: "SPM2WHITEFrameofReference",
-    uid: "1.2.840.10008.1.4.1.11",
-    name: "SPM2 WHITE Frame of Reference",
-};
-
-/// SPM2 CSF Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.12
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2CSFFrameofReference: UID = UID {
-    ident: "SPM2CSFFrameofReference",
-    uid: "1.2.840.10008.1.4.1.12",
-    name: "SPM2 CSF Frame of Reference",
-};
-
-/// SPM2 BRAINMASK Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.13
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2BRAINMASKFrameofReference: UID = UID {
-    ident: "SPM2BRAINMASKFrameofReference",
-    uid: "1.2.840.10008.1.4.1.13",
-    name: "SPM2 BRAINMASK Frame of Reference",
-};
-
-/// SPM2 AVG305T1 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.14
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2AVG305T1FrameofReference: UID = UID {
-    ident: "SPM2AVG305T1FrameofReference",
-    uid: "1.2.840.10008.1.4.1.14",
-    name: "SPM2 AVG305T1 Frame of Reference",
-};
-
-/// SPM2 AVG152T1 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.15
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2AVG152T1FrameofReference: UID = UID {
-    ident: "SPM2AVG152T1FrameofReference",
-    uid: "1.2.840.10008.1.4.1.15",
-    name: "SPM2 AVG152T1 Frame of Reference",
-};
-
-/// SPM2 AVG152T2 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.16
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2AVG152T2FrameofReference: UID = UID {
-    ident: "SPM2AVG152T2FrameofReference",
-    uid: "1.2.840.10008.1.4.1.16",
-    name: "SPM2 AVG152T2 Frame of Reference",
-};
-
-/// SPM2 AVG152PD Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.17
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2AVG152PDFrameofReference: UID = UID {
-    ident: "SPM2AVG152PDFrameofReference",
-    uid: "1.2.840.10008.1.4.1.17",
-    name: "SPM2 AVG152PD Frame of Reference",
-};
-
-/// SPM2 SINGLESUBJT1 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.1.18
-/// - **UID Type:** Well-known frame of reference
-pub static SPM2SINGLESUBJT1FrameofReference: UID = UID {
-    ident: "SPM2SINGLESUBJT1FrameofReference",
-    uid: "1.2.840.10008.1.4.1.18",
-    name: "SPM2 SINGLESUBJT1 Frame of Reference",
-};
-
-/// ICBM 452 T1 Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.2.1
-/// - **UID Type:** Well-known frame of reference
-pub static ICBM452T1FrameofReference: UID = UID {
-    ident: "ICBM452T1FrameofReference",
-    uid: "1.2.840.10008.1.4.2.1",
-    name: "ICBM 452 T1 Frame of Reference",
-};
-
-/// ICBM Single Subject MRI Frame of Reference
-///
-/// - **UID:** 1.2.840.10008.1.4.2.2
-/// - **UID Type:** Well-known frame of reference
-pub static ICBMSingleSubjectMRIFrameofReference: UID = UID {
-    ident: "ICBMSingleSubjectMRIFrameofReference",
-    uid: "1.2.840.10008.1.4.2.2",
-    name: "ICBM Single Subject MRI Frame of Reference",
 };
 
 /// Hot Iron Color Palette SOP Instance
@@ -894,14 +854,14 @@ pub static PubChemCompoundCID: UID = UID {
     name: "PubChem Compound CID",
 };
 
-/// ICD-11
+/// Dublin Core
 ///
 /// - **UID:** 1.2.840.10008.2.16.10
 /// - **UID Type:** Coding Scheme
-pub static ICD11: UID = UID {
-    ident: "ICD11",
+pub static DublinCore: UID = UID {
+    ident: "DublinCore",
     uid: "1.2.840.10008.2.16.10",
-    name: "ICD-11",
+    name: "Dublin Core",
 };
 
 /// New York University Melanoma Clinical Cooperative Group
@@ -942,6 +902,46 @@ pub static RadiomicsOntology: UID = UID {
     ident: "RadiomicsOntology",
     uid: "1.2.840.10008.2.16.14",
     name: "Radiomics Ontology",
+};
+
+/// RadElement
+///
+/// - **UID:** 1.2.840.10008.2.16.15
+/// - **UID Type:** Coding Scheme
+pub static RadElement: UID = UID {
+    ident: "RadElement",
+    uid: "1.2.840.10008.2.16.15",
+    name: "RadElement",
+};
+
+/// ICD-11
+///
+/// - **UID:** 1.2.840.10008.2.16.16
+/// - **UID Type:** Coding Scheme
+pub static ICD11: UID = UID {
+    ident: "ICD11",
+    uid: "1.2.840.10008.2.16.16",
+    name: "ICD-11",
+};
+
+/// Unified numbering system (UNS) for metals and alloys
+///
+/// - **UID:** 1.2.840.10008.2.16.17
+/// - **UID Type:** Coding Scheme
+pub static UnifiednumberingsystemUNSformetalsandalloys: UID = UID {
+    ident: "UnifiednumberingsystemUNSformetalsandalloys",
+    uid: "1.2.840.10008.2.16.17",
+    name: "Unified numbering system (UNS) for metals and alloys",
+};
+
+/// Research Resource Identification
+///
+/// - **UID:** 1.2.840.10008.2.16.18
+/// - **UID Type:** Coding Scheme
+pub static ResearchResourceIdentification: UID = UID {
+    ident: "ResearchResourceIdentification",
+    uid: "1.2.840.10008.2.16.18",
+    name: "Research Resource Identification",
 };
 
 /// DICOM Application Context Name
@@ -1197,7 +1197,7 @@ pub static PrinterConfigurationRetrievalSOPClass: UID = UID {
 /// Printer SOP Instance
 ///
 /// - **UID:** 1.2.840.10008.5.1.1.17
-/// - **UID Type:** Well-known Printer SOP Instance
+/// - **UID Type:** Well-known SOP Instance
 pub static PrinterSOPInstance: UID = UID {
     ident: "PrinterSOPInstance",
     uid: "1.2.840.10008.5.1.1.17",
@@ -1207,7 +1207,7 @@ pub static PrinterSOPInstance: UID = UID {
 /// Printer Configuration Retrieval SOP Instance
 ///
 /// - **UID:** 1.2.840.10008.5.1.1.17.376
-/// - **UID Type:** Well-known Printer SOP Instance
+/// - **UID Type:** Well-known SOP Instance
 pub static PrinterConfigurationRetrievalSOPInstance: UID = UID {
     ident: "PrinterConfigurationRetrievalSOPInstance",
     uid: "1.2.840.10008.5.1.1.17.376",
@@ -1277,7 +1277,7 @@ pub static BasicPrintImageOverlayBoxSOPClass: UID = UID {
 /// Print Queue SOP Instance (Retired)
 ///
 /// - **UID:** 1.2.840.10008.5.1.1.25
-/// - **UID Type:** Well-known Print Queue SOP Instance
+/// - **UID Type:** Well-known SOP Instance
 pub static PrintQueueSOPInstance: UID = UID {
     ident: "PrintQueueSOPInstance",
     uid: "1.2.840.10008.5.1.1.25",
@@ -1584,6 +1584,16 @@ pub static EnhancedUSVolumeStorage: UID = UID {
     name: "Enhanced US Volume Storage",
 };
 
+/// Photoacoustic Image Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.6.3
+/// - **UID Type:** SOP Class
+pub static PhotoacousticImageStorage: UID = UID {
+    ident: "PhotoacousticImageStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.6.3",
+    name: "Photoacoustic Image Storage",
+};
+
 /// Secondary Capture Image Storage
 ///
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.7
@@ -1694,6 +1704,16 @@ pub static AmbulatoryECGWaveformStorage: UID = UID {
     name: "Ambulatory ECG Waveform Storage",
 };
 
+/// General 32-bit ECG Waveform Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.9.1.4
+/// - **UID Type:** SOP Class
+pub static General32bitECGWaveformStorage: UID = UID {
+    ident: "General32bitECGWaveformStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.9.1.4",
+    name: "General 32-bit ECG Waveform Storage",
+};
+
 /// Hemodynamic Waveform Storage
 ///
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.9.2.1
@@ -1752,6 +1772,66 @@ pub static RespiratoryWaveformStorage: UID = UID {
     ident: "RespiratoryWaveformStorage",
     uid: "1.2.840.10008.5.1.4.1.1.9.6.1",
     name: "Respiratory Waveform Storage",
+};
+
+/// Multi-channel Respiratory Waveform Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.9.6.2
+/// - **UID Type:** SOP Class
+pub static MultichannelRespiratoryWaveformStorage: UID = UID {
+    ident: "MultichannelRespiratoryWaveformStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.9.6.2",
+    name: "Multi-channel Respiratory Waveform Storage",
+};
+
+/// Routine Scalp Electroencephalogram Waveform Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.9.7.1
+/// - **UID Type:** SOP Class
+pub static RoutineScalpElectroencephalogramWaveformStorage: UID = UID {
+    ident: "RoutineScalpElectroencephalogramWaveformStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.9.7.1",
+    name: "Routine Scalp Electroencephalogram Waveform Storage",
+};
+
+/// Electromyogram Waveform Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.9.7.2
+/// - **UID Type:** SOP Class
+pub static ElectromyogramWaveformStorage: UID = UID {
+    ident: "ElectromyogramWaveformStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.9.7.2",
+    name: "Electromyogram Waveform Storage",
+};
+
+/// Electrooculogram Waveform Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.9.7.3
+/// - **UID Type:** SOP Class
+pub static ElectrooculogramWaveformStorage: UID = UID {
+    ident: "ElectrooculogramWaveformStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.9.7.3",
+    name: "Electrooculogram Waveform Storage",
+};
+
+/// Sleep Electroencephalogram Waveform Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.9.7.4
+/// - **UID Type:** SOP Class
+pub static SleepElectroencephalogramWaveformStorage: UID = UID {
+    ident: "SleepElectroencephalogramWaveformStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.9.7.4",
+    name: "Sleep Electroencephalogram Waveform Storage",
+};
+
+/// Body Position Waveform Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.9.8.1
+/// - **UID Type:** SOP Class
+pub static BodyPositionWaveformStorage: UID = UID {
+    ident: "BodyPositionWaveformStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.9.8.1",
+    name: "Body Position Waveform Storage",
 };
 
 /// Standalone Modality LUT Storage (Retired)
@@ -1882,6 +1962,16 @@ pub static MultipleVolumeRenderingVolumetricPresentationStateStorage: UID = UID 
     ident: "MultipleVolumeRenderingVolumetricPresentationStateStorage",
     uid: "1.2.840.10008.5.1.4.1.1.11.11",
     name: "Multiple Volume Rendering Volumetric Presentation State Storage",
+};
+
+/// Variable Modality LUT Softcopy Presentation State Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.11.12
+/// - **UID Type:** SOP Class
+pub static VariableModalityLUTSoftcopyPresentationStateStorage: UID = UID {
+    ident: "VariableModalityLUTSoftcopyPresentationStateStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.11.12",
+    name: "Variable Modality LUT Softcopy Presentation State Storage",
 };
 
 /// X-Ray Angiographic Image Storage
@@ -2304,6 +2394,36 @@ pub static VLWholeSlideMicroscopyImageStorage: UID = UID {
     name: "VL Whole Slide Microscopy Image Storage",
 };
 
+/// Dermoscopic Photography Image Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.77.1.7
+/// - **UID Type:** SOP Class
+pub static DermoscopicPhotographyImageStorage: UID = UID {
+    ident: "DermoscopicPhotographyImageStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.77.1.7",
+    name: "Dermoscopic Photography Image Storage",
+};
+
+/// Confocal Microscopy Image Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.77.1.8
+/// - **UID Type:** SOP Class
+pub static ConfocalMicroscopyImageStorage: UID = UID {
+    ident: "ConfocalMicroscopyImageStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.77.1.8",
+    name: "Confocal Microscopy Image Storage",
+};
+
+/// Confocal Microscopy Tiled Pyramidal Image Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.77.1.9
+/// - **UID Type:** SOP Class
+pub static ConfocalMicroscopyTiledPyramidalImageStorage: UID = UID {
+    ident: "ConfocalMicroscopyTiledPyramidalImageStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.77.1.9",
+    name: "Confocal Microscopy Tiled Pyramidal Image Storage",
+};
+
 /// Lensometry Measurements Storage
 ///
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.78.1
@@ -2644,6 +2764,16 @@ pub static PerformedImagingAgentAdministrationSRStorage: UID = UID {
     name: "Performed Imaging Agent Administration SR Storage",
 };
 
+/// Enhanced X-Ray Radiation Dose SR Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.88.76
+/// - **UID Type:** SOP Class
+pub static EnhancedXRayRadiationDoseSRStorage: UID = UID {
+    ident: "EnhancedXRayRadiationDoseSRStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.88.76",
+    name: "Enhanced X-Ray Radiation Dose SR Storage",
+};
+
 /// Content Assessment Results Storage
 ///
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.90.1
@@ -2652,6 +2782,16 @@ pub static ContentAssessmentResultsStorage: UID = UID {
     ident: "ContentAssessmentResultsStorage",
     uid: "1.2.840.10008.5.1.4.1.1.90.1",
     name: "Content Assessment Results Storage",
+};
+
+/// Microscopy Bulk Simple Annotations Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.91.1
+/// - **UID Type:** SOP Class
+pub static MicroscopyBulkSimpleAnnotationsStorage: UID = UID {
+    ident: "MicroscopyBulkSimpleAnnotationsStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.91.1",
+    name: "Microscopy Bulk Simple Annotations Storage",
 };
 
 /// Encapsulated PDF Storage
@@ -2682,6 +2822,26 @@ pub static EncapsulatedSTLStorage: UID = UID {
     ident: "EncapsulatedSTLStorage",
     uid: "1.2.840.10008.5.1.4.1.1.104.3",
     name: "Encapsulated STL Storage",
+};
+
+/// Encapsulated OBJ Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.104.4
+/// - **UID Type:** SOP Class
+pub static EncapsulatedOBJStorage: UID = UID {
+    ident: "EncapsulatedOBJStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.104.4",
+    name: "Encapsulated OBJ Storage",
+};
+
+/// Encapsulated MTL Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.104.5
+/// - **UID Type:** SOP Class
+pub static EncapsulatedMTLStorage: UID = UID {
+    ident: "EncapsulatedMTLStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.104.5",
+    name: "Encapsulated MTL Storage",
 };
 
 /// Positron Emission Tomography Image Storage
@@ -2794,6 +2954,96 @@ pub static ProtocolApprovalInformationModelGET: UID = UID {
     name: "Protocol Approval Information Model - GET",
 };
 
+/// XA Defined Procedure Protocol Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.200.7
+/// - **UID Type:** SOP Class
+pub static XADefinedProcedureProtocolStorage: UID = UID {
+    ident: "XADefinedProcedureProtocolStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.200.7",
+    name: "XA Defined Procedure Protocol Storage",
+};
+
+/// XA Performed Procedure Protocol Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.200.8
+/// - **UID Type:** SOP Class
+pub static XAPerformedProcedureProtocolStorage: UID = UID {
+    ident: "XAPerformedProcedureProtocolStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.200.8",
+    name: "XA Performed Procedure Protocol Storage",
+};
+
+/// Inventory Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.201.1
+/// - **UID Type:** SOP Class
+pub static InventoryStorage: UID = UID {
+    ident: "InventoryStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.201.1",
+    name: "Inventory Storage",
+};
+
+/// Inventory - FIND
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.201.2
+/// - **UID Type:** SOP Class
+pub static InventoryFIND: UID = UID {
+    ident: "InventoryFIND",
+    uid: "1.2.840.10008.5.1.4.1.1.201.2",
+    name: "Inventory - FIND",
+};
+
+/// Inventory - MOVE
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.201.3
+/// - **UID Type:** SOP Class
+pub static InventoryMOVE: UID = UID {
+    ident: "InventoryMOVE",
+    uid: "1.2.840.10008.5.1.4.1.1.201.3",
+    name: "Inventory - MOVE",
+};
+
+/// Inventory - GET
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.201.4
+/// - **UID Type:** SOP Class
+pub static InventoryGET: UID = UID {
+    ident: "InventoryGET",
+    uid: "1.2.840.10008.5.1.4.1.1.201.4",
+    name: "Inventory - GET",
+};
+
+/// Inventory Creation
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.201.5
+/// - **UID Type:** SOP Class
+pub static InventoryCreation: UID = UID {
+    ident: "InventoryCreation",
+    uid: "1.2.840.10008.5.1.4.1.1.201.5",
+    name: "Inventory Creation",
+};
+
+/// Repository Query
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.201.6
+/// - **UID Type:** SOP Class
+pub static RepositoryQuery: UID = UID {
+    ident: "RepositoryQuery",
+    uid: "1.2.840.10008.5.1.4.1.1.201.6",
+    name: "Repository Query",
+};
+
+/// Storage Management SOP Instance
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.201.1.1
+/// - **UID Type:** Well-known SOP Instance
+pub static StorageManagementSOPInstance: UID = UID {
+    ident: "StorageManagementSOPInstance",
+    uid: "1.2.840.10008.5.1.4.1.1.201.1.1",
+    name: "Storage Management SOP Instance",
+};
+
 /// RT Image Storage
 ///
 /// - **UID:** 1.2.840.10008.5.1.4.1.1.481.1
@@ -2902,6 +3152,146 @@ pub static RTSegmentAnnotationStorage: UID = UID {
     ident: "RTSegmentAnnotationStorage",
     uid: "1.2.840.10008.5.1.4.1.1.481.11",
     name: "RT Segment Annotation Storage",
+};
+
+/// RT Radiation Set Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.12
+/// - **UID Type:** SOP Class
+pub static RTRadiationSetStorage: UID = UID {
+    ident: "RTRadiationSetStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.12",
+    name: "RT Radiation Set Storage",
+};
+
+/// C-Arm Photon-Electron Radiation Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.13
+/// - **UID Type:** SOP Class
+pub static CArmPhotonElectronRadiationStorage: UID = UID {
+    ident: "CArmPhotonElectronRadiationStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.13",
+    name: "C-Arm Photon-Electron Radiation Storage",
+};
+
+/// Tomotherapeutic Radiation Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.14
+/// - **UID Type:** SOP Class
+pub static TomotherapeuticRadiationStorage: UID = UID {
+    ident: "TomotherapeuticRadiationStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.14",
+    name: "Tomotherapeutic Radiation Storage",
+};
+
+/// Robotic-Arm Radiation Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.15
+/// - **UID Type:** SOP Class
+pub static RoboticArmRadiationStorage: UID = UID {
+    ident: "RoboticArmRadiationStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.15",
+    name: "Robotic-Arm Radiation Storage",
+};
+
+/// RT Radiation Record Set Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.16
+/// - **UID Type:** SOP Class
+pub static RTRadiationRecordSetStorage: UID = UID {
+    ident: "RTRadiationRecordSetStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.16",
+    name: "RT Radiation Record Set Storage",
+};
+
+/// RT Radiation Salvage Record Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.17
+/// - **UID Type:** SOP Class
+pub static RTRadiationSalvageRecordStorage: UID = UID {
+    ident: "RTRadiationSalvageRecordStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.17",
+    name: "RT Radiation Salvage Record Storage",
+};
+
+/// Tomotherapeutic Radiation Record Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.18
+/// - **UID Type:** SOP Class
+pub static TomotherapeuticRadiationRecordStorage: UID = UID {
+    ident: "TomotherapeuticRadiationRecordStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.18",
+    name: "Tomotherapeutic Radiation Record Storage",
+};
+
+/// C-Arm Photon-Electron Radiation Record Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.19
+/// - **UID Type:** SOP Class
+pub static CArmPhotonElectronRadiationRecordStorage: UID = UID {
+    ident: "CArmPhotonElectronRadiationRecordStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.19",
+    name: "C-Arm Photon-Electron Radiation Record Storage",
+};
+
+/// Robotic Radiation Record Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.20
+/// - **UID Type:** SOP Class
+pub static RoboticRadiationRecordStorage: UID = UID {
+    ident: "RoboticRadiationRecordStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.20",
+    name: "Robotic Radiation Record Storage",
+};
+
+/// RT Radiation Set Delivery Instruction Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.21
+/// - **UID Type:** SOP Class
+pub static RTRadiationSetDeliveryInstructionStorage: UID = UID {
+    ident: "RTRadiationSetDeliveryInstructionStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.21",
+    name: "RT Radiation Set Delivery Instruction Storage",
+};
+
+/// RT Treatment Preparation Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.22
+/// - **UID Type:** SOP Class
+pub static RTTreatmentPreparationStorage: UID = UID {
+    ident: "RTTreatmentPreparationStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.22",
+    name: "RT Treatment Preparation Storage",
+};
+
+/// Enhanced RT Image Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.23
+/// - **UID Type:** SOP Class
+pub static EnhancedRTImageStorage: UID = UID {
+    ident: "EnhancedRTImageStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.23",
+    name: "Enhanced RT Image Storage",
+};
+
+/// Enhanced Continuous RT Image Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.24
+/// - **UID Type:** SOP Class
+pub static EnhancedContinuousRTImageStorage: UID = UID {
+    ident: "EnhancedContinuousRTImageStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.24",
+    name: "Enhanced Continuous RT Image Storage",
+};
+
+/// RT Patient Position Acquisition Instruction Storage
+///
+/// - **UID:** 1.2.840.10008.5.1.4.1.1.481.25
+/// - **UID Type:** SOP Class
+pub static RTPatientPositionAcquisitionInstructionStorage: UID = UID {
+    ident: "RTPatientPositionAcquisitionInstructionStorage",
+    uid: "1.2.840.10008.5.1.4.1.1.481.25",
+    name: "RT Patient Position Acquisition Instruction Storage",
 };
 
 /// DICOS CT Image Storage
@@ -3354,6 +3744,16 @@ pub static UnifiedProcedureStepEventSOPClass: UID = UID {
     name: "Unified Procedure Step - Event SOP Class",
 };
 
+/// Unified Procedure Step - Query SOP Class
+///
+/// - **UID:** 1.2.840.10008.5.1.4.34.6.5
+/// - **UID Type:** SOP Class
+pub static UnifiedProcedureStepQuerySOPClass: UID = UID {
+    ident: "UnifiedProcedureStepQuerySOPClass",
+    uid: "1.2.840.10008.5.1.4.34.6.5",
+    name: "Unified Procedure Step - Query SOP Class",
+};
+
 /// RT Beams Delivery Instruction Storage
 ///
 /// - **UID:** 1.2.840.10008.5.1.4.34.7
@@ -3672,6 +4072,46 @@ pub static DICOMContentMappingResource: UID = UID {
     ident: "DICOMContentMappingResource",
     uid: "1.2.840.10008.8.1.1",
     name: "DICOM Content Mapping Resource",
+};
+
+/// Video Endoscopic Image Real-Time Communication
+///
+/// - **UID:** 1.2.840.10008.10.1
+/// - **UID Type:** SOP Class
+pub static VideoEndoscopicImageRealTimeCommunication: UID = UID {
+    ident: "VideoEndoscopicImageRealTimeCommunication",
+    uid: "1.2.840.10008.10.1",
+    name: "Video Endoscopic Image Real-Time Communication",
+};
+
+/// Video Photographic Image Real-Time Communication
+///
+/// - **UID:** 1.2.840.10008.10.2
+/// - **UID Type:** SOP Class
+pub static VideoPhotographicImageRealTimeCommunication: UID = UID {
+    ident: "VideoPhotographicImageRealTimeCommunication",
+    uid: "1.2.840.10008.10.2",
+    name: "Video Photographic Image Real-Time Communication",
+};
+
+/// Audio Waveform Real-Time Communication
+///
+/// - **UID:** 1.2.840.10008.10.3
+/// - **UID Type:** SOP Class
+pub static AudioWaveformRealTimeCommunication: UID = UID {
+    ident: "AudioWaveformRealTimeCommunication",
+    uid: "1.2.840.10008.10.3",
+    name: "Audio Waveform Real-Time Communication",
+};
+
+/// Rendition Selection Document Real-Time Communication
+///
+/// - **UID:** 1.2.840.10008.10.4
+/// - **UID Type:** SOP Class
+pub static RenditionSelectionDocumentRealTimeCommunication: UID = UID {
+    ident: "RenditionSelectionDocumentRealTimeCommunication",
+    uid: "1.2.840.10008.10.4",
+    name: "Rendition Selection Document Real-Time Communication",
 };
 
 /// dicomDeviceName

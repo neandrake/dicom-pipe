@@ -171,9 +171,15 @@ fn process_entries(xml_definitions: Vec<XmlDicomDefinition>, folder: &Path) -> R
         .collect::<String>();
 
     // Remove trailing newlines
-    dicom_elements.remove(dicom_elements.len() - 2);
-    uids.remove(uids.len() - 2);
-    transfer_syntax_uids.remove(transfer_syntax_uids.len() - 2);
+    if dicom_elements.len() > 2 {
+        dicom_elements.remove(dicom_elements.len() - 2);
+    }
+    if uids.len() > 2 {
+        uids.remove(uids.len() - 2);
+    }
+    if transfer_syntax_uids.len() > 2 {
+        transfer_syntax_uids.remove(transfer_syntax_uids.len() - 2);
+    }
 
     std::fs::create_dir_all(folder)?;
 
@@ -323,14 +329,16 @@ fn process_transfer_syntax(
     }
     .to_owned();
 
-    let deflated_val: String = if var_name.contains("Deflate") {
-        "true"
-    } else {
-        "false"
-    }
-    .to_owned();
+    let deflated_val: String =
+        if var_name.contains("Deflate") && !var_name.contains("Uncompressed") {
+            "true"
+        } else {
+            "false"
+        }
+        .to_owned();
 
-    let encapsulated_val: String = if var_name.contains("JPEG")
+    let encapsulated_val: String = if var_name.contains("Encapsulated")
+        || var_name.contains("JPEG")
         || var_name.contains("RLE")
         || var_name.contains("MPEG")
         || var_name.contains("HEVC")

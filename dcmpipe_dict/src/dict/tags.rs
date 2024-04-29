@@ -136,6 +136,136 @@ pub static ReceivingApplicationEntityTitle: Tag = Tag {
     desc: "Receiving Application Entity Title",
 };
 
+/// Source Presentation Address
+///
+/// - **Tag:** (0002,0026)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static SourcePresentationAddress: Tag = Tag {
+    ident: "SourcePresentationAddress",
+    tag: 0x0002_0026,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "Source Presentation Address",
+};
+
+/// Sending Presentation Address
+///
+/// - **Tag:** (0002,0027)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static SendingPresentationAddress: Tag = Tag {
+    ident: "SendingPresentationAddress",
+    tag: 0x0002_0027,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "Sending Presentation Address",
+};
+
+/// Receiving Presentation Address
+///
+/// - **Tag:** (0002,0028)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static ReceivingPresentationAddress: Tag = Tag {
+    ident: "ReceivingPresentationAddress",
+    tag: 0x0002_0028,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "Receiving Presentation Address",
+};
+
+/// RTV Meta Information Version
+///
+/// - **Tag:** (0002,0031)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static RTVMetaInformationVersion: Tag = Tag {
+    ident: "RTVMetaInformationVersion",
+    tag: 0x0002_0031,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "RTV Meta Information Version",
+};
+
+/// RTV Communication SOP Class UID
+///
+/// - **Tag:** (0002,0032)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static RTVCommunicationSOPClassUID: Tag = Tag {
+    ident: "RTVCommunicationSOPClassUID",
+    tag: 0x0002_0032,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "RTV Communication SOP Class UID",
+};
+
+/// RTV Communication SOP Instance UID
+///
+/// - **Tag:** (0002,0033)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static RTVCommunicationSOPInstanceUID: Tag = Tag {
+    ident: "RTVCommunicationSOPInstanceUID",
+    tag: 0x0002_0033,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "RTV Communication SOP Instance UID",
+};
+
+/// RTV Source Identifier
+///
+/// - **Tag:** (0002,0035)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static RTVSourceIdentifier: Tag = Tag {
+    ident: "RTVSourceIdentifier",
+    tag: 0x0002_0035,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "RTV Source Identifier",
+};
+
+/// RTV Flow Identifier
+///
+/// - **Tag:** (0002,0036)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static RTVFlowIdentifier: Tag = Tag {
+    ident: "RTVFlowIdentifier",
+    tag: 0x0002_0036,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "RTV Flow Identifier",
+};
+
+/// RTV Flow RTP Sampling Rate
+///
+/// - **Tag:** (0002,0037)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static RTVFlowRTPSamplingRate: Tag = Tag {
+    ident: "RTVFlowRTPSamplingRate",
+    tag: 0x0002_0037,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "RTV Flow RTP Sampling Rate",
+};
+
+/// RTV Flow Actual Frame Duration
+///
+/// - **Tag:** (0002,0038)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTVFlowActualFrameDuration: Tag = Tag {
+    ident: "RTVFlowActualFrameDuration",
+    tag: 0x0002_0038,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RTV Flow Actual Frame Duration",
+};
+
 /// Private Information Creator UID
 ///
 /// - **Tag:** (0002,0100)
@@ -539,6 +669,19 @@ pub static SOPClassUID: Tag = Tag {
     desc: "SOP Class UID",
 };
 
+/// Acquisition UID
+///
+/// - **Tag:** (0008,0017)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static AcquisitionUID: Tag = Tag {
+    ident: "AcquisitionUID",
+    tag: 0x0008_0017,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition UID",
+};
+
 /// SOP Instance UID
 ///
 /// - **Tag:** (0008,0018)
@@ -550,6 +693,19 @@ pub static SOPInstanceUID: Tag = Tag {
     implicit_vr: Some(&vr::UI),
     vm: &VM::Distinct(1),
     desc: "SOP Instance UID",
+};
+
+/// Pyramid UID
+///
+/// - **Tag:** (0008,0019)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static PyramidUID: Tag = Tag {
+    ident: "PyramidUID",
+    tag: 0x0008_0019,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Pyramid UID",
 };
 
 /// Related General SOP Class UID
@@ -851,7 +1007,7 @@ pub static RetrieveAETitle: Tag = Tag {
     desc: "Retrieve AE Title",
 };
 
-/// Station  AE Title
+/// Station AE Title
 ///
 /// - **Tag:** (0008,0055)
 /// - **VR:** AE
@@ -861,7 +1017,7 @@ pub static StationAETitle: Tag = Tag {
     tag: 0x0008_0055,
     implicit_vr: Some(&vr::AE),
     vm: &VM::Distinct(1),
-    desc: "Station  AE Title",
+    desc: "Station AE Title",
 };
 
 /// Instance Availability
@@ -1748,6 +1904,552 @@ pub static PrivateDataElementDefinitionSequence: Tag = Tag {
     desc: "Private Data Element Definition Sequence",
 };
 
+/// Scope of Inventory Sequence
+///
+/// - **Tag:** (0008,0400)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ScopeofInventorySequence: Tag = Tag {
+    ident: "ScopeofInventorySequence",
+    tag: 0x0008_0400,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Scope of Inventory Sequence",
+};
+
+/// Inventory Purpose
+///
+/// - **Tag:** (0008,0401)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static InventoryPurpose: Tag = Tag {
+    ident: "InventoryPurpose",
+    tag: 0x0008_0401,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Inventory Purpose",
+};
+
+/// Inventory Instance Description
+///
+/// - **Tag:** (0008,0402)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static InventoryInstanceDescription: Tag = Tag {
+    ident: "InventoryInstanceDescription",
+    tag: 0x0008_0402,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Inventory Instance Description",
+};
+
+/// Inventory Level
+///
+/// - **Tag:** (0008,0403)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static InventoryLevel: Tag = Tag {
+    ident: "InventoryLevel",
+    tag: 0x0008_0403,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Inventory Level",
+};
+
+/// Item Inventory DateTime
+///
+/// - **Tag:** (0008,0404)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static ItemInventoryDateTime: Tag = Tag {
+    ident: "ItemInventoryDateTime",
+    tag: 0x0008_0404,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Item Inventory DateTime",
+};
+
+/// Removed from Operational Use
+///
+/// - **Tag:** (0008,0405)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RemovedfromOperationalUse: Tag = Tag {
+    ident: "RemovedfromOperationalUse",
+    tag: 0x0008_0405,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Removed from Operational Use",
+};
+
+/// Reason for Removal Code Sequence
+///
+/// - **Tag:** (0008,0406)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReasonforRemovalCodeSequence: Tag = Tag {
+    ident: "ReasonforRemovalCodeSequence",
+    tag: 0x0008_0406,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Reason for Removal Code Sequence",
+};
+
+/// Stored Instance Base URI
+///
+/// - **Tag:** (0008,0407)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static StoredInstanceBaseURI: Tag = Tag {
+    ident: "StoredInstanceBaseURI",
+    tag: 0x0008_0407,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "Stored Instance Base URI",
+};
+
+/// Folder Access URI
+///
+/// - **Tag:** (0008,0408)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static FolderAccessURI: Tag = Tag {
+    ident: "FolderAccessURI",
+    tag: 0x0008_0408,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "Folder Access URI",
+};
+
+/// File Access URI
+///
+/// - **Tag:** (0008,0409)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static FileAccessURI: Tag = Tag {
+    ident: "FileAccessURI",
+    tag: 0x0008_0409,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "File Access URI",
+};
+
+/// Container File Type
+///
+/// - **Tag:** (0008,040A)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ContainerFileType: Tag = Tag {
+    ident: "ContainerFileType",
+    tag: 0x0008_040A,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Container File Type",
+};
+
+/// Filename in Container
+///
+/// - **Tag:** (0008,040B)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static FilenameinContainer: Tag = Tag {
+    ident: "FilenameinContainer",
+    tag: 0x0008_040B,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "Filename in Container",
+};
+
+/// File Offset in Container
+///
+/// - **Tag:** (0008,040C)
+/// - **VR:** UV
+/// - **VM:** 1
+pub static FileOffsetinContainer: Tag = Tag {
+    ident: "FileOffsetinContainer",
+    tag: 0x0008_040C,
+    implicit_vr: Some(&vr::UV),
+    vm: &VM::Distinct(1),
+    desc: "File Offset in Container",
+};
+
+/// File Length in Container
+///
+/// - **Tag:** (0008,040D)
+/// - **VR:** UV
+/// - **VM:** 1
+pub static FileLengthinContainer: Tag = Tag {
+    ident: "FileLengthinContainer",
+    tag: 0x0008_040D,
+    implicit_vr: Some(&vr::UV),
+    vm: &VM::Distinct(1),
+    desc: "File Length in Container",
+};
+
+/// Stored Instance Transfer Syntax UID
+///
+/// - **Tag:** (0008,040E)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static StoredInstanceTransferSyntaxUID: Tag = Tag {
+    ident: "StoredInstanceTransferSyntaxUID",
+    tag: 0x0008_040E,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Stored Instance Transfer Syntax UID",
+};
+
+/// Extended Matching Mechanisms
+///
+/// - **Tag:** (0008,040F)
+/// - **VR:** CS
+/// - **VM:** 1-n
+pub static ExtendedMatchingMechanisms: Tag = Tag {
+    ident: "ExtendedMatchingMechanisms",
+    tag: 0x0008_040F,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::AtLeast(1),
+    desc: "Extended Matching Mechanisms",
+};
+
+/// Range Matching Sequence
+///
+/// - **Tag:** (0008,0410)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RangeMatchingSequence: Tag = Tag {
+    ident: "RangeMatchingSequence",
+    tag: 0x0008_0410,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Range Matching Sequence",
+};
+
+/// List of UID Matching Sequence
+///
+/// - **Tag:** (0008,0411)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ListofUIDMatchingSequence: Tag = Tag {
+    ident: "ListofUIDMatchingSequence",
+    tag: 0x0008_0411,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "List of UID Matching Sequence",
+};
+
+/// Empty Value Matching Sequence
+///
+/// - **Tag:** (0008,0412)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EmptyValueMatchingSequence: Tag = Tag {
+    ident: "EmptyValueMatchingSequence",
+    tag: 0x0008_0412,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Empty Value Matching Sequence",
+};
+
+/// General Matching Sequence
+///
+/// - **Tag:** (0008,0413)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static GeneralMatchingSequence: Tag = Tag {
+    ident: "GeneralMatchingSequence",
+    tag: 0x0008_0413,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "General Matching Sequence",
+};
+
+/// Requested Status Interval
+///
+/// - **Tag:** (0008,0414)
+/// - **VR:** US
+/// - **VM:** 1
+pub static RequestedStatusInterval: Tag = Tag {
+    ident: "RequestedStatusInterval",
+    tag: 0x0008_0414,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Requested Status Interval",
+};
+
+/// Retain Instances
+///
+/// - **Tag:** (0008,0415)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RetainInstances: Tag = Tag {
+    ident: "RetainInstances",
+    tag: 0x0008_0415,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Retain Instances",
+};
+
+/// Expiration DateTime
+///
+/// - **Tag:** (0008,0416)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static ExpirationDateTime: Tag = Tag {
+    ident: "ExpirationDateTime",
+    tag: 0x0008_0416,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Expiration DateTime",
+};
+
+/// Transaction Status
+///
+/// - **Tag:** (0008,0417)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static TransactionStatus: Tag = Tag {
+    ident: "TransactionStatus",
+    tag: 0x0008_0417,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Transaction Status",
+};
+
+/// Transaction Status Comment
+///
+/// - **Tag:** (0008,0418)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static TransactionStatusComment: Tag = Tag {
+    ident: "TransactionStatusComment",
+    tag: 0x0008_0418,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Transaction Status Comment",
+};
+
+/// File Set Access Sequence
+///
+/// - **Tag:** (0008,0419)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FileSetAccessSequence: Tag = Tag {
+    ident: "FileSetAccessSequence",
+    tag: 0x0008_0419,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "File Set Access Sequence",
+};
+
+/// File Access Sequence
+///
+/// - **Tag:** (0008,041A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FileAccessSequence: Tag = Tag {
+    ident: "FileAccessSequence",
+    tag: 0x0008_041A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "File Access Sequence",
+};
+
+/// Record Key
+///
+/// - **Tag:** (0008,041B)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static RecordKey: Tag = Tag {
+    ident: "RecordKey",
+    tag: 0x0008_041B,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "Record Key",
+};
+
+/// Prior Record Key
+///
+/// - **Tag:** (0008,041C)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static PriorRecordKey: Tag = Tag {
+    ident: "PriorRecordKey",
+    tag: 0x0008_041C,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "Prior Record Key",
+};
+
+/// Metadata Sequence
+///
+/// - **Tag:** (0008,041D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static MetadataSequence: Tag = Tag {
+    ident: "MetadataSequence",
+    tag: 0x0008_041D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Metadata Sequence",
+};
+
+/// Updated Metadata Sequence
+///
+/// - **Tag:** (0008,041E)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static UpdatedMetadataSequence: Tag = Tag {
+    ident: "UpdatedMetadataSequence",
+    tag: 0x0008_041E,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Updated Metadata Sequence",
+};
+
+/// Study Update DateTime
+///
+/// - **Tag:** (0008,041F)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static StudyUpdateDateTime: Tag = Tag {
+    ident: "StudyUpdateDateTime",
+    tag: 0x0008_041F,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Study Update DateTime",
+};
+
+/// Inventory Access End Points Sequence
+///
+/// - **Tag:** (0008,0420)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InventoryAccessEndPointsSequence: Tag = Tag {
+    ident: "InventoryAccessEndPointsSequence",
+    tag: 0x0008_0420,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Inventory Access End Points Sequence",
+};
+
+/// Study Access End Points Sequence
+///
+/// - **Tag:** (0008,0421)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static StudyAccessEndPointsSequence: Tag = Tag {
+    ident: "StudyAccessEndPointsSequence",
+    tag: 0x0008_0421,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Study Access End Points Sequence",
+};
+
+/// Incorporated Inventory Instance Sequence
+///
+/// - **Tag:** (0008,0422)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static IncorporatedInventoryInstanceSequence: Tag = Tag {
+    ident: "IncorporatedInventoryInstanceSequence",
+    tag: 0x0008_0422,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Incorporated Inventory Instance Sequence",
+};
+
+/// Inventoried Studies Sequence
+///
+/// - **Tag:** (0008,0423)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InventoriedStudiesSequence: Tag = Tag {
+    ident: "InventoriedStudiesSequence",
+    tag: 0x0008_0423,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Inventoried Studies Sequence",
+};
+
+/// Inventoried Series Sequence
+///
+/// - **Tag:** (0008,0424)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InventoriedSeriesSequence: Tag = Tag {
+    ident: "InventoriedSeriesSequence",
+    tag: 0x0008_0424,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Inventoried Series Sequence",
+};
+
+/// Inventoried Instances Sequence
+///
+/// - **Tag:** (0008,0425)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InventoriedInstancesSequence: Tag = Tag {
+    ident: "InventoriedInstancesSequence",
+    tag: 0x0008_0425,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Inventoried Instances Sequence",
+};
+
+/// Inventory Completion Status
+///
+/// - **Tag:** (0008,0426)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static InventoryCompletionStatus: Tag = Tag {
+    ident: "InventoryCompletionStatus",
+    tag: 0x0008_0426,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Inventory Completion Status",
+};
+
+/// Number of Study Records in Instance
+///
+/// - **Tag:** (0008,0427)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static NumberofStudyRecordsinInstance: Tag = Tag {
+    ident: "NumberofStudyRecordsinInstance",
+    tag: 0x0008_0427,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Number of Study Records in Instance",
+};
+
+/// Total Number of Study Records
+///
+/// - **Tag:** (0008,0428)
+/// - **VR:** UV
+/// - **VM:** 1
+pub static TotalNumberofStudyRecords: Tag = Tag {
+    ident: "TotalNumberofStudyRecords",
+    tag: 0x0008_0428,
+    implicit_vr: Some(&vr::UV),
+    vm: &VM::Distinct(1),
+    desc: "Total Number of Study Records",
+};
+
+/// Maximum Number of Records
+///
+/// - **Tag:** (0008,0429)
+/// - **VR:** UV
+/// - **VM:** 1
+pub static MaximumNumberofRecords: Tag = Tag {
+    ident: "MaximumNumberofRecords",
+    tag: 0x0008_0429,
+    implicit_vr: Some(&vr::UV),
+    vm: &VM::Distinct(1),
+    desc: "Maximum Number of Records",
+};
+
 /// Network ID
 ///
 /// - **Tag:** (0008,1000)
@@ -1980,6 +2682,19 @@ pub static AdmittingDiagnosesCodeSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Admitting Diagnoses Code Sequence",
+};
+
+/// Pyramid Description
+///
+/// - **Tag:** (0008,1088)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static PyramidDescription: Tag = Tag {
+    ident: "PyramidDescription",
+    tag: 0x0008_1088,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Pyramid Description",
 };
 
 /// Manufacturer's Model Name
@@ -2931,6 +3646,19 @@ pub static AlternateRepresentationSequence: Tag = Tag {
     desc: "Alternate Representation Sequence",
 };
 
+/// Available Transfer Syntax UID
+///
+/// - **Tag:** (0008,3002)
+/// - **VR:** UI
+/// - **VM:** 1-n
+pub static AvailableTransferSyntaxUID: Tag = Tag {
+    ident: "AvailableTransferSyntaxUID",
+    tag: 0x0008_3002,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::AtLeast(1),
+    desc: "Available Transfer Syntax UID",
+};
+
 /// Irradiation Event UID
 ///
 /// - **Tag:** (0008,3010)
@@ -2987,12 +3715,12 @@ pub static IdentifyingComments: Tag = Tag {
 ///
 /// - **Tag:** (0008,9007)
 /// - **VR:** CS
-/// - **VM:** 4
+/// - **VM:** 4-5
 pub static FrameType: Tag = Tag {
     ident: "FrameType",
     tag: 0x0008_9007,
     implicit_vr: Some(&vr::CS),
-    vm: &VM::Distinct(4),
+    vm: &VM::AtMost(5),
     desc: "Frame Type",
 };
 
@@ -4335,6 +5063,19 @@ pub static LongitudinalTemporalEventType: Tag = Tag {
     desc: "Longitudinal Temporal Event Type",
 };
 
+/// Clinical Trial Time Point Type Code Sequence
+///
+/// - **Tag:** (0012,0054)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ClinicalTrialTimePointTypeCodeSequence: Tag = Tag {
+    ident: "ClinicalTrialTimePointTypeCodeSequence",
+    tag: 0x0012_0054,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Clinical Trial Time Point Type Code Sequence",
+};
+
 /// Clinical Trial Coordinating Center Name
 ///
 /// - **Tag:** (0012,0060)
@@ -4814,6 +5555,110 @@ pub static OtherSecondaryApprovalStatus: Tag = Tag {
     implicit_vr: Some(&vr::CS),
     vm: &VM::AtLeast(1),
     desc: "Other Secondary Approval Status",
+};
+
+/// Data Element Label Sequence
+///
+/// - **Tag:** (0014,0200)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DataElementLabelSequence: Tag = Tag {
+    ident: "DataElementLabelSequence",
+    tag: 0x0014_0200,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Data Element Label Sequence",
+};
+
+/// Data Element Label Item Sequence
+///
+/// - **Tag:** (0014,0201)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DataElementLabelItemSequence: Tag = Tag {
+    ident: "DataElementLabelItemSequence",
+    tag: 0x0014_0201,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Data Element Label Item Sequence",
+};
+
+/// Data Element
+///
+/// - **Tag:** (0014,0202)
+/// - **VR:** AT
+/// - **VM:** 1
+pub static DataElement: Tag = Tag {
+    ident: "DataElement",
+    tag: 0x0014_0202,
+    implicit_vr: Some(&vr::AT),
+    vm: &VM::Distinct(1),
+    desc: "Data Element",
+};
+
+/// Data Element Name
+///
+/// - **Tag:** (0014,0203)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static DataElementName: Tag = Tag {
+    ident: "DataElementName",
+    tag: 0x0014_0203,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Data Element Name",
+};
+
+/// Data Element Description
+///
+/// - **Tag:** (0014,0204)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static DataElementDescription: Tag = Tag {
+    ident: "DataElementDescription",
+    tag: 0x0014_0204,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Data Element Description",
+};
+
+/// Data Element Conditionality
+///
+/// - **Tag:** (0014,0205)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static DataElementConditionality: Tag = Tag {
+    ident: "DataElementConditionality",
+    tag: 0x0014_0205,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Data Element Conditionality",
+};
+
+/// Data Element Minimum Characters
+///
+/// - **Tag:** (0014,0206)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static DataElementMinimumCharacters: Tag = Tag {
+    ident: "DataElementMinimumCharacters",
+    tag: 0x0014_0206,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Data Element Minimum Characters",
+};
+
+/// Data Element Maximum Characters
+///
+/// - **Tag:** (0014,0207)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static DataElementMaximumCharacters: Tag = Tag {
+    ident: "DataElementMaximumCharacters",
+    tag: 0x0014_0207,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Data Element Maximum Characters",
 };
 
 /// Actual Environmental Conditions
@@ -5477,6 +6322,32 @@ pub static CalibrationNotes: Tag = Tag {
     implicit_vr: Some(&vr::LT),
     vm: &VM::Distinct(1),
     desc: "Calibration Notes",
+};
+
+/// Linearity Correction Technique
+///
+/// - **Tag:** (0014,3100)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static LinearityCorrectionTechnique: Tag = Tag {
+    ident: "LinearityCorrectionTechnique",
+    tag: 0x0014_3100,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Linearity Correction Technique",
+};
+
+/// Beam Hardening Correction Technique
+///
+/// - **Tag:** (0014,3101)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static BeamHardeningCorrectionTechnique: Tag = Tag {
+    ident: "BeamHardeningCorrectionTechnique",
+    tag: 0x0014_3101,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Beam Hardening Correction Technique",
 };
 
 /// Pulser Equipment Sequence
@@ -6523,12 +7394,12 @@ pub static ChannelOverlap: Tag = Tag {
 ///
 /// - **Tag:** (0014,40A0)
 /// - **VR:** LO
-/// - **VM:** 1
+/// - **VM:** 1-n
 pub static ImageQualityIndicatorType: Tag = Tag {
     ident: "ImageQualityIndicatorType",
     tag: 0x0014_40A0,
     implicit_vr: Some(&vr::LO),
-    vm: &VM::Distinct(1),
+    vm: &VM::AtLeast(1),
     desc: "Image Quality Indicator Type",
 };
 
@@ -6536,12 +7407,12 @@ pub static ImageQualityIndicatorType: Tag = Tag {
 ///
 /// - **Tag:** (0014,40A1)
 /// - **VR:** LO
-/// - **VM:** 1
+/// - **VM:** 1-n
 pub static ImageQualityIndicatorMaterial: Tag = Tag {
     ident: "ImageQualityIndicatorMaterial",
     tag: 0x0014_40A1,
     implicit_vr: Some(&vr::LO),
-    vm: &VM::Distinct(1),
+    vm: &VM::AtLeast(1),
     desc: "Image Quality Indicator Material",
 };
 
@@ -6549,12 +7420,12 @@ pub static ImageQualityIndicatorMaterial: Tag = Tag {
 ///
 /// - **Tag:** (0014,40A2)
 /// - **VR:** LO
-/// - **VM:** 1
+/// - **VM:** 1-n
 pub static ImageQualityIndicatorSize: Tag = Tag {
     ident: "ImageQualityIndicatorSize",
     tag: 0x0014_40A2,
     implicit_vr: Some(&vr::LO),
-    vm: &VM::Distinct(1),
+    vm: &VM::AtLeast(1),
     desc: "Image Quality Indicator Size",
 };
 
@@ -8365,6 +9236,71 @@ pub static GPSDifferential: Tag = Tag {
     desc: "GPS Differential",
 };
 
+/// Light Source Polarization
+///
+/// - **Tag:** (0016,1001)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static LightSourcePolarization: Tag = Tag {
+    ident: "LightSourcePolarization",
+    tag: 0x0016_1001,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Light Source Polarization",
+};
+
+/// Emitter Color Temperature
+///
+/// - **Tag:** (0016,1002)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static EmitterColorTemperature: Tag = Tag {
+    ident: "EmitterColorTemperature",
+    tag: 0x0016_1002,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Emitter Color Temperature",
+};
+
+/// Contact Method
+///
+/// - **Tag:** (0016,1003)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ContactMethod: Tag = Tag {
+    ident: "ContactMethod",
+    tag: 0x0016_1003,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Contact Method",
+};
+
+/// Immersion Media
+///
+/// - **Tag:** (0016,1004)
+/// - **VR:** CS
+/// - **VM:** 1-n
+pub static ImmersionMedia: Tag = Tag {
+    ident: "ImmersionMedia",
+    tag: 0x0016_1004,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::AtLeast(1),
+    desc: "Immersion Media",
+};
+
+/// Optical Magnification Factor
+///
+/// - **Tag:** (0016,1005)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static OpticalMagnificationFactor: Tag = Tag {
+    ident: "OpticalMagnificationFactor",
+    tag: 0x0016_1005,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Optical Magnification Factor",
+};
+
 /// Contrast/Bolus Agent
 ///
 /// - **Tag:** (0018,0010)
@@ -8768,6 +9704,84 @@ pub static KVP: Tag = Tag {
     desc: "KVP",
 };
 
+/// Counts Accumulated
+///
+/// - **Tag:** (0018,0070)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static CountsAccumulated: Tag = Tag {
+    ident: "CountsAccumulated",
+    tag: 0x0018_0070,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Counts Accumulated",
+};
+
+/// Acquisition Termination Condition
+///
+/// - **Tag:** (0018,0071)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AcquisitionTerminationCondition: Tag = Tag {
+    ident: "AcquisitionTerminationCondition",
+    tag: 0x0018_0071,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Termination Condition",
+};
+
+/// Effective Duration
+///
+/// - **Tag:** (0018,0072)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static EffectiveDuration: Tag = Tag {
+    ident: "EffectiveDuration",
+    tag: 0x0018_0072,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Effective Duration",
+};
+
+/// Acquisition Start Condition
+///
+/// - **Tag:** (0018,0073)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AcquisitionStartCondition: Tag = Tag {
+    ident: "AcquisitionStartCondition",
+    tag: 0x0018_0073,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Start Condition",
+};
+
+/// Acquisition Start Condition Data
+///
+/// - **Tag:** (0018,0074)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static AcquisitionStartConditionData: Tag = Tag {
+    ident: "AcquisitionStartConditionData",
+    tag: 0x0018_0074,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Start Condition Data",
+};
+
+/// Acquisition Termination Condition Data
+///
+/// - **Tag:** (0018,0075)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static AcquisitionTerminationConditionData: Tag = Tag {
+    ident: "AcquisitionTerminationConditionData",
+    tag: 0x0018_0075,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Termination Condition Data",
+};
+
 /// Repetition Time
 ///
 /// - **Tag:** (0018,0080)
@@ -9091,6 +10105,19 @@ pub static UDISequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "UDI Sequence",
+};
+
+/// Manufacturer's Device Class UID
+///
+/// - **Tag:** (0018,100B)
+/// - **VR:** UI
+/// - **VM:** 1-n
+pub static ManufacturersDeviceClassUID: Tag = Tag {
+    ident: "ManufacturersDeviceClassUID",
+    tag: 0x0018_100B,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::AtLeast(1),
+    desc: "Manufacturer's Device Class UID",
 };
 
 /// Secondary Capture Device ID
@@ -10497,6 +11524,240 @@ pub static CompressionContactArea: Tag = Tag {
     desc: "Compression Contact Area",
 };
 
+/// Acquisition Mode
+///
+/// - **Tag:** (0018,11B0)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static AcquisitionMode: Tag = Tag {
+    ident: "AcquisitionMode",
+    tag: 0x0018_11B0,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Mode",
+};
+
+/// Dose Mode Name
+///
+/// - **Tag:** (0018,11B1)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static DoseModeName: Tag = Tag {
+    ident: "DoseModeName",
+    tag: 0x0018_11B1,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Dose Mode Name",
+};
+
+/// Acquired Subtraction Mask Flag
+///
+/// - **Tag:** (0018,11B2)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AcquiredSubtractionMaskFlag: Tag = Tag {
+    ident: "AcquiredSubtractionMaskFlag",
+    tag: 0x0018_11B2,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Acquired Subtraction Mask Flag",
+};
+
+/// Fluoroscopy Persistence Flag
+///
+/// - **Tag:** (0018,11B3)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static FluoroscopyPersistenceFlag: Tag = Tag {
+    ident: "FluoroscopyPersistenceFlag",
+    tag: 0x0018_11B3,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Fluoroscopy Persistence Flag",
+};
+
+/// Fluoroscopy Last Image Hold Persistence Flag
+///
+/// - **Tag:** (0018,11B4)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static FluoroscopyLastImageHoldPersistenceFlag: Tag = Tag {
+    ident: "FluoroscopyLastImageHoldPersistenceFlag",
+    tag: 0x0018_11B4,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Fluoroscopy Last Image Hold Persistence Flag",
+};
+
+/// Upper Limit Number Of Persistent Fluoroscopy Frames
+///
+/// - **Tag:** (0018,11B5)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static UpperLimitNumberOfPersistentFluoroscopyFrames: Tag = Tag {
+    ident: "UpperLimitNumberOfPersistentFluoroscopyFrames",
+    tag: 0x0018_11B5,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Upper Limit Number Of Persistent Fluoroscopy Frames",
+};
+
+/// Contrast/Bolus Auto Injection Trigger Flag
+///
+/// - **Tag:** (0018,11B6)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ContrastBolusAutoInjectionTriggerFlag: Tag = Tag {
+    ident: "ContrastBolusAutoInjectionTriggerFlag",
+    tag: 0x0018_11B6,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Contrast/Bolus Auto Injection Trigger Flag",
+};
+
+/// Contrast/Bolus Injection Delay
+///
+/// - **Tag:** (0018,11B7)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ContrastBolusInjectionDelay: Tag = Tag {
+    ident: "ContrastBolusInjectionDelay",
+    tag: 0x0018_11B7,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Contrast/Bolus Injection Delay",
+};
+
+/// XA Acquisition Phase Details Sequence
+///
+/// - **Tag:** (0018,11B8)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static XAAcquisitionPhaseDetailsSequence: Tag = Tag {
+    ident: "XAAcquisitionPhaseDetailsSequence",
+    tag: 0x0018_11B8,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "XA Acquisition Phase Details Sequence",
+};
+
+/// XA Acquisition Frame Rate
+///
+/// - **Tag:** (0018,11B9)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static XAAcquisitionFrameRate: Tag = Tag {
+    ident: "XAAcquisitionFrameRate",
+    tag: 0x0018_11B9,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "XA Acquisition Frame Rate",
+};
+
+/// XA Plane Details Sequence
+///
+/// - **Tag:** (0018,11BA)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static XAPlaneDetailsSequence: Tag = Tag {
+    ident: "XAPlaneDetailsSequence",
+    tag: 0x0018_11BA,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "XA Plane Details Sequence",
+};
+
+/// Acquisition Field of View Label
+///
+/// - **Tag:** (0018,11BB)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static AcquisitionFieldofViewLabel: Tag = Tag {
+    ident: "AcquisitionFieldofViewLabel",
+    tag: 0x0018_11BB,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Field of View Label",
+};
+
+/// X-Ray Filter Details Sequence
+///
+/// - **Tag:** (0018,11BC)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static XRayFilterDetailsSequence: Tag = Tag {
+    ident: "XRayFilterDetailsSequence",
+    tag: 0x0018_11BC,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "X-Ray Filter Details Sequence",
+};
+
+/// XA Acquisition Duration
+///
+/// - **Tag:** (0018,11BD)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static XAAcquisitionDuration: Tag = Tag {
+    ident: "XAAcquisitionDuration",
+    tag: 0x0018_11BD,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "XA Acquisition Duration",
+};
+
+/// Reconstruction Pipeline Type
+///
+/// - **Tag:** (0018,11BE)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ReconstructionPipelineType: Tag = Tag {
+    ident: "ReconstructionPipelineType",
+    tag: 0x0018_11BE,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Reconstruction Pipeline Type",
+};
+
+/// Image Filter Details Sequence
+///
+/// - **Tag:** (0018,11BF)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ImageFilterDetailsSequence: Tag = Tag {
+    ident: "ImageFilterDetailsSequence",
+    tag: 0x0018_11BF,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Image Filter Details Sequence",
+};
+
+/// Applied Mask Subtraction Flag
+///
+/// - **Tag:** (0018,11C0)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AppliedMaskSubtractionFlag: Tag = Tag {
+    ident: "AppliedMaskSubtractionFlag",
+    tag: 0x0018_11C0,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Applied Mask Subtraction Flag",
+};
+
+/// Requested Series Description Code Sequence
+///
+/// - **Tag:** (0018,11C1)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RequestedSeriesDescriptionCodeSequence: Tag = Tag {
+    ident: "RequestedSeriesDescriptionCodeSequence",
+    tag: 0x0018_11C1,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Requested Series Description Code Sequence",
+};
+
 /// Date of Last Calibration
 ///
 /// - **Tag:** (0018,1200)
@@ -10534,6 +11795,45 @@ pub static DateTimeofLastCalibration: Tag = Tag {
     implicit_vr: Some(&vr::DT),
     vm: &VM::Distinct(1),
     desc: "DateTime of Last Calibration",
+};
+
+/// Calibration DateTime
+///
+/// - **Tag:** (0018,1203)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static CalibrationDateTime: Tag = Tag {
+    ident: "CalibrationDateTime",
+    tag: 0x0018_1203,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Calibration DateTime",
+};
+
+/// Date of Manufacture
+///
+/// - **Tag:** (0018,1204)
+/// - **VR:** DA
+/// - **VM:** 1
+pub static DateofManufacture: Tag = Tag {
+    ident: "DateofManufacture",
+    tag: 0x0018_1204,
+    implicit_vr: Some(&vr::DA),
+    vm: &VM::Distinct(1),
+    desc: "Date of Manufacture",
+};
+
+/// Date of Installation
+///
+/// - **Tag:** (0018,1205)
+/// - **VR:** DA
+/// - **VM:** 1
+pub static DateofInstallation: Tag = Tag {
+    ident: "DateofInstallation",
+    tag: 0x0018_1205,
+    implicit_vr: Some(&vr::DA),
+    vm: &VM::Distinct(1),
+    desc: "Date of Installation",
 };
 
 /// Convolution Kernel
@@ -11264,6 +12564,123 @@ pub static ShutterPresentationColorCIELabValue: Tag = Tag {
     desc: "Shutter Presentation Color CIELab Value",
 };
 
+/// Outline Shape Type
+///
+/// - **Tag:** (0018,1630)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static OutlineShapeType: Tag = Tag {
+    ident: "OutlineShapeType",
+    tag: 0x0018_1630,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Outline Shape Type",
+};
+
+/// Outline Left Vertical Edge
+///
+/// - **Tag:** (0018,1631)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static OutlineLeftVerticalEdge: Tag = Tag {
+    ident: "OutlineLeftVerticalEdge",
+    tag: 0x0018_1631,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Outline Left Vertical Edge",
+};
+
+/// Outline Right Vertical Edge
+///
+/// - **Tag:** (0018,1632)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static OutlineRightVerticalEdge: Tag = Tag {
+    ident: "OutlineRightVerticalEdge",
+    tag: 0x0018_1632,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Outline Right Vertical Edge",
+};
+
+/// Outline Upper Horizontal Edge
+///
+/// - **Tag:** (0018,1633)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static OutlineUpperHorizontalEdge: Tag = Tag {
+    ident: "OutlineUpperHorizontalEdge",
+    tag: 0x0018_1633,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Outline Upper Horizontal Edge",
+};
+
+/// Outline Lower Horizontal Edge
+///
+/// - **Tag:** (0018,1634)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static OutlineLowerHorizontalEdge: Tag = Tag {
+    ident: "OutlineLowerHorizontalEdge",
+    tag: 0x0018_1634,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Outline Lower Horizontal Edge",
+};
+
+/// Center of Circular Outline
+///
+/// - **Tag:** (0018,1635)
+/// - **VR:** FD
+/// - **VM:** 2
+pub static CenterofCircularOutline: Tag = Tag {
+    ident: "CenterofCircularOutline",
+    tag: 0x0018_1635,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(2),
+    desc: "Center of Circular Outline",
+};
+
+/// Diameter of Circular Outline
+///
+/// - **Tag:** (0018,1636)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static DiameterofCircularOutline: Tag = Tag {
+    ident: "DiameterofCircularOutline",
+    tag: 0x0018_1636,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Diameter of Circular Outline",
+};
+
+/// Number of Polygonal Vertices
+///
+/// - **Tag:** (0018,1637)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static NumberofPolygonalVertices: Tag = Tag {
+    ident: "NumberofPolygonalVertices",
+    tag: 0x0018_1637,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Number of Polygonal Vertices",
+};
+
+/// Vertices of the Polygonal Outline
+///
+/// - **Tag:** (0018,1638)
+/// - **VR:** OF
+/// - **VM:** 1
+pub static VerticesofthePolygonalOutline: Tag = Tag {
+    ident: "VerticesofthePolygonalOutline",
+    tag: 0x0018_1638,
+    implicit_vr: Some(&vr::OF),
+    vm: &VM::Distinct(1),
+    desc: "Vertices of the Polygonal Outline",
+};
+
 /// Collimator Shape
 ///
 /// - **Tag:** (0018,1700)
@@ -11730,6 +13147,19 @@ pub static TransducerData: Tag = Tag {
     implicit_vr: Some(&vr::LO),
     vm: &VM::AtLeast(1),
     desc: "Transducer Data",
+};
+
+/// Transducer Identification Sequence
+///
+/// - **Tag:** (0018,5011)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TransducerIdentificationSequence: Tag = Tag {
+    ident: "TransducerIdentificationSequence",
+    tag: 0x0018_5011,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Transducer Identification Sequence",
 };
 
 /// Focus Depth
@@ -12562,6 +13992,19 @@ pub static RWaveTimeVector: Tag = Tag {
     implicit_vr: Some(&vr::FL),
     vm: &VM::AtLeast(1),
     desc: "R Wave Time Vector",
+};
+
+/// Active Image Area Overlay Group
+///
+/// - **Tag:** (0018,6070)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ActiveImageAreaOverlayGroup: Tag = Tag {
+    ident: "ActiveImageAreaOverlayGroup",
+    tag: 0x0018_6070,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Active Image Area Overlay Group",
 };
 
 /// Detector Conditions Nominal Flag
@@ -15957,7 +17400,7 @@ pub static MultienergySourceTechnique: Tag = Tag {
     desc: "Multi-energy Source Technique",
 };
 
-/// Source Start Date Time
+/// Source Start DateTime
 ///
 /// - **Tag:** (0018,9369)
 /// - **VR:** DT
@@ -15967,10 +17410,10 @@ pub static SourceStartDateTime: Tag = Tag {
     tag: 0x0018_9369,
     implicit_vr: Some(&vr::DT),
     vm: &VM::Distinct(1),
-    desc: "Source Start Date Time",
+    desc: "Source Start DateTime",
 };
 
-/// Source End Date Time
+/// Source End DateTime
 ///
 /// - **Tag:** (0018,936A)
 /// - **VR:** DT
@@ -15980,7 +17423,7 @@ pub static SourceEndDateTime: Tag = Tag {
     tag: 0x0018_936A,
     implicit_vr: Some(&vr::DT),
     vm: &VM::Distinct(1),
-    desc: "Source End Date Time",
+    desc: "Source End DateTime",
 };
 
 /// Switching Phase Number
@@ -16709,6 +18152,84 @@ pub static VerticesofthePolygonalExposureControlSensingRegion: Tag = Tag {
     implicit_vr: Some(&vr::SS),
     vm: &VM::AtLeast(2),
     desc: "Vertices of the Polygonal Exposure Control Sensing Region",
+};
+
+/// Column Angulation (Patient)
+///
+/// - **Tag:** (0018,9447)
+/// - **VR:** FL
+/// - **VM:** 1
+pub static ColumnAngulationPatient: Tag = Tag {
+    ident: "ColumnAngulationPatient",
+    tag: 0x0018_9447,
+    implicit_vr: Some(&vr::FL),
+    vm: &VM::Distinct(1),
+    desc: "Column Angulation (Patient)",
+};
+
+/// Beam Angle
+///
+/// - **Tag:** (0018,9449)
+/// - **VR:** FL
+/// - **VM:** 1
+pub static BeamAngle: Tag = Tag {
+    ident: "BeamAngle",
+    tag: 0x0018_9449,
+    implicit_vr: Some(&vr::FL),
+    vm: &VM::Distinct(1),
+    desc: "Beam Angle",
+};
+
+/// Frame Detector Parameters Sequence
+///
+/// - **Tag:** (0018,9451)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FrameDetectorParametersSequence: Tag = Tag {
+    ident: "FrameDetectorParametersSequence",
+    tag: 0x0018_9451,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Frame Detector Parameters Sequence",
+};
+
+/// Calculated Anatomy Thickness
+///
+/// - **Tag:** (0018,9452)
+/// - **VR:** FL
+/// - **VM:** 1
+pub static CalculatedAnatomyThickness: Tag = Tag {
+    ident: "CalculatedAnatomyThickness",
+    tag: 0x0018_9452,
+    implicit_vr: Some(&vr::FL),
+    vm: &VM::Distinct(1),
+    desc: "Calculated Anatomy Thickness",
+};
+
+/// Calibration Sequence
+///
+/// - **Tag:** (0018,9455)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CalibrationSequence: Tag = Tag {
+    ident: "CalibrationSequence",
+    tag: 0x0018_9455,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Calibration Sequence",
+};
+
+/// Object Thickness Sequence
+///
+/// - **Tag:** (0018,9456)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ObjectThicknessSequence: Tag = Tag {
+    ident: "ObjectThicknessSequence",
+    tag: 0x0018_9456,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Object Thickness Sequence",
 };
 
 /// Plane Identification
@@ -18336,6 +19857,279 @@ pub static ZeroVelocityPixelValue: Tag = Tag {
     desc: "Zero Velocity Pixel Value",
 };
 
+/// Photoacoustic Excitation Characteristics Sequence
+///
+/// - **Tag:** (0018,9821)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PhotoacousticExcitationCharacteristicsSequence: Tag = Tag {
+    ident: "PhotoacousticExcitationCharacteristicsSequence",
+    tag: 0x0018_9821,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Photoacoustic Excitation Characteristics Sequence",
+};
+
+/// Excitation Spectral Width
+///
+/// - **Tag:** (0018,9822)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ExcitationSpectralWidth: Tag = Tag {
+    ident: "ExcitationSpectralWidth",
+    tag: 0x0018_9822,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Excitation Spectral Width",
+};
+
+/// Excitation Energy
+///
+/// - **Tag:** (0018,9823)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ExcitationEnergy: Tag = Tag {
+    ident: "ExcitationEnergy",
+    tag: 0x0018_9823,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Excitation Energy",
+};
+
+/// Excitation Pulse Duration
+///
+/// - **Tag:** (0018,9824)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ExcitationPulseDuration: Tag = Tag {
+    ident: "ExcitationPulseDuration",
+    tag: 0x0018_9824,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Excitation Pulse Duration",
+};
+
+/// Excitation Wavelength Sequence
+///
+/// - **Tag:** (0018,9825)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ExcitationWavelengthSequence: Tag = Tag {
+    ident: "ExcitationWavelengthSequence",
+    tag: 0x0018_9825,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Excitation Wavelength Sequence",
+};
+
+/// Excitation Wavelength
+///
+/// - **Tag:** (0018,9826)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ExcitationWavelength: Tag = Tag {
+    ident: "ExcitationWavelength",
+    tag: 0x0018_9826,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Excitation Wavelength",
+};
+
+/// Illumination Translation Flag
+///
+/// - **Tag:** (0018,9828)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static IlluminationTranslationFlag: Tag = Tag {
+    ident: "IlluminationTranslationFlag",
+    tag: 0x0018_9828,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Illumination Translation Flag",
+};
+
+/// Acoustic Coupling Medium Flag
+///
+/// - **Tag:** (0018,9829)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AcousticCouplingMediumFlag: Tag = Tag {
+    ident: "AcousticCouplingMediumFlag",
+    tag: 0x0018_9829,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Acoustic Coupling Medium Flag",
+};
+
+/// Acoustic Coupling Medium Code Sequence
+///
+/// - **Tag:** (0018,982A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AcousticCouplingMediumCodeSequence: Tag = Tag {
+    ident: "AcousticCouplingMediumCodeSequence",
+    tag: 0x0018_982A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Acoustic Coupling Medium Code Sequence",
+};
+
+/// Acoustic Coupling Medium Temperature
+///
+/// - **Tag:** (0018,982B)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static AcousticCouplingMediumTemperature: Tag = Tag {
+    ident: "AcousticCouplingMediumTemperature",
+    tag: 0x0018_982B,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Acoustic Coupling Medium Temperature",
+};
+
+/// Transducer Response Sequence
+///
+/// - **Tag:** (0018,982C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TransducerResponseSequence: Tag = Tag {
+    ident: "TransducerResponseSequence",
+    tag: 0x0018_982C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Transducer Response Sequence",
+};
+
+/// Center Frequency
+///
+/// - **Tag:** (0018,982D)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static CenterFrequency: Tag = Tag {
+    ident: "CenterFrequency",
+    tag: 0x0018_982D,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Center Frequency",
+};
+
+/// Fractional Bandwidth
+///
+/// - **Tag:** (0018,982E)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static FractionalBandwidth: Tag = Tag {
+    ident: "FractionalBandwidth",
+    tag: 0x0018_982E,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Fractional Bandwidth",
+};
+
+/// Lower Cutoff Frequency
+///
+/// - **Tag:** (0018,982F)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static LowerCutoffFrequency: Tag = Tag {
+    ident: "LowerCutoffFrequency",
+    tag: 0x0018_982F,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Lower Cutoff Frequency",
+};
+
+/// Upper Cutoff Frequency
+///
+/// - **Tag:** (0018,9830)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static UpperCutoffFrequency: Tag = Tag {
+    ident: "UpperCutoffFrequency",
+    tag: 0x0018_9830,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Upper Cutoff Frequency",
+};
+
+/// Transducer Technology Sequence
+///
+/// - **Tag:** (0018,9831)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TransducerTechnologySequence: Tag = Tag {
+    ident: "TransducerTechnologySequence",
+    tag: 0x0018_9831,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Transducer Technology Sequence",
+};
+
+/// Sound Speed Correction Mechanism Code Sequence
+///
+/// - **Tag:** (0018,9832)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static SoundSpeedCorrectionMechanismCodeSequence: Tag = Tag {
+    ident: "SoundSpeedCorrectionMechanismCodeSequence",
+    tag: 0x0018_9832,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Sound Speed Correction Mechanism Code Sequence",
+};
+
+/// Object Sound Speed
+///
+/// - **Tag:** (0018,9833)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ObjectSoundSpeed: Tag = Tag {
+    ident: "ObjectSoundSpeed",
+    tag: 0x0018_9833,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Object Sound Speed",
+};
+
+/// Acoustic Coupling Medium Sound Speed
+///
+/// - **Tag:** (0018,9834)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static AcousticCouplingMediumSoundSpeed: Tag = Tag {
+    ident: "AcousticCouplingMediumSoundSpeed",
+    tag: 0x0018_9834,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Acoustic Coupling Medium Sound Speed",
+};
+
+/// Photoacoustic Image Frame Type Sequence
+///
+/// - **Tag:** (0018,9835)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PhotoacousticImageFrameTypeSequence: Tag = Tag {
+    ident: "PhotoacousticImageFrameTypeSequence",
+    tag: 0x0018_9835,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Photoacoustic Image Frame Type Sequence",
+};
+
+/// Image Data Type Code Sequence
+///
+/// - **Tag:** (0018,9836)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ImageDataTypeCodeSequence: Tag = Tag {
+    ident: "ImageDataTypeCodeSequence",
+    tag: 0x0018_9836,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Image Data Type Code Sequence",
+};
+
 /// Reference Location Label
 ///
 /// - **Tag:** (0018,9900)
@@ -19348,6 +21142,19 @@ pub static LUTNumber: Tag = Tag {
     implicit_vr: Some(&vr::IS),
     vm: &VM::Distinct(1),
     desc: "LUT Number",
+};
+
+/// Pyramid Label
+///
+/// - **Tag:** (0020,0027)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static PyramidLabel: Tag = Tag {
+    ident: "PyramidLabel",
+    tag: 0x0020_0027,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Pyramid Label",
 };
 
 /// Image Position
@@ -24446,6 +26253,84 @@ pub static UltrasoundColorDataPresent: Tag = Tag {
     desc: "Ultrasound Color Data Present",
 };
 
+/// Pixel Spacing
+///
+/// - **Tag:** (0028,0030)
+/// - **VR:** DS
+/// - **VM:** 2
+pub static PixelSpacing: Tag = Tag {
+    ident: "PixelSpacing",
+    tag: 0x0028_0030,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(2),
+    desc: "Pixel Spacing",
+};
+
+/// Zoom Factor
+///
+/// - **Tag:** (0028,0031)
+/// - **VR:** DS
+/// - **VM:** 2
+pub static ZoomFactor: Tag = Tag {
+    ident: "ZoomFactor",
+    tag: 0x0028_0031,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(2),
+    desc: "Zoom Factor",
+};
+
+/// Zoom Center
+///
+/// - **Tag:** (0028,0032)
+/// - **VR:** DS
+/// - **VM:** 2
+pub static ZoomCenter: Tag = Tag {
+    ident: "ZoomCenter",
+    tag: 0x0028_0032,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(2),
+    desc: "Zoom Center",
+};
+
+/// Pixel Aspect Ratio
+///
+/// - **Tag:** (0028,0034)
+/// - **VR:** IS
+/// - **VM:** 2
+pub static PixelAspectRatio: Tag = Tag {
+    ident: "PixelAspectRatio",
+    tag: 0x0028_0034,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(2),
+    desc: "Pixel Aspect Ratio",
+};
+
+/// Image Format
+///
+/// - **Tag:** (0028,0040)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ImageFormat: Tag = Tag {
+    ident: "ImageFormat",
+    tag: 0x0028_0040,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Image Format",
+};
+
+/// Manipulated Image
+///
+/// - **Tag:** (0028,0050)
+/// - **VR:** LO
+/// - **VM:** 1-n
+pub static ManipulatedImage: Tag = Tag {
+    ident: "ManipulatedImage",
+    tag: 0x0028_0050,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::AtLeast(1),
+    desc: "Manipulated Image",
+};
+
 /// Corrected Image
 ///
 /// - **Tag:** (0028,0051)
@@ -26017,6 +27902,19 @@ pub static ModalityLUTSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Modality LUT Sequence",
+};
+
+/// Variable Modality LUT Sequence
+///
+/// - **Tag:** (0028,3001)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static VariableModalityLUTSequence: Tag = Tag {
+    ident: "VariableModalityLUTSequence",
+    tag: 0x0028_3001,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Variable Modality LUT Sequence",
 };
 
 /// LUT Descriptor
@@ -27618,6 +29516,19 @@ pub static RequestedProcedureCodeSequence: Tag = Tag {
     desc: "Requested Procedure Code Sequence",
 };
 
+/// Requested Laterality Code Sequence
+///
+/// - **Tag:** (0032,1065)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RequestedLateralityCodeSequence: Tag = Tag {
+    ident: "RequestedLateralityCodeSequence",
+    tag: 0x0032_1065,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Requested Laterality Code Sequence",
+};
+
 /// Reason for Visit
 ///
 /// - **Tag:** (0032,1066)
@@ -27668,6 +29579,162 @@ pub static StudyComments: Tag = Tag {
     implicit_vr: Some(&vr::LT),
     vm: &VM::Distinct(1),
     desc: "Study Comments",
+};
+
+/// Flow Identifier Sequence
+///
+/// - **Tag:** (0034,0001)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FlowIdentifierSequence: Tag = Tag {
+    ident: "FlowIdentifierSequence",
+    tag: 0x0034_0001,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Flow Identifier Sequence",
+};
+
+/// Flow Identifier
+///
+/// - **Tag:** (0034,0002)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static FlowIdentifier: Tag = Tag {
+    ident: "FlowIdentifier",
+    tag: 0x0034_0002,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "Flow Identifier",
+};
+
+/// Flow Transfer Syntax UID
+///
+/// - **Tag:** (0034,0003)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static FlowTransferSyntaxUID: Tag = Tag {
+    ident: "FlowTransferSyntaxUID",
+    tag: 0x0034_0003,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Flow Transfer Syntax UID",
+};
+
+/// Flow RTP Sampling Rate
+///
+/// - **Tag:** (0034,0004)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static FlowRTPSamplingRate: Tag = Tag {
+    ident: "FlowRTPSamplingRate",
+    tag: 0x0034_0004,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Flow RTP Sampling Rate",
+};
+
+/// Source Identifier
+///
+/// - **Tag:** (0034,0005)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static SourceIdentifier: Tag = Tag {
+    ident: "SourceIdentifier",
+    tag: 0x0034_0005,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "Source Identifier",
+};
+
+/// Frame Origin Timestamp
+///
+/// - **Tag:** (0034,0007)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static FrameOriginTimestamp: Tag = Tag {
+    ident: "FrameOriginTimestamp",
+    tag: 0x0034_0007,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "Frame Origin Timestamp",
+};
+
+/// Includes Imaging Subject
+///
+/// - **Tag:** (0034,0008)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static IncludesImagingSubject: Tag = Tag {
+    ident: "IncludesImagingSubject",
+    tag: 0x0034_0008,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Includes Imaging Subject",
+};
+
+/// Frame Usefulness Group Sequence
+///
+/// - **Tag:** (0034,0009)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FrameUsefulnessGroupSequence: Tag = Tag {
+    ident: "FrameUsefulnessGroupSequence",
+    tag: 0x0034_0009,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Frame Usefulness Group Sequence",
+};
+
+/// Real-Time Bulk Data Flow Sequence
+///
+/// - **Tag:** (0034,000A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RealTimeBulkDataFlowSequence: Tag = Tag {
+    ident: "RealTimeBulkDataFlowSequence",
+    tag: 0x0034_000A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Real-Time Bulk Data Flow Sequence",
+};
+
+/// Camera Position Group Sequence
+///
+/// - **Tag:** (0034,000B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CameraPositionGroupSequence: Tag = Tag {
+    ident: "CameraPositionGroupSequence",
+    tag: 0x0034_000B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Camera Position Group Sequence",
+};
+
+/// Includes Information
+///
+/// - **Tag:** (0034,000C)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static IncludesInformation: Tag = Tag {
+    ident: "IncludesInformation",
+    tag: 0x0034_000C,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Includes Information",
+};
+
+/// Time of Frame Group Sequence
+///
+/// - **Tag:** (0034,000D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TimeofFrameGroupSequence: Tag = Tag {
+    ident: "TimeofFrameGroupSequence",
+    tag: 0x0034_000D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Time of Frame Group Sequence",
 };
 
 /// Referenced Patient Alias Sequence
@@ -28552,6 +30619,331 @@ pub static ChannelMode: Tag = Tag {
     implicit_vr: Some(&vr::CS),
     vm: &VM::Distinct(1),
     desc: "Channel Mode",
+};
+
+/// Multiplex Group UID
+///
+/// - **Tag:** (003A,0310)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static MultiplexGroupUID: Tag = Tag {
+    ident: "MultiplexGroupUID",
+    tag: 0x003A_0310,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Multiplex Group UID",
+};
+
+/// Powerline Frequency
+///
+/// - **Tag:** (003A,0311)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static PowerlineFrequency: Tag = Tag {
+    ident: "PowerlineFrequency",
+    tag: 0x003A_0311,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Powerline Frequency",
+};
+
+/// Channel Impedance Sequence
+///
+/// - **Tag:** (003A,0312)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ChannelImpedanceSequence: Tag = Tag {
+    ident: "ChannelImpedanceSequence",
+    tag: 0x003A_0312,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Channel Impedance Sequence",
+};
+
+/// Impedance Value
+///
+/// - **Tag:** (003A,0313)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static ImpedanceValue: Tag = Tag {
+    ident: "ImpedanceValue",
+    tag: 0x003A_0313,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Impedance Value",
+};
+
+/// Impedance Measurement DateTime
+///
+/// - **Tag:** (003A,0314)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static ImpedanceMeasurementDateTime: Tag = Tag {
+    ident: "ImpedanceMeasurementDateTime",
+    tag: 0x003A_0314,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Impedance Measurement DateTime",
+};
+
+/// Impedance Measurement Frequency
+///
+/// - **Tag:** (003A,0315)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static ImpedanceMeasurementFrequency: Tag = Tag {
+    ident: "ImpedanceMeasurementFrequency",
+    tag: 0x003A_0315,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Impedance Measurement Frequency",
+};
+
+/// Impedance Measurement Current Type
+///
+/// - **Tag:** (003A,0316)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ImpedanceMeasurementCurrentType: Tag = Tag {
+    ident: "ImpedanceMeasurementCurrentType",
+    tag: 0x003A_0316,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Impedance Measurement Current Type",
+};
+
+/// Waveform Amplifier Type
+///
+/// - **Tag:** (003A,0317)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static WaveformAmplifierType: Tag = Tag {
+    ident: "WaveformAmplifierType",
+    tag: 0x003A_0317,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Waveform Amplifier Type",
+};
+
+/// Filter Low Frequency Characteristics Sequence
+///
+/// - **Tag:** (003A,0318)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FilterLowFrequencyCharacteristicsSequence: Tag = Tag {
+    ident: "FilterLowFrequencyCharacteristicsSequence",
+    tag: 0x003A_0318,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Filter Low Frequency Characteristics Sequence",
+};
+
+/// Filter High Frequency Characteristics Sequence
+///
+/// - **Tag:** (003A,0319)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FilterHighFrequencyCharacteristicsSequence: Tag = Tag {
+    ident: "FilterHighFrequencyCharacteristicsSequence",
+    tag: 0x003A_0319,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Filter High Frequency Characteristics Sequence",
+};
+
+/// Summarized Filter Lookup Table Sequence
+///
+/// - **Tag:** (003A,0320)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static SummarizedFilterLookupTableSequence: Tag = Tag {
+    ident: "SummarizedFilterLookupTableSequence",
+    tag: 0x003A_0320,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Summarized Filter Lookup Table Sequence",
+};
+
+/// Notch Filter Characteristics Sequence
+///
+/// - **Tag:** (003A,0321)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static NotchFilterCharacteristicsSequence: Tag = Tag {
+    ident: "NotchFilterCharacteristicsSequence",
+    tag: 0x003A_0321,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Notch Filter Characteristics Sequence",
+};
+
+/// Waveform Filter Type
+///
+/// - **Tag:** (003A,0322)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static WaveformFilterType: Tag = Tag {
+    ident: "WaveformFilterType",
+    tag: 0x003A_0322,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Waveform Filter Type",
+};
+
+/// Analog Filter Characteristics Sequence
+///
+/// - **Tag:** (003A,0323)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AnalogFilterCharacteristicsSequence: Tag = Tag {
+    ident: "AnalogFilterCharacteristicsSequence",
+    tag: 0x003A_0323,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Analog Filter Characteristics Sequence",
+};
+
+/// Analog Filter Roll Off
+///
+/// - **Tag:** (003A,0324)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static AnalogFilterRollOff: Tag = Tag {
+    ident: "AnalogFilterRollOff",
+    tag: 0x003A_0324,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Analog Filter Roll Off",
+};
+
+/// Analog Filter Type Code Sequence
+///
+/// - **Tag:** (003A,0325)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AnalogFilterTypeCodeSequence: Tag = Tag {
+    ident: "AnalogFilterTypeCodeSequence",
+    tag: 0x003A_0325,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Analog Filter Type Code Sequence",
+};
+
+/// Digital Filter Characteristics Sequence
+///
+/// - **Tag:** (003A,0326)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DigitalFilterCharacteristicsSequence: Tag = Tag {
+    ident: "DigitalFilterCharacteristicsSequence",
+    tag: 0x003A_0326,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Digital Filter Characteristics Sequence",
+};
+
+/// Digital Filter Order
+///
+/// - **Tag:** (003A,0327)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static DigitalFilterOrder: Tag = Tag {
+    ident: "DigitalFilterOrder",
+    tag: 0x003A_0327,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Digital Filter Order",
+};
+
+/// Digital Filter Type Code Sequence
+///
+/// - **Tag:** (003A,0328)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DigitalFilterTypeCodeSequence: Tag = Tag {
+    ident: "DigitalFilterTypeCodeSequence",
+    tag: 0x003A_0328,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Digital Filter Type Code Sequence",
+};
+
+/// Waveform Filter Description
+///
+/// - **Tag:** (003A,0329)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static WaveformFilterDescription: Tag = Tag {
+    ident: "WaveformFilterDescription",
+    tag: 0x003A_0329,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Waveform Filter Description",
+};
+
+/// Filter Lookup Table Sequence
+///
+/// - **Tag:** (003A,032A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FilterLookupTableSequence: Tag = Tag {
+    ident: "FilterLookupTableSequence",
+    tag: 0x003A_032A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Filter Lookup Table Sequence",
+};
+
+/// Filter Lookup Table Description
+///
+/// - **Tag:** (003A,032B)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static FilterLookupTableDescription: Tag = Tag {
+    ident: "FilterLookupTableDescription",
+    tag: 0x003A_032B,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Filter Lookup Table Description",
+};
+
+/// Frequency Encoding Code Sequence
+///
+/// - **Tag:** (003A,032C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FrequencyEncodingCodeSequence: Tag = Tag {
+    ident: "FrequencyEncodingCodeSequence",
+    tag: 0x003A_032C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Frequency Encoding Code Sequence",
+};
+
+/// Magnitude Encoding Code Sequence
+///
+/// - **Tag:** (003A,032D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static MagnitudeEncodingCodeSequence: Tag = Tag {
+    ident: "MagnitudeEncodingCodeSequence",
+    tag: 0x003A_032D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Magnitude Encoding Code Sequence",
+};
+
+/// Filter Lookup Table Data
+///
+/// - **Tag:** (003A,032E)
+/// - **VR:** OD
+/// - **VM:** 1
+pub static FilterLookupTableData: Tag = Tag {
+    ident: "FilterLookupTableData",
+    tag: 0x003A_032E,
+    implicit_vr: Some(&vr::OD),
+    vm: &VM::Distinct(1),
+    desc: "Filter Lookup Table Data",
 };
 
 /// Scheduled Station AE Title
@@ -31167,6 +33559,19 @@ pub static ObservationDateTime: Tag = Tag {
     desc: "Observation DateTime",
 };
 
+/// Observation Start DateTime
+///
+/// - **Tag:** (0040,A033)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static ObservationStartDateTime: Tag = Tag {
+    ident: "ObservationStartDateTime",
+    tag: 0x0040_A033,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Observation Start DateTime",
+};
+
 /// Value Type
 ///
 /// - **Tag:** (0040,A040)
@@ -32400,6 +34805,110 @@ pub static LanguageCodeSequence_Trial: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Language Code Sequence (Trial)",
+};
+
+/// Tabulated Values Sequence
+///
+/// - **Tag:** (0040,A801)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TabulatedValuesSequence: Tag = Tag {
+    ident: "TabulatedValuesSequence",
+    tag: 0x0040_A801,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Tabulated Values Sequence",
+};
+
+/// Number of Table Rows
+///
+/// - **Tag:** (0040,A802)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static NumberofTableRows: Tag = Tag {
+    ident: "NumberofTableRows",
+    tag: 0x0040_A802,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Number of Table Rows",
+};
+
+/// Number of Table Columns
+///
+/// - **Tag:** (0040,A803)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static NumberofTableColumns: Tag = Tag {
+    ident: "NumberofTableColumns",
+    tag: 0x0040_A803,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Number of Table Columns",
+};
+
+/// Table Row Number
+///
+/// - **Tag:** (0040,A804)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static TableRowNumber: Tag = Tag {
+    ident: "TableRowNumber",
+    tag: 0x0040_A804,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Table Row Number",
+};
+
+/// Table Column Number
+///
+/// - **Tag:** (0040,A805)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static TableColumnNumber: Tag = Tag {
+    ident: "TableColumnNumber",
+    tag: 0x0040_A805,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Table Column Number",
+};
+
+/// Table Row Definition Sequence
+///
+/// - **Tag:** (0040,A806)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TableRowDefinitionSequence: Tag = Tag {
+    ident: "TableRowDefinitionSequence",
+    tag: 0x0040_A806,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Table Row Definition Sequence",
+};
+
+/// Table Column Definition Sequence
+///
+/// - **Tag:** (0040,A807)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TableColumnDefinitionSequence: Tag = Tag {
+    ident: "TableColumnDefinitionSequence",
+    tag: 0x0040_A807,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Table Column Definition Sequence",
+};
+
+/// Cell Values Sequence
+///
+/// - **Tag:** (0040,A808)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CellValuesSequence: Tag = Tag {
+    ident: "CellValuesSequence",
+    tag: 0x0040_A808,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Cell Values Sequence",
 };
 
 /// Uniform Resource Locator (Trial)
@@ -34547,6 +37056,58 @@ pub static ObjectiveLensNumericalAperture: Tag = Tag {
     desc: "Objective Lens Numerical Aperture",
 };
 
+/// Confocal Mode
+///
+/// - **Tag:** (0048,0114)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ConfocalMode: Tag = Tag {
+    ident: "ConfocalMode",
+    tag: 0x0048_0114,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Confocal Mode",
+};
+
+/// Tissue Location
+///
+/// - **Tag:** (0048,0115)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static TissueLocation: Tag = Tag {
+    ident: "TissueLocation",
+    tag: 0x0048_0115,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Tissue Location",
+};
+
+/// Confocal Microscopy Image Frame Type Sequence
+///
+/// - **Tag:** (0048,0116)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ConfocalMicroscopyImageFrameTypeSequence: Tag = Tag {
+    ident: "ConfocalMicroscopyImageFrameTypeSequence",
+    tag: 0x0048_0116,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Confocal Microscopy Image Frame Type Sequence",
+};
+
+/// Image Acquisition Depth
+///
+/// - **Tag:** (0048,0117)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ImageAcquisitionDepth: Tag = Tag {
+    ident: "ImageAcquisitionDepth",
+    tag: 0x0048_0117,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Image Acquisition Depth",
+};
+
 /// Palette Color Lookup Table Sequence
 ///
 /// - **Tag:** (0048,0120)
@@ -36501,12 +39062,12 @@ pub static SegmentAlgorithmType: Tag = Tag {
 ///
 /// - **Tag:** (0062,0009)
 /// - **VR:** LO
-/// - **VM:** 1
+/// - **VM:** 1-n
 pub static SegmentAlgorithmName: Tag = Tag {
     ident: "SegmentAlgorithmName",
     tag: 0x0062_0009,
     implicit_vr: Some(&vr::LO),
-    vm: &VM::Distinct(1),
+    vm: &VM::AtLeast(1),
     desc: "Segment Algorithm Name",
 };
 
@@ -37106,6 +39667,19 @@ pub static VectorCoordinateData: Tag = Tag {
     implicit_vr: Some(&vr::OF),
     vm: &VM::Distinct(1),
     desc: "Vector Coordinate Data",
+};
+
+/// Double Point Coordinates Data
+///
+/// - **Tag:** (0066,0022)
+/// - **VR:** OD
+/// - **VM:** 1
+pub static DoublePointCoordinatesData: Tag = Tag {
+    ident: "DoublePointCoordinatesData",
+    tag: 0x0066_0022,
+    implicit_vr: Some(&vr::OD),
+    vm: &VM::Distinct(1),
+    desc: "Double Point Coordinates Data",
 };
 
 /// Triangle Point Index List
@@ -38590,6 +41164,240 @@ pub static ModelUsageCodeSequence: Tag = Tag {
     desc: "Model Usage Code Sequence",
 };
 
+/// Model Group UID
+///
+/// - **Tag:** (0068,7004)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static ModelGroupUID: Tag = Tag {
+    ident: "ModelGroupUID",
+    tag: 0x0068_7004,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Model Group UID",
+};
+
+/// Relative URI Reference Within Encapsulated Document
+///
+/// - **Tag:** (0068,7005)
+/// - **VR:** UR
+/// - **VM:** 1
+pub static RelativeURIReferenceWithinEncapsulatedDocument: Tag = Tag {
+    ident: "RelativeURIReferenceWithinEncapsulatedDocument",
+    tag: 0x0068_7005,
+    implicit_vr: Some(&vr::UR),
+    vm: &VM::Distinct(1),
+    desc: "Relative URI Reference Within Encapsulated Document",
+};
+
+/// Annotation Coordinate Type
+///
+/// - **Tag:** (006A,0001)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AnnotationCoordinateType: Tag = Tag {
+    ident: "AnnotationCoordinateType",
+    tag: 0x006A_0001,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Coordinate Type",
+};
+
+/// Annotation Group Sequence
+///
+/// - **Tag:** (006A,0002)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AnnotationGroupSequence: Tag = Tag {
+    ident: "AnnotationGroupSequence",
+    tag: 0x006A_0002,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Group Sequence",
+};
+
+/// Annotation Group UID
+///
+/// - **Tag:** (006A,0003)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static AnnotationGroupUID: Tag = Tag {
+    ident: "AnnotationGroupUID",
+    tag: 0x006A_0003,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Group UID",
+};
+
+/// Annotation Group Label
+///
+/// - **Tag:** (006A,0005)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static AnnotationGroupLabel: Tag = Tag {
+    ident: "AnnotationGroupLabel",
+    tag: 0x006A_0005,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Group Label",
+};
+
+/// Annotation Group Description
+///
+/// - **Tag:** (006A,0006)
+/// - **VR:** UT
+/// - **VM:** 1
+pub static AnnotationGroupDescription: Tag = Tag {
+    ident: "AnnotationGroupDescription",
+    tag: 0x006A_0006,
+    implicit_vr: Some(&vr::UT),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Group Description",
+};
+
+/// Annotation Group Generation Type
+///
+/// - **Tag:** (006A,0007)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AnnotationGroupGenerationType: Tag = Tag {
+    ident: "AnnotationGroupGenerationType",
+    tag: 0x006A_0007,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Group Generation Type",
+};
+
+/// Annotation Group Algorithm Identification Sequence
+///
+/// - **Tag:** (006A,0008)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AnnotationGroupAlgorithmIdentificationSequence: Tag = Tag {
+    ident: "AnnotationGroupAlgorithmIdentificationSequence",
+    tag: 0x006A_0008,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Group Algorithm Identification Sequence",
+};
+
+/// Annotation Property Category Code Sequence
+///
+/// - **Tag:** (006A,0009)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AnnotationPropertyCategoryCodeSequence: Tag = Tag {
+    ident: "AnnotationPropertyCategoryCodeSequence",
+    tag: 0x006A_0009,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Property Category Code Sequence",
+};
+
+/// Annotation Property Type Code Sequence
+///
+/// - **Tag:** (006A,000A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AnnotationPropertyTypeCodeSequence: Tag = Tag {
+    ident: "AnnotationPropertyTypeCodeSequence",
+    tag: 0x006A_000A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Property Type Code Sequence",
+};
+
+/// Annotation Property Type Modifier Code Sequence
+///
+/// - **Tag:** (006A,000B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AnnotationPropertyTypeModifierCodeSequence: Tag = Tag {
+    ident: "AnnotationPropertyTypeModifierCodeSequence",
+    tag: 0x006A_000B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Property Type Modifier Code Sequence",
+};
+
+/// Number of Annotations
+///
+/// - **Tag:** (006A,000C)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static NumberofAnnotations: Tag = Tag {
+    ident: "NumberofAnnotations",
+    tag: 0x006A_000C,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Number of Annotations",
+};
+
+/// Annotation Applies to All Optical Paths
+///
+/// - **Tag:** (006A,000D)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AnnotationAppliestoAllOpticalPaths: Tag = Tag {
+    ident: "AnnotationAppliestoAllOpticalPaths",
+    tag: 0x006A_000D,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Applies to All Optical Paths",
+};
+
+/// Referenced Optical Path Identifier
+///
+/// - **Tag:** (006A,000E)
+/// - **VR:** SH
+/// - **VM:** 1-n
+pub static ReferencedOpticalPathIdentifier: Tag = Tag {
+    ident: "ReferencedOpticalPathIdentifier",
+    tag: 0x006A_000E,
+    implicit_vr: Some(&vr::SH),
+    vm: &VM::AtLeast(1),
+    desc: "Referenced Optical Path Identifier",
+};
+
+/// Annotation Applies to All Z Planes
+///
+/// - **Tag:** (006A,000F)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AnnotationAppliestoAllZPlanes: Tag = Tag {
+    ident: "AnnotationAppliestoAllZPlanes",
+    tag: 0x006A_000F,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Applies to All Z Planes",
+};
+
+/// Common Z Coordinate Value
+///
+/// - **Tag:** (006A,0010)
+/// - **VR:** FD
+/// - **VM:** 1-n
+pub static CommonZCoordinateValue: Tag = Tag {
+    ident: "CommonZCoordinateValue",
+    tag: 0x006A_0010,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::AtLeast(1),
+    desc: "Common Z Coordinate Value",
+};
+
+/// Annotation Index List
+///
+/// - **Tag:** (006A,0011)
+/// - **VR:** OL
+/// - **VM:** 1
+pub static AnnotationIndexList: Tag = Tag {
+    ident: "AnnotationIndexList",
+    tag: 0x006A_0011,
+    implicit_vr: Some(&vr::OL),
+    vm: &VM::Distinct(1),
+    desc: "Annotation Index List",
+};
+
 /// Graphic Annotation Sequence
 ///
 /// - **Tag:** (0070,0001)
@@ -39862,6 +42670,19 @@ pub static UsedFiducialsSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Used Fiducials Sequence",
+};
+
+/// Used RT Structure Set ROI Sequence
+///
+/// - **Tag:** (0070,0315)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static UsedRTStructureSetROISequence: Tag = Tag {
+    ident: "UsedRTStructureSetROISequence",
+    tag: 0x0070_0315,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Used RT Structure Set ROI Sequence",
 };
 
 /// Graphic Coordinates Data Sequence
@@ -41773,6 +44594,45 @@ pub static SelectorCodeSequenceValue: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Selector Code Sequence Value",
+};
+
+/// Selector OV Value
+///
+/// - **Tag:** (0072,0081)
+/// - **VR:** OV
+/// - **VM:** 1
+pub static SelectorOVValue: Tag = Tag {
+    ident: "SelectorOVValue",
+    tag: 0x0072_0081,
+    implicit_vr: Some(&vr::OV),
+    vm: &VM::Distinct(1),
+    desc: "Selector OV Value",
+};
+
+/// Selector SV Value
+///
+/// - **Tag:** (0072,0082)
+/// - **VR:** SV
+/// - **VM:** 1-n
+pub static SelectorSVValue: Tag = Tag {
+    ident: "SelectorSVValue",
+    tag: 0x0072_0082,
+    implicit_vr: Some(&vr::SV),
+    vm: &VM::AtLeast(1),
+    desc: "Selector SV Value",
+};
+
+/// Selector UV Value
+///
+/// - **Tag:** (0072,0083)
+/// - **VR:** UV
+/// - **VM:** 1-n
+pub static SelectorUVValue: Tag = Tag {
+    ident: "SelectorUVValue",
+    tag: 0x0072_0083,
+    implicit_vr: Some(&vr::UV),
+    vm: &VM::AtLeast(1),
+    desc: "Selector UV Value",
 };
 
 /// Number of Screens
@@ -44856,6 +47716,84 @@ pub static CertifiedTimestamp: Tag = Tag {
     desc: "Certified Timestamp",
 };
 
+/// Digital Signature Purpose Code Sequence
+///
+/// - **Tag:** (0400,0401)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DigitalSignaturePurposeCodeSequence: Tag = Tag {
+    ident: "DigitalSignaturePurposeCodeSequence",
+    tag: 0x0400_0401,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Digital Signature Purpose Code Sequence",
+};
+
+/// Referenced Digital Signature Sequence
+///
+/// - **Tag:** (0400,0402)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedDigitalSignatureSequence: Tag = Tag {
+    ident: "ReferencedDigitalSignatureSequence",
+    tag: 0x0400_0402,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Digital Signature Sequence",
+};
+
+/// Referenced SOP Instance MAC Sequence
+///
+/// - **Tag:** (0400,0403)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedSOPInstanceMACSequence: Tag = Tag {
+    ident: "ReferencedSOPInstanceMACSequence",
+    tag: 0x0400_0403,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced SOP Instance MAC Sequence",
+};
+
+/// MAC
+///
+/// - **Tag:** (0400,0404)
+/// - **VR:** OB
+/// - **VM:** 1
+pub static MAC: Tag = Tag {
+    ident: "MAC",
+    tag: 0x0400_0404,
+    implicit_vr: Some(&vr::OB),
+    vm: &VM::Distinct(1),
+    desc: "MAC",
+};
+
+/// Encrypted Attributes Sequence
+///
+/// - **Tag:** (0400,0500)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EncryptedAttributesSequence: Tag = Tag {
+    ident: "EncryptedAttributesSequence",
+    tag: 0x0400_0500,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Encrypted Attributes Sequence",
+};
+
+/// Encrypted Content Transfer Syntax UID
+///
+/// - **Tag:** (0400,0510)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static EncryptedContentTransferSyntaxUID: Tag = Tag {
+    ident: "EncryptedContentTransferSyntaxUID",
+    tag: 0x0400_0510,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Encrypted Content Transfer Syntax UID",
+};
+
 /// Encrypted Content
 ///
 /// - **Tag:** (0400,0520)
@@ -46832,6 +49770,708 @@ pub static FluenceModeID: Tag = Tag {
     desc: "Fluence Mode ID",
 };
 
+/// Selected Frame Number
+///
+/// - **Tag:** (3002,0100)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static SelectedFrameNumber: Tag = Tag {
+    ident: "SelectedFrameNumber",
+    tag: 0x3002_0100,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Selected Frame Number",
+};
+
+/// Selected Frame Functional Groups Sequence
+///
+/// - **Tag:** (3002,0101)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static SelectedFrameFunctionalGroupsSequence: Tag = Tag {
+    ident: "SelectedFrameFunctionalGroupsSequence",
+    tag: 0x3002_0101,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Selected Frame Functional Groups Sequence",
+};
+
+/// RT Image Frame General Content Sequence
+///
+/// - **Tag:** (3002,0102)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTImageFrameGeneralContentSequence: Tag = Tag {
+    ident: "RTImageFrameGeneralContentSequence",
+    tag: 0x3002_0102,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Image Frame General Content Sequence",
+};
+
+/// RT Image Frame Context Sequence
+///
+/// - **Tag:** (3002,0103)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTImageFrameContextSequence: Tag = Tag {
+    ident: "RTImageFrameContextSequence",
+    tag: 0x3002_0103,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Image Frame Context Sequence",
+};
+
+/// RT Image Scope Sequence
+///
+/// - **Tag:** (3002,0104)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTImageScopeSequence: Tag = Tag {
+    ident: "RTImageScopeSequence",
+    tag: 0x3002_0104,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Image Scope Sequence",
+};
+
+/// Beam Modifier Coordinates Presence Flag
+///
+/// - **Tag:** (3002,0105)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static BeamModifierCoordinatesPresenceFlag: Tag = Tag {
+    ident: "BeamModifierCoordinatesPresenceFlag",
+    tag: 0x3002_0105,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Beam Modifier Coordinates Presence Flag",
+};
+
+/// Start Cumulative Meterset
+///
+/// - **Tag:** (3002,0106)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static StartCumulativeMeterset: Tag = Tag {
+    ident: "StartCumulativeMeterset",
+    tag: 0x3002_0106,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Start Cumulative Meterset",
+};
+
+/// Stop Cumulative Meterset
+///
+/// - **Tag:** (3002,0107)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static StopCumulativeMeterset: Tag = Tag {
+    ident: "StopCumulativeMeterset",
+    tag: 0x3002_0107,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Stop Cumulative Meterset",
+};
+
+/// RT Acquisition Patient Position Sequence
+///
+/// - **Tag:** (3002,0108)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTAcquisitionPatientPositionSequence: Tag = Tag {
+    ident: "RTAcquisitionPatientPositionSequence",
+    tag: 0x3002_0108,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Acquisition Patient Position Sequence",
+};
+
+/// RT Image Frame Imaging Device Position Sequence
+///
+/// - **Tag:** (3002,0109)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTImageFrameImagingDevicePositionSequence: Tag = Tag {
+    ident: "RTImageFrameImagingDevicePositionSequence",
+    tag: 0x3002_0109,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Image Frame Imaging Device Position Sequence",
+};
+
+/// RT Image Frame kV Radiation Acquisition Sequence
+///
+/// - **Tag:** (3002,010A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTImageFramekVRadiationAcquisitionSequence: Tag = Tag {
+    ident: "RTImageFramekVRadiationAcquisitionSequence",
+    tag: 0x3002_010A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Image Frame kV Radiation Acquisition Sequence",
+};
+
+/// RT Image Frame MV Radiation Acquisition Sequence
+///
+/// - **Tag:** (3002,010B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTImageFrameMVRadiationAcquisitionSequence: Tag = Tag {
+    ident: "RTImageFrameMVRadiationAcquisitionSequence",
+    tag: 0x3002_010B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Image Frame MV Radiation Acquisition Sequence",
+};
+
+/// RT Image Frame Radiation Acquisition Sequence
+///
+/// - **Tag:** (3002,010C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTImageFrameRadiationAcquisitionSequence: Tag = Tag {
+    ident: "RTImageFrameRadiationAcquisitionSequence",
+    tag: 0x3002_010C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Image Frame Radiation Acquisition Sequence",
+};
+
+/// Imaging Source Position Sequence
+///
+/// - **Tag:** (3002,010D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ImagingSourcePositionSequence: Tag = Tag {
+    ident: "ImagingSourcePositionSequence",
+    tag: 0x3002_010D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Imaging Source Position Sequence",
+};
+
+/// Image Receptor Position Sequence
+///
+/// - **Tag:** (3002,010E)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ImageReceptorPositionSequence: Tag = Tag {
+    ident: "ImageReceptorPositionSequence",
+    tag: 0x3002_010E,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Image Receptor Position Sequence",
+};
+
+/// Device Position to Equipment Mapping Matrix
+///
+/// - **Tag:** (3002,010F)
+/// - **VR:** FD
+/// - **VM:** 16
+pub static DevicePositiontoEquipmentMappingMatrix: Tag = Tag {
+    ident: "DevicePositiontoEquipmentMappingMatrix",
+    tag: 0x3002_010F,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(16),
+    desc: "Device Position to Equipment Mapping Matrix",
+};
+
+/// Device Position Parameter Sequence
+///
+/// - **Tag:** (3002,0110)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DevicePositionParameterSequence: Tag = Tag {
+    ident: "DevicePositionParameterSequence",
+    tag: 0x3002_0110,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Device Position Parameter Sequence",
+};
+
+/// Imaging Source Location Specification Type
+///
+/// - **Tag:** (3002,0111)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ImagingSourceLocationSpecificationType: Tag = Tag {
+    ident: "ImagingSourceLocationSpecificationType",
+    tag: 0x3002_0111,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Imaging Source Location Specification Type",
+};
+
+/// Imaging Device Location Matrix Sequence
+///
+/// - **Tag:** (3002,0112)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ImagingDeviceLocationMatrixSequence: Tag = Tag {
+    ident: "ImagingDeviceLocationMatrixSequence",
+    tag: 0x3002_0112,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Imaging Device Location Matrix Sequence",
+};
+
+/// Imaging Device Location Parameter Sequence
+///
+/// - **Tag:** (3002,0113)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ImagingDeviceLocationParameterSequence: Tag = Tag {
+    ident: "ImagingDeviceLocationParameterSequence",
+    tag: 0x3002_0113,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Imaging Device Location Parameter Sequence",
+};
+
+/// Imaging Aperture Sequence
+///
+/// - **Tag:** (3002,0114)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ImagingApertureSequence: Tag = Tag {
+    ident: "ImagingApertureSequence",
+    tag: 0x3002_0114,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Imaging Aperture Sequence",
+};
+
+/// Imaging Aperture Specification Type
+///
+/// - **Tag:** (3002,0115)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ImagingApertureSpecificationType: Tag = Tag {
+    ident: "ImagingApertureSpecificationType",
+    tag: 0x3002_0115,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Imaging Aperture Specification Type",
+};
+
+/// Number of Acquisition Devices
+///
+/// - **Tag:** (3002,0116)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofAcquisitionDevices: Tag = Tag {
+    ident: "NumberofAcquisitionDevices",
+    tag: 0x3002_0116,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Acquisition Devices",
+};
+
+/// Acquisition Device Sequence
+///
+/// - **Tag:** (3002,0117)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AcquisitionDeviceSequence: Tag = Tag {
+    ident: "AcquisitionDeviceSequence",
+    tag: 0x3002_0117,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Device Sequence",
+};
+
+/// Acquisition Task Sequence
+///
+/// - **Tag:** (3002,0118)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AcquisitionTaskSequence: Tag = Tag {
+    ident: "AcquisitionTaskSequence",
+    tag: 0x3002_0118,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Task Sequence",
+};
+
+/// Acquisition Task Workitem Code Sequence
+///
+/// - **Tag:** (3002,0119)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AcquisitionTaskWorkitemCodeSequence: Tag = Tag {
+    ident: "AcquisitionTaskWorkitemCodeSequence",
+    tag: 0x3002_0119,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Task Workitem Code Sequence",
+};
+
+/// Acquisition Subtask Sequence
+///
+/// - **Tag:** (3002,011A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AcquisitionSubtaskSequence: Tag = Tag {
+    ident: "AcquisitionSubtaskSequence",
+    tag: 0x3002_011A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Subtask Sequence",
+};
+
+/// Subtask Workitem Code Sequence
+///
+/// - **Tag:** (3002,011B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static SubtaskWorkitemCodeSequence: Tag = Tag {
+    ident: "SubtaskWorkitemCodeSequence",
+    tag: 0x3002_011B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Subtask Workitem Code Sequence",
+};
+
+/// Acquisition Task Index
+///
+/// - **Tag:** (3002,011C)
+/// - **VR:** US
+/// - **VM:** 1
+pub static AcquisitionTaskIndex: Tag = Tag {
+    ident: "AcquisitionTaskIndex",
+    tag: 0x3002_011C,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Task Index",
+};
+
+/// Acquisition Subtask Index
+///
+/// - **Tag:** (3002,011D)
+/// - **VR:** US
+/// - **VM:** 1
+pub static AcquisitionSubtaskIndex: Tag = Tag {
+    ident: "AcquisitionSubtaskIndex",
+    tag: 0x3002_011D,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Subtask Index",
+};
+
+/// Referenced Baseline Parameters RT Radiation Instance Sequence
+///
+/// - **Tag:** (3002,011E)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedBaselineParametersRTRadiationInstanceSequence: Tag = Tag {
+    ident: "ReferencedBaselineParametersRTRadiationInstanceSequence",
+    tag: 0x3002_011E,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Baseline Parameters RT Radiation Instance Sequence",
+};
+
+/// Position Acquisition Template Identification Sequence
+///
+/// - **Tag:** (3002,011F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PositionAcquisitionTemplateIdentificationSequence: Tag = Tag {
+    ident: "PositionAcquisitionTemplateIdentificationSequence",
+    tag: 0x3002_011F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Position Acquisition Template Identification Sequence",
+};
+
+/// Position Acquisition Template ID
+///
+/// - **Tag:** (3002,0120)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static PositionAcquisitionTemplateID: Tag = Tag {
+    ident: "PositionAcquisitionTemplateID",
+    tag: 0x3002_0120,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Position Acquisition Template ID",
+};
+
+/// Position Acquisition Template Name
+///
+/// - **Tag:** (3002,0121)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static PositionAcquisitionTemplateName: Tag = Tag {
+    ident: "PositionAcquisitionTemplateName",
+    tag: 0x3002_0121,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Position Acquisition Template Name",
+};
+
+/// Position Acquisition Template Code Sequence
+///
+/// - **Tag:** (3002,0122)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PositionAcquisitionTemplateCodeSequence: Tag = Tag {
+    ident: "PositionAcquisitionTemplateCodeSequence",
+    tag: 0x3002_0122,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Position Acquisition Template Code Sequence",
+};
+
+/// Position Acquisition Template Description
+///
+/// - **Tag:** (3002,0123)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static PositionAcquisitionTemplateDescription: Tag = Tag {
+    ident: "PositionAcquisitionTemplateDescription",
+    tag: 0x3002_0123,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Position Acquisition Template Description",
+};
+
+/// Acquisition Task Applicability Sequence
+///
+/// - **Tag:** (3002,0124)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AcquisitionTaskApplicabilitySequence: Tag = Tag {
+    ident: "AcquisitionTaskApplicabilitySequence",
+    tag: 0x3002_0124,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Task Applicability Sequence",
+};
+
+/// Projection Imaging Acquisition Parameter Sequence
+///
+/// - **Tag:** (3002,0125)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ProjectionImagingAcquisitionParameterSequence: Tag = Tag {
+    ident: "ProjectionImagingAcquisitionParameterSequence",
+    tag: 0x3002_0125,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Projection Imaging Acquisition Parameter Sequence",
+};
+
+/// CT Imaging Acquisition Parameter Sequence
+///
+/// - **Tag:** (3002,0126)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CTImagingAcquisitionParameterSequence: Tag = Tag {
+    ident: "CTImagingAcquisitionParameterSequence",
+    tag: 0x3002_0126,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "CT Imaging Acquisition Parameter Sequence",
+};
+
+/// KV Imaging Generation Parameters Sequence
+///
+/// - **Tag:** (3002,0127)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static KVImagingGenerationParametersSequence: Tag = Tag {
+    ident: "KVImagingGenerationParametersSequence",
+    tag: 0x3002_0127,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "KV Imaging Generation Parameters Sequence",
+};
+
+/// MV Imaging Generation Parameters Sequence
+///
+/// - **Tag:** (3002,0128)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static MVImagingGenerationParametersSequence: Tag = Tag {
+    ident: "MVImagingGenerationParametersSequence",
+    tag: 0x3002_0128,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "MV Imaging Generation Parameters Sequence",
+};
+
+/// Acquisition Signal Type
+///
+/// - **Tag:** (3002,0129)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AcquisitionSignalType: Tag = Tag {
+    ident: "AcquisitionSignalType",
+    tag: 0x3002_0129,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Signal Type",
+};
+
+/// Acquisition Method
+///
+/// - **Tag:** (3002,012A)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static AcquisitionMethod: Tag = Tag {
+    ident: "AcquisitionMethod",
+    tag: 0x3002_012A,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Method",
+};
+
+/// Scan Start Position Sequence
+///
+/// - **Tag:** (3002,012B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ScanStartPositionSequence: Tag = Tag {
+    ident: "ScanStartPositionSequence",
+    tag: 0x3002_012B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Scan Start Position Sequence",
+};
+
+/// Scan Stop Position Sequence
+///
+/// - **Tag:** (3002,012C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ScanStopPositionSequence: Tag = Tag {
+    ident: "ScanStopPositionSequence",
+    tag: 0x3002_012C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Scan Stop Position Sequence",
+};
+
+/// Imaging Source to Beam Modifier Definition Plane Distance
+///
+/// - **Tag:** (3002,012D)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ImagingSourcetoBeamModifierDefinitionPlaneDistance: Tag = Tag {
+    ident: "ImagingSourcetoBeamModifierDefinitionPlaneDistance",
+    tag: 0x3002_012D,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Imaging Source to Beam Modifier Definition Plane Distance",
+};
+
+/// Scan Arc Type
+///
+/// - **Tag:** (3002,012E)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ScanArcType: Tag = Tag {
+    ident: "ScanArcType",
+    tag: 0x3002_012E,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Scan Arc Type",
+};
+
+/// Detector Positioning Type
+///
+/// - **Tag:** (3002,012F)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static DetectorPositioningType: Tag = Tag {
+    ident: "DetectorPositioningType",
+    tag: 0x3002_012F,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Detector Positioning Type",
+};
+
+/// Additional RT Accessory Device Sequence
+///
+/// - **Tag:** (3002,0130)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AdditionalRTAccessoryDeviceSequence: Tag = Tag {
+    ident: "AdditionalRTAccessoryDeviceSequence",
+    tag: 0x3002_0130,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Additional RT Accessory Device Sequence",
+};
+
+/// Device-Specific Acquisition Parameter Sequence
+///
+/// - **Tag:** (3002,0131)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DeviceSpecificAcquisitionParameterSequence: Tag = Tag {
+    ident: "DeviceSpecificAcquisitionParameterSequence",
+    tag: 0x3002_0131,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Device-Specific Acquisition Parameter Sequence",
+};
+
+/// Referenced Position Reference Instance Sequence
+///
+/// - **Tag:** (3002,0132)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedPositionReferenceInstanceSequence: Tag = Tag {
+    ident: "ReferencedPositionReferenceInstanceSequence",
+    tag: 0x3002_0132,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Position Reference Instance Sequence",
+};
+
+/// Energy Derivation Code Sequence
+///
+/// - **Tag:** (3002,0133)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EnergyDerivationCodeSequence: Tag = Tag {
+    ident: "EnergyDerivationCodeSequence",
+    tag: 0x3002_0133,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Energy Derivation Code Sequence",
+};
+
+/// Maximum Cumulative Meterset Exposure
+///
+/// - **Tag:** (3002,0134)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static MaximumCumulativeMetersetExposure: Tag = Tag {
+    ident: "MaximumCumulativeMetersetExposure",
+    tag: 0x3002_0134,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Maximum Cumulative Meterset Exposure",
+};
+
+/// Acquisition Initiation Sequence
+///
+/// - **Tag:** (3002,0135)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AcquisitionInitiationSequence: Tag = Tag {
+    ident: "AcquisitionInitiationSequence",
+    tag: 0x3002_0135,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Acquisition Initiation Sequence",
+};
+
 /// DVH Type
 ///
 /// - **Tag:** (3004,0001)
@@ -47534,6 +51174,19 @@ pub static AttachedContours: Tag = Tag {
     desc: "Attached Contours",
 };
 
+/// Source Pixel Planes Characteristics Sequence
+///
+/// - **Tag:** (3006,004A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static SourcePixelPlanesCharacteristicsSequence: Tag = Tag {
+    ident: "SourcePixelPlanesCharacteristicsSequence",
+    tag: 0x3006_004A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Source Pixel Planes Characteristics Sequence",
+};
+
 /// Contour Data
 ///
 /// - **Tag:** (3006,0050)
@@ -47818,6 +51471,45 @@ pub static FrameofReferenceTransformationComment: Tag = Tag {
     implicit_vr: Some(&vr::LO),
     vm: &VM::Distinct(1),
     desc: "Frame of Reference Transformation Comment",
+};
+
+/// Patient Location Coordinates Sequence
+///
+/// - **Tag:** (3006,00C9)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientLocationCoordinatesSequence: Tag = Tag {
+    ident: "PatientLocationCoordinatesSequence",
+    tag: 0x3006_00C9,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Location Coordinates Sequence",
+};
+
+/// Patient Location Coordinates Code Sequence
+///
+/// - **Tag:** (3006,00CA)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientLocationCoordinatesCodeSequence: Tag = Tag {
+    ident: "PatientLocationCoordinatesCodeSequence",
+    tag: 0x3006_00CA,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Location Coordinates Code Sequence",
+};
+
+/// Patient Support Position Sequence
+///
+/// - **Tag:** (3006,00CB)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientSupportPositionSequence: Tag = Tag {
+    ident: "PatientSupportPositionSequence",
+    tag: 0x3006_00CB,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Sequence",
 };
 
 /// Measured Dose Reference Sequence
@@ -48509,6 +52201,58 @@ pub static BeamLimitingDeviceLeafPairsSequence: Tag = Tag {
     desc: "Beam Limiting Device Leaf Pairs Sequence",
 };
 
+/// Enhanced RT Beam Limiting Device Sequence
+///
+/// - **Tag:** (3008,00A1)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EnhancedRTBeamLimitingDeviceSequence: Tag = Tag {
+    ident: "EnhancedRTBeamLimitingDeviceSequence",
+    tag: 0x3008_00A1,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Enhanced RT Beam Limiting Device Sequence",
+};
+
+/// Enhanced RT Beam Limiting Opening Sequence
+///
+/// - **Tag:** (3008,00A2)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EnhancedRTBeamLimitingOpeningSequence: Tag = Tag {
+    ident: "EnhancedRTBeamLimitingOpeningSequence",
+    tag: 0x3008_00A2,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Enhanced RT Beam Limiting Opening Sequence",
+};
+
+/// Enhanced RT Beam Limiting Device Definition Flag
+///
+/// - **Tag:** (3008,00A3)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static EnhancedRTBeamLimitingDeviceDefinitionFlag: Tag = Tag {
+    ident: "EnhancedRTBeamLimitingDeviceDefinitionFlag",
+    tag: 0x3008_00A3,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Enhanced RT Beam Limiting Device Definition Flag",
+};
+
+/// Parallel RT Beam Delimiter Opening Extents
+///
+/// - **Tag:** (3008,00A4)
+/// - **VR:** FD
+/// - **VM:** 2-2n
+pub static ParallelRTBeamDelimiterOpeningExtents: Tag = Tag {
+    ident: "ParallelRTBeamDelimiterOpeningExtents",
+    tag: 0x3008_00A4,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::MultipleOf(2),
+    desc: "Parallel RT Beam Delimiter Opening Extents",
+};
+
 /// Recorded Wedge Sequence
 ///
 /// - **Tag:** (3008,00B0)
@@ -48546,6 +52290,19 @@ pub static RecordedBlockSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Recorded Block Sequence",
+};
+
+/// Recorded Block Slab Sequence
+///
+/// - **Tag:** (3008,00D1)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RecordedBlockSlabSequence: Tag = Tag {
+    ident: "RecordedBlockSlabSequence",
+    tag: 0x3008_00D1,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Recorded Block Slab Sequence",
 };
 
 /// Treatment Summary Measured Dose Reference Sequence
@@ -52617,6 +56374,19 @@ pub static SourceApplicatorStepSize: Tag = Tag {
     desc: "Source Applicator Step Size",
 };
 
+/// Applicator Shape Referenced ROI Number
+///
+/// - **Tag:** (300A,02A1)
+/// - **VR:** IS
+/// - **VM:** 1
+pub static ApplicatorShapeReferencedROINumber: Tag = Tag {
+    ident: "ApplicatorShapeReferencedROINumber",
+    tag: 0x300A_02A1,
+    implicit_vr: Some(&vr::IS),
+    vm: &VM::Distinct(1),
+    desc: "Applicator Shape Referenced ROI Number",
+};
+
 /// Transfer Tube Number
 ///
 /// - **Tag:** (300A,02A2)
@@ -53683,6 +57453,19 @@ pub static ScanningSpotSize: Tag = Tag {
     desc: "Scanning Spot Size",
 };
 
+/// Scan Spot Sizes Delivered
+///
+/// - **Tag:** (300A,0399)
+/// - **VR:** FL
+/// - **VM:** 2-2n
+pub static ScanSpotSizesDelivered: Tag = Tag {
+    ident: "ScanSpotSizesDelivered",
+    tag: 0x300A_0399,
+    implicit_vr: Some(&vr::FL),
+    vm: &VM::MultipleOf(2),
+    desc: "Scan Spot Sizes Delivered",
+};
+
 /// Number of Paintings
 ///
 /// - **Tag:** (300A,039A)
@@ -53915,6 +57698,19 @@ pub static SourcetoGeneralAccessoryDistance: Tag = Tag {
     implicit_vr: Some(&vr::FL),
     vm: &VM::Distinct(1),
     desc: "Source to General Accessory Distance",
+};
+
+/// Isocenter to General Accessory Distance
+///
+/// - **Tag:** (300A,0426)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static IsocentertoGeneralAccessoryDistance: Tag = Tag {
+    ident: "IsocentertoGeneralAccessoryDistance",
+    tag: 0x300A_0426,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Isocenter to General Accessory Distance",
 };
 
 /// Applicator Geometry Sequence
@@ -54253,6 +58049,2697 @@ pub static ReferenceDoseDefinition: Tag = Tag {
     implicit_vr: Some(&vr::CS),
     vm: &VM::Distinct(1),
     desc: "Reference Dose Definition",
+};
+
+/// RT Control Point Index
+///
+/// - **Tag:** (300A,0600)
+/// - **VR:** US
+/// - **VM:** 1
+pub static RTControlPointIndex: Tag = Tag {
+    ident: "RTControlPointIndex",
+    tag: 0x300A_0600,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "RT Control Point Index",
+};
+
+/// Radiation Generation Mode Index
+///
+/// - **Tag:** (300A,0601)
+/// - **VR:** US
+/// - **VM:** 1
+pub static RadiationGenerationModeIndex: Tag = Tag {
+    ident: "RadiationGenerationModeIndex",
+    tag: 0x300A_0601,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Generation Mode Index",
+};
+
+/// Referenced Defined Device Index
+///
+/// - **Tag:** (300A,0602)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedDefinedDeviceIndex: Tag = Tag {
+    ident: "ReferencedDefinedDeviceIndex",
+    tag: 0x300A_0602,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Defined Device Index",
+};
+
+/// Radiation Dose Identification Index
+///
+/// - **Tag:** (300A,0603)
+/// - **VR:** US
+/// - **VM:** 1
+pub static RadiationDoseIdentificationIndex: Tag = Tag {
+    ident: "RadiationDoseIdentificationIndex",
+    tag: 0x300A_0603,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Identification Index",
+};
+
+/// Number of RT Control Points
+///
+/// - **Tag:** (300A,0604)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofRTControlPoints: Tag = Tag {
+    ident: "NumberofRTControlPoints",
+    tag: 0x300A_0604,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of RT Control Points",
+};
+
+/// Referenced Radiation Generation Mode Index
+///
+/// - **Tag:** (300A,0605)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedRadiationGenerationModeIndex: Tag = Tag {
+    ident: "ReferencedRadiationGenerationModeIndex",
+    tag: 0x300A_0605,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Radiation Generation Mode Index",
+};
+
+/// Treatment Position Index
+///
+/// - **Tag:** (300A,0606)
+/// - **VR:** US
+/// - **VM:** 1
+pub static TreatmentPositionIndex: Tag = Tag {
+    ident: "TreatmentPositionIndex",
+    tag: 0x300A_0606,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Position Index",
+};
+
+/// Referenced Device Index
+///
+/// - **Tag:** (300A,0607)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedDeviceIndex: Tag = Tag {
+    ident: "ReferencedDeviceIndex",
+    tag: 0x300A_0607,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Device Index",
+};
+
+/// Treatment Position Group Label
+///
+/// - **Tag:** (300A,0608)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static TreatmentPositionGroupLabel: Tag = Tag {
+    ident: "TreatmentPositionGroupLabel",
+    tag: 0x300A_0608,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Position Group Label",
+};
+
+/// Treatment Position Group UID
+///
+/// - **Tag:** (300A,0609)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static TreatmentPositionGroupUID: Tag = Tag {
+    ident: "TreatmentPositionGroupUID",
+    tag: 0x300A_0609,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Position Group UID",
+};
+
+/// Treatment Position Group Sequence
+///
+/// - **Tag:** (300A,060A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentPositionGroupSequence: Tag = Tag {
+    ident: "TreatmentPositionGroupSequence",
+    tag: 0x300A_060A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Position Group Sequence",
+};
+
+/// Referenced Treatment Position Index
+///
+/// - **Tag:** (300A,060B)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedTreatmentPositionIndex: Tag = Tag {
+    ident: "ReferencedTreatmentPositionIndex",
+    tag: 0x300A_060B,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Treatment Position Index",
+};
+
+/// Referenced Radiation Dose Identification Index
+///
+/// - **Tag:** (300A,060C)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedRadiationDoseIdentificationIndex: Tag = Tag {
+    ident: "ReferencedRadiationDoseIdentificationIndex",
+    tag: 0x300A_060C,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Radiation Dose Identification Index",
+};
+
+/// RT Accessory Holder Water-Equivalent Thickness
+///
+/// - **Tag:** (300A,060D)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTAccessoryHolderWaterEquivalentThickness: Tag = Tag {
+    ident: "RTAccessoryHolderWaterEquivalentThickness",
+    tag: 0x300A_060D,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Holder Water-Equivalent Thickness",
+};
+
+/// Referenced RT Accessory Holder Device Index
+///
+/// - **Tag:** (300A,060E)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedRTAccessoryHolderDeviceIndex: Tag = Tag {
+    ident: "ReferencedRTAccessoryHolderDeviceIndex",
+    tag: 0x300A_060E,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Accessory Holder Device Index",
+};
+
+/// RT Accessory Holder Slot Existence Flag
+///
+/// - **Tag:** (300A,060F)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTAccessoryHolderSlotExistenceFlag: Tag = Tag {
+    ident: "RTAccessoryHolderSlotExistenceFlag",
+    tag: 0x300A_060F,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Holder Slot Existence Flag",
+};
+
+/// RT Accessory Holder Slot Sequence
+///
+/// - **Tag:** (300A,0610)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTAccessoryHolderSlotSequence: Tag = Tag {
+    ident: "RTAccessoryHolderSlotSequence",
+    tag: 0x300A_0610,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Holder Slot Sequence",
+};
+
+/// RT Accessory Holder Slot ID
+///
+/// - **Tag:** (300A,0611)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static RTAccessoryHolderSlotID: Tag = Tag {
+    ident: "RTAccessoryHolderSlotID",
+    tag: 0x300A_0611,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Holder Slot ID",
+};
+
+/// RT Accessory Holder Slot Distance
+///
+/// - **Tag:** (300A,0612)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTAccessoryHolderSlotDistance: Tag = Tag {
+    ident: "RTAccessoryHolderSlotDistance",
+    tag: 0x300A_0612,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Holder Slot Distance",
+};
+
+/// RT Accessory Slot Distance
+///
+/// - **Tag:** (300A,0613)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTAccessorySlotDistance: Tag = Tag {
+    ident: "RTAccessorySlotDistance",
+    tag: 0x300A_0613,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Slot Distance",
+};
+
+/// RT Accessory Holder Definition Sequence
+///
+/// - **Tag:** (300A,0614)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTAccessoryHolderDefinitionSequence: Tag = Tag {
+    ident: "RTAccessoryHolderDefinitionSequence",
+    tag: 0x300A_0614,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Holder Definition Sequence",
+};
+
+/// RT Accessory Device Slot ID
+///
+/// - **Tag:** (300A,0615)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static RTAccessoryDeviceSlotID: Tag = Tag {
+    ident: "RTAccessoryDeviceSlotID",
+    tag: 0x300A_0615,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "RT Accessory Device Slot ID",
+};
+
+/// RT Radiation Sequence
+///
+/// - **Tag:** (300A,0616)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTRadiationSequence: Tag = Tag {
+    ident: "RTRadiationSequence",
+    tag: 0x300A_0616,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Sequence",
+};
+
+/// Radiation Dose Sequence
+///
+/// - **Tag:** (300A,0617)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationDoseSequence: Tag = Tag {
+    ident: "RadiationDoseSequence",
+    tag: 0x300A_0617,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Sequence",
+};
+
+/// Radiation Dose Identification Sequence
+///
+/// - **Tag:** (300A,0618)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationDoseIdentificationSequence: Tag = Tag {
+    ident: "RadiationDoseIdentificationSequence",
+    tag: 0x300A_0618,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Identification Sequence",
+};
+
+/// Radiation Dose Identification Label
+///
+/// - **Tag:** (300A,0619)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static RadiationDoseIdentificationLabel: Tag = Tag {
+    ident: "RadiationDoseIdentificationLabel",
+    tag: 0x300A_0619,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Identification Label",
+};
+
+/// Reference Dose Type
+///
+/// - **Tag:** (300A,061A)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ReferenceDoseType: Tag = Tag {
+    ident: "ReferenceDoseType",
+    tag: 0x300A_061A,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Reference Dose Type",
+};
+
+/// Primary Dose Value Indicator
+///
+/// - **Tag:** (300A,061B)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static PrimaryDoseValueIndicator: Tag = Tag {
+    ident: "PrimaryDoseValueIndicator",
+    tag: 0x300A_061B,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Primary Dose Value Indicator",
+};
+
+/// Dose Values Sequence
+///
+/// - **Tag:** (300A,061C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DoseValuesSequence: Tag = Tag {
+    ident: "DoseValuesSequence",
+    tag: 0x300A_061C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Dose Values Sequence",
+};
+
+/// Dose Value Purpose
+///
+/// - **Tag:** (300A,061D)
+/// - **VR:** CS
+/// - **VM:** 1-n
+pub static DoseValuePurpose: Tag = Tag {
+    ident: "DoseValuePurpose",
+    tag: 0x300A_061D,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::AtLeast(1),
+    desc: "Dose Value Purpose",
+};
+
+/// Reference Dose Point Coordinates
+///
+/// - **Tag:** (300A,061E)
+/// - **VR:** FD
+/// - **VM:** 3
+pub static ReferenceDosePointCoordinates: Tag = Tag {
+    ident: "ReferenceDosePointCoordinates",
+    tag: 0x300A_061E,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(3),
+    desc: "Reference Dose Point Coordinates",
+};
+
+/// Radiation Dose Values Parameters Sequence
+///
+/// - **Tag:** (300A,061F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationDoseValuesParametersSequence: Tag = Tag {
+    ident: "RadiationDoseValuesParametersSequence",
+    tag: 0x300A_061F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Values Parameters Sequence",
+};
+
+/// Meterset to Dose Mapping Sequence
+///
+/// - **Tag:** (300A,0620)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static MetersettoDoseMappingSequence: Tag = Tag {
+    ident: "MetersettoDoseMappingSequence",
+    tag: 0x300A_0620,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Meterset to Dose Mapping Sequence",
+};
+
+/// Expected In-Vivo Measurement Values Sequence
+///
+/// - **Tag:** (300A,0621)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ExpectedInVivoMeasurementValuesSequence: Tag = Tag {
+    ident: "ExpectedInVivoMeasurementValuesSequence",
+    tag: 0x300A_0621,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Expected In-Vivo Measurement Values Sequence",
+};
+
+/// Expected In-Vivo Measurement Value Index
+///
+/// - **Tag:** (300A,0622)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ExpectedInVivoMeasurementValueIndex: Tag = Tag {
+    ident: "ExpectedInVivoMeasurementValueIndex",
+    tag: 0x300A_0622,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Expected In-Vivo Measurement Value Index",
+};
+
+/// Radiation Dose In-Vivo Measurement Label
+///
+/// - **Tag:** (300A,0623)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static RadiationDoseInVivoMeasurementLabel: Tag = Tag {
+    ident: "RadiationDoseInVivoMeasurementLabel",
+    tag: 0x300A_0623,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose In-Vivo Measurement Label",
+};
+
+/// Radiation Dose Central Axis Displacement
+///
+/// - **Tag:** (300A,0624)
+/// - **VR:** FD
+/// - **VM:** 2
+pub static RadiationDoseCentralAxisDisplacement: Tag = Tag {
+    ident: "RadiationDoseCentralAxisDisplacement",
+    tag: 0x300A_0624,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(2),
+    desc: "Radiation Dose Central Axis Displacement",
+};
+
+/// Radiation Dose Value
+///
+/// - **Tag:** (300A,0625)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationDoseValue: Tag = Tag {
+    ident: "RadiationDoseValue",
+    tag: 0x300A_0625,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Value",
+};
+
+/// Radiation Dose Source to Skin Distance
+///
+/// - **Tag:** (300A,0626)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationDoseSourcetoSkinDistance: Tag = Tag {
+    ident: "RadiationDoseSourcetoSkinDistance",
+    tag: 0x300A_0626,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Source to Skin Distance",
+};
+
+/// Radiation Dose Measurement Point Coordinates
+///
+/// - **Tag:** (300A,0627)
+/// - **VR:** FD
+/// - **VM:** 3
+pub static RadiationDoseMeasurementPointCoordinates: Tag = Tag {
+    ident: "RadiationDoseMeasurementPointCoordinates",
+    tag: 0x300A_0627,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(3),
+    desc: "Radiation Dose Measurement Point Coordinates",
+};
+
+/// Radiation Dose Source to External Contour Distance
+///
+/// - **Tag:** (300A,0628)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationDoseSourcetoExternalContourDistance: Tag = Tag {
+    ident: "RadiationDoseSourcetoExternalContourDistance",
+    tag: 0x300A_0628,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dose Source to External Contour Distance",
+};
+
+/// RT Tolerance Set Sequence
+///
+/// - **Tag:** (300A,0629)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTToleranceSetSequence: Tag = Tag {
+    ident: "RTToleranceSetSequence",
+    tag: 0x300A_0629,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Tolerance Set Sequence",
+};
+
+/// RT Tolerance Set Label
+///
+/// - **Tag:** (300A,062A)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static RTToleranceSetLabel: Tag = Tag {
+    ident: "RTToleranceSetLabel",
+    tag: 0x300A_062A,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "RT Tolerance Set Label",
+};
+
+/// Attribute Tolerance Values Sequence
+///
+/// - **Tag:** (300A,062B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AttributeToleranceValuesSequence: Tag = Tag {
+    ident: "AttributeToleranceValuesSequence",
+    tag: 0x300A_062B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Attribute Tolerance Values Sequence",
+};
+
+/// Tolerance Value
+///
+/// - **Tag:** (300A,062C)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static ToleranceValue: Tag = Tag {
+    ident: "ToleranceValue",
+    tag: 0x300A_062C,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Tolerance Value",
+};
+
+/// Patient Support Position Tolerance Sequence
+///
+/// - **Tag:** (300A,062D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientSupportPositionToleranceSequence: Tag = Tag {
+    ident: "PatientSupportPositionToleranceSequence",
+    tag: 0x300A_062D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Tolerance Sequence",
+};
+
+/// Treatment Time Limit
+///
+/// - **Tag:** (300A,062E)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static TreatmentTimeLimit: Tag = Tag {
+    ident: "TreatmentTimeLimit",
+    tag: 0x300A_062E,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Time Limit",
+};
+
+/// C-Arm Photon-Electron Control Point Sequence
+///
+/// - **Tag:** (300A,062F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CArmPhotonElectronControlPointSequence: Tag = Tag {
+    ident: "CArmPhotonElectronControlPointSequence",
+    tag: 0x300A_062F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "C-Arm Photon-Electron Control Point Sequence",
+};
+
+/// Referenced RT Radiation Sequence
+///
+/// - **Tag:** (300A,0630)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTRadiationSequence: Tag = Tag {
+    ident: "ReferencedRTRadiationSequence",
+    tag: 0x300A_0630,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Radiation Sequence",
+};
+
+/// Referenced RT Instance Sequence
+///
+/// - **Tag:** (300A,0631)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTInstanceSequence: Tag = Tag {
+    ident: "ReferencedRTInstanceSequence",
+    tag: 0x300A_0631,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Instance Sequence",
+};
+
+/// Referenced RT Patient Setup Sequence
+///
+/// - **Tag:** (300A,0632)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTPatientSetupSequence: Tag = Tag {
+    ident: "ReferencedRTPatientSetupSequence",
+    tag: 0x300A_0632,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Patient Setup Sequence",
+};
+
+/// Source to Patient Surface Distance
+///
+/// - **Tag:** (300A,0634)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static SourcetoPatientSurfaceDistance: Tag = Tag {
+    ident: "SourcetoPatientSurfaceDistance",
+    tag: 0x300A_0634,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Source to Patient Surface Distance",
+};
+
+/// Treatment Machine Special Mode Code Sequence
+///
+/// - **Tag:** (300A,0635)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentMachineSpecialModeCodeSequence: Tag = Tag {
+    ident: "TreatmentMachineSpecialModeCodeSequence",
+    tag: 0x300A_0635,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Machine Special Mode Code Sequence",
+};
+
+/// Intended Number of Fractions
+///
+/// - **Tag:** (300A,0636)
+/// - **VR:** US
+/// - **VM:** 1
+pub static IntendedNumberofFractions: Tag = Tag {
+    ident: "IntendedNumberofFractions",
+    tag: 0x300A_0636,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Intended Number of Fractions",
+};
+
+/// RT Radiation Set Intent
+///
+/// - **Tag:** (300A,0637)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTRadiationSetIntent: Tag = Tag {
+    ident: "RTRadiationSetIntent",
+    tag: 0x300A_0637,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Set Intent",
+};
+
+/// RT Radiation Physical and Geometric Content Detail Flag
+///
+/// - **Tag:** (300A,0638)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTRadiationPhysicalandGeometricContentDetailFlag: Tag = Tag {
+    ident: "RTRadiationPhysicalandGeometricContentDetailFlag",
+    tag: 0x300A_0638,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Physical and Geometric Content Detail Flag",
+};
+
+/// RT Record Flag
+///
+/// - **Tag:** (300A,0639)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTRecordFlag: Tag = Tag {
+    ident: "RTRecordFlag",
+    tag: 0x300A_0639,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Record Flag",
+};
+
+/// Treatment Device Identification Sequence
+///
+/// - **Tag:** (300A,063A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentDeviceIdentificationSequence: Tag = Tag {
+    ident: "TreatmentDeviceIdentificationSequence",
+    tag: 0x300A_063A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Device Identification Sequence",
+};
+
+/// Referenced RT Physician Intent Sequence
+///
+/// - **Tag:** (300A,063B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTPhysicianIntentSequence: Tag = Tag {
+    ident: "ReferencedRTPhysicianIntentSequence",
+    tag: 0x300A_063B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Physician Intent Sequence",
+};
+
+/// Cumulative Meterset
+///
+/// - **Tag:** (300A,063C)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static CumulativeMeterset: Tag = Tag {
+    ident: "CumulativeMeterset",
+    tag: 0x300A_063C,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Cumulative Meterset",
+};
+
+/// Delivery Rate
+///
+/// - **Tag:** (300A,063D)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static DeliveryRate: Tag = Tag {
+    ident: "DeliveryRate",
+    tag: 0x300A_063D,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Delivery Rate",
+};
+
+/// Delivery Rate Unit Sequence
+///
+/// - **Tag:** (300A,063E)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DeliveryRateUnitSequence: Tag = Tag {
+    ident: "DeliveryRateUnitSequence",
+    tag: 0x300A_063E,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Delivery Rate Unit Sequence",
+};
+
+/// Treatment Position Sequence
+///
+/// - **Tag:** (300A,063F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentPositionSequence: Tag = Tag {
+    ident: "TreatmentPositionSequence",
+    tag: 0x300A_063F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Position Sequence",
+};
+
+/// Radiation Source-Axis Distance
+///
+/// - **Tag:** (300A,0640)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationSourceAxisDistance: Tag = Tag {
+    ident: "RadiationSourceAxisDistance",
+    tag: 0x300A_0640,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Source-Axis Distance",
+};
+
+/// Number of RT Beam Limiting Devices
+///
+/// - **Tag:** (300A,0641)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofRTBeamLimitingDevices: Tag = Tag {
+    ident: "NumberofRTBeamLimitingDevices",
+    tag: 0x300A_0641,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of RT Beam Limiting Devices",
+};
+
+/// RT Beam Limiting Device Proximal Distance
+///
+/// - **Tag:** (300A,0642)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTBeamLimitingDeviceProximalDistance: Tag = Tag {
+    ident: "RTBeamLimitingDeviceProximalDistance",
+    tag: 0x300A_0642,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RT Beam Limiting Device Proximal Distance",
+};
+
+/// RT Beam Limiting Device Distal Distance
+///
+/// - **Tag:** (300A,0643)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTBeamLimitingDeviceDistalDistance: Tag = Tag {
+    ident: "RTBeamLimitingDeviceDistalDistance",
+    tag: 0x300A_0643,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RT Beam Limiting Device Distal Distance",
+};
+
+/// Parallel RT Beam Delimiter Device Orientation Label Code Sequence
+///
+/// - **Tag:** (300A,0644)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ParallelRTBeamDelimiterDeviceOrientationLabelCodeSequence: Tag = Tag {
+    ident: "ParallelRTBeamDelimiterDeviceOrientationLabelCodeSequence",
+    tag: 0x300A_0644,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Parallel RT Beam Delimiter Device Orientation Label Code Sequence",
+};
+
+/// Beam Modifier Orientation Angle
+///
+/// - **Tag:** (300A,0645)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static BeamModifierOrientationAngle: Tag = Tag {
+    ident: "BeamModifierOrientationAngle",
+    tag: 0x300A_0645,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Beam Modifier Orientation Angle",
+};
+
+/// Fixed RT Beam Delimiter Device Sequence
+///
+/// - **Tag:** (300A,0646)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static FixedRTBeamDelimiterDeviceSequence: Tag = Tag {
+    ident: "FixedRTBeamDelimiterDeviceSequence",
+    tag: 0x300A_0646,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Fixed RT Beam Delimiter Device Sequence",
+};
+
+/// Parallel RT Beam Delimiter Device Sequence
+///
+/// - **Tag:** (300A,0647)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ParallelRTBeamDelimiterDeviceSequence: Tag = Tag {
+    ident: "ParallelRTBeamDelimiterDeviceSequence",
+    tag: 0x300A_0647,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Parallel RT Beam Delimiter Device Sequence",
+};
+
+/// Number of Parallel RT Beam Delimiters
+///
+/// - **Tag:** (300A,0648)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofParallelRTBeamDelimiters: Tag = Tag {
+    ident: "NumberofParallelRTBeamDelimiters",
+    tag: 0x300A_0648,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Parallel RT Beam Delimiters",
+};
+
+/// Parallel RT Beam Delimiter Boundaries
+///
+/// - **Tag:** (300A,0649)
+/// - **VR:** FD
+/// - **VM:** 2-n
+pub static ParallelRTBeamDelimiterBoundaries: Tag = Tag {
+    ident: "ParallelRTBeamDelimiterBoundaries",
+    tag: 0x300A_0649,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::AtLeast(2),
+    desc: "Parallel RT Beam Delimiter Boundaries",
+};
+
+/// Parallel RT Beam Delimiter Positions
+///
+/// - **Tag:** (300A,064A)
+/// - **VR:** FD
+/// - **VM:** 2-n
+pub static ParallelRTBeamDelimiterPositions: Tag = Tag {
+    ident: "ParallelRTBeamDelimiterPositions",
+    tag: 0x300A_064A,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::AtLeast(2),
+    desc: "Parallel RT Beam Delimiter Positions",
+};
+
+/// RT Beam Limiting Device Offset
+///
+/// - **Tag:** (300A,064B)
+/// - **VR:** FD
+/// - **VM:** 2
+pub static RTBeamLimitingDeviceOffset: Tag = Tag {
+    ident: "RTBeamLimitingDeviceOffset",
+    tag: 0x300A_064B,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(2),
+    desc: "RT Beam Limiting Device Offset",
+};
+
+/// RT Beam Delimiter Geometry Sequence
+///
+/// - **Tag:** (300A,064C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTBeamDelimiterGeometrySequence: Tag = Tag {
+    ident: "RTBeamDelimiterGeometrySequence",
+    tag: 0x300A_064C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Beam Delimiter Geometry Sequence",
+};
+
+/// RT Beam Limiting Device Definition Sequence
+///
+/// - **Tag:** (300A,064D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTBeamLimitingDeviceDefinitionSequence: Tag = Tag {
+    ident: "RTBeamLimitingDeviceDefinitionSequence",
+    tag: 0x300A_064D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Beam Limiting Device Definition Sequence",
+};
+
+/// Parallel RT Beam Delimiter Opening Mode
+///
+/// - **Tag:** (300A,064E)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static ParallelRTBeamDelimiterOpeningMode: Tag = Tag {
+    ident: "ParallelRTBeamDelimiterOpeningMode",
+    tag: 0x300A_064E,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Parallel RT Beam Delimiter Opening Mode",
+};
+
+/// Parallel RT Beam Delimiter Leaf Mounting Side
+///
+/// - **Tag:** (300A,064F)
+/// - **VR:** CS
+/// - **VM:** 1-n
+pub static ParallelRTBeamDelimiterLeafMountingSide: Tag = Tag {
+    ident: "ParallelRTBeamDelimiterLeafMountingSide",
+    tag: 0x300A_064F,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::AtLeast(1),
+    desc: "Parallel RT Beam Delimiter Leaf Mounting Side",
+};
+
+/// Patient Setup UID
+///
+/// - **Tag:** (300A,0650)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static PatientSetupUID: Tag = Tag {
+    ident: "PatientSetupUID",
+    tag: 0x300A_0650,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Patient Setup UID",
+};
+
+/// Wedge Definition Sequence
+///
+/// - **Tag:** (300A,0651)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static WedgeDefinitionSequence: Tag = Tag {
+    ident: "WedgeDefinitionSequence",
+    tag: 0x300A_0651,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Wedge Definition Sequence",
+};
+
+/// Radiation Beam Wedge Angle
+///
+/// - **Tag:** (300A,0652)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationBeamWedgeAngle: Tag = Tag {
+    ident: "RadiationBeamWedgeAngle",
+    tag: 0x300A_0652,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Beam Wedge Angle",
+};
+
+/// Radiation Beam Wedge Thin Edge Distance
+///
+/// - **Tag:** (300A,0653)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationBeamWedgeThinEdgeDistance: Tag = Tag {
+    ident: "RadiationBeamWedgeThinEdgeDistance",
+    tag: 0x300A_0653,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Beam Wedge Thin Edge Distance",
+};
+
+/// Radiation Beam Effective Wedge Angle
+///
+/// - **Tag:** (300A,0654)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationBeamEffectiveWedgeAngle: Tag = Tag {
+    ident: "RadiationBeamEffectiveWedgeAngle",
+    tag: 0x300A_0654,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Beam Effective Wedge Angle",
+};
+
+/// Number of Wedge Positions
+///
+/// - **Tag:** (300A,0655)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofWedgePositions: Tag = Tag {
+    ident: "NumberofWedgePositions",
+    tag: 0x300A_0655,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Wedge Positions",
+};
+
+/// RT Beam Limiting Device Opening Sequence
+///
+/// - **Tag:** (300A,0656)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTBeamLimitingDeviceOpeningSequence: Tag = Tag {
+    ident: "RTBeamLimitingDeviceOpeningSequence",
+    tag: 0x300A_0656,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Beam Limiting Device Opening Sequence",
+};
+
+/// Number of RT Beam Limiting Device Openings
+///
+/// - **Tag:** (300A,0657)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofRTBeamLimitingDeviceOpenings: Tag = Tag {
+    ident: "NumberofRTBeamLimitingDeviceOpenings",
+    tag: 0x300A_0657,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of RT Beam Limiting Device Openings",
+};
+
+/// Radiation Dosimeter Unit Sequence
+///
+/// - **Tag:** (300A,0658)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationDosimeterUnitSequence: Tag = Tag {
+    ident: "RadiationDosimeterUnitSequence",
+    tag: 0x300A_0658,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Dosimeter Unit Sequence",
+};
+
+/// RT Device Distance Reference Location Code Sequence
+///
+/// - **Tag:** (300A,0659)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTDeviceDistanceReferenceLocationCodeSequence: Tag = Tag {
+    ident: "RTDeviceDistanceReferenceLocationCodeSequence",
+    tag: 0x300A_0659,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Device Distance Reference Location Code Sequence",
+};
+
+/// Radiation Device Configuration and Commissioning Key Sequence
+///
+/// - **Tag:** (300A,065A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationDeviceConfigurationandCommissioningKeySequence: Tag = Tag {
+    ident: "RadiationDeviceConfigurationandCommissioningKeySequence",
+    tag: 0x300A_065A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Device Configuration and Commissioning Key Sequence",
+};
+
+/// Patient Support Position Parameter Sequence
+///
+/// - **Tag:** (300A,065B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientSupportPositionParameterSequence: Tag = Tag {
+    ident: "PatientSupportPositionParameterSequence",
+    tag: 0x300A_065B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Parameter Sequence",
+};
+
+/// Patient Support Position Specification Method
+///
+/// - **Tag:** (300A,065C)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static PatientSupportPositionSpecificationMethod: Tag = Tag {
+    ident: "PatientSupportPositionSpecificationMethod",
+    tag: 0x300A_065C,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Specification Method",
+};
+
+/// Patient Support Position Device Parameter Sequence
+///
+/// - **Tag:** (300A,065D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientSupportPositionDeviceParameterSequence: Tag = Tag {
+    ident: "PatientSupportPositionDeviceParameterSequence",
+    tag: 0x300A_065D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Device Parameter Sequence",
+};
+
+/// Device Order Index
+///
+/// - **Tag:** (300A,065E)
+/// - **VR:** US
+/// - **VM:** 1
+pub static DeviceOrderIndex: Tag = Tag {
+    ident: "DeviceOrderIndex",
+    tag: 0x300A_065E,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Device Order Index",
+};
+
+/// Patient Support Position Parameter Order Index
+///
+/// - **Tag:** (300A,065F)
+/// - **VR:** US
+/// - **VM:** 1
+pub static PatientSupportPositionParameterOrderIndex: Tag = Tag {
+    ident: "PatientSupportPositionParameterOrderIndex",
+    tag: 0x300A_065F,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Parameter Order Index",
+};
+
+/// Patient Support Position Device Tolerance Sequence
+///
+/// - **Tag:** (300A,0660)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientSupportPositionDeviceToleranceSequence: Tag = Tag {
+    ident: "PatientSupportPositionDeviceToleranceSequence",
+    tag: 0x300A_0660,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Device Tolerance Sequence",
+};
+
+/// Patient Support Position Tolerance Order Index
+///
+/// - **Tag:** (300A,0661)
+/// - **VR:** US
+/// - **VM:** 1
+pub static PatientSupportPositionToleranceOrderIndex: Tag = Tag {
+    ident: "PatientSupportPositionToleranceOrderIndex",
+    tag: 0x300A_0661,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Position Tolerance Order Index",
+};
+
+/// Compensator Definition Sequence
+///
+/// - **Tag:** (300A,0662)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CompensatorDefinitionSequence: Tag = Tag {
+    ident: "CompensatorDefinitionSequence",
+    tag: 0x300A_0662,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Compensator Definition Sequence",
+};
+
+/// Compensator Map Orientation
+///
+/// - **Tag:** (300A,0663)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static CompensatorMapOrientation: Tag = Tag {
+    ident: "CompensatorMapOrientation",
+    tag: 0x300A_0663,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Compensator Map Orientation",
+};
+
+/// Compensator Proximal Thickness Map
+///
+/// - **Tag:** (300A,0664)
+/// - **VR:** OF
+/// - **VM:** 1
+pub static CompensatorProximalThicknessMap: Tag = Tag {
+    ident: "CompensatorProximalThicknessMap",
+    tag: 0x300A_0664,
+    implicit_vr: Some(&vr::OF),
+    vm: &VM::Distinct(1),
+    desc: "Compensator Proximal Thickness Map",
+};
+
+/// Compensator Distal Thickness Map
+///
+/// - **Tag:** (300A,0665)
+/// - **VR:** OF
+/// - **VM:** 1
+pub static CompensatorDistalThicknessMap: Tag = Tag {
+    ident: "CompensatorDistalThicknessMap",
+    tag: 0x300A_0665,
+    implicit_vr: Some(&vr::OF),
+    vm: &VM::Distinct(1),
+    desc: "Compensator Distal Thickness Map",
+};
+
+/// Compensator Base Plane Offset
+///
+/// - **Tag:** (300A,0666)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static CompensatorBasePlaneOffset: Tag = Tag {
+    ident: "CompensatorBasePlaneOffset",
+    tag: 0x300A_0666,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Compensator Base Plane Offset",
+};
+
+/// Compensator Shape Fabrication Code Sequence
+///
+/// - **Tag:** (300A,0667)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CompensatorShapeFabricationCodeSequence: Tag = Tag {
+    ident: "CompensatorShapeFabricationCodeSequence",
+    tag: 0x300A_0667,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Compensator Shape Fabrication Code Sequence",
+};
+
+/// Compensator Shape Sequence
+///
+/// - **Tag:** (300A,0668)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static CompensatorShapeSequence: Tag = Tag {
+    ident: "CompensatorShapeSequence",
+    tag: 0x300A_0668,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Compensator Shape Sequence",
+};
+
+/// Radiation Beam Compensator Milling Tool Diameter
+///
+/// - **Tag:** (300A,0669)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationBeamCompensatorMillingToolDiameter: Tag = Tag {
+    ident: "RadiationBeamCompensatorMillingToolDiameter",
+    tag: 0x300A_0669,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Beam Compensator Milling Tool Diameter",
+};
+
+/// Block Definition Sequence
+///
+/// - **Tag:** (300A,066A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static BlockDefinitionSequence: Tag = Tag {
+    ident: "BlockDefinitionSequence",
+    tag: 0x300A_066A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Block Definition Sequence",
+};
+
+/// Block Edge Data
+///
+/// - **Tag:** (300A,066B)
+/// - **VR:** OF
+/// - **VM:** 1
+pub static BlockEdgeData: Tag = Tag {
+    ident: "BlockEdgeData",
+    tag: 0x300A_066B,
+    implicit_vr: Some(&vr::OF),
+    vm: &VM::Distinct(1),
+    desc: "Block Edge Data",
+};
+
+/// Block Orientation
+///
+/// - **Tag:** (300A,066C)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static BlockOrientation: Tag = Tag {
+    ident: "BlockOrientation",
+    tag: 0x300A_066C,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Block Orientation",
+};
+
+/// Radiation Beam Block Thickness
+///
+/// - **Tag:** (300A,066D)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationBeamBlockThickness: Tag = Tag {
+    ident: "RadiationBeamBlockThickness",
+    tag: 0x300A_066D,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Beam Block Thickness",
+};
+
+/// Radiation Beam Block Slab Thickness
+///
+/// - **Tag:** (300A,066E)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationBeamBlockSlabThickness: Tag = Tag {
+    ident: "RadiationBeamBlockSlabThickness",
+    tag: 0x300A_066E,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Beam Block Slab Thickness",
+};
+
+/// Block Edge Data Sequence
+///
+/// - **Tag:** (300A,066F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static BlockEdgeDataSequence: Tag = Tag {
+    ident: "BlockEdgeDataSequence",
+    tag: 0x300A_066F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Block Edge Data Sequence",
+};
+
+/// Number of RT Accessory Holders
+///
+/// - **Tag:** (300A,0670)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofRTAccessoryHolders: Tag = Tag {
+    ident: "NumberofRTAccessoryHolders",
+    tag: 0x300A_0670,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of RT Accessory Holders",
+};
+
+/// General Accessory Definition Sequence
+///
+/// - **Tag:** (300A,0671)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static GeneralAccessoryDefinitionSequence: Tag = Tag {
+    ident: "GeneralAccessoryDefinitionSequence",
+    tag: 0x300A_0671,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "General Accessory Definition Sequence",
+};
+
+/// Number of General Accessories
+///
+/// - **Tag:** (300A,0672)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofGeneralAccessories: Tag = Tag {
+    ident: "NumberofGeneralAccessories",
+    tag: 0x300A_0672,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of General Accessories",
+};
+
+/// Bolus Definition Sequence
+///
+/// - **Tag:** (300A,0673)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static BolusDefinitionSequence: Tag = Tag {
+    ident: "BolusDefinitionSequence",
+    tag: 0x300A_0673,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Bolus Definition Sequence",
+};
+
+/// Number of Boluses
+///
+/// - **Tag:** (300A,0674)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofBoluses: Tag = Tag {
+    ident: "NumberofBoluses",
+    tag: 0x300A_0674,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Boluses",
+};
+
+/// Equipment Frame of Reference UID
+///
+/// - **Tag:** (300A,0675)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static EquipmentFrameofReferenceUID: Tag = Tag {
+    ident: "EquipmentFrameofReferenceUID",
+    tag: 0x300A_0675,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Equipment Frame of Reference UID",
+};
+
+/// Equipment Frame of Reference Description
+///
+/// - **Tag:** (300A,0676)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static EquipmentFrameofReferenceDescription: Tag = Tag {
+    ident: "EquipmentFrameofReferenceDescription",
+    tag: 0x300A_0676,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Equipment Frame of Reference Description",
+};
+
+/// Equipment Reference Point Coordinates Sequence
+///
+/// - **Tag:** (300A,0677)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EquipmentReferencePointCoordinatesSequence: Tag = Tag {
+    ident: "EquipmentReferencePointCoordinatesSequence",
+    tag: 0x300A_0677,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Equipment Reference Point Coordinates Sequence",
+};
+
+/// Equipment Reference Point Code Sequence
+///
+/// - **Tag:** (300A,0678)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EquipmentReferencePointCodeSequence: Tag = Tag {
+    ident: "EquipmentReferencePointCodeSequence",
+    tag: 0x300A_0678,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Equipment Reference Point Code Sequence",
+};
+
+/// RT Beam Limiting Device Angle
+///
+/// - **Tag:** (300A,0679)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTBeamLimitingDeviceAngle: Tag = Tag {
+    ident: "RTBeamLimitingDeviceAngle",
+    tag: 0x300A_0679,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RT Beam Limiting Device Angle",
+};
+
+/// Source Roll Angle
+///
+/// - **Tag:** (300A,067A)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static SourceRollAngle: Tag = Tag {
+    ident: "SourceRollAngle",
+    tag: 0x300A_067A,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Source Roll Angle",
+};
+
+/// Radiation GenerationMode Sequence
+///
+/// - **Tag:** (300A,067B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationGenerationModeSequence: Tag = Tag {
+    ident: "RadiationGenerationModeSequence",
+    tag: 0x300A_067B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation GenerationMode Sequence",
+};
+
+/// Radiation GenerationMode Label
+///
+/// - **Tag:** (300A,067C)
+/// - **VR:** SH
+/// - **VM:** 1
+pub static RadiationGenerationModeLabel: Tag = Tag {
+    ident: "RadiationGenerationModeLabel",
+    tag: 0x300A_067C,
+    implicit_vr: Some(&vr::SH),
+    vm: &VM::Distinct(1),
+    desc: "Radiation GenerationMode Label",
+};
+
+/// Radiation GenerationMode Description
+///
+/// - **Tag:** (300A,067D)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static RadiationGenerationModeDescription: Tag = Tag {
+    ident: "RadiationGenerationModeDescription",
+    tag: 0x300A_067D,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Radiation GenerationMode Description",
+};
+
+/// Radiation GenerationMode Machine Code Sequence
+///
+/// - **Tag:** (300A,067E)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationGenerationModeMachineCodeSequence: Tag = Tag {
+    ident: "RadiationGenerationModeMachineCodeSequence",
+    tag: 0x300A_067E,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation GenerationMode Machine Code Sequence",
+};
+
+/// Radiation Type Code Sequence
+///
+/// - **Tag:** (300A,067F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationTypeCodeSequence: Tag = Tag {
+    ident: "RadiationTypeCodeSequence",
+    tag: 0x300A_067F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Type Code Sequence",
+};
+
+/// Nominal Energy
+///
+/// - **Tag:** (300A,0680)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static NominalEnergy: Tag = Tag {
+    ident: "NominalEnergy",
+    tag: 0x300A_0680,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Nominal Energy",
+};
+
+/// Minimum Nominal Energy
+///
+/// - **Tag:** (300A,0681)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static MinimumNominalEnergy: Tag = Tag {
+    ident: "MinimumNominalEnergy",
+    tag: 0x300A_0681,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Minimum Nominal Energy",
+};
+
+/// Maximum Nominal Energy
+///
+/// - **Tag:** (300A,0682)
+/// - **VR:** DS
+/// - **VM:** 1
+pub static MaximumNominalEnergy: Tag = Tag {
+    ident: "MaximumNominalEnergy",
+    tag: 0x300A_0682,
+    implicit_vr: Some(&vr::DS),
+    vm: &VM::Distinct(1),
+    desc: "Maximum Nominal Energy",
+};
+
+/// Radiation Fluence Modifier Code Sequence
+///
+/// - **Tag:** (300A,0683)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RadiationFluenceModifierCodeSequence: Tag = Tag {
+    ident: "RadiationFluenceModifierCodeSequence",
+    tag: 0x300A_0683,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Fluence Modifier Code Sequence",
+};
+
+/// Energy Unit Code Sequence
+///
+/// - **Tag:** (300A,0684)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static EnergyUnitCodeSequence: Tag = Tag {
+    ident: "EnergyUnitCodeSequence",
+    tag: 0x300A_0684,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Energy Unit Code Sequence",
+};
+
+/// Number of Radiation GenerationModes
+///
+/// - **Tag:** (300A,0685)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofRadiationGenerationModes: Tag = Tag {
+    ident: "NumberofRadiationGenerationModes",
+    tag: 0x300A_0685,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Radiation GenerationModes",
+};
+
+/// Patient Support Devices Sequence
+///
+/// - **Tag:** (300A,0686)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientSupportDevicesSequence: Tag = Tag {
+    ident: "PatientSupportDevicesSequence",
+    tag: 0x300A_0686,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Devices Sequence",
+};
+
+/// Number of Patient Support Devices
+///
+/// - **Tag:** (300A,0687)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofPatientSupportDevices: Tag = Tag {
+    ident: "NumberofPatientSupportDevices",
+    tag: 0x300A_0687,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Patient Support Devices",
+};
+
+/// RT Beam Modifier Definition Distance
+///
+/// - **Tag:** (300A,0688)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RTBeamModifierDefinitionDistance: Tag = Tag {
+    ident: "RTBeamModifierDefinitionDistance",
+    tag: 0x300A_0688,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "RT Beam Modifier Definition Distance",
+};
+
+/// Beam Area Limit Sequence
+///
+/// - **Tag:** (300A,0689)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static BeamAreaLimitSequence: Tag = Tag {
+    ident: "BeamAreaLimitSequence",
+    tag: 0x300A_0689,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Beam Area Limit Sequence",
+};
+
+/// Referenced RT Prescription Sequence
+///
+/// - **Tag:** (300A,068A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTPrescriptionSequence: Tag = Tag {
+    ident: "ReferencedRTPrescriptionSequence",
+    tag: 0x300A_068A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Prescription Sequence",
+};
+
+/// Dose Value Interpretation
+///
+/// - **Tag:** (300A,068B)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static DoseValueInterpretation: Tag = Tag {
+    ident: "DoseValueInterpretation",
+    tag: 0x300A_068B,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Dose Value Interpretation",
+};
+
+/// Treatment Session UID
+///
+/// - **Tag:** (300A,0700)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static TreatmentSessionUID: Tag = Tag {
+    ident: "TreatmentSessionUID",
+    tag: 0x300A_0700,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Session UID",
+};
+
+/// RT Radiation Usage
+///
+/// - **Tag:** (300A,0701)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTRadiationUsage: Tag = Tag {
+    ident: "RTRadiationUsage",
+    tag: 0x300A_0701,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Usage",
+};
+
+/// Referenced RT Radiation Set Sequence
+///
+/// - **Tag:** (300A,0702)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTRadiationSetSequence: Tag = Tag {
+    ident: "ReferencedRTRadiationSetSequence",
+    tag: 0x300A_0702,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Radiation Set Sequence",
+};
+
+/// Referenced RT Radiation Record Sequence
+///
+/// - **Tag:** (300A,0703)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTRadiationRecordSequence: Tag = Tag {
+    ident: "ReferencedRTRadiationRecordSequence",
+    tag: 0x300A_0703,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Radiation Record Sequence",
+};
+
+/// RT Radiation Set Delivery Number
+///
+/// - **Tag:** (300A,0704)
+/// - **VR:** US
+/// - **VM:** 1
+pub static RTRadiationSetDeliveryNumber: Tag = Tag {
+    ident: "RTRadiationSetDeliveryNumber",
+    tag: 0x300A_0704,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Set Delivery Number",
+};
+
+/// Clinical Fraction Number
+///
+/// - **Tag:** (300A,0705)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ClinicalFractionNumber: Tag = Tag {
+    ident: "ClinicalFractionNumber",
+    tag: 0x300A_0705,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Clinical Fraction Number",
+};
+
+/// RT Treatment Fraction Completion Status
+///
+/// - **Tag:** (300A,0706)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTTreatmentFractionCompletionStatus: Tag = Tag {
+    ident: "RTTreatmentFractionCompletionStatus",
+    tag: 0x300A_0706,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Treatment Fraction Completion Status",
+};
+
+/// RT Radiation Set Usage
+///
+/// - **Tag:** (300A,0707)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTRadiationSetUsage: Tag = Tag {
+    ident: "RTRadiationSetUsage",
+    tag: 0x300A_0707,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Set Usage",
+};
+
+/// Treatment Delivery Continuation Flag
+///
+/// - **Tag:** (300A,0708)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static TreatmentDeliveryContinuationFlag: Tag = Tag {
+    ident: "TreatmentDeliveryContinuationFlag",
+    tag: 0x300A_0708,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Delivery Continuation Flag",
+};
+
+/// Treatment Record Content Origin
+///
+/// - **Tag:** (300A,0709)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static TreatmentRecordContentOrigin: Tag = Tag {
+    ident: "TreatmentRecordContentOrigin",
+    tag: 0x300A_0709,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Record Content Origin",
+};
+
+/// RT Treatment Termination Status
+///
+/// - **Tag:** (300A,0714)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTTreatmentTerminationStatus: Tag = Tag {
+    ident: "RTTreatmentTerminationStatus",
+    tag: 0x300A_0714,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Treatment Termination Status",
+};
+
+/// RT Treatment Termination Reason Code Sequence
+///
+/// - **Tag:** (300A,0715)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTTreatmentTerminationReasonCodeSequence: Tag = Tag {
+    ident: "RTTreatmentTerminationReasonCodeSequence",
+    tag: 0x300A_0715,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Treatment Termination Reason Code Sequence",
+};
+
+/// Machine-Specific Treatment Termination Code Sequence
+///
+/// - **Tag:** (300A,0716)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static MachineSpecificTreatmentTerminationCodeSequence: Tag = Tag {
+    ident: "MachineSpecificTreatmentTerminationCodeSequence",
+    tag: 0x300A_0716,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Machine-Specific Treatment Termination Code Sequence",
+};
+
+/// RT Radiation Salvage Record Control Point Sequence
+///
+/// - **Tag:** (300A,0722)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTRadiationSalvageRecordControlPointSequence: Tag = Tag {
+    ident: "RTRadiationSalvageRecordControlPointSequence",
+    tag: 0x300A_0722,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Salvage Record Control Point Sequence",
+};
+
+/// Starting Meterset Value Known Flag
+///
+/// - **Tag:** (300A,0723)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static StartingMetersetValueKnownFlag: Tag = Tag {
+    ident: "StartingMetersetValueKnownFlag",
+    tag: 0x300A_0723,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Starting Meterset Value Known Flag",
+};
+
+/// Treatment Termination Description
+///
+/// - **Tag:** (300A,0730)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static TreatmentTerminationDescription: Tag = Tag {
+    ident: "TreatmentTerminationDescription",
+    tag: 0x300A_0730,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Termination Description",
+};
+
+/// Treatment Tolerance Violation Sequence
+///
+/// - **Tag:** (300A,0731)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentToleranceViolationSequence: Tag = Tag {
+    ident: "TreatmentToleranceViolationSequence",
+    tag: 0x300A_0731,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation Sequence",
+};
+
+/// Treatment Tolerance Violation Category
+///
+/// - **Tag:** (300A,0732)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static TreatmentToleranceViolationCategory: Tag = Tag {
+    ident: "TreatmentToleranceViolationCategory",
+    tag: 0x300A_0732,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation Category",
+};
+
+/// Treatment Tolerance Violation Attribute Sequence
+///
+/// - **Tag:** (300A,0733)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentToleranceViolationAttributeSequence: Tag = Tag {
+    ident: "TreatmentToleranceViolationAttributeSequence",
+    tag: 0x300A_0733,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation Attribute Sequence",
+};
+
+/// Treatment Tolerance Violation Description
+///
+/// - **Tag:** (300A,0734)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static TreatmentToleranceViolationDescription: Tag = Tag {
+    ident: "TreatmentToleranceViolationDescription",
+    tag: 0x300A_0734,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation Description",
+};
+
+/// Treatment Tolerance Violation Identification
+///
+/// - **Tag:** (300A,0735)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static TreatmentToleranceViolationIdentification: Tag = Tag {
+    ident: "TreatmentToleranceViolationIdentification",
+    tag: 0x300A_0735,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation Identification",
+};
+
+/// Treatment Tolerance Violation DateTime
+///
+/// - **Tag:** (300A,0736)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static TreatmentToleranceViolationDateTime: Tag = Tag {
+    ident: "TreatmentToleranceViolationDateTime",
+    tag: 0x300A_0736,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation DateTime",
+};
+
+/// Recorded RT Control Point DateTime
+///
+/// - **Tag:** (300A,073A)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static RecordedRTControlPointDateTime: Tag = Tag {
+    ident: "RecordedRTControlPointDateTime",
+    tag: 0x300A_073A,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Recorded RT Control Point DateTime",
+};
+
+/// Referenced Radiation RT Control Point Index
+///
+/// - **Tag:** (300A,073B)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedRadiationRTControlPointIndex: Tag = Tag {
+    ident: "ReferencedRadiationRTControlPointIndex",
+    tag: 0x300A_073B,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Radiation RT Control Point Index",
+};
+
+/// Alternate Value Sequence
+///
+/// - **Tag:** (300A,073E)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AlternateValueSequence: Tag = Tag {
+    ident: "AlternateValueSequence",
+    tag: 0x300A_073E,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Alternate Value Sequence",
+};
+
+/// Confirmation Sequence
+///
+/// - **Tag:** (300A,073F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ConfirmationSequence: Tag = Tag {
+    ident: "ConfirmationSequence",
+    tag: 0x300A_073F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Confirmation Sequence",
+};
+
+/// Interlock Sequence
+///
+/// - **Tag:** (300A,0740)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InterlockSequence: Tag = Tag {
+    ident: "InterlockSequence",
+    tag: 0x300A_0740,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Interlock Sequence",
+};
+
+/// Interlock DateTime
+///
+/// - **Tag:** (300A,0741)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static InterlockDateTime: Tag = Tag {
+    ident: "InterlockDateTime",
+    tag: 0x300A_0741,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Interlock DateTime",
+};
+
+/// Interlock Description
+///
+/// - **Tag:** (300A,0742)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static InterlockDescription: Tag = Tag {
+    ident: "InterlockDescription",
+    tag: 0x300A_0742,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Interlock Description",
+};
+
+/// Interlock Originating Device Sequence
+///
+/// - **Tag:** (300A,0743)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InterlockOriginatingDeviceSequence: Tag = Tag {
+    ident: "InterlockOriginatingDeviceSequence",
+    tag: 0x300A_0743,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Interlock Originating Device Sequence",
+};
+
+/// Interlock Code Sequence
+///
+/// - **Tag:** (300A,0744)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InterlockCodeSequence: Tag = Tag {
+    ident: "InterlockCodeSequence",
+    tag: 0x300A_0744,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Interlock Code Sequence",
+};
+
+/// Interlock Resolution Code Sequence
+///
+/// - **Tag:** (300A,0745)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InterlockResolutionCodeSequence: Tag = Tag {
+    ident: "InterlockResolutionCodeSequence",
+    tag: 0x300A_0745,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Interlock Resolution Code Sequence",
+};
+
+/// Interlock Resolution User Sequence
+///
+/// - **Tag:** (300A,0746)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static InterlockResolutionUserSequence: Tag = Tag {
+    ident: "InterlockResolutionUserSequence",
+    tag: 0x300A_0746,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Interlock Resolution User Sequence",
+};
+
+/// Override DateTime
+///
+/// - **Tag:** (300A,0760)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static OverrideDateTime: Tag = Tag {
+    ident: "OverrideDateTime",
+    tag: 0x300A_0760,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Override DateTime",
+};
+
+/// Treatment Tolerance Violation Type Code Sequence
+///
+/// - **Tag:** (300A,0761)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentToleranceViolationTypeCodeSequence: Tag = Tag {
+    ident: "TreatmentToleranceViolationTypeCodeSequence",
+    tag: 0x300A_0761,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation Type Code Sequence",
+};
+
+/// Treatment Tolerance Violation Cause Code Sequence
+///
+/// - **Tag:** (300A,0762)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentToleranceViolationCauseCodeSequence: Tag = Tag {
+    ident: "TreatmentToleranceViolationCauseCodeSequence",
+    tag: 0x300A_0762,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Tolerance Violation Cause Code Sequence",
+};
+
+/// Measured Meterset to Dose Mapping Sequence
+///
+/// - **Tag:** (300A,0772)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static MeasuredMetersettoDoseMappingSequence: Tag = Tag {
+    ident: "MeasuredMetersettoDoseMappingSequence",
+    tag: 0x300A_0772,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Measured Meterset to Dose Mapping Sequence",
+};
+
+/// Referenced Expected In-Vivo Measurement Value Index
+///
+/// - **Tag:** (300A,0773)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedExpectedInVivoMeasurementValueIndex: Tag = Tag {
+    ident: "ReferencedExpectedInVivoMeasurementValueIndex",
+    tag: 0x300A_0773,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Expected In-Vivo Measurement Value Index",
+};
+
+/// Dose Measurement Device Code Sequence
+///
+/// - **Tag:** (300A,0774)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DoseMeasurementDeviceCodeSequence: Tag = Tag {
+    ident: "DoseMeasurementDeviceCodeSequence",
+    tag: 0x300A_0774,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Dose Measurement Device Code Sequence",
+};
+
+/// Additional Parameter Recording Instance Sequence
+///
+/// - **Tag:** (300A,0780)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static AdditionalParameterRecordingInstanceSequence: Tag = Tag {
+    ident: "AdditionalParameterRecordingInstanceSequence",
+    tag: 0x300A_0780,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Additional Parameter Recording Instance Sequence",
+};
+
+/// Interlock Origin Description
+///
+/// - **Tag:** (300A,0783)
+/// - **VR:** ST
+/// - **VM:** 1
+pub static InterlockOriginDescription: Tag = Tag {
+    ident: "InterlockOriginDescription",
+    tag: 0x300A_0783,
+    implicit_vr: Some(&vr::ST),
+    vm: &VM::Distinct(1),
+    desc: "Interlock Origin Description",
+};
+
+/// RT Patient Position Scope Sequence
+///
+/// - **Tag:** (300A,0784)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTPatientPositionScopeSequence: Tag = Tag {
+    ident: "RTPatientPositionScopeSequence",
+    tag: 0x300A_0784,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Patient Position Scope Sequence",
+};
+
+/// Referenced Treatment Position Group UID
+///
+/// - **Tag:** (300A,0785)
+/// - **VR:** UI
+/// - **VM:** 1
+pub static ReferencedTreatmentPositionGroupUID: Tag = Tag {
+    ident: "ReferencedTreatmentPositionGroupUID",
+    tag: 0x300A_0785,
+    implicit_vr: Some(&vr::UI),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Treatment Position Group UID",
+};
+
+/// Radiation Order Index
+///
+/// - **Tag:** (300A,0786)
+/// - **VR:** US
+/// - **VM:** 1
+pub static RadiationOrderIndex: Tag = Tag {
+    ident: "RadiationOrderIndex",
+    tag: 0x300A_0786,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Order Index",
+};
+
+/// Omitted Radiation Sequence
+///
+/// - **Tag:** (300A,0787)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static OmittedRadiationSequence: Tag = Tag {
+    ident: "OmittedRadiationSequence",
+    tag: 0x300A_0787,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Omitted Radiation Sequence",
+};
+
+/// Reason for Omission Code Sequence
+///
+/// - **Tag:** (300A,0788)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReasonforOmissionCodeSequence: Tag = Tag {
+    ident: "ReasonforOmissionCodeSequence",
+    tag: 0x300A_0788,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Reason for Omission Code Sequence",
+};
+
+/// RT Delivery Start Patient Position Sequence
+///
+/// - **Tag:** (300A,0789)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTDeliveryStartPatientPositionSequence: Tag = Tag {
+    ident: "RTDeliveryStartPatientPositionSequence",
+    tag: 0x300A_0789,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Delivery Start Patient Position Sequence",
+};
+
+/// RT Treatment Preparation Patient Position Sequence
+///
+/// - **Tag:** (300A,078A)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTTreatmentPreparationPatientPositionSequence: Tag = Tag {
+    ident: "RTTreatmentPreparationPatientPositionSequence",
+    tag: 0x300A_078A,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Treatment Preparation Patient Position Sequence",
+};
+
+/// Referenced RT Treatment Preparation Sequence
+///
+/// - **Tag:** (300A,078B)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedRTTreatmentPreparationSequence: Tag = Tag {
+    ident: "ReferencedRTTreatmentPreparationSequence",
+    tag: 0x300A_078B,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced RT Treatment Preparation Sequence",
+};
+
+/// Referenced Patient Setup Photo Sequence
+///
+/// - **Tag:** (300A,078C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ReferencedPatientSetupPhotoSequence: Tag = Tag {
+    ident: "ReferencedPatientSetupPhotoSequence",
+    tag: 0x300A_078C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Patient Setup Photo Sequence",
+};
+
+/// Patient Treatment Preparation Method Code Sequence
+///
+/// - **Tag:** (300A,078D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientTreatmentPreparationMethodCodeSequence: Tag = Tag {
+    ident: "PatientTreatmentPreparationMethodCodeSequence",
+    tag: 0x300A_078D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Method Code Sequence",
+};
+
+/// Patient Treatment Preparation Procedure Parameter Description
+///
+/// - **Tag:** (300A,078E)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static PatientTreatmentPreparationProcedureParameterDescription: Tag = Tag {
+    ident: "PatientTreatmentPreparationProcedureParameterDescription",
+    tag: 0x300A_078E,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Procedure Parameter Description",
+};
+
+/// Patient Treatment Preparation Device Sequence
+///
+/// - **Tag:** (300A,078F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientTreatmentPreparationDeviceSequence: Tag = Tag {
+    ident: "PatientTreatmentPreparationDeviceSequence",
+    tag: 0x300A_078F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Device Sequence",
+};
+
+/// Patient Treatment Preparation Procedure Sequence
+///
+/// - **Tag:** (300A,0790)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientTreatmentPreparationProcedureSequence: Tag = Tag {
+    ident: "PatientTreatmentPreparationProcedureSequence",
+    tag: 0x300A_0790,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Procedure Sequence",
+};
+
+/// Patient Treatment Preparation Procedure Code Sequence
+///
+/// - **Tag:** (300A,0791)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientTreatmentPreparationProcedureCodeSequence: Tag = Tag {
+    ident: "PatientTreatmentPreparationProcedureCodeSequence",
+    tag: 0x300A_0791,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Procedure Code Sequence",
+};
+
+/// Patient Treatment Preparation Method Description
+///
+/// - **Tag:** (300A,0792)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static PatientTreatmentPreparationMethodDescription: Tag = Tag {
+    ident: "PatientTreatmentPreparationMethodDescription",
+    tag: 0x300A_0792,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Method Description",
+};
+
+/// Patient Treatment Preparation Procedure Parameter Sequence
+///
+/// - **Tag:** (300A,0793)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientTreatmentPreparationProcedureParameterSequence: Tag = Tag {
+    ident: "PatientTreatmentPreparationProcedureParameterSequence",
+    tag: 0x300A_0793,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Procedure Parameter Sequence",
+};
+
+/// Patient Setup Photo Description
+///
+/// - **Tag:** (300A,0794)
+/// - **VR:** LT
+/// - **VM:** 1
+pub static PatientSetupPhotoDescription: Tag = Tag {
+    ident: "PatientSetupPhotoDescription",
+    tag: 0x300A_0794,
+    implicit_vr: Some(&vr::LT),
+    vm: &VM::Distinct(1),
+    desc: "Patient Setup Photo Description",
+};
+
+/// Patient Treatment Preparation Procedure Index
+///
+/// - **Tag:** (300A,0795)
+/// - **VR:** US
+/// - **VM:** 1
+pub static PatientTreatmentPreparationProcedureIndex: Tag = Tag {
+    ident: "PatientTreatmentPreparationProcedureIndex",
+    tag: 0x300A_0795,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Patient Treatment Preparation Procedure Index",
+};
+
+/// Referenced Patient Setup Procedure Index
+///
+/// - **Tag:** (300A,0796)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedPatientSetupProcedureIndex: Tag = Tag {
+    ident: "ReferencedPatientSetupProcedureIndex",
+    tag: 0x300A_0796,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Patient Setup Procedure Index",
+};
+
+/// RT Radiation Task Sequence
+///
+/// - **Tag:** (300A,0797)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTRadiationTaskSequence: Tag = Tag {
+    ident: "RTRadiationTaskSequence",
+    tag: 0x300A_0797,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Task Sequence",
+};
+
+/// RT Patient Position Displacement Sequence
+///
+/// - **Tag:** (300A,0798)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTPatientPositionDisplacementSequence: Tag = Tag {
+    ident: "RTPatientPositionDisplacementSequence",
+    tag: 0x300A_0798,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Patient Position Displacement Sequence",
+};
+
+/// RT Patient Position Sequence
+///
+/// - **Tag:** (300A,0799)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RTPatientPositionSequence: Tag = Tag {
+    ident: "RTPatientPositionSequence",
+    tag: 0x300A_0799,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "RT Patient Position Sequence",
+};
+
+/// Displacement Reference Label
+///
+/// - **Tag:** (300A,079A)
+/// - **VR:** LO
+/// - **VM:** 1
+pub static DisplacementReferenceLabel: Tag = Tag {
+    ident: "DisplacementReferenceLabel",
+    tag: 0x300A_079A,
+    implicit_vr: Some(&vr::LO),
+    vm: &VM::Distinct(1),
+    desc: "Displacement Reference Label",
+};
+
+/// Displacement Matrix
+///
+/// - **Tag:** (300A,079B)
+/// - **VR:** FD
+/// - **VM:** 16
+pub static DisplacementMatrix: Tag = Tag {
+    ident: "DisplacementMatrix",
+    tag: 0x300A_079B,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(16),
+    desc: "Displacement Matrix",
+};
+
+/// Patient Support Displacement Sequence
+///
+/// - **Tag:** (300A,079C)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PatientSupportDisplacementSequence: Tag = Tag {
+    ident: "PatientSupportDisplacementSequence",
+    tag: 0x300A_079C,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Patient Support Displacement Sequence",
+};
+
+/// Displacement Reference Location Code Sequence
+///
+/// - **Tag:** (300A,079D)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DisplacementReferenceLocationCodeSequence: Tag = Tag {
+    ident: "DisplacementReferenceLocationCodeSequence",
+    tag: 0x300A_079D,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Displacement Reference Location Code Sequence",
+};
+
+/// RT Radiation Set Delivery Usage
+///
+/// - **Tag:** (300A,079E)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RTRadiationSetDeliveryUsage: Tag = Tag {
+    ident: "RTRadiationSetDeliveryUsage",
+    tag: 0x300A_079E,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "RT Radiation Set Delivery Usage",
 };
 
 /// Referenced RT Plan Sequence
@@ -54695,6 +61182,214 @@ pub static ReasonforOmissionDescription: Tag = Tag {
     implicit_vr: Some(&vr::LO),
     vm: &VM::Distinct(1),
     desc: "Reason for Omission Description",
+};
+
+/// Prescription Overview Sequence
+///
+/// - **Tag:** (300C,0114)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PrescriptionOverviewSequence: Tag = Tag {
+    ident: "PrescriptionOverviewSequence",
+    tag: 0x300C_0114,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Prescription Overview Sequence",
+};
+
+/// Total Prescription Dose
+///
+/// - **Tag:** (300C,0115)
+/// - **VR:** FL
+/// - **VM:** 1
+pub static TotalPrescriptionDose: Tag = Tag {
+    ident: "TotalPrescriptionDose",
+    tag: 0x300C_0115,
+    implicit_vr: Some(&vr::FL),
+    vm: &VM::Distinct(1),
+    desc: "Total Prescription Dose",
+};
+
+/// Plan Overview Sequence
+///
+/// - **Tag:** (300C,0116)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static PlanOverviewSequence: Tag = Tag {
+    ident: "PlanOverviewSequence",
+    tag: 0x300C_0116,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Plan Overview Sequence",
+};
+
+/// Plan Overview Index
+///
+/// - **Tag:** (300C,0117)
+/// - **VR:** US
+/// - **VM:** 1
+pub static PlanOverviewIndex: Tag = Tag {
+    ident: "PlanOverviewIndex",
+    tag: 0x300C_0117,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Plan Overview Index",
+};
+
+/// Referenced Plan Overview Index
+///
+/// - **Tag:** (300C,0118)
+/// - **VR:** US
+/// - **VM:** 1
+pub static ReferencedPlanOverviewIndex: Tag = Tag {
+    ident: "ReferencedPlanOverviewIndex",
+    tag: 0x300C_0118,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Referenced Plan Overview Index",
+};
+
+/// Number of Fractions Included
+///
+/// - **Tag:** (300C,0119)
+/// - **VR:** US
+/// - **VM:** 1
+pub static NumberofFractionsIncluded: Tag = Tag {
+    ident: "NumberofFractionsIncluded",
+    tag: 0x300C_0119,
+    implicit_vr: Some(&vr::US),
+    vm: &VM::Distinct(1),
+    desc: "Number of Fractions Included",
+};
+
+/// Dose Calibration Conditions Sequence
+///
+/// - **Tag:** (300C,0120)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static DoseCalibrationConditionsSequence: Tag = Tag {
+    ident: "DoseCalibrationConditionsSequence",
+    tag: 0x300C_0120,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Dose Calibration Conditions Sequence",
+};
+
+/// Absorbed Dose to Meterset Ratio
+///
+/// - **Tag:** (300C,0121)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static AbsorbedDosetoMetersetRatio: Tag = Tag {
+    ident: "AbsorbedDosetoMetersetRatio",
+    tag: 0x300C_0121,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Absorbed Dose to Meterset Ratio",
+};
+
+/// Delineated Radiation Field Size
+///
+/// - **Tag:** (300C,0122)
+/// - **VR:** FD
+/// - **VM:** 2
+pub static DelineatedRadiationFieldSize: Tag = Tag {
+    ident: "DelineatedRadiationFieldSize",
+    tag: 0x300C_0122,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(2),
+    desc: "Delineated Radiation Field Size",
+};
+
+/// Dose Calibration Conditions Verified Flag
+///
+/// - **Tag:** (300C,0123)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static DoseCalibrationConditionsVerifiedFlag: Tag = Tag {
+    ident: "DoseCalibrationConditionsVerifiedFlag",
+    tag: 0x300C_0123,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Dose Calibration Conditions Verified Flag",
+};
+
+/// Calibration Reference Point Depth
+///
+/// - **Tag:** (300C,0124)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static CalibrationReferencePointDepth: Tag = Tag {
+    ident: "CalibrationReferencePointDepth",
+    tag: 0x300C_0124,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Calibration Reference Point Depth",
+};
+
+/// Gating Beam Hold Transition Sequence
+///
+/// - **Tag:** (300C,0125)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static GatingBeamHoldTransitionSequence: Tag = Tag {
+    ident: "GatingBeamHoldTransitionSequence",
+    tag: 0x300C_0125,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Gating Beam Hold Transition Sequence",
+};
+
+/// Beam Hold Transition
+///
+/// - **Tag:** (300C,0126)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static BeamHoldTransition: Tag = Tag {
+    ident: "BeamHoldTransition",
+    tag: 0x300C_0126,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Beam Hold Transition",
+};
+
+/// Beam Hold Transition DateTime
+///
+/// - **Tag:** (300C,0127)
+/// - **VR:** DT
+/// - **VM:** 1
+pub static BeamHoldTransitionDateTime: Tag = Tag {
+    ident: "BeamHoldTransitionDateTime",
+    tag: 0x300C_0127,
+    implicit_vr: Some(&vr::DT),
+    vm: &VM::Distinct(1),
+    desc: "Beam Hold Transition DateTime",
+};
+
+/// Beam Hold Originating Device Sequence
+///
+/// - **Tag:** (300C,0128)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static BeamHoldOriginatingDeviceSequence: Tag = Tag {
+    ident: "BeamHoldOriginatingDeviceSequence",
+    tag: 0x300C_0128,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Beam Hold Originating Device Sequence",
+};
+
+/// Beam Hold Transition Trigger Source
+///
+/// - **Tag:** (300C,0129)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static BeamHoldTransitionTriggerSource: Tag = Tag {
+    ident: "BeamHoldTransitionTriggerSource",
+    tag: 0x300C_0129,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Beam Hold Transition Trigger Source",
 };
 
 /// Approval Status
@@ -55345,6 +62040,19 @@ pub static DeviceTypeCodeSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Device Type Code Sequence",
+};
+
+/// Segment Annotation Type Modifier Code Sequence
+///
+/// - **Tag:** (3010,002F)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static SegmentAnnotationTypeModifierCodeSequence: Tag = Tag {
+    ident: "SegmentAnnotationTypeModifierCodeSequence",
+    tag: 0x3010_002F,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Segment Annotation Type Modifier Code Sequence",
 };
 
 /// Patient Equipment Relationship Code Sequence
@@ -56489,6 +63197,175 @@ pub static DeliveryTimeStructureCodeSequence: Tag = Tag {
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
     desc: "Delivery Time Structure Code Sequence",
+};
+
+/// Treatment Site Modifier Code Sequence
+///
+/// - **Tag:** (3010,0089)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TreatmentSiteModifierCodeSequence: Tag = Tag {
+    ident: "TreatmentSiteModifierCodeSequence",
+    tag: 0x3010_0089,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Treatment Site Modifier Code Sequence",
+};
+
+/// Robotic Base Location Indicator
+///
+/// - **Tag:** (3010,0090)
+/// - **VR:** CS
+/// - **VM:** 1
+pub static RoboticBaseLocationIndicator: Tag = Tag {
+    ident: "RoboticBaseLocationIndicator",
+    tag: 0x3010_0090,
+    implicit_vr: Some(&vr::CS),
+    vm: &VM::Distinct(1),
+    desc: "Robotic Base Location Indicator",
+};
+
+/// Robotic Path Node Set Code Sequence
+///
+/// - **Tag:** (3010,0091)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RoboticPathNodeSetCodeSequence: Tag = Tag {
+    ident: "RoboticPathNodeSetCodeSequence",
+    tag: 0x3010_0091,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Robotic Path Node Set Code Sequence",
+};
+
+/// Robotic Node Identifier
+///
+/// - **Tag:** (3010,0092)
+/// - **VR:** UL
+/// - **VM:** 1
+pub static RoboticNodeIdentifier: Tag = Tag {
+    ident: "RoboticNodeIdentifier",
+    tag: 0x3010_0092,
+    implicit_vr: Some(&vr::UL),
+    vm: &VM::Distinct(1),
+    desc: "Robotic Node Identifier",
+};
+
+/// RT Treatment Source Coordinates
+///
+/// - **Tag:** (3010,0093)
+/// - **VR:** FD
+/// - **VM:** 3
+pub static RTTreatmentSourceCoordinates: Tag = Tag {
+    ident: "RTTreatmentSourceCoordinates",
+    tag: 0x3010_0093,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(3),
+    desc: "RT Treatment Source Coordinates",
+};
+
+/// Radiation Source Coordinate SystemYaw Angle
+///
+/// - **Tag:** (3010,0094)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationSourceCoordinateSystemYawAngle: Tag = Tag {
+    ident: "RadiationSourceCoordinateSystemYawAngle",
+    tag: 0x3010_0094,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Source Coordinate SystemYaw Angle",
+};
+
+/// Radiation Source Coordinate SystemRoll Angle
+///
+/// - **Tag:** (3010,0095)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationSourceCoordinateSystemRollAngle: Tag = Tag {
+    ident: "RadiationSourceCoordinateSystemRollAngle",
+    tag: 0x3010_0095,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Source Coordinate SystemRoll Angle",
+};
+
+/// Radiation Source Coordinate System Pitch Angle
+///
+/// - **Tag:** (3010,0096)
+/// - **VR:** FD
+/// - **VM:** 1
+pub static RadiationSourceCoordinateSystemPitchAngle: Tag = Tag {
+    ident: "RadiationSourceCoordinateSystemPitchAngle",
+    tag: 0x3010_0096,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::Distinct(1),
+    desc: "Radiation Source Coordinate System Pitch Angle",
+};
+
+/// Robotic Path Control Point Sequence
+///
+/// - **Tag:** (3010,0097)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static RoboticPathControlPointSequence: Tag = Tag {
+    ident: "RoboticPathControlPointSequence",
+    tag: 0x3010_0097,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Robotic Path Control Point Sequence",
+};
+
+/// Tomotherapeutic Control Point Sequence
+///
+/// - **Tag:** (3010,0098)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static TomotherapeuticControlPointSequence: Tag = Tag {
+    ident: "TomotherapeuticControlPointSequence",
+    tag: 0x3010_0098,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Tomotherapeutic Control Point Sequence",
+};
+
+/// Tomotherapeutic Leaf Open Durations
+///
+/// - **Tag:** (3010,0099)
+/// - **VR:** FD
+/// - **VM:** 1-n
+pub static TomotherapeuticLeafOpenDurations: Tag = Tag {
+    ident: "TomotherapeuticLeafOpenDurations",
+    tag: 0x3010_0099,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::AtLeast(1),
+    desc: "Tomotherapeutic Leaf Open Durations",
+};
+
+/// Tomotherapeutic Leaf Initial Closed Durations
+///
+/// - **Tag:** (3010,009A)
+/// - **VR:** FD
+/// - **VM:** 1-n
+pub static TomotherapeuticLeafInitialClosedDurations: Tag = Tag {
+    ident: "TomotherapeuticLeafInitialClosedDurations",
+    tag: 0x3010_009A,
+    implicit_vr: Some(&vr::FD),
+    vm: &VM::AtLeast(1),
+    desc: "Tomotherapeutic Leaf Initial Closed Durations",
+};
+
+/// Conceptual Volume Identification Sequence
+///
+/// - **Tag:** (3010,00A0)
+/// - **VR:** SQ
+/// - **VM:** 1
+pub static ConceptualVolumeIdentificationSequence: Tag = Tag {
+    ident: "ConceptualVolumeIdentificationSequence",
+    tag: 0x3010_00A0,
+    implicit_vr: Some(&vr::SQ),
+    vm: &VM::Distinct(1),
+    desc: "Conceptual Volume Identification Sequence",
 };
 
 /// Arbitrary
@@ -58025,17 +64902,17 @@ pub static SharedFunctionalGroupsSequence: Tag = Tag {
     desc: "Shared Functional Groups Sequence",
 };
 
-/// Per-frame Functional Groups Sequence
+/// Per-Frame Functional Groups Sequence
 ///
 /// - **Tag:** (5200,9230)
 /// - **VR:** SQ
 /// - **VM:** 1
-pub static PerframeFunctionalGroupsSequence: Tag = Tag {
-    ident: "PerframeFunctionalGroupsSequence",
+pub static PerFrameFunctionalGroupsSequence: Tag = Tag {
+    ident: "PerFrameFunctionalGroupsSequence",
     tag: 0x5200_9230,
     implicit_vr: Some(&vr::SQ),
     vm: &VM::Distinct(1),
-    desc: "Per-frame Functional Groups Sequence",
+    desc: "Per-Frame Functional Groups Sequence",
 };
 
 /// Waveform Sequence
@@ -58179,6 +65056,19 @@ pub static ExtendedOffsetTableLengths: Tag = Tag {
     implicit_vr: Some(&vr::OV),
     vm: &VM::Distinct(1),
     desc: "Extended Offset Table Lengths",
+};
+
+/// Encapsulated Pixel Data Value Total Length
+///
+/// - **Tag:** (7FE0,0003)
+/// - **VR:** UV
+/// - **VM:** 1
+pub static EncapsulatedPixelDataValueTotalLength: Tag = Tag {
+    ident: "EncapsulatedPixelDataValueTotalLength",
+    tag: 0x7FE0_0003,
+    implicit_vr: Some(&vr::UV),
+    vm: &VM::Distinct(1),
+    desc: "Encapsulated Pixel Data Value Total Length",
 };
 
 /// Float Pixel Data

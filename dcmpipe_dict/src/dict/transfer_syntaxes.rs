@@ -28,6 +28,17 @@ pub static ExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
     encapsulated: false,
 };
 
+/// Encapsulated Uncompressed Explicit VR Little Endian
+///
+/// - **UID:** 1.2.840.10008.1.2.1.98
+pub static EncapsulatedUncompressedExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
+    uid: &uids::EncapsulatedUncompressedExplicitVRLittleEndian,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
 /// Deflated Explicit VR Little Endian
 ///
 /// - **UID:** 1.2.840.10008.1.2.1.99
@@ -347,11 +358,33 @@ pub static MPEG2MainProfileMainLevel: TransferSyntax = TransferSyntax {
     encapsulated: true,
 };
 
+/// Fragmentable MPEG2 Main Profile / Main Level
+///
+/// - **UID:** 1.2.840.10008.1.2.4.100.1
+pub static FragmentableMPEG2MainProfileMainLevel: TransferSyntax = TransferSyntax {
+    uid: &uids::FragmentableMPEG2MainProfileMainLevel,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
 /// MPEG2 Main Profile / High Level
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.101
 pub static MPEG2MainProfileHighLevel: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG2MainProfileHighLevel,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
+/// Fragmentable MPEG2 Main Profile / High Level
+///
+/// - **UID:** 1.2.840.10008.1.2.4.101.1
+pub static FragmentableMPEG2MainProfileHighLevel: TransferSyntax = TransferSyntax {
+    uid: &uids::FragmentableMPEG2MainProfileHighLevel,
     explicit_vr: true,
     big_endian: false,
     deflated: false,
@@ -369,11 +402,33 @@ pub static MPEG4AVCH264HighProfileLevel41: TransferSyntax = TransferSyntax {
     encapsulated: true,
 };
 
+/// Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.1
+///
+/// - **UID:** 1.2.840.10008.1.2.4.102.1
+pub static FragmentableMPEG4AVCH264HighProfileLevel41: TransferSyntax = TransferSyntax {
+    uid: &uids::FragmentableMPEG4AVCH264HighProfileLevel41,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
 /// MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.103
 pub static MPEG4AVCH264BDcompatibleHighProfileLevel41: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG4AVCH264BDcompatibleHighProfileLevel41,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
+/// Fragmentable MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1
+///
+/// - **UID:** 1.2.840.10008.1.2.4.103.1
+pub static FragmentableMPEG4AVCH264BDcompatibleHighProfileLevel41: TransferSyntax = TransferSyntax {
+    uid: &uids::FragmentableMPEG4AVCH264BDcompatibleHighProfileLevel41,
     explicit_vr: true,
     big_endian: false,
     deflated: false,
@@ -391,6 +446,17 @@ pub static MPEG4AVCH264HighProfileLevel42For2DVideo: TransferSyntax = TransferSy
     encapsulated: true,
 };
 
+/// Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video
+///
+/// - **UID:** 1.2.840.10008.1.2.4.104.1
+pub static FragmentableMPEG4AVCH264HighProfileLevel42For2DVideo: TransferSyntax = TransferSyntax {
+    uid: &uids::FragmentableMPEG4AVCH264HighProfileLevel42For2DVideo,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
 /// MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.105
@@ -402,11 +468,33 @@ pub static MPEG4AVCH264HighProfileLevel42For3DVideo: TransferSyntax = TransferSy
     encapsulated: true,
 };
 
+/// Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video
+///
+/// - **UID:** 1.2.840.10008.1.2.4.105.1
+pub static FragmentableMPEG4AVCH264HighProfileLevel42For3DVideo: TransferSyntax = TransferSyntax {
+    uid: &uids::FragmentableMPEG4AVCH264HighProfileLevel42For3DVideo,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
 /// MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2
 ///
 /// - **UID:** 1.2.840.10008.1.2.4.106
 pub static MPEG4AVCH264StereoHighProfileLevel42: TransferSyntax = TransferSyntax {
     uid: &uids::MPEG4AVCH264StereoHighProfileLevel42,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
+/// Fragmentable MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2
+///
+/// - **UID:** 1.2.840.10008.1.2.4.106.1
+pub static FragmentableMPEG4AVCH264StereoHighProfileLevel42: TransferSyntax = TransferSyntax {
+    uid: &uids::FragmentableMPEG4AVCH264StereoHighProfileLevel42,
     explicit_vr: true,
     big_endian: false,
     deflated: false,
@@ -433,6 +521,61 @@ pub static HEVCH265Main10ProfileLevel51: TransferSyntax = TransferSyntax {
     big_endian: false,
     deflated: false,
     encapsulated: true,
+};
+
+/// High-Throughput JPEG 2000 Image Compression (Lossless Only)
+///
+/// - **UID:** 1.2.840.10008.1.2.4.201
+pub static HighThroughputJPEG2000ImageCompressionLosslessOnly: TransferSyntax = TransferSyntax {
+    uid: &uids::HighThroughputJPEG2000ImageCompressionLosslessOnly,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
+/// High-Throughput JPEG 2000 with RPCL Options Image Compression (Lossless Only)
+///
+/// - **UID:** 1.2.840.10008.1.2.4.202
+pub static HighThroughputJPEG2000withRPCLOptionsImageCompressionLosslessOnly: TransferSyntax = TransferSyntax {
+    uid: &uids::HighThroughputJPEG2000withRPCLOptionsImageCompressionLosslessOnly,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
+/// High-Throughput JPEG 2000 Image Compression
+///
+/// - **UID:** 1.2.840.10008.1.2.4.203
+pub static HighThroughputJPEG2000ImageCompression: TransferSyntax = TransferSyntax {
+    uid: &uids::HighThroughputJPEG2000ImageCompression,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: true,
+};
+
+/// JPIP HTJ2K Referenced
+///
+/// - **UID:** 1.2.840.10008.1.2.4.204
+pub static JPIPHTJ2KReferenced: TransferSyntax = TransferSyntax {
+    uid: &uids::JPIPHTJ2KReferenced,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+/// JPIP HTJ2K Referenced Deflate
+///
+/// - **UID:** 1.2.840.10008.1.2.4.205
+pub static JPIPHTJ2KReferencedDeflate: TransferSyntax = TransferSyntax {
+    uid: &uids::JPIPHTJ2KReferencedDeflate,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: true,
+    encapsulated: false,
 };
 
 /// RLE Lossless
@@ -462,6 +605,39 @@ pub static RFC2557MIMEencapsulation: TransferSyntax = TransferSyntax {
 /// - **UID:** 1.2.840.10008.1.2.6.2
 pub static XMLEncoding: TransferSyntax = TransferSyntax {
     uid: &uids::XMLEncoding,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+/// SMPTE ST 2110-20 Uncompressed Progressive Active Video
+///
+/// - **UID:** 1.2.840.10008.1.2.7.1
+pub static SMPTEST211020UncompressedProgressiveActiveVideo: TransferSyntax = TransferSyntax {
+    uid: &uids::SMPTEST211020UncompressedProgressiveActiveVideo,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+/// SMPTE ST 2110-20 Uncompressed Interlaced Active Video
+///
+/// - **UID:** 1.2.840.10008.1.2.7.2
+pub static SMPTEST211020UncompressedInterlacedActiveVideo: TransferSyntax = TransferSyntax {
+    uid: &uids::SMPTEST211020UncompressedInterlacedActiveVideo,
+    explicit_vr: true,
+    big_endian: false,
+    deflated: false,
+    encapsulated: false,
+};
+
+/// SMPTE ST 2110-30 PCM Digital Audio
+///
+/// - **UID:** 1.2.840.10008.1.2.7.3
+pub static SMPTEST211030PCMDigitalAudio: TransferSyntax = TransferSyntax {
+    uid: &uids::SMPTEST211030PCMDigitalAudio,
     explicit_vr: true,
     big_endian: false,
     deflated: false,

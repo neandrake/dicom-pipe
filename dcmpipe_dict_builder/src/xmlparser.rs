@@ -40,10 +40,10 @@ pub struct XmlDicomElement {
 pub struct XmlDicomUid {
     pub value: String,
     pub name: String,
+    pub keyword: Option<String>,
     pub uid_type: Option<String>,
     pub part: Option<String>,
 }
-
 
 /// The different table structures that appear in the xml document. This is used to track the state
 /// of where the parser is currently located.
@@ -53,7 +53,7 @@ enum XmlDicomDefinitionTable {
     FileMetaElements,
     DirStructureElements,
     Uids,
-    Unknown,
+    UNKNOWN,
 }
 
 /// The cells within the DICOM Element table. This is used to track the state of where the parser
@@ -61,6 +61,7 @@ enum XmlDicomDefinitionTable {
 /// `FileMetaElements`, or `DirStructureElements`.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum XmlDicomElementCell {
+    RowStart,
     Tag,
     Name,
     Keyword,
@@ -73,8 +74,10 @@ enum XmlDicomElementCell {
 /// currently located after traversing into `XmlDicomDefinitionTable::Uids`.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum XmlDicomUidCell {
+    RowStart,
     Value,
     Name,
+    Keyword,
     Type,
     Part,
 }
@@ -83,7 +86,7 @@ enum XmlDicomUidCell {
 /// tables and cells.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum XmlDicomReadingState {
-    Off,
+    OFF,
     InTable,
     InTableBody,
     InDicomElementCell(XmlDicomElementCell),
@@ -105,6 +108,7 @@ pub struct XmlDicomDefinitionIterator<R: BufRead> {
 
     uid_value: Option<String>,
     uid_name: Option<String>,
+    uid_keyword: Option<String>,
     uid_type: Option<String>,
     uid_part: Option<String>,
 }
@@ -115,9 +119,9 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
         reader.expand_empty_elements(true).trim_text(true);
         XmlDicomDefinitionIterator {
             parser: reader,
-            state: XmlDicomReadingState::Off,
+            state: XmlDicomReadingState::OFF,
 
-            table: XmlDicomDefinitionTable::Unknown,
+            table: XmlDicomDefinitionTable::UNKNOWN,
 
             element_tag: None,
             element_name: None,
@@ -128,6 +132,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
 
             uid_value: None,
             uid_name: None,
+            uid_keyword: None,
             uid_type: None,
             uid_part: None,
         }
@@ -144,12 +149,13 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
         u32::from_str_radix(
             &self.parse_text_bytes(data).replace(['(', ')', ','], ""),
             16,
-        ).ok()
+        )
+        .ok()
     }
 
     /// Determine if all required cell fields for a Dicom Element have been read.
     fn is_next_element_fully_read(&self) -> bool {
-        // observation may not have content
+        // Observation may not have content.
         self.element_tag.is_some()
             && self.element_name.is_some()
             && self.element_keyword.is_some()
@@ -159,7 +165,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
 
     /// Determine if all required cell fields for a UID have been read.
     fn is_next_uid_fully_read(&self) -> bool {
-        // type and part may not have content
+        // The type, part, and keyword fields may not have content.
         self.uid_value.is_some() && self.uid_name.is_some()
     }
 
@@ -174,6 +180,7 @@ impl<R: BufRead> XmlDicomDefinitionIterator<R> {
 
         self.uid_value = None;
         self.uid_name = None;
+        self.uid_keyword = None;
         self.uid_type = None;
         self.uid_part = None;
     }
@@ -197,7 +204,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                         // If we're currently in the Off state then that means we've just started
                         // parsing or outside of tables so we should first expect to hit a "table"
                         // element.
-                        XmlDicomReadingState::Off => {
+                        XmlDicomReadingState::OFF => {
                             if local_name == QName(b"table").into() {
                                 // The tables that we're interested in parsing have a "xml:id"
                                 // attribute identifying which table this is for.
@@ -215,29 +222,29 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         b"table_6-1" => {
                                             self.table = XmlDicomDefinitionTable::DicomElements;
                                             self.state = XmlDicomReadingState::InTable;
-                                        },
+                                        }
                                         b"table_7-1" => {
                                             self.table = XmlDicomDefinitionTable::FileMetaElements;
                                             self.state = XmlDicomReadingState::InTable;
-                                        },
+                                        }
                                         b"table_8-1" => {
                                             self.table =
                                                 XmlDicomDefinitionTable::DirStructureElements;
                                             self.state = XmlDicomReadingState::InTable;
-                                        },
+                                        }
                                         b"table_A-1" => {
                                             self.table = XmlDicomDefinitionTable::Uids;
                                             self.state = XmlDicomReadingState::InTable;
-                                        },
+                                        }
                                         // Unknown table, set the initial state.
                                         _ => {
-                                            self.table = XmlDicomDefinitionTable::Unknown;
-                                            self.state = XmlDicomReadingState::Off;
-                                        },
+                                            self.table = XmlDicomDefinitionTable::UNKNOWN;
+                                            self.state = XmlDicomReadingState::OFF;
+                                        }
                                     }
                                 }
                             }
-                        },
+                        }
                         // If a "tbody" is started then update state so the next thing we expect
                         // are "tr" and cell data.
                         XmlDicomReadingState::InTable => {
@@ -246,95 +253,108 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                             if local_name == QName(b"tbody").into() {
                                 self.state = XmlDicomReadingState::InTableBody;
                             }
-                        },
+                        }
                         // If a "tr" has started then switch the state to the next expected cell.
                         XmlDicomReadingState::InTableBody => {
                             if local_name == QName(b"tr").into() {
+                                // New row, clear existing values.
+                                self.clear_next();
                                 match self.table {
                                     XmlDicomDefinitionTable::DicomElements
                                     | XmlDicomDefinitionTable::FileMetaElements
                                     | XmlDicomDefinitionTable::DirStructureElements => {
                                         // The first cell in these tables is the Tag number.
                                         self.state = XmlDicomReadingState::InDicomElementCell(
-                                            XmlDicomElementCell::Tag,
+                                            XmlDicomElementCell::RowStart,
                                         );
-                                    },
+                                    }
                                     XmlDicomDefinitionTable::Uids => {
                                         // The first cell in this table is the Value (actual UID).
                                         self.state = XmlDicomReadingState::InDicomUidCell(
-                                            XmlDicomUidCell::Value,
+                                            XmlDicomUidCell::RowStart,
                                         );
-                                    },
+                                    }
                                     // We're in an unknown state, bounce the state machine back out
                                     // to top-level. The rest of this table will be ignored but
                                     // that's probably the only reasonable thing to do.
-                                    _ => {
-                                        self.table = XmlDicomDefinitionTable::Unknown;
-                                        self.state = XmlDicomReadingState::Off;
-                                    },
+                                    XmlDicomDefinitionTable::UNKNOWN => {
+                                        self.table = XmlDicomDefinitionTable::UNKNOWN;
+                                        self.state = XmlDicomReadingState::OFF;
+                                    }
                                 }
                             }
-                        },
+                        }
                         // We've previously entered into a table structured for DICOM elements and
                         // should expect to find "td" elements.
                         XmlDicomReadingState::InDicomElementCell(element_cell) => {
                             if local_name == QName(b"td").into() {
                                 // Set the next expected cell to encounter based on the current.
                                 self.state = match element_cell {
+                                    XmlDicomElementCell::RowStart => {
+                                        XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::Tag,
+                                        )
+                                    }
                                     XmlDicomElementCell::Tag => {
                                         XmlDicomReadingState::InDicomElementCell(
                                             XmlDicomElementCell::Name,
                                         )
-                                    },
+                                    }
                                     XmlDicomElementCell::Name => {
                                         XmlDicomReadingState::InDicomElementCell(
                                             XmlDicomElementCell::Keyword,
                                         )
-                                    },
+                                    }
                                     XmlDicomElementCell::Keyword => {
                                         XmlDicomReadingState::InDicomElementCell(
                                             XmlDicomElementCell::VR,
                                         )
-                                    },
+                                    }
                                     XmlDicomElementCell::VR => {
                                         XmlDicomReadingState::InDicomElementCell(
                                             XmlDicomElementCell::VM,
                                         )
-                                    },
+                                    }
                                     XmlDicomElementCell::VM => {
                                         XmlDicomReadingState::InDicomElementCell(
                                             XmlDicomElementCell::Obs,
                                         )
-                                    },
-                                    // The last cell in the table, flip back to being in the table
-                                    // body so the next traversal would jump into the first cell
-                                    // for this structure again.
-                                    XmlDicomElementCell::Obs => XmlDicomReadingState::InTableBody,
+                                    }
+                                    XmlDicomElementCell::Obs => {
+                                        XmlDicomReadingState::InDicomElementCell(
+                                            XmlDicomElementCell::Tag,
+                                        )
+                                    }
                                 };
                             }
-                        },
+                        }
                         // We've previously entered into a table structured for DICOM UIDs.
                         XmlDicomReadingState::InDicomUidCell(uid_cell) => {
                             if local_name == QName(b"td").into() {
                                 self.state = match uid_cell {
+                                    XmlDicomUidCell::RowStart => {
+                                        XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Value)
+                                    }
                                     XmlDicomUidCell::Value => {
                                         XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Name)
-                                    },
-                                    XmlDicomUidCell::Name => {
+                                    }
+                                    XmlDicomUidCell::Name => XmlDicomReadingState::InDicomUidCell(
+                                        XmlDicomUidCell::Keyword,
+                                    ),
+                                    XmlDicomUidCell::Keyword => {
                                         XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Type)
-                                    },
+                                    }
                                     XmlDicomUidCell::Type => {
                                         XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Part)
-                                    },
-                                    // The last cell in the table, flip back to being in the table
-                                    // body so the next traversal would jump into the first cell
-                                    // for this structure again.
-                                    XmlDicomUidCell::Part => XmlDicomReadingState::InTableBody,
+                                    }
+                                    XmlDicomUidCell::Part => {
+                                        XmlDicomReadingState::InDicomUidCell(XmlDicomUidCell::Value)
+                                    }
                                 };
                             }
                         }
                     }
-                },
+                }
 
                 // Events for element-ends (e.g. "</tr>" and not "<tr>") are used to check if
                 // enough data was extracted and structured based on the expected format.
@@ -342,7 +362,7 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                     let local_name: LocalName = e.local_name();
                     match self.state {
                         // Unexpected state.
-                        XmlDicomReadingState::Off => {},
+                        XmlDicomReadingState::OFF => {}
 
                         _ => {
                             // If a "tr" element ended check to see if all necessary fields for a
@@ -368,24 +388,28 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                     match self.table {
                                         XmlDicomDefinitionTable::DicomElements => {
                                             return Some(Ok(XmlDicomDefinition::DicomElement(out)))
-                                        },
+                                        }
                                         XmlDicomDefinitionTable::FileMetaElements => {
                                             return Some(Ok(XmlDicomDefinition::FileMetaElement(
                                                 out,
                                             )))
-                                        },
+                                        }
                                         XmlDicomDefinitionTable::DirStructureElements => {
                                             return Some(Ok(
                                                 XmlDicomDefinition::DirStructureElement(out),
                                             ))
-                                        },
+                                        }
+                                        // All fields for dicom element filled but we're in UIDs
+                                        // table??
+                                        XmlDicomDefinitionTable::Uids => {}
                                         // Unexpected state.
-                                        _ => {}
+                                        XmlDicomDefinitionTable::UNKNOWN => {}
                                     }
                                 } else if self.is_next_uid_fully_read() {
                                     let out = XmlDicomUid {
                                         value: self.uid_value.take().unwrap(),
                                         name: self.uid_name.take().unwrap(),
+                                        keyword: self.uid_keyword.take(),
                                         uid_type: self.uid_type.take(),
                                         part: self.uid_part.take(),
                                     };
@@ -402,7 +426,9 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                         // The UID table lumps all UIDs together, but here the
                                         // Transfer Syntaxes are distinguished separately.
                                         XmlDicomDefinitionTable::Uids => {
-                                            if out.uid_type.as_ref()
+                                            if out
+                                                .uid_type
+                                                .as_ref()
                                                 .filter(|v| "Transfer Syntax".eq(*v))
                                                 .is_some()
                                             {
@@ -411,62 +437,96 @@ impl<R: BufRead> Iterator for XmlDicomDefinitionIterator<R> {
                                                 ));
                                             }
                                             return Some(Ok(XmlDicomDefinition::Uid(out)));
-                                        },
+                                        }
+                                        // All fields for UID filled in but we're in an elements
+                                        // table??
+                                        XmlDicomDefinitionTable::DicomElements
+                                        | XmlDicomDefinitionTable::FileMetaElements
+                                        | XmlDicomDefinitionTable::DirStructureElements => {}
                                         // Unexpected state.
-                                        _ => {}
+                                        XmlDicomDefinitionTable::UNKNOWN => {}
                                     }
+                                } else {
+                                    // If a row ended and not all fields were filled in then clear all
+                                    // the fields to avoid polluting the next row.
+                                    self.clear_next();
                                 }
-                                // If a row ended and not all fields were filled in then clear all
-                                // the fields to avoid polluting the next row.
-                                eprintln!("Bad row? {:?} - {:?}", self.element_tag, self.element_name);
-                                self.clear_next();
                             } else if local_name == QName(b"tbody").into() {
                                 // If the "table" element ended bump the state back out into
                                 // detecting the next table being parsed.
-                                self.state = XmlDicomReadingState::Off;
-                                self.table = XmlDicomDefinitionTable::Unknown;
+                                self.state = XmlDicomReadingState::OFF;
+                                self.table = XmlDicomDefinitionTable::UNKNOWN;
+                                self.clear_next();
                             }
                         }
                     }
-                },
+                }
 
                 // When Text content occurs the data is extracted and set based on the current
                 // state machine.
                 Ok(Event::Text(data)) => match self.state {
                     XmlDicomReadingState::InDicomElementCell(element_cell) => match element_cell {
                         XmlDicomElementCell::Tag => {
-                            self.element_tag = self.parse_text_bytes_as_u32(&data)
-                        },
+                            if self.element_tag.is_none() {
+                                self.element_tag = self.parse_text_bytes_as_u32(&data)
+                            }
+                        }
                         XmlDicomElementCell::Name => {
-                            self.element_name = Some(self.parse_text_bytes(&data))
-                        },
+                            if self.element_name.is_none() {
+                                self.element_name = Some(self.parse_text_bytes(&data))
+                            }
+                        }
                         XmlDicomElementCell::Keyword => {
-                            self.element_keyword = Some(self.parse_text_bytes(&data))
-                        },
+                            if self.element_keyword.is_none() {
+                                self.element_keyword = Some(self.parse_text_bytes(&data))
+                            }
+                        }
                         XmlDicomElementCell::VR => {
-                            self.element_vr = Some(self.parse_text_bytes(&data))
-                        },
+                            if self.element_vr.is_none() {
+                                self.element_vr = Some(self.parse_text_bytes(&data))
+                            }
+                        }
                         XmlDicomElementCell::VM => {
-                            self.element_vm = Some(self.parse_text_bytes(&data))
-                        },
+                            if self.element_vm.is_none() {
+                                self.element_vm = Some(self.parse_text_bytes(&data))
+                            }
+                        }
                         XmlDicomElementCell::Obs => {
-                            self.element_obs = Some(self.parse_text_bytes(&data))
-                        },
+                            if self.element_obs.is_none() {
+                                self.element_obs = Some(self.parse_text_bytes(&data))
+                            }
+                        }
+                        _ => {}
                     },
                     XmlDicomReadingState::InDicomUidCell(uid_cell) => match uid_cell {
                         XmlDicomUidCell::Value => {
-                            self.uid_value = Some(self.parse_text_bytes(&data))
-                        },
-                        XmlDicomUidCell::Name => self.uid_name = Some(self.parse_text_bytes(&data)),
-                        XmlDicomUidCell::Type => self.uid_type = Some(self.parse_text_bytes(&data)),
-                        XmlDicomUidCell::Part => self.uid_part = Some(self.parse_text_bytes(&data)),
+                            if self.uid_value.is_none() {
+                                self.uid_value = Some(self.parse_text_bytes(&data))
+                            }
+                        }
+                        XmlDicomUidCell::Name => {
+                            if self.uid_name.is_none() {
+                                self.uid_name = Some(self.parse_text_bytes(&data))
+                            }
+                        }
+                        XmlDicomUidCell::Type => {
+                            if self.uid_type.is_none() {
+                                self.uid_type = Some(self.parse_text_bytes(&data))
+                            }
+                        }
+                        XmlDicomUidCell::Part => {
+                            if self.uid_part.is_none() {
+                                self.uid_part = Some(self.parse_text_bytes(&data))
+                            }
+                        }
+                        _ => {}
                     },
-                    _ => {},
+                    _ => {}
                 },
                 Ok(Event::Eof { .. }) => {
                     break;
-                },
-                Ok(_) => {},
+                }
+                Ok(_) => {}
                 Err(e) => {
                     return Some(Err(e));
                 }
