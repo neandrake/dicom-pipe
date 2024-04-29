@@ -1,7 +1,7 @@
 [package]
 name = "dcmpipe_lib"
 version = "0.1.0"
-authors = ["neandrake <die.drachen@gmail.com>"]
+authors = ["Christopher Speck <die.drachen@gmail.com>"]
 description = "A library for reading and writing the DICOM format."
 repository = "https://github.com/neandrake/dicom-pipe"
 license = "Apache-2.0"
