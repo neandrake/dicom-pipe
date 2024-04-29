@@ -403,34 +403,56 @@ impl DicomElement {
     /// Parses the value for this element as an unsigned 32bit integer
     /// Associated VRs: UL
     pub fn parse_u32(&self) -> Result<u32, Error> {
-        if self.data.len() < 4 {
-            return Err(Error::new(ErrorKind::InvalidData, "Unable to parse u32"));
-        }
+        self.parse_u32s()?
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse u32"))
+    }
 
+    /// Parses the value for this element as a list of unsigned 32bit integer values
+    /// Associated VRs: UL, OL
+    pub fn parse_u32s(&self) -> Result<Vec<u32>, Error> {
         let mut buf: [u8; 4] = [0; 4];
-        buf.copy_from_slice(&self.data[0..4]);
-        let result: u32 = if self.ts.is_big_endian() {
-            u32::from_be_bytes(buf)
-        } else {
-            u32::from_le_bytes(buf)
-        };
+        let num_bytes: usize = self.data.len();
+        let num_u32s: usize = num_bytes / 4;
+        let mut result: Vec<u32> = Vec::with_capacity(num_u32s);
+        for i in 0..num_u32s {
+            buf.copy_from_slice(&self.data[i..(i + 4)]);
+            let val: u32 = if self.ts.is_big_endian() {
+                u32::from_be_bytes(buf)
+            } else {
+                u32::from_le_bytes(buf)
+            };
+            result.push(val);
+        }
         Ok(result)
     }
 
     /// Parses the value for this element as an unsigned 16bit integer
     /// Associated VRs: US
     pub fn parse_u16(&self) -> Result<u16, Error> {
-        if self.data.len() < 2 {
-            return Err(Error::new(ErrorKind::InvalidData, "Unable to parse u16"));
-        }
+        self.parse_u16s()?
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Unable to parse u16"))
+    }
 
+    /// Parses the value for this element as a list of unsigned 16bit integer values
+    /// Associated VRs: US, OW
+    pub fn parse_u16s(&self) -> Result<Vec<u16>, Error> {
         let mut buf: [u8; 2] = [0; 2];
-        buf.copy_from_slice(&self.data[0..2]);
-        let result: u16 = if self.ts.is_big_endian() {
-            u16::from_be_bytes(buf)
-        } else {
-            u16::from_le_bytes(buf)
-        };
+        let num_bytes: usize = self.data.len();
+        let num_u16s: usize = num_bytes / 2;
+        let mut result: Vec<u16> = Vec::with_capacity(num_u16s);
+        for i in 0..num_u16s {
+            buf.copy_from_slice(&self.data[i..(i + 2)]);
+            let val: u16 = if self.ts.is_big_endian() {
+                u16::from_be_bytes(buf)
+            } else {
+                u16::from_le_bytes(buf)
+            };
+            result.push(val);
+        }
         Ok(result)
     }
 }
