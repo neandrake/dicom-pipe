@@ -9,6 +9,8 @@ use crate::defn::dcmdict::DicomDictionary;
 use crate::defn::tag::{TagNode, TagPath};
 use crate::defn::ts::TSRef;
 
+use super::write::error::WriteError;
+
 /// Trait for a dicom node which contains child elements.
 pub trait DicomNode {
     /// Get the number of child node if this is a root or sequence-like node.
@@ -45,6 +47,26 @@ pub trait DicomNode {
             target = target.and_then(|parent| parent.get_child_by_tagnode(node));
         }
         target
+    }
+
+    /// Flattens this object into an ordered list of elements as they would appear in a dataset.
+    fn flatten(&self) -> Result<Vec<&DicomElement>, WriteError> {
+        // TODO: Can this instead return an iterator?
+
+        let mut elements: Vec<&DicomElement> = Vec::new();
+
+        // List items + contents first, as SQ objects will include both items for its contents as
+        // well as the sequence delimiter as a child node.
+        for dcmobj in self.iter_items() {
+            elements.push(dcmobj.get_element());
+            elements.append(&mut (dcmobj.flatten()?));
+        }
+        for (_tag, dcmobj) in self.iter_child_nodes() {
+            elements.push(dcmobj.get_element());
+            elements.append(&mut (dcmobj.flatten()?));
+        }
+
+        Ok(elements)
     }
 }
 
@@ -89,6 +111,7 @@ impl<'dict> DicomRoot<'dict> {
     pub fn get_dictionary(&self) -> &'dict dyn DicomDictionary {
         self.dictionary
     }
+
 }
 
 impl<'dict> DicomNode for DicomRoot<'dict> {

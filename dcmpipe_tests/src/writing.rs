@@ -1,8 +1,10 @@
-use dcmpipe_dict::dict::{tags, transfer_syntaxes as ts, uids};
+use std::{fs::File, io::Read};
+
+use dcmpipe_dict::dict::{tags, transfer_syntaxes as ts, uids, stdlookup::STANDARD_DICOM_DICTIONARY};
 use dcmpipe_lib::{
     core::{
         dcmelement::{DicomElement, RawValue},
-        write::{error::WriteError, writer::Writer},
+        write::{error::WriteError, writer::Writer}, read::{ParserBuilder, util::parse_into_object},
     },
     defn::vr,
 };
@@ -13,7 +15,7 @@ use crate::mockdata;
 /// as `mockdata::STANDARD_HEADER`.
 #[test]
 fn test_write_mock_standard_header() -> Result<(), WriteError> {
-    let mut writer: Writer<Vec<u8>> = Writer::new(Vec::new());
+    let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
     writer.set_ts(&ts::ExplicitVRLittleEndian);
 
     let mut elements: Vec<DicomElement> = Vec::new();
@@ -70,5 +72,31 @@ fn test_write_mock_standard_header() -> Result<(), WriteError> {
 
     let bytes: Vec<u8> = writer.into_dataset()?;
     assert_eq!(bytes, mockdata::STANDARD_HEADER);
+    Ok(())
+}
+
+#[test]
+pub fn test_write_same_object() -> Result<(), WriteError> {
+    let file_path: &str = "./fixtures/gdcm/gdcmConformanceTests/RTStruct_VRDSAsVRUN.dcm";
+    let file: File = File::open(file_path)?;
+    let file_size = file.metadata()?.len();
+    let mut parser = ParserBuilder::default()
+        .dictionary(&STANDARD_DICOM_DICTIONARY)
+        .build(file);
+
+    let dcmroot = parse_into_object(&mut parser)?.expect("Parse file into DicomObject");
+
+    let mut writer: Writer<Vec<u8>> = Writer::to_file(Vec::new());
+    writer.set_ts(parser.get_ts());
+    writer.write_dcmroot(&dcmroot)?;
+    let written_bytes: Vec<u8> = writer.into_dataset()?;
+
+    // Read all bytes into memory.
+    let mut file_bytes: Vec<u8> = Vec::with_capacity(file_size as usize);
+    let mut file: File = File::open(file_path)?;
+    file.read_to_end(&mut file_bytes)?;
+
+    assert_eq!(written_bytes, file_bytes);
+
     Ok(())
 }

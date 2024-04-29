@@ -2,6 +2,7 @@ use std::io::Write;
 
 use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
 use crate::core::dcmelement::{DicomElement, RawValue};
+use crate::core::dcmobject::{DicomRoot, DicomNode};
 use crate::core::read::ParseError;
 use crate::core::write::ds::dataset::Dataset;
 use crate::core::write::error::WriteError;
@@ -39,7 +40,8 @@ pub struct Writer<DatasetType: Write> {
 }
 
 impl<DatasetType: Write> Writer<DatasetType> {
-    pub fn new(dataset: DatasetType) -> Writer<DatasetType> {
+    /// Create a writer destined to a file, using default file preamble.
+    pub fn to_file(dataset: DatasetType) -> Writer<DatasetType> {
         Writer {
             dataset: Dataset::new(dataset, 8 * 1024),
             state: WriteState::Preamble,
@@ -90,6 +92,11 @@ impl<DatasetType: Write> Writer<DatasetType> {
         self.dataset
             .into_inner()
             .map_err(|err| WriteError::IOError { source: err })
+    }
+
+    pub fn write_dcmroot(&mut self, dcmroot: &DicomRoot) -> Result<usize> {
+        let elements = dcmroot.flatten()?;
+        self.write_elements(elements.into_iter())
     }
 
     pub fn write_elements<'a, E>(&mut self, elements: E) -> Result<usize>
@@ -195,14 +202,14 @@ impl<DatasetType: Write> Writer<DatasetType> {
 
         if element.get_ts().is_big_endian() {
             bytes_written +=
-                dataset.write(&u16::to_be_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
+                dataset.write(&u16::to_be_bytes((element.get_tag() >> 16 & 0x0000_FFFF) as u16))?;
             bytes_written +=
-                dataset.write(&u16::to_be_bytes((element.get_tag() & 0x00FF) as u16))?;
+                dataset.write(&u16::to_be_bytes((element.get_tag() & 0x0000_FFFF) as u16))?;
         } else {
             bytes_written +=
-                dataset.write(&u16::to_le_bytes((element.get_tag() >> 16 & 0x00FF) as u16))?;
+                dataset.write(&u16::to_le_bytes((element.get_tag() >> 16 & 0x0000_FFFF) as u16))?;
             bytes_written +=
-                dataset.write(&u16::to_le_bytes((element.get_tag() & 0x00FF) as u16))?;
+                dataset.write(&u16::to_le_bytes((element.get_tag() & 0x0000_FFFF) as u16))?;
         }
 
         Ok(bytes_written)
@@ -252,7 +259,7 @@ impl<DatasetType: Write> Writer<DatasetType> {
                         bytes_written += dataset.write(&length.to_le_bytes())?;
                     }
                 } else {
-                    let length: u16 = (length & 0x00FF) as u16;
+                    let length: u16 = (length & 0x0000_FFFF) as u16;
 
                     if element.get_ts().is_big_endian() {
                         bytes_written += dataset.write(&length.to_be_bytes())?;
