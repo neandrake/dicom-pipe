@@ -81,33 +81,25 @@ fn fmt_string_value<Endian: ByteOrder>(elem: &mut DicomElement, cs: CSRef) -> Re
     }
 
     let mut sep: &str = ", ";
-    let mut str_vals: Vec<String> = vec![];
+    let mut str_vals: Vec<String> = Vec::new();
     if elem.vr == &vr::AT {
         str_vals.push(Tag::format_tag_to_display(elem.parse_attribute::<Endian>()?));
-    } else if elem.vr == &vr::FL {
-        str_vals.push(format!("{}", elem.parse_f32::<Endian>()?));
-    } else if elem.vr == &vr::OF {
+    } else if elem.vr == &vr::FL || elem.vr == &vr::OF {
         sep = " / ";
         elem.parse_f32s::<Endian>()?.into_iter()
-            .map(|val: f32| format!("{}", val))
+            .map(|val: f32| format!("{:.2}", val))
             .for_each(|val: String| str_vals.push(val));
-    } else if elem.vr == &vr::FD {
-        str_vals.push(format!("{}", elem.parse_f64::<Endian>()?));
-    } else if elem.vr == &vr::OD {
+    } else if elem.vr == &vr::FD || elem.vr == &vr::OD {
         sep = " / ";
         elem.parse_f64s::<Endian>()?.into_iter()
-            .map(|val: f64| format!("{}", val))
+            .map(|val: f64| format!("{:.2}", val))
             .for_each(|val: String| str_vals.push(val));
-    } else if elem.vr == &vr::SS {
-        str_vals.push(format!("{}", elem.parse_i16::<Endian>()?));
-    } else if elem.vr == &vr::OW {
+    } else if elem.vr == &vr::SS || elem.vr == &vr::OW {
         sep = " / ";
         elem.parse_i16s::<Endian>()?.into_iter()
             .map(|val: i16| format!("{}", val))
             .for_each(|val: String| str_vals.push(val));
-    } else if elem.vr == &vr::SL {
-        str_vals.push(format!("{}", elem.parse_i32::<Endian>()?));
-    } else if elem.vr == &vr::OL {
+    } else if elem.vr == &vr::SL || elem.vr == &vr::OL {
         sep = " / ";
         elem.parse_i32s::<Endian>()?.into_iter()
             .map(|val: i32| format!("{}", val))
