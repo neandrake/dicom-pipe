@@ -21,19 +21,13 @@ use std::{
 
 use crate::{
     core::{
-        charset::{lookup_charset, DEFAULT_CHARACTER_SET},
-        dcmelement::DicomElement,
+        charset::CSRef,
         dcmobject::DicomRoot,
-        defn::{
-            constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
-            uid::UIDRef, vr::UI,
-        },
-        read::Parser,
+        defn::{tag::Tag, ts::TSRef, uid::UIDRef, vr::UI},
         RawValue,
     },
     dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{QueryRetrieveLevel, SOPClassUID, SOPInstanceUID, SpecificCharacterSet},
+        tags::QueryRetrieveLevel,
         uids::{
             DICOMApplicationContextName, PatientRootQueryRetrieveInformationModelFIND,
             PatientRootQueryRetrieveInformationModelMOVE,
@@ -43,18 +37,18 @@ use crate::{
     },
     dimse::{
         assoc::{CommonAssoc, DimseMsg, QueryLevel},
-        commands::{messages::CommandMessage, CommandPriority},
+        commands::messages::CommandMessage,
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
-                AbstractSyntaxItem, ApplicationContextItem, AssocACPresentationContext, AssocRQ,
-                AssocRQPresentationContext, ReleaseRQ, TransferSyntaxItem, UserInformationItem,
+                AbstractSyntaxItem, ApplicationContextItem, AssocRQ, AssocRQPresentationContext,
+                ReleaseRQ, TransferSyntaxItem, UserInformationItem,
             },
-            pduiter::{CommandIter, PresDataIter},
+            pduiter::CommandIter,
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
             Pdu, PduType, UserPdu,
         },
-        AeTitle, Syntax,
+        AeTitle,
     },
 };
 
@@ -63,7 +57,6 @@ pub struct UserAssoc {
     service_ae: String,
     ctx_id_counter: u8,
     msg_id_counter: u16,
-    requested_pres_ctx: HashMap<UIDRef, AssocRQPresentationContext>,
 }
 
 impl UserAssoc {
@@ -73,44 +66,9 @@ impl UserAssoc {
         &self.common
     }
 
-    /// Retrieve the accepted presentation context and its negotiated transfer syntax, by the given
-    /// abstract syntax.
-    ///
-    /// # Errors
-    /// - `AssocError` may occur if the requested or negotiated presentation context cannot be
-    /// resolved, or if a known transfer syntax for it cannot be resolved.
-    pub fn get_rq_pres_ctx_and_ts_by_ab(
-        &self,
-        ab: UIDRef,
-    ) -> Result<(&AssocACPresentationContext, TSRef), AssocError> {
-        let Some(pres_ctx) = self.requested_pres_ctx.get(ab) else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Requested Presentation Context not found by abstract syntax: {}",
-                ab.uid()
-            ))));
-        };
-
-        let Some(pres_ctx) = self.common.negotiated_pres_ctx.get(&pres_ctx.ctx_id()) else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Negotiated Presentation Context not found by ctx_id: {}",
-                pres_ctx.ctx_id()
-            ))));
-        };
-
-        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
-            .ok()
-            .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
-                    "Failed to resolve transfer syntax".to_string(),
-                ))
-            })?;
-
-        Ok((pres_ctx, ts))
-    }
-
+    /// Produces the next message ID that should be used for the `MessageID` field in requests.
     #[must_use]
-    fn next_msg_id(&mut self) -> u16 {
+    pub fn next_msg_id(&mut self) -> u16 {
         let msg_id = self.msg_id_counter;
         self.msg_id_counter += 1;
         msg_id
@@ -150,6 +108,8 @@ impl UserAssoc {
             .map(|ts| TransferSyntaxItem::new(ts.uid().uid().as_bytes().to_vec()))
             .collect::<Vec<TransferSyntaxItem>>();
 
+        let mut ab_by_ctxid: HashMap<u8, UIDRef> =
+            HashMap::with_capacity(self.common.supported_abs.len());
         let mut pres_ctxs: Vec<AssocRQPresentationContext> =
             Vec::with_capacity(self.common.supported_abs.len());
         for ab in &self.common.supported_abs {
@@ -159,7 +119,7 @@ impl UserAssoc {
             let abstract_syntax = AbstractSyntaxItem::new(ab.uid().as_bytes().to_vec());
             let pc =
                 AssocRQPresentationContext::new(ctx_id, abstract_syntax, transfer_syntaxes.clone());
-            self.requested_pres_ctx.insert(ab, pc.clone());
+            ab_by_ctxid.insert(ctx_id, *ab);
             pres_ctxs.push(pc);
         }
 
@@ -189,9 +149,12 @@ impl UserAssoc {
 
         for pres_ctx in ac.pres_ctxs() {
             if pres_ctx.is_accepted() {
+                let Some(ab_uid) = ab_by_ctxid.get(&pres_ctx.ctx_id()) else {
+                    continue;
+                };
                 self.common
                     .negotiated_pres_ctx
-                    .insert(pres_ctx.ctx_id(), pres_ctx.to_owned());
+                    .insert(pres_ctx.ctx_id(), (pres_ctx.to_owned(), ab_uid));
             }
         }
 
@@ -236,7 +199,9 @@ impl UserAssoc {
         mut reader: R,
         mut writer: W,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        let (pres_ctx, _ts) = self.get_rq_pres_ctx_and_ts_by_ab(&VerificationSOPClass)?;
+        let (pres_ctx, _ts) = self
+            .common
+            .get_rq_pres_ctx_and_ts_by_ab(&VerificationSOPClass)?;
 
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
@@ -284,13 +249,13 @@ impl UserAssoc {
             QueryLevel::Patient => &PatientRootQueryRetrieveInformationModelFIND,
             _ => &StudyRootQueryRetrieveInformationModelFIND,
         };
-        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+        let (pres_ctx, ts) = self.common.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
 
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
         let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
 
-        let mut dcm_root = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
+        let mut dcm_root = DicomRoot::new_empty(ts, CSRef::default());
         dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
         for (tag, val) in dcm_query {
             dcm_root.add_child_with_val(tag, val);
@@ -304,106 +269,6 @@ impl UserAssoc {
             ts,
             self.common.get_pdu_max_rcv_size(),
         ))
-    }
-
-    /// Issue a C-STORE request.
-    ///
-    /// # Errors
-    /// - I/O errors may occur while using the reader/writer.
-    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
-    pub fn c_store_req<PR: Read, R: Read, W: Write>(
-        &mut self,
-        mut reader: R,
-        mut writer: W,
-        parser: Parser<'_, PR>,
-        origin_ae: &str,
-        orig_msg_id: u16,
-    ) -> Result<Option<DimseMsg>, AssocError> {
-        let mut parser = parser
-            .filter_map(Result::ok)
-            // Do not transfer any beginning FileMeta elements.
-            .skip_while(|e| e.tag() <= FILE_META_GROUP_END);
-
-        let mut spec_char_set: Option<String> = None;
-        let mut sop_class_uid: Option<String> = None;
-        let mut sop_inst_uid: Option<String> = None;
-        let mut header_elems: Vec<DicomElement> = Vec::new();
-        for elem in parser.by_ref() {
-            let tag = elem.tag();
-            if tag == SpecificCharacterSet.tag() {
-                spec_char_set = elem
-                    .parse_value()
-                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-                    .string()
-                    .cloned();
-            } else if tag == SOPClassUID.tag() {
-                sop_class_uid = elem
-                    .parse_value()
-                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-                    .string()
-                    .cloned();
-            } else if tag == SOPInstanceUID.tag() {
-                sop_inst_uid = elem
-                    .parse_value()
-                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-                    .string()
-                    .cloned();
-            }
-            header_elems.push(elem);
-            if tag >= SOPInstanceUID.tag() {
-                break;
-            }
-        }
-        let stitched_elems = header_elems.into_iter().chain(parser);
-
-        let spec_char_set = spec_char_set
-            .and_then(|s| lookup_charset(&s))
-            .unwrap_or(DEFAULT_CHARACTER_SET);
-        let sop_class_uid = sop_class_uid
-            .and_then(|s| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&s))
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
-                    "SOP Instance to send is missing SOPClassUID".to_owned(),
-                ))
-            })?;
-        let sop_inst_uid = sop_inst_uid.ok_or_else(|| {
-            AssocError::ab_failure(DimseError::GeneralError(
-                "SOP Instance to send is missing SOPInstanceUID".to_owned(),
-            ))
-        })?;
-
-        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
-        let ctx_id = pres_ctx.ctx_id();
-        let msg_id = self.next_msg_id();
-        let priority = CommandPriority::Medium;
-        let cmd = CommandMessage::c_store_req(
-            ctx_id,
-            msg_id,
-            &priority,
-            sop_class_uid.uid(),
-            &sop_inst_uid,
-            origin_ae,
-            orig_msg_id,
-        );
-        self.common.write_command(&cmd, &mut writer)?;
-
-        let pdi_iter = PresDataIter::new(
-            ctx_id,
-            self.common.get_pdu_max_snd_size(),
-            false,
-            stitched_elems,
-            ts,
-            spec_char_set,
-        );
-        for pdi in pdi_iter {
-            match pdi {
-                Ok(pdi) => CommonAssoc::write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
-                Err(e) => return Err(AssocError::ab_failure(e)),
-            }
-        }
-
-        let rsp = self.common.next_msg(&mut reader, &mut writer)?;
-        Ok(Some(rsp))
     }
 
     /// Issue a C-MOVE request.
@@ -423,12 +288,12 @@ impl UserAssoc {
         } else {
             &StudyRootQueryRetrieveInformationModelMOVE
         };
-        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+        let (pres_ctx, ts) = self.common.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
         let ctx_id = pres_ctx.ctx_id();
         let msg_id = self.next_msg_id();
         let cmd = CommandMessage::c_move_req(ctx_id, msg_id, sop_class_uid.uid());
 
-        let mut dcm_root = DicomRoot::new_empty(ts, DEFAULT_CHARACTER_SET);
+        let mut dcm_root = DicomRoot::new_empty(ts, CSRef::default());
         dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
         for (tag, val) in dcm_query {
             dcm_root.add_child_with_val(tag, val);
@@ -537,7 +402,6 @@ impl UserAssocBuilder {
             service_ae: self.service_ae,
             ctx_id_counter: 1,
             msg_id_counter: 0,
-            requested_pres_ctx: HashMap::with_capacity(num_abs),
         }
     }
 }

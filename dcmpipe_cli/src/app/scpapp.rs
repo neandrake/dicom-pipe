@@ -15,7 +15,8 @@
 */
 
 use crate::{
-    app::handle_assoc_result, app::CommandApplication, args::SvcProviderArgs,
+    app::{handle_assoc_result, indexapp::DicomDoc, CommandApplication},
+    args::SvcProviderArgs,
     threadpool::ThreadPool,
 };
 use anyhow::Result;
@@ -36,8 +37,8 @@ use dcmpipe_lib::{
             scp::{ServiceAssoc, ServiceAssocBuilder},
             DimseMsg,
         },
-        commands::CommandType,
-        error::AssocError,
+        commands::{messages::CommandMessage, CommandStatus, CommandType, SubOpProgress},
+        error::{AssocError, DimseError},
         pdus::PduType,
     },
 };
@@ -45,6 +46,7 @@ use std::{
     collections::{HashMap, HashSet},
     io::{BufReader, BufWriter, Read, Write},
     net::TcpListener,
+    path::PathBuf,
 };
 
 mod cecho;
@@ -130,6 +132,68 @@ impl CommandApplication for SvcProviderApp {
     }
 }
 
+/// Convenience to shorten `CommandStatus`.
+pub(crate) type Stat = CommandStatus;
+
+/// Convenience to create `Err(AssocError::ab_failure(DimseError::GeneralError(msg)))`.
+pub(crate) fn fail(msg: String) -> Result<(), AssocError> {
+    Err(AssocError::ab_failure(DimseError::GeneralError(msg)))
+}
+
+/// Convenience to create a `SubOpProgress`.
+pub(crate) fn prog(remaining: u16, completed: u16, failed: u16, warning: u16) -> SubOpProgress {
+    SubOpProgress(remaining, completed, failed, warning)
+}
+
+/// Assists in producing progress/status responses to an initial request, particularly for C-MOVE
+/// and C-GET.
+pub(crate) struct StatusMsgBuilder {
+    for_cmove: bool,
+    ctx_id: u8,
+    msg_id: u16,
+    aff_sop_class: String,
+}
+
+impl StatusMsgBuilder {
+    pub(crate) fn new(for_cmove: bool, ctx_id: u8, msg_id: u16, aff_sop_class: String) -> Self {
+        Self {
+            for_cmove,
+            ctx_id,
+            msg_id,
+            aff_sop_class,
+        }
+    }
+
+    pub(crate) fn msg(&self, status: &Stat, progress: &SubOpProgress) -> CommandMessage {
+        // TODO: Also populate &ErrorComment and &OffendingElement.
+        if self.for_cmove {
+            self.mv_msg(status, progress)
+        } else {
+            self.get_msg(status, progress)
+        }
+    }
+
+    fn mv_msg(&self, status: &Stat, progress: &SubOpProgress) -> CommandMessage {
+        CommandMessage::c_move_rsp(
+            self.ctx_id,
+            self.msg_id,
+            &self.aff_sop_class,
+            status,
+            progress,
+        )
+    }
+
+    fn get_msg(&self, status: &Stat, progress: &SubOpProgress) -> CommandMessage {
+        CommandMessage::c_get_rsp(
+            self.ctx_id,
+            self.msg_id,
+            &self.aff_sop_class,
+            status,
+            progress,
+        )
+    }
+}
+
 struct AssociationDevice<R: Read, W: Write> {
     assoc: ServiceAssoc,
     reader: R,
@@ -197,5 +261,68 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 println!("[info ->]: {:?}", CommandType::CGetRsp);
             }
         }
+    }
+
+    /// Flat-maps the search results from UID/Key -> Series to UID/Key -> Files.
+    pub(crate) fn resolve_to_files(
+        group_map: HashMap<String, Vec<DicomDoc>>,
+    ) -> HashMap<String, Vec<PathBuf>> {
+        let mut path_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
+        for (group_id, docs) in group_map {
+            let paths = docs
+                .iter()
+                .filter_map(|d| {
+                    d.doc()
+                        .get_document("metadata")
+                        .and_then(|m| m.get_array("files"))
+                        .ok()
+                })
+                .flatten()
+                .filter_map(|b| b.as_str())
+                .map(PathBuf::from)
+                .collect::<Vec<PathBuf>>();
+            path_map.insert(group_id, paths);
+        }
+        path_map
+    }
+
+    /// Inspects the response of the C-STORE for errors, reporting error progress to C-MOVE
+    /// initiator and returning a `Result::Err`.
+    pub(crate) fn interpret_cstore_rsp(
+        &mut self,
+        store_rsp: Result<Option<DimseMsg>, AssocError>,
+        stat_rpt: &StatusMsgBuilder,
+        progress: &SubOpProgress,
+    ) -> Result<(), AssocError> {
+        let cmd_rsp = match store_rsp {
+            Ok(Some(DimseMsg::Cmd(cmd))) => cmd,
+            Ok(Some(rp)) => {
+                self.assoc
+                    .common()
+                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                return fail(format!("Sub-operation C-STORE failed: {rp:?}"));
+            }
+            Ok(None) => {
+                self.assoc
+                    .common()
+                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                return fail("Sub-operation C-STORE failed: No response from AE".to_owned());
+            }
+            Err(e) => {
+                self.assoc
+                    .common()
+                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                return Err(e);
+            }
+        };
+
+        if !cmd_rsp.status().is_success() {
+            self.assoc
+                .common()
+                .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+            return fail(format!("Sub-operation C-STORE failed: {cmd_rsp:?}"));
+        }
+
+        Ok(())
     }
 }

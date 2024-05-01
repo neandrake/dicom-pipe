@@ -19,7 +19,7 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
-use crate::core::charset::{CSRef, DEFAULT_CHARACTER_SET};
+use crate::core::charset::CSRef;
 
 /// The BACKSLASH used to delimit multi-value character string values, `\`
 pub const CS_SEPARATOR_BYTE: u8 = 0x5C;
@@ -196,7 +196,7 @@ impl VR {
         if self.decode_text_with_replaced_cs {
             return cs;
         }
-        DEFAULT_CHARACTER_SET
+        CSRef::default()
     }
 }
 

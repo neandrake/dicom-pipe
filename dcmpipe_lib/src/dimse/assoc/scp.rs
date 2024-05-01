@@ -21,7 +21,7 @@ use std::{
 
 use crate::{
     core::{
-        charset::DEFAULT_CHARACTER_SET,
+        charset::CSRef,
         defn::{dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef},
     },
     dict::{stdlookup::STANDARD_DICOM_DICTIONARY, uids::DICOMApplicationContextName},
@@ -89,16 +89,19 @@ impl ServiceAssoc {
             Err(e) => return Err(e),
         };
 
-        let assoc_ac = match self.validate_assoc_rq(&rq) {
+        let (assoc_ac, agreed_abs) = match self.validate_assoc_rq(&rq) {
             Ok(rq) => rq,
             Err(e) => return Err(e),
         };
 
         for pres_ctx in assoc_ac.pres_ctxs() {
             if pres_ctx.is_accepted() {
+                let Some(ab) = agreed_abs.get(&pres_ctx.ctx_id()) else {
+                    continue;
+                };
                 self.common
                     .negotiated_pres_ctx
-                    .insert(pres_ctx.ctx_id(), pres_ctx.to_owned());
+                    .insert(pres_ctx.ctx_id(), (pres_ctx.to_owned(), ab));
             }
         }
 
@@ -117,7 +120,10 @@ impl ServiceAssoc {
     /// # Errors
     /// - If the result of the request is to reject or abort, those are propagated as an
     /// `AssocError`.
-    fn validate_assoc_rq(&mut self, rq: &AssocRQ) -> Result<AssocAC, AssocError> {
+    fn validate_assoc_rq(
+        &mut self,
+        rq: &AssocRQ,
+    ) -> Result<(AssocAC, HashMap<u8, UIDRef>), AssocError> {
         Self::validate_app_ctx(rq)?;
 
         let host_ae = self.common.this_ae.trim();
@@ -127,8 +133,8 @@ impl ServiceAssoc {
 
         // Process the requested presentation contexts, confirming supported transfer syntaxes and
         // abstract syntaxes.
-        let mut agreed_abs: HashSet<UIDRef> =
-            HashSet::with_capacity(self.common.supported_abs().len());
+        let mut agreed_abs: HashMap<u8, UIDRef> =
+            HashMap::with_capacity(self.common.supported_abs().len());
         let mut rsp_pres_ctx: Vec<AssocACPresentationContext> =
             Vec::with_capacity(rq.pres_ctxs().len());
         for req_pres_ctx in rq.pres_ctxs() {
@@ -164,7 +170,7 @@ impl ServiceAssoc {
                 continue;
             };
 
-            agreed_abs.insert(ab);
+            agreed_abs.insert(req_pres_ctx.ctx_id(), ab);
 
             let acc_pres_ctx = AssocACPresentationContext::new(
                 req_pres_ctx.ctx_id(),
@@ -182,13 +188,16 @@ impl ServiceAssoc {
         let mut accepted_user_data: Vec<UserPdu> = self.common.this_user_data.clone();
         accepted_user_data.append(&mut Self::validate_roles(rq, &agreed_abs));
 
-        Ok(AssocAC::new(
-            rq.called_ae().to_owned(),
-            rq.calling_ae().to_owned(),
-            rq.reserved_3().to_owned(),
-            rq.app_ctx().to_owned(),
-            rsp_pres_ctx,
-            UserInformationItem::new(accepted_user_data),
+        Ok((
+            AssocAC::new(
+                rq.called_ae().to_owned(),
+                rq.calling_ae().to_owned(),
+                rq.reserved_3().to_owned(),
+                rq.app_ctx().to_owned(),
+                rsp_pres_ctx,
+                UserInformationItem::new(accepted_user_data),
+            ),
+            agreed_abs,
         ))
     }
 
@@ -226,7 +235,7 @@ impl ServiceAssoc {
         host_ae: &str,
         accepted_calling: &HashMap<String, String>,
     ) -> Result<(), AssocError> {
-        let called_ae = DEFAULT_CHARACTER_SET
+        let called_ae = CSRef::default()
             .decode(rq.called_ae())
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::CharsetError(e)))?;
@@ -236,7 +245,7 @@ impl ServiceAssoc {
             )));
         }
 
-        let calling_ae = DEFAULT_CHARACTER_SET
+        let calling_ae = CSRef::default()
             .decode(rq.calling_ae())
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::from(e)))?;
@@ -251,7 +260,7 @@ impl ServiceAssoc {
 
     /// Inspects the incoming requested roles to confirm it indicates the other SCU is acting as
     /// user and not provider, as well as for an accepted abstract syntax.
-    fn validate_roles(rq: &AssocRQ, agreed_abs: &HashSet<UIDRef>) -> Vec<UserPdu> {
+    fn validate_roles(rq: &AssocRQ, agreed_abs: &HashMap<u8, UIDRef>) -> Vec<UserPdu> {
         let mut accepted_user_data: Vec<UserPdu> = Vec::new();
         for user_pdu in rq.user_info().user_data() {
             if let UserPdu::RoleSelectionItem(role) = user_pdu {
@@ -262,7 +271,7 @@ impl ServiceAssoc {
                     .ok()
                     .and_then(|ab| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&ab))
                 {
-                    if agreed_abs.contains(ab) {
+                    if agreed_abs.values().any(|uid| *uid == ab) {
                         accepted_user_data.push(UserPdu::RoleSelectionItem(role.clone()));
                     }
                 }

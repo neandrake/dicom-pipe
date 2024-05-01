@@ -19,7 +19,7 @@
 use std::io::Read;
 
 use crate::core::{
-    charset::DEFAULT_CHARACTER_SET,
+    charset::CSRef,
     defn::{constants::ts::ExplicitVRLittleEndian, dcmdict::DicomDictionary, ts::TSRef},
     read::{
         behavior::ParseBehavior,
@@ -105,7 +105,7 @@ impl ParserBuilder {
             partial_vl: None,
             detected_ts: &ExplicitVRLittleEndian,
             dataset_ts: self.dataset_ts,
-            cs: DEFAULT_CHARACTER_SET,
+            cs: CSRef::default(),
             current_path: Vec::new(),
             iterator_ended: false,
         }

@@ -19,7 +19,7 @@
 use std::{fmt, iter::once};
 
 use crate::core::{
-    charset::{CSRef, DEFAULT_CHARACTER_SET},
+    charset::CSRef,
     dcmsqelem::SequenceElement,
     defn::{
         constants::{
@@ -100,7 +100,7 @@ impl DicomElement {
     where
         u32: From<T>,
     {
-        let cs: CSRef = vr.get_proper_cs(DEFAULT_CHARACTER_SET);
+        let cs: CSRef = vr.get_proper_cs(CSRef::default());
         Self {
             tag: u32::from(tag),
             vr,
@@ -126,7 +126,7 @@ impl DicomElement {
             data: Vec::with_capacity(0),
             sq_path: Vec::with_capacity(0),
             ts: &ExplicitVRLittleEndian,
-            cs: DEFAULT_CHARACTER_SET,
+            cs: CSRef::default(),
         }
     }
 

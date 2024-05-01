@@ -17,7 +17,7 @@
 use std::{convert::TryFrom, io::Read, iter::once};
 
 use crate::core::{
-    charset::{lookup_charset, CSRef, DEFAULT_CHARACTER_SET},
+    charset::CSRef,
     dcmelement::DicomElement,
     dcmsqelem::SequenceElement,
     defn::{
@@ -323,8 +323,8 @@ impl<'d, R: Read> Parser<'d, R> {
         //       Unsupported Character Sets"
 
         Ok(new_cs
-            .and_then(|cs: String| lookup_charset(&cs))
-            .unwrap_or(DEFAULT_CHARACTER_SET))
+            .and_then(|cs: String| CSRef::lookup_charset(&cs))
+            .unwrap_or_default())
     }
 
     /// Builds a string containing debug state of parsing, for errors and spurious output while

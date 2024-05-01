@@ -133,7 +133,15 @@ impl SvcUserApp {
         for f in file {
             let f = File::open(f).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
             let parser = ParserBuilder::default().build(f, &STANDARD_DICOM_DICTIONARY);
-            let rsp = assoc.c_store_req(&mut reader, &mut writer, parser, my_ae, 0)?;
+            let store_msg_id = assoc.next_msg_id();
+            let rsp = assoc.common().c_store_req(
+                &mut reader,
+                &mut writer,
+                parser,
+                store_msg_id,
+                my_ae,
+                0,
+            )?;
             let Some(DimseMsg::Cmd(cmd)) = rsp else {
                 return Ok(rsp);
             };

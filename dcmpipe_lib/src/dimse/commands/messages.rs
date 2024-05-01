@@ -16,7 +16,7 @@
 
 use crate::{
     core::{
-        charset::DEFAULT_CHARACTER_SET,
+        charset::CSRef,
         dcmobject::DicomRoot,
         defn::{constants::ts::ImplicitVRLittleEndian, tag::Tag, vr::US},
         RawValue,
@@ -32,7 +32,7 @@ use crate::{
     },
 };
 
-use super::MoveProgress;
+use super::SubOpProgress;
 
 /// Sentinel value of `CommandDataSetType` (0000,0800) to indicate that there is no Data Set
 /// present in the message. Any other value in `CommandDataSetType` indicates a Data Set is present
@@ -43,8 +43,9 @@ pub const COMMAND_DATASET_TYPE_NONE: u16 = 0x0101;
 
 /// Sentinel value of `CommandDataSetType` (0000,0800) to indicate that there is some Data Set
 /// present in the message. This value is arbitrary, as long as it's not
-/// `COMMAND_DATASET_TYPE_NONE`, and avoiding using zero.
-const COMMAND_DATASET_TYPE_SOME: u16 = 0x1010;
+/// `COMMAND_DATASET_TYPE_NONE`, and avoids using all zeros to make this more intentional and
+/// obvious.
+const COMMAND_DATASET_TYPE_SOME: u16 = 0x1111;
 
 #[derive(Debug, Clone)]
 pub struct CommandMessage {
@@ -178,7 +179,7 @@ impl CommandMessage {
     /// This handles the `CommandGroupLength` element, computing the total number of bytes for the
     /// given list of tag/value pairs.
     fn create(ctx_id: u8, elements: Vec<(&Tag, RawValue)>) -> Self {
-        let mut message = DicomRoot::new_empty(&ImplicitVRLittleEndian, DEFAULT_CHARACTER_SET);
+        let mut message = DicomRoot::new_empty(&ImplicitVRLittleEndian, CSRef::default());
         for elem_pair in elements {
             message.add_child_with_val(elem_pair.0, elem_pair.1);
         }
@@ -286,11 +287,12 @@ impl CommandMessage {
         aff_sop_class_uid: &str,
         status: &CommandStatus,
     ) -> Self {
-        // For a C-FIND response a DICOM dataset should immediately follow.
-        let dataset_type = if status.is_success() {
-            COMMAND_DATASET_TYPE_NONE
-        } else {
+        // A C-FIND response will include the result as a following dataset only if the status is
+        // marked as pending.
+        let dataset_type = if status.is_pending() {
             COMMAND_DATASET_TYPE_SOME
+        } else {
+            COMMAND_DATASET_TYPE_NONE
         };
         CommandMessage::create(
             ctx_id,
@@ -414,7 +416,7 @@ impl CommandMessage {
         msg_id: u16,
         aff_sop_class_uid: &str,
         status: &CommandStatus,
-        progress: &MoveProgress,
+        progress: &SubOpProgress,
     ) -> Self {
         let mut elements = vec![
             (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
@@ -427,6 +429,57 @@ impl CommandMessage {
                 &CommandDataSetType,
                 RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
             ),
+            (&Status, RawValue::from(status)),
+        ];
+        elements.append(&mut progress.as_elements(status));
+        CommandMessage::create(ctx_id, elements)
+    }
+
+    /// Creates a C-GET request.
+    #[must_use]
+    pub fn c_get_req(ctx_id: u8, msg_id: u16, aff_sop_class_uid: &str) -> Self {
+        CommandMessage::create(
+            ctx_id,
+            vec![
+                (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
+                (
+                    &CommandField,
+                    RawValue::of_ushort(u16::from(&CommandType::CGetReq)),
+                ),
+                (&MessageID, RawValue::of_ushort(msg_id)),
+                (&Priority, RawValue::from(&CommandPriority::Medium)),
+                (
+                    &CommandDataSetType,
+                    RawValue::of_ushort(COMMAND_DATASET_TYPE_SOME),
+                ),
+            ],
+        )
+    }
+
+    /// Creates a C-GET response.
+    #[must_use]
+    pub fn c_get_rsp(
+        ctx_id: u8,
+        msg_id: u16,
+        aff_sop_class_uid: &str,
+        status: &CommandStatus,
+        progress: &SubOpProgress,
+    ) -> Self {
+        // A C-GET response will include the result as a following dataset only if the status is
+        // marked as pending.
+        let dataset_type = if status.is_pending() {
+            COMMAND_DATASET_TYPE_SOME
+        } else {
+            COMMAND_DATASET_TYPE_NONE
+        };
+        let mut elements = vec![
+            (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
+            (
+                &CommandField,
+                RawValue::of_ushort(u16::from(&CommandType::CGetRsp)),
+            ),
+            (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
+            (&CommandDataSetType, RawValue::of_ushort(dataset_type)),
             (&Status, RawValue::from(status)),
         ];
         elements.append(&mut progress.as_elements(status));

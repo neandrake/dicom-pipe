@@ -17,7 +17,7 @@
 use std::io::Write;
 
 use crate::core::{
-    charset::{CSRef, DEFAULT_CHARACTER_SET},
+    charset::CSRef,
     defn::{constants::ts, ts::TSRef},
     write::{
         ds::dataset::Dataset,
@@ -86,7 +86,7 @@ impl WriterBuilder {
             state: self.state.unwrap_or(WriterState::WritePreamble),
             bytes_written: 0,
             ts: self.ts.unwrap_or(&ts::ExplicitVRLittleEndian),
-            cs: self.cs.unwrap_or(DEFAULT_CHARACTER_SET),
+            cs: self.cs.unwrap_or_default(),
             file_preamble: self.file_preamble,
         }
     }

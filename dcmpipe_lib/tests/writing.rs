@@ -22,7 +22,7 @@ mod writing_tests {
 
     use dcmpipe_lib::{
         core::{
-            charset::DEFAULT_CHARACTER_SET,
+            charset::CSRef,
             dcmelement::DicomElement,
             dcmobject::DicomRoot,
             defn::{
@@ -234,7 +234,7 @@ mod writing_tests {
             &US,
             ValueLength::Explicit(4),
             &ExplicitVRLittleEndian,
-            DEFAULT_CHARACTER_SET,
+            CSRef::default(),
             raw_data.clone(),
             Vec::with_capacity(0),
         );
@@ -265,7 +265,7 @@ mod writing_tests {
             &AT,
             ValueLength::Explicit(4),
             &RLELossless,
-            DEFAULT_CHARACTER_SET,
+            CSRef::default(),
             raw_data.clone(),
             Vec::with_capacity(0),
         );
@@ -297,7 +297,7 @@ mod writing_tests {
             &FD,
             ValueLength::Explicit(8),
             &JPEGBaselineProcess1,
-            DEFAULT_CHARACTER_SET,
+            CSRef::default(),
             raw_data.clone(),
             Vec::with_capacity(0),
         );

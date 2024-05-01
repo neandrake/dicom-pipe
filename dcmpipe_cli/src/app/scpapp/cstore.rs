@@ -34,6 +34,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;
 
+        // TODO: Tuck this away somewhere. Add appropriate FileMeta elements.
         let mut empty = std::io::empty();
         self.assoc
             .common()

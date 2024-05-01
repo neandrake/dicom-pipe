@@ -22,12 +22,19 @@ use std::{
 
 use crate::{
     core::{
-        charset::DEFAULT_CHARACTER_SET,
+        charset::CSRef,
+        dcmelement::DicomElement,
         dcmobject::DicomRoot,
-        defn::{dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef},
-        read::{ParseError, ParserBuilder, ParserState},
+        defn::{
+            constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef,
+        },
+        read::{ParseError, Parser, ParserBuilder, ParserState},
     },
-    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian},
+    dict::{
+        stdlookup::STANDARD_DICOM_DICTIONARY,
+        tags::{SOPClassUID, SOPInstanceUID, SpecificCharacterSet},
+        transfer_syntaxes::ImplicitVRLittleEndian,
+    },
     dimse::{
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
@@ -42,6 +49,8 @@ use crate::{
         Syntax,
     },
 };
+
+use super::commands::CommandPriority;
 
 pub mod scp;
 pub mod scu;
@@ -118,7 +127,7 @@ pub struct CommonAssoc {
 
     /* Fields negotiated with other SCU. */
     their_user_data: Vec<UserPdu>,
-    negotiated_pres_ctx: HashMap<u8, AssocACPresentationContext>,
+    negotiated_pres_ctx: HashMap<u8, (AssocACPresentationContext, UIDRef)>,
 }
 
 impl CommonAssoc {
@@ -152,7 +161,9 @@ impl CommonAssoc {
     /// Retrieve the accepted presentation context by the given context ID.
     #[must_use]
     pub fn get_pres_ctx(&self, ctx_id: u8) -> Option<&AssocACPresentationContext> {
-        self.negotiated_pres_ctx.get(&ctx_id)
+        self.negotiated_pres_ctx
+            .get(&ctx_id)
+            .map(|(pres_ctx, _abs)| pres_ctx)
     }
 
     /// Retrieve the accepted presentation context and its negotiated transfer syntax, by the given
@@ -168,6 +179,39 @@ impl CommonAssoc {
         let Some(pres_ctx) = self.get_pres_ctx(ctx_id) else {
             return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
                 "Negotiated Presentation Context ID not found: {ctx_id}"
+            ))));
+        };
+
+        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
+            .ok()
+            .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
+            .ok_or_else(|| {
+                AssocError::ab_failure(DimseError::GeneralError(
+                    "Failed to resolve transfer syntax".to_string(),
+                ))
+            })?;
+
+        Ok((pres_ctx, ts))
+    }
+
+    /// Retrieve the accepted presentation context and its negotiated transfer syntax, by the given
+    /// abstract syntax.
+    ///
+    /// # Errors
+    /// - `AssocError` may occur if the requested or negotiated presentation context cannot be
+    /// resolved, or if a known transfer syntax for it cannot be resolved.
+    pub fn get_rq_pres_ctx_and_ts_by_ab(
+        &self,
+        ab_ref: UIDRef,
+    ) -> Result<(&AssocACPresentationContext, TSRef), AssocError> {
+        let Some((_ctx_id, (pres_ctx, _ab))) = self
+            .negotiated_pres_ctx
+            .iter()
+            .find(|(_ctx_id, (_pres_ctx, abs_uid))| *abs_uid == ab_ref)
+        else {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                "Requested Presentation Context not found by abstract syntax: {}",
+                ab_ref.uid()
             ))));
         };
 
@@ -339,7 +383,7 @@ impl CommonAssoc {
             true,
             elements.iter().copied(),
             &ImplicitVRLittleEndian,
-            DEFAULT_CHARACTER_SET,
+            CSRef::default(),
         );
         for pdi in pdi_iter {
             match pdi {
@@ -410,6 +454,106 @@ impl CommonAssoc {
                 )))
             }
         }
+    }
+
+    /// Issue a C-STORE request.
+    ///
+    /// # Errors
+    /// - I/O errors may occur while using the reader/writer.
+    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
+    pub fn c_store_req<PR: Read, R: Read, W: Write>(
+        &self,
+        mut reader: R,
+        mut writer: W,
+        parser: Parser<'_, PR>,
+        store_msg_id: u16,
+        origin_ae: &str,
+        orig_msg_id: u16,
+    ) -> Result<Option<DimseMsg>, AssocError> {
+        let mut parser = parser
+            .filter_map(Result::ok)
+            // Do not transfer any beginning FileMeta elements.
+            .skip_while(|e| e.tag() <= FILE_META_GROUP_END);
+
+        let mut spec_char_set: Option<String> = None;
+        let mut sop_class_uid: Option<String> = None;
+        let mut sop_inst_uid: Option<String> = None;
+        let mut header_elems: Vec<DicomElement> = Vec::new();
+        for elem in parser.by_ref() {
+            let tag = elem.tag();
+            if tag == SpecificCharacterSet.tag() {
+                spec_char_set = elem
+                    .parse_value()
+                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
+                    .string()
+                    .cloned();
+            } else if tag == SOPClassUID.tag() {
+                sop_class_uid = elem
+                    .parse_value()
+                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
+                    .string()
+                    .cloned();
+            } else if tag == SOPInstanceUID.tag() {
+                sop_inst_uid = elem
+                    .parse_value()
+                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
+                    .string()
+                    .cloned();
+            }
+            header_elems.push(elem);
+            if tag >= SOPInstanceUID.tag() {
+                break;
+            }
+        }
+        let stitched_elems = header_elems.into_iter().chain(parser);
+
+        let spec_char_set = spec_char_set
+            .and_then(|s| CSRef::lookup_charset(&s))
+            .unwrap_or_default();
+        let sop_class_uid = sop_class_uid
+            .and_then(|s| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&s))
+            .ok_or_else(|| {
+                AssocError::ab_failure(DimseError::GeneralError(
+                    "SOP Instance to send is missing SOPClassUID".to_owned(),
+                ))
+            })?;
+        let sop_inst_uid = sop_inst_uid.ok_or_else(|| {
+            AssocError::ab_failure(DimseError::GeneralError(
+                "SOP Instance to send is missing SOPInstanceUID".to_owned(),
+            ))
+        })?;
+
+        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+        let ctx_id = pres_ctx.ctx_id();
+        let priority = CommandPriority::Medium;
+        let cmd = CommandMessage::c_store_req(
+            ctx_id,
+            store_msg_id,
+            &priority,
+            sop_class_uid.uid(),
+            &sop_inst_uid,
+            origin_ae,
+            orig_msg_id,
+        );
+        self.write_command(&cmd, &mut writer)?;
+
+        let pdi_iter = PresDataIter::new(
+            ctx_id,
+            self.get_pdu_max_snd_size(),
+            false,
+            stitched_elems,
+            ts,
+            spec_char_set,
+        );
+        for pdi in pdi_iter {
+            match pdi {
+                Ok(pdi) => CommonAssoc::write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
+                Err(e) => return Err(AssocError::ab_failure(e)),
+            }
+        }
+
+        let rsp = self.next_msg(&mut reader, &mut writer)?;
+        Ok(Some(rsp))
     }
 }
 

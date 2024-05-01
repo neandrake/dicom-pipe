@@ -262,10 +262,12 @@ impl CommandStatus {
         CommandStatus::Pending(0xFF00)
     }
 
+    /// Matches are continuing - Warning that one or more Optional Keys were not supported for
+    /// existence and/or matching for this Identifier.
+    ///
     /// Convenience for `CommandStatus::Pending(0xFF01)`.
     ///
-    /// - CFIND: Matches are continuing - Warning that one or more Optional Keys were not supported for
-    /// existence and/or matching for this Identifier.
+    /// C-FIND
     #[must_use]
     pub fn pending_missing_match() -> CommandStatus {
         CommandStatus::Pending(0xFF01)
@@ -289,10 +291,11 @@ impl CommandStatus {
         self == &CommandStatus::Cancel(0xFE00)
     }
 
+    /// Sub-operations Complete - One or more Failures (or Warnings).
+    ///
     /// Convenience for `CommandStatus::Warning(0xB000)`.
     ///
-    /// - CMOVE: Sub-operations Complete - One or more Failures.
-    /// - CGET: Sub-operations Complete - One or more Failures or Warnings.
+    /// C-MOVE, C-GET
     #[must_use]
     pub fn warn_one_or_more_fails() -> CommandStatus {
         CommandStatus::Warning(0xB000)
@@ -308,51 +311,105 @@ impl CommandStatus {
         }
     }
 
+    /// Refused: Out of resources.
+    ///
     /// Convenience for `CommandStatus::Failure(0xA700)`.
     ///
-    /// - CFIND: Refused: Out of resources.
+    /// C-FIND
     #[must_use]
     pub fn fail_rsrc() -> CommandStatus {
         CommandStatus::Failure(0xA700)
     }
 
+    /// Refused: Out of resources - Unable to calculate number of matches.
+    ///
     /// Convenience for `CommandStatus::Failure(0xA701)`.
     ///
-    /// - CMOVE: Refused: Out of resources - Unable to calculate number of matches.
+    /// C-MOVE
     #[must_use]
     pub fn fail_rsrc_calcmatch() -> CommandStatus {
         CommandStatus::Failure(0xA701)
     }
 
+    /// Refused: Out of resources - Unable to perform sub-operations.
+    ///
     /// Convenience for `CommandStatus::Failure(0xA702)`.
     ///
-    /// - CMOVE: Refused: Out of resources - Unable to perform sub-operations.
+    /// C-MOVE
     #[must_use]
     pub fn fail_subops() -> CommandStatus {
         CommandStatus::Failure(0xA702)
     }
 
+    /// Refused: Move Destination unknown.
+    ///
     /// Convenience for `CommandStatus::Failure(0xA801)`.
     ///
-    /// - CMOVE: Refused: Move Destination unknown.
+    /// C-MOVE
     #[must_use]
     pub fn fail_unknown_dest() -> CommandStatus {
         CommandStatus::Failure(0xA801)
     }
 
+    /// Error: Data Set does not match SOP Class.
+    ///
     /// Convenience for `CommandStatus::Failure(0xA900)`.
     ///
-    /// - CFIND: Error: Data Set does not match SOP Class.
-    /// - CMOVE: Error: Data Set does not match SOP Class.
+    /// C-MOVE, C-FIND
     #[must_use]
     pub fn fail_sop_mismatch() -> CommandStatus {
         CommandStatus::Failure(0xA900)
     }
 
+    /// Duplicate invocation: Indicates that the Message ID (0000,0110) specified is allocated to
+    /// another notification or operation.
+    ///
+    /// Convenience for `CommandStatus::Failure(0x0210)`.
+    ///
+    /// C-GET,
+    #[must_use]
+    pub fn fail_dup_invoke() -> CommandStatus {
+        CommandStatus::Failure(0x0210)
+    }
+
+    /// Mistyped argument: Indicates that one of the parameters supplied has not been agreed for
+    /// use on the Association between the DIMSE Service Users.
+    ///
+    /// Convenience for `CommandStatus::Failure(0x0212)`.
+    ///
+    /// C-GET
+    #[must_use]
+    pub fn fail_mistyped_arg() -> CommandStatus {
+        CommandStatus::Failure(0x0212)
+    }
+
+    /// Unrecognized operation: Indicates that the operation is not one of those agreed between the
+    /// DIMSE Service Users.
+    ///
+    /// Convenience for `CommandStatus::Failure(0x0211)`.
+    ///
+    /// C-GET
+    #[must_use]
+    pub fn fail_unrecog_op() -> CommandStatus {
+        CommandStatus::Failure(0x0211)
+    }
+
+    /// Refused: Not authorized: Indicates that the peer DIMSE Service User was not authorized to
+    /// invoke the C-FIND operation.
+    ///
+    /// Convenience for `CommandStatus::Failure(0x0124)`.
+    ///
+    /// C-GET
+    #[must_use]
+    pub fn fail_not_auth() -> CommandStatus {
+        CommandStatus::Failure(0x0124)
+    }
+
+    /// Failed: Unable to process.
+    ///
     /// Convenience for `CommandStatus::Failure(0xC000)`.
     ///
-    /// - CFIND: Failed: Unable to process.
-    /// - CMOVE: Failed: Unable to process.
+    /// C-FIND, C-MOVE, C-GET
     #[must_use]
     pub fn fail() -> CommandStatus {
         CommandStatus::Failure(0xC000)
@@ -414,9 +471,9 @@ impl From<u16> for CommandStatus {
 
 /// When reporting progress of C-MOVE transfers. The order of progress fields are: (remaining,
 /// completed, failed, warning)
-pub struct MoveProgress(pub u16, pub u16, pub u16, pub u16);
+pub struct SubOpProgress(pub u16, pub u16, pub u16, pub u16);
 
-impl MoveProgress {
+impl SubOpProgress {
     /// Create the individual elements that will report this progress.
     #[must_use]
     pub fn as_elements(&self, status: &CommandStatus) -> Vec<(&Tag, RawValue)> {

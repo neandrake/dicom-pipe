@@ -16,7 +16,7 @@
 
 #![allow(clippy::module_name_repetitions)]
 
-use crate::{core::charset::DEFAULT_CHARACTER_SET, dimse::error::DimseError};
+use crate::{core::charset::CSRef, dimse::error::DimseError};
 
 pub mod assoc;
 pub mod commands;
@@ -67,7 +67,7 @@ impl<'s> TryFrom<&'s Syntax<'s>> for String {
     type Error = DimseError;
 
     fn try_from(value: &'s Syntax) -> Result<Self, Self::Error> {
-        DEFAULT_CHARACTER_SET
+        CSRef::default()
             .decode(value.0)
             .map(|s| s.trim_end_matches('\0').to_owned())
             .map_err(DimseError::CharsetError)
