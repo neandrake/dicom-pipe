@@ -23,7 +23,7 @@ use crate::{
     },
     dict::tags::{
         AffectedSOPClassUID, AffectedSOPInstanceUID, CommandDataSetType, CommandField,
-        CommandGroupLength, MessageID, MessageIDBeingRespondedTo,
+        CommandGroupLength, MessageID, MessageIDBeingRespondedTo, MoveDestination,
         MoveOriginatorApplicationEntityTitle, MoveOriginatorMessageID, Priority, Status,
     },
     dimse::{
@@ -390,7 +390,7 @@ impl CommandMessage {
     }
 
     #[must_use]
-    pub fn c_move_req(ctx_id: u8, msg_id: u16, aff_sop_class_uid: &str) -> Self {
+    pub fn c_move_req(ctx_id: u8, msg_id: u16, aff_sop_class_uid: &str, dest_ae: &str) -> Self {
         CommandMessage::create(
             ctx_id,
             vec![
@@ -405,6 +405,7 @@ impl CommandMessage {
                     &CommandDataSetType,
                     RawValue::of_ushort(COMMAND_DATASET_TYPE_SOME),
                 ),
+                (&MoveDestination, RawValue::of_string(dest_ae)),
             ],
         )
     }

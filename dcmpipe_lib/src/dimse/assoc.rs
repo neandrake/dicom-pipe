@@ -26,31 +26,37 @@ use crate::{
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
         defn::{
-            constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, ts::TSRef, uid::UIDRef,
+            constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
+            uid::UIDRef,
         },
         read::{ParseError, Parser, ParserBuilder, ParserState},
+        RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{SOPClassUID, SOPInstanceUID, SpecificCharacterSet},
+        tags::{QueryRetrieveLevel, SOPClassUID, SOPInstanceUID, SpecificCharacterSet},
         transfer_syntaxes::ImplicitVRLittleEndian,
+        uids::{
+            PatientRootQueryRetrieveInformationModelFIND,
+            PatientRootQueryRetrieveInformationModelMOVE,
+            StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelMOVE,
+            VerificationSOPClass,
+        },
     },
     dimse::{
-        commands::messages::CommandMessage,
+        commands::{messages::CommandMessage, CommandPriority},
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
                 Abort, AssocACPresentationContext, AssocRJ, PresentationDataValue, ReleaseRP,
             },
-            pduiter::{read_next_pdu, PduIterItem, PresDataIter},
+            pduiter::{read_next_pdu, CommandIter, PduIterItem, PresDataIter},
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem},
             Pdu, UserPdu,
         },
         Syntax,
     },
 };
-
-use super::commands::CommandPriority;
 
 pub mod scp;
 pub mod scu;
@@ -456,6 +462,83 @@ impl CommonAssoc {
         }
     }
 
+    /// Issue a C-ECHO request.
+    ///
+    /// # Errors
+    /// - I/O errors may occur with the reader/writer.
+    /// - `DimseError` will be returned if there are protocol errors.
+    /// - An error will be returned if the response is not successful.
+    pub fn c_echo_rq<R: Read, W: Write>(
+        &self,
+        mut reader: R,
+        mut writer: W,
+        msg_id: u16,
+    ) -> Result<Option<DimseMsg>, AssocError> {
+        let (pres_ctx, _ts) = self.get_rq_pres_ctx_and_ts_by_ab(&VerificationSOPClass)?;
+
+        let ctx_id = pres_ctx.ctx_id();
+        let cmd = CommandMessage::c_echo_req(ctx_id, msg_id, VerificationSOPClass.uid());
+        self.write_command(&cmd, &mut writer)?;
+
+        let rsp_cmd = self.next_msg(&mut reader, &mut writer)?;
+        if let DimseMsg::Dataset(_ds) = rsp_cmd {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(
+                "Got dataset instead of command".to_owned(),
+            )));
+        }
+        let DimseMsg::Cmd(rsp_msg) = rsp_cmd else {
+            return Ok(Some(rsp_cmd));
+        };
+
+        if !rsp_msg.status().is_success() {
+            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                "Response status is not success: {:?}",
+                rsp_msg.status()
+            ))));
+        }
+
+        Ok(None)
+    }
+
+    /// Issues a C-FIND query.
+    ///
+    /// # Return
+    /// An iterator over `(CommandMessage, Option<DicomRoot>)` for reading the results. If the
+    /// status of the command message is `CommandStatus::Pending` then the `DicomRoot` should be
+    /// present and contain the search result. All other statuses indicate the end of the stream.
+    ///
+    /// # Errors
+    /// - I/O errors may occur while using the reader/writer.
+    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
+    pub fn c_find_req<R: Read, W: Write>(
+        &self,
+        reader: R,
+        mut writer: W,
+        msg_id: u16,
+        ql: QueryLevel,
+        dcm_query: Vec<(&Tag, RawValue)>,
+    ) -> Result<CommandIter<R>, AssocError> {
+        let sop_class_uid = match ql {
+            QueryLevel::Patient => &PatientRootQueryRetrieveInformationModelFIND,
+            _ => &StudyRootQueryRetrieveInformationModelFIND,
+        };
+        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+
+        let ctx_id = pres_ctx.ctx_id();
+        let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
+
+        let mut dcm_root = DicomRoot::new_empty(ts, CSRef::default());
+        dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
+        for (tag, val) in dcm_query {
+            dcm_root.add_child_with_val(tag, val);
+        }
+
+        self.write_command(&cmd, &mut writer)?;
+        self.write_dataset(ctx_id, &dcm_root, &mut writer)?;
+
+        Ok(CommandIter::new(reader, ts, self.get_pdu_max_rcv_size()))
+    }
+
     /// Issue a C-STORE request.
     ///
     /// # Errors
@@ -554,6 +637,42 @@ impl CommonAssoc {
 
         let rsp = self.next_msg(&mut reader, &mut writer)?;
         Ok(Some(rsp))
+    }
+
+    /// Issue a C-MOVE request.
+    ///
+    /// # Errors
+    /// - I/O errors may occur using the reader/writer.
+    /// - `DimseError` will occur if there are protocol errors.
+    pub fn c_move_req<R: Read, W: Write>(
+        &self,
+        reader: R,
+        mut writer: W,
+        msg_id: u16,
+        dest_ae: &str,
+        ql: QueryLevel,
+        query: Vec<(&Tag, RawValue)>,
+    ) -> Result<CommandIter<R>, AssocError> {
+        let sop_class_uid = if ql == QueryLevel::Patient {
+            &PatientRootQueryRetrieveInformationModelMOVE
+        } else {
+            &StudyRootQueryRetrieveInformationModelMOVE
+        };
+        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+        let ctx_id = pres_ctx.ctx_id();
+        let cmd = CommandMessage::c_move_req(ctx_id, msg_id, sop_class_uid.uid(), dest_ae);
+
+        let mut dcm_root = DicomRoot::new_empty(ts, CSRef::default());
+        dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
+        for (tag, val) in query {
+            dcm_root.add_child_with_val(tag, val);
+        }
+
+        self.write_command(&cmd, &mut writer)?;
+        self.write_dataset(ctx_id, &dcm_root, &mut writer)?;
+
+        // Iterator over potential progress responses. The SCP should report at least one.
+        Ok(CommandIter::new(reader, ts, self.get_pdu_max_rcv_size()))
     }
 }
 

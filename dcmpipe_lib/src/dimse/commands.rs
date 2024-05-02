@@ -22,6 +22,7 @@ use crate::{
         NumberofCompletedSuboperations, NumberofFailedSuboperations,
         NumberofRemainingSuboperations, NumberofWarningSuboperations,
     },
+    dimse::commands::messages::CommandMessage,
 };
 
 pub mod messages;
@@ -488,5 +489,23 @@ impl SubOpProgress {
             (&NumberofWarningSuboperations, RawValue::of_ushort(self.3)),
         ]);
         elements
+    }
+}
+
+impl From<&CommandMessage> for SubOpProgress {
+    fn from(value: &CommandMessage) -> SubOpProgress {
+        let remaining = value
+            .get_ushort(&NumberofRemainingSuboperations)
+            .unwrap_or_default();
+        let completed = value
+            .get_ushort(&NumberofCompletedSuboperations)
+            .unwrap_or_default();
+        let failed = value
+            .get_ushort(&NumberofFailedSuboperations)
+            .unwrap_or_default();
+        let warning = value
+            .get_ushort(&NumberofWarningSuboperations)
+            .unwrap_or_default();
+        SubOpProgress(remaining, completed, failed, warning)
     }
 }

@@ -37,6 +37,7 @@ use dcmpipe_lib::{
             scu::{UserAssoc, UserAssocBuilder},
             DimseMsg, QueryLevel,
         },
+        commands::SubOpProgress,
         error::{AssocError, DimseError},
     },
 };
@@ -61,7 +62,8 @@ impl SvcUserApp {
         mut reader: BufReader<&TcpStream>,
         mut writer: &mut BufWriter<&TcpStream>,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        assoc.c_echo_rq(&mut reader, &mut writer)?;
+        let msg_id = assoc.next_msg_id();
+        assoc.common().c_echo_rq(&mut reader, &mut writer, msg_id)?;
         assoc.release_association(&mut reader, &mut writer)
     }
 
@@ -70,26 +72,17 @@ impl SvcUserApp {
         mut reader: BufReader<&TcpStream>,
         mut writer: &mut BufWriter<&TcpStream>,
         query_level: QueryLevel,
-        query: &Vec<(String, String)>,
+        query: &[(String, String)],
     ) -> Result<Option<DimseMsg>, AssocError> {
-        let mut query_vals_resolved: Vec<(&Tag, RawValue)> = Vec::with_capacity(query.len());
-        for (tag, val) in query {
-            let tag = TagNode::parse(tag, Some(&STANDARD_DICOM_DICTIONARY))
-                .map_err(|e| AssocError::error(DimseError::from(e)))
-                .map(|t| STANDARD_DICOM_DICTIONARY.get_tag_by_number(t.tag()))?
-                .ok_or_else(|| {
-                    AssocError::error(DimseError::GeneralError(format!(
-                        "Unable resolve tag: {tag}"
-                    )))
-                })?;
-            let val = RawValue::try_from(StringAndVr(val, tag.implicit_vr().unwrap_or(&LT)))
-                .map_err(|e| AssocError::error(DimseError::from(e)))?;
-            query_vals_resolved.push((tag, val.clone()));
-        }
-
-        let results =
-            assoc.c_find_req(&mut reader, &mut writer, query_level, query_vals_resolved)?;
-
+        let msg_id = assoc.next_msg_id();
+        let query_vals_resolved = Self::resolve_cli_query(query)?;
+        let results = assoc.common().c_find_req(
+            &mut reader,
+            &mut writer,
+            msg_id,
+            query_level,
+            query_vals_resolved,
+        )?;
         let mut stdout = stdout().lock();
         for (i, result) in results.enumerate() {
             let result = result.map_err(AssocError::ab_failure)?;
@@ -157,7 +150,6 @@ impl SvcUserApp {
         assoc.release_association(&mut reader, &mut writer)
     }
 
-    #[allow(unused_variables, unused_mut)]
     fn issue_c_move(
         assoc: &mut UserAssoc,
         mut reader: BufReader<&TcpStream>,
@@ -166,6 +158,24 @@ impl SvcUserApp {
         query_level: QueryLevel,
         query: &[(String, String)],
     ) -> Result<Option<DimseMsg>, AssocError> {
+        let msg_id = assoc.next_msg_id();
+        let query_vals_resolved = Self::resolve_cli_query(query)?;
+        let prog_iter = assoc.common().c_move_req(
+            &mut reader,
+            &mut writer,
+            msg_id,
+            dest_ae,
+            query_level,
+            query_vals_resolved,
+        )?;
+
+        for prog in prog_iter {
+            let (prog, _dataset) = prog.map_err(AssocError::ab_failure)?;
+            let prog = SubOpProgress::from(&prog);
+            let total = prog.0 + prog.1 + prog.2 + prog.3;
+            println!("C-MOVE Progress: {}/{}", prog.1, total);
+        }
+
         assoc.release_association(&mut reader, &mut writer)
     }
 
@@ -178,6 +188,26 @@ impl SvcUserApp {
         query: &[(String, String)],
     ) -> Result<Option<DimseMsg>, AssocError> {
         assoc.release_association(&mut reader, &mut writer)
+    }
+
+    fn resolve_cli_query<'e>(
+        query: &'e [(String, String)],
+    ) -> Result<Vec<(&'e Tag, RawValue<'e>)>, AssocError> {
+        let mut query_vals_resolved: Vec<(&'e Tag, RawValue<'e>)> = Vec::with_capacity(query.len());
+        for (tag, val) in query {
+            let tag = TagNode::parse(tag, Some(&STANDARD_DICOM_DICTIONARY))
+                .map_err(|e| AssocError::error(DimseError::from(e)))
+                .map(|t| STANDARD_DICOM_DICTIONARY.get_tag_by_number(t.tag()))?
+                .ok_or_else(|| {
+                    AssocError::error(DimseError::GeneralError(format!(
+                        "Unable resolve tag: {tag}"
+                    )))
+                })?;
+            let val = RawValue::try_from(StringAndVr(val, tag.implicit_vr().unwrap_or(&LT)))
+                .map_err(|e| AssocError::error(DimseError::from(e)))?;
+            query_vals_resolved.push((tag, val.clone()));
+        }
+        Ok(query_vals_resolved)
     }
 }
 
