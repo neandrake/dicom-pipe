@@ -76,7 +76,7 @@ impl CommandApplication for SvcProviderApp {
             self.args.host
         );
 
-        let accept_aets: HashMap<String, String> = self.args.accept_aets.iter().cloned().collect();
+        let accept_aets: HashMap<String, String> = self.args.accept_aet.iter().cloned().collect();
         let supported_abs = HashSet::from([
             &VerificationSOPClass,
             &PatientRootQueryRetrieveInformationModelFIND,
@@ -136,8 +136,10 @@ impl CommandApplication for SvcProviderApp {
 pub(crate) type Stat = CommandStatus;
 
 /// Convenience to create `Err(AssocError::ab_failure(DimseError::GeneralError(msg)))`.
-pub(crate) fn fail(msg: String) -> Result<(), AssocError> {
-    Err(AssocError::ab_failure(DimseError::GeneralError(msg)))
+pub(crate) fn fail(msg: &str) -> Result<(), AssocError> {
+    Err(AssocError::ab_failure(DimseError::GeneralError(
+        msg.to_owned(),
+    )))
 }
 
 /// Convenience to create a `SubOpProgress`.
@@ -300,13 +302,13 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 self.assoc
                     .common()
                     .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
-                return fail(format!("Sub-operation C-STORE failed: {rp:?}"));
+                return fail(&format!("Sub-operation C-STORE failed: {rp:?}"));
             }
             Ok(None) => {
                 self.assoc
                     .common()
                     .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
-                return fail("Sub-operation C-STORE failed: No response from AE".to_owned());
+                return fail("Sub-operation C-STORE failed: No response from AE");
             }
             Err(e) => {
                 self.assoc
@@ -320,7 +322,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             self.assoc
                 .common()
                 .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
-            return fail(format!("Sub-operation C-STORE failed: {cmd_rsp:?}"));
+            return fail(&format!("Sub-operation C-STORE failed: {cmd_rsp:?}"));
         }
 
         Ok(())

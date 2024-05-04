@@ -108,15 +108,6 @@ pub struct SvcProviderArgs {
     /// The AE Title to run as.
     pub aetitle: String,
 
-    #[arg(short, long, value_parser = parse_key_val)]
-    /// An allow-list of accepted AE Titles for associations.
-    ///
-    /// If not specified then all AE Titles are accepted.
-    ///
-    /// The format for each accepted AE Title is `key=val` where `key` is a valid AE Title such as
-    /// `MY_AE`, and `val` is the IP + port such as `127.0.0.1:4001`.
-    pub accept_aets: Vec<(String, String)>,
-
     #[arg(short, long)]
     /// The maximum PDU size to receive.
     ///
@@ -134,6 +125,16 @@ pub struct SvcProviderArgs {
     /// If not specified then Query/Retrieve will not return results, and Store will not persist
     /// received series.
     pub db: Option<String>,
+
+    #[arg(short, long, value_parser = parse_key_val)]
+    /// Specifies an accepted AE Title for associations. Can be specified multiple times.
+    ///
+    /// The format for each accepted AE Title is `key=val` where `key` is a valid AE Title such as
+    /// `MY_AE`, and `val` is the IP + port such as `127.0.0.1:4001`.
+    ///
+    /// If no accepted AE Titles are specified then all AE Titles are accepted, but cannot be
+    /// connected to, such as for handling C-MOVE requests.
+    pub accept_aet: Vec<(String, String)>,
 }
 
 #[derive(Args, Debug)]
@@ -202,6 +203,8 @@ pub enum SvcUserCommand {
         dest_ae: String,
 
         /// The "level" of the query, one of PATIENT, STUDY, SERIES, or IMAGE.
+        ///
+        /// If not specified, but the "query" argument is, this will default to STUDY.
         #[arg(short, long)]
         query_level: Option<QueryLevel>,
 
@@ -223,6 +226,8 @@ pub enum SvcUserCommand {
     /// and then issuing C-GET on the results.
     Get {
         /// The "level" of the query, one of PATIENT, STUDY, SERIES, or IMAGE.
+        ///
+        /// If not specified, but the "query" argument is, this will default to STUDY.
         #[arg(short, long)]
         query_level: Option<QueryLevel>,
 

@@ -88,7 +88,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 &statter.msg(&Stat::fail(), &prog(0, 0, sop_count, 0)),
                 &mut self.writer,
             )?;
-            return fail(format!(
+            return fail(&format!(
                 "Association to {dest} failed with response: {msg:?}"
             ));
         }
@@ -110,7 +110,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                             &statter.msg(&Stat::fail(), &prog(0, successful, remaining, 0)),
                             &mut self.writer,
                         )?;
-                        return fail(format!("Failed resolving {path:?}"));
+                        return fail(&format!("Failed resolving {path:?}"));
                     }
                 };
 

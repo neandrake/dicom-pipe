@@ -38,9 +38,10 @@ use crate::{
         transfer_syntaxes::ImplicitVRLittleEndian,
         uids::{
             PatientRootQueryRetrieveInformationModelFIND,
+            PatientRootQueryRetrieveInformationModelGET,
             PatientRootQueryRetrieveInformationModelMOVE,
-            StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelMOVE,
-            VerificationSOPClass,
+            StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
+            StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
         },
     },
     dimse::{
@@ -516,7 +517,7 @@ impl CommonAssoc {
         mut writer: W,
         msg_id: u16,
         ql: QueryLevel,
-        dcm_query: Vec<(&Tag, RawValue)>,
+        query: Vec<(&Tag, RawValue)>,
     ) -> Result<CommandIter<R>, AssocError> {
         let sop_class_uid = match ql {
             QueryLevel::Patient => &PatientRootQueryRetrieveInformationModelFIND,
@@ -527,16 +528,49 @@ impl CommonAssoc {
         let ctx_id = pres_ctx.ctx_id();
         let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
 
-        let mut dcm_root = DicomRoot::new_empty(ts, CSRef::default());
-        dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
-        for (tag, val) in dcm_query {
-            dcm_root.add_child_with_val(tag, val);
+        let mut dcm_query = DicomRoot::new_empty(ts, CSRef::default());
+        dcm_query.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
+        for (tag, val) in query {
+            dcm_query.add_child_with_val(tag, val);
         }
 
         self.write_command(&cmd, &mut writer)?;
-        self.write_dataset(ctx_id, &dcm_root, &mut writer)?;
+        self.write_dataset(ctx_id, &dcm_query, &mut writer)?;
 
         Ok(CommandIter::new(reader, ts, self.get_pdu_max_rcv_size()))
+    }
+
+    /// Issues a C-GET query.
+    ///
+    /// # Errors
+    /// - I/O errors may occur while using the reader/writer.
+    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
+    pub fn c_get_req<W: Write>(
+        &self,
+        mut writer: W,
+        msg_id: u16,
+        ql: QueryLevel,
+        query: Vec<(&Tag, RawValue)>,
+    ) -> Result<(), AssocError> {
+        let sop_class_uid = match ql {
+            QueryLevel::Patient => &PatientRootQueryRetrieveInformationModelGET,
+            _ => &StudyRootQueryRetrieveInformationModelGET,
+        };
+        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+
+        let ctx_id = pres_ctx.ctx_id();
+        let cmd = CommandMessage::c_get_req(ctx_id, msg_id, sop_class_uid.uid());
+
+        let mut dcm_query = DicomRoot::new_empty(ts, CSRef::default());
+        dcm_query.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
+        for (tag, val) in query {
+            dcm_query.add_child_with_val(tag, val);
+        }
+
+        self.write_command(&cmd, &mut writer)?;
+        self.write_dataset(ctx_id, &dcm_query, &mut writer)?;
+
+        Ok(())
     }
 
     /// Issue a C-STORE request.

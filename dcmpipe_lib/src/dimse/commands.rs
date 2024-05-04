@@ -69,8 +69,8 @@ impl std::fmt::Debug for CommandType {
         match self {
             CommandType::CStoreReq => write!(f, "C-STORE-RQ"),
             CommandType::CStoreRsp => write!(f, "C-STORE-RP"),
-            CommandType::CGetReq => write!(f, "C-GET-RP"),
-            CommandType::CGetRsp => write!(f, "C-GET-RO"),
+            CommandType::CGetReq => write!(f, "C-GET-RQ"),
+            CommandType::CGetRsp => write!(f, "C-GET-RP"),
             CommandType::CFindReq => write!(f, "C-FIND-RQ"),
             CommandType::CFindRsp => write!(f, "C-FIND-RP"),
             CommandType::CMoveReq => write!(f, "C-MOVE-RQ"),

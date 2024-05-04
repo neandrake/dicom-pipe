@@ -1,13 +1,14 @@
 use std::{
     collections::HashSet,
     fs::File,
-    io::{stdout, BufReader, BufWriter, Write},
+    io::{stdout, BufReader, BufWriter, Seek, Write},
     net::TcpStream,
     path::PathBuf,
 };
 
 use dcmpipe_lib::{
     core::{
+        dcmobject::DicomRoot,
         defn::{
             constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
             dcmdict::DicomDictionary,
@@ -15,11 +16,12 @@ use dcmpipe_lib::{
             vr::LT,
         },
         inspect::FormattedElement,
-        read::{valdecode::StringAndVr, ParserBuilder},
+        read::{stop::ParseStop, valdecode::StringAndVr, ParserBuilder},
         RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
+        tags::{AffectedSOPClassUID, SOPInstanceUID},
         uids::{
             CTImageStorage, DeformableSpatialRegistrationStorage, MRImageStorage,
             ModalityWorklistInformationModelFIND, NuclearMedicineImageStorage,
@@ -37,7 +39,7 @@ use dcmpipe_lib::{
             scu::{UserAssoc, UserAssocBuilder},
             DimseMsg, QueryLevel,
         },
-        commands::SubOpProgress,
+        commands::{messages::CommandMessage, CommandStatus, CommandType, SubOpProgress},
         error::{AssocError, DimseError},
     },
 };
@@ -47,6 +49,8 @@ use crate::{
     args::{SvcUserArgs, SvcUserCommand},
     CommandApplication,
 };
+
+use super::scpapp::fail;
 
 pub struct SvcUserApp {
     args: SvcUserArgs,
@@ -179,7 +183,6 @@ impl SvcUserApp {
         assoc.release_association(&mut reader, &mut writer)
     }
 
-    #[allow(unused_variables, unused_mut)]
     fn issue_c_get(
         assoc: &mut UserAssoc,
         mut reader: BufReader<&TcpStream>,
@@ -187,6 +190,126 @@ impl SvcUserApp {
         query_level: QueryLevel,
         query: &[(String, String)],
     ) -> Result<Option<DimseMsg>, AssocError> {
+        let msg_id = assoc.next_msg_id();
+        let query_vals_resolved = Self::resolve_cli_query(query)?;
+
+        assoc
+            .common()
+            .c_get_req(&mut writer, msg_id, query_level, query_vals_resolved)?;
+
+        let mut sop_count = 0;
+        let mut cstore_ctx_id: u8 = 0;
+        let mut cstore_msg_id: u16 = 0;
+        let mut cstore_aff_sop: String = String::default();
+        let mut filename = format!("rcv_dcm_{sop_count}.tmp");
+        let mut output = BufWriter::new(
+            File::create(&filename).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
+        );
+        loop {
+            match assoc.common().next_msg(&mut reader, &mut writer)? {
+                DimseMsg::Cmd(cmd) => {
+                    // SCP will respond with individual C-STORE requests for each SOP.
+                    if cmd.cmd_type() == &CommandType::CStoreReq {
+                        cstore_ctx_id = cmd.ctx_id();
+                        cstore_msg_id = cmd.msg_id();
+                        cstore_aff_sop = cmd.get_string(&AffectedSOPClassUID).unwrap_or_default();
+
+                        filename = format!("rcv_dcm_{sop_count}.tmp");
+                        output = BufWriter::new(
+                            File::create(&filename)
+                                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
+                        );
+                        // TODO: Write FileMeta
+                        continue;
+                    }
+                    // SCP may respond with status updates. As long as the status is "pending" this
+                    // should continue to expect C-STORE requests.
+                    if cmd.cmd_type() == &CommandType::CGetRsp && cmd.status().is_pending() {
+                        let progress = SubOpProgress::from(&cmd);
+                        println!(
+                            "Progress: {}/{}",
+                            progress.0,
+                            progress.0 + progress.1 + progress.2 + progress.3
+                        );
+                        continue;
+                    }
+                    break;
+                }
+                DimseMsg::Dataset(pdv) => {
+                    output
+                        .write_all(pdv.data())
+                        .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+
+                    if pdv.is_last_fragment() {
+                        let pos = output.stream_position().unwrap_or_default();
+                        println!("Saving {pos} bytes to {filename}");
+                        output
+                            .flush()
+                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+                        let file = output.into_inner().map_err(|e| {
+                            AssocError::ab_failure(DimseError::OtherError(e.into()))
+                        })?;
+                        file.sync_all()
+                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+                        drop(file);
+
+                        let file = BufReader::new(
+                            File::open(&filename)
+                                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
+                        );
+
+                        let (_pres_ctx, ts) = assoc.common().get_pres_ctx_and_ts(cstore_ctx_id)?;
+
+                        let mut parser = ParserBuilder::default()
+                            .dataset_ts(ts)
+                            .stop(ParseStop::after(&SOPInstanceUID))
+                            .build(file, &STANDARD_DICOM_DICTIONARY);
+                        let sop_uid = DicomRoot::parse(&mut parser)
+                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?
+                            .and_then(|dcm_root| {
+                                dcm_root
+                                    .get_value_by_tag(&SOPInstanceUID)
+                                    .and_then(|v| v.string().cloned())
+                            });
+
+                        let Some(sop_uid) = sop_uid else {
+                            return fail(&format!(
+                                "Failed to read SOP Instance UID of received dataset, read {} bytes",
+                                parser.bytes_read()
+                            ))
+                            .map(|()| None);
+                        };
+
+                        // Release the file?
+                        drop(parser);
+                        std::fs::rename(&filename, format!("{sop_uid}.dcm"))
+                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+
+                        let cmd = CommandMessage::c_store_rsp(
+                            cstore_ctx_id,
+                            cstore_msg_id,
+                            &cstore_aff_sop,
+                            &CommandStatus::success(),
+                        );
+                        assoc.common().write_command(&cmd, &mut writer)?;
+
+                        sop_count += 1;
+                        filename = format!("rcv_dcm_{sop_count}.tmp");
+                        output = BufWriter::new(
+                            File::create_new(&filename)
+                                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
+                        );
+                    }
+                }
+                other => {
+                    eprintln!("Unexpected response: {other:?}");
+                    break;
+                }
+            }
+        }
+
+        let _ = std::fs::remove_file(&filename);
+
         assoc.release_association(&mut reader, &mut writer)
     }
 

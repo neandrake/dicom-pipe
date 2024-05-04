@@ -242,7 +242,7 @@ impl UserAssocBuilder {
             this_user_data.push(UserPdu::RoleSelectionItem(RoleSelectionItem::new(
                 ab.uid().into(),
                 1,
-                0,
+                1,
             )));
         }
 
