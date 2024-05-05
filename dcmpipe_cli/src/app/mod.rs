@@ -23,11 +23,15 @@ use std::{
 };
 
 use dcmpipe_lib::{
-    core::read::{Parser, ParserBuilder},
-    dict::stdlookup::STANDARD_DICOM_DICTIONARY,
+    core::{
+        dcmobject::DicomRoot,
+        defn::ts::TSRef,
+        read::{stop::ParseStop, Parser, ParserBuilder},
+    },
+    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, tags::SOPInstanceUID},
     dimse::{
         assoc::DimseMsg,
-        error::{AssocError, AssocRsp},
+        error::{AssocError, AssocRsp, DimseError},
         pdus::PduType,
     },
 };
@@ -108,4 +112,34 @@ fn handle_assoc_result<W: Write>(
             output
         }
     }
+}
+
+/// Reads a DICOM file to parse the SOP Instance UID, then renames the file based on the SOP.
+///
+/// # Errors
+/// - I/O errors may occur reading or renaming the file.
+/// - `DimseError` will occur if the file could not be parsed as DICOM or did not contain a SOP
+/// Instance UID.
+fn rename_file_to_sop(filename: &str, ts: TSRef) -> Result<(), DimseError> {
+    let file = BufReader::new(File::open(filename).map_err(DimseError::from)?);
+    let mut parser = ParserBuilder::default()
+        .dataset_ts(ts)
+        .stop(ParseStop::after(&SOPInstanceUID))
+        .build(file, &STANDARD_DICOM_DICTIONARY);
+    let sop_uid = DicomRoot::parse(&mut parser)
+        .map_err(DimseError::from)?
+        .and_then(|dcm_root| {
+            dcm_root
+                .get_value_by_tag(&SOPInstanceUID)
+                .and_then(|v| v.string().cloned())
+        });
+    let Some(sop_uid) = sop_uid else {
+        return Err(DimseError::GeneralError(format!(
+            "Failed to read SOP Instance UID of received dataset, read {} bytes",
+            parser.bytes_read()
+        )));
+    };
+    drop(parser);
+    std::fs::rename(filename, format!("{sop_uid}.dcm")).map_err(DimseError::from)?;
+    Ok(())
 }

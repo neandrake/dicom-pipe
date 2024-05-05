@@ -1,14 +1,13 @@
 use std::{
     collections::HashSet,
     fs::File,
-    io::{stdout, BufReader, BufWriter, Seek, Write},
+    io::{stdout, BufReader, BufWriter, Write},
     net::TcpStream,
     path::PathBuf,
 };
 
 use dcmpipe_lib::{
     core::{
-        dcmobject::DicomRoot,
         defn::{
             constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
             dcmdict::DicomDictionary,
@@ -16,12 +15,12 @@ use dcmpipe_lib::{
             vr::LT,
         },
         inspect::FormattedElement,
-        read::{stop::ParseStop, valdecode::StringAndVr, ParserBuilder},
+        read::{valdecode::StringAndVr, ParserBuilder},
         RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{AffectedSOPClassUID, SOPInstanceUID},
+        tags::AffectedSOPClassUID,
         uids::{
             CTImageStorage, DeformableSpatialRegistrationStorage, MRImageStorage,
             ModalityWorklistInformationModelFIND, NuclearMedicineImageStorage,
@@ -45,12 +44,10 @@ use dcmpipe_lib::{
 };
 
 use crate::{
-    app::handle_assoc_result,
+    app::{handle_assoc_result, rename_file_to_sop},
     args::{SvcUserArgs, SvcUserCommand},
     CommandApplication,
 };
-
-use super::scpapp::fail;
 
 pub struct SvcUserApp {
     args: SvcUserArgs,
@@ -227,7 +224,7 @@ impl SvcUserApp {
                     if cmd.cmd_type() == &CommandType::CGetRsp && cmd.status().is_pending() {
                         let progress = SubOpProgress::from(&cmd);
                         println!(
-                            "Progress: {}/{}",
+                            "C-GET Progress: {}/{}",
                             progress.0,
                             progress.0 + progress.1 + progress.2 + progress.3
                         );
@@ -241,8 +238,6 @@ impl SvcUserApp {
                         .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
 
                     if pdv.is_last_fragment() {
-                        let pos = output.stream_position().unwrap_or_default();
-                        println!("Saving {pos} bytes to {filename}");
                         output
                             .flush()
                             .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
@@ -253,37 +248,9 @@ impl SvcUserApp {
                             .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
                         drop(file);
 
-                        let file = BufReader::new(
-                            File::open(&filename)
-                                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
-                        );
-
                         let (_pres_ctx, ts) = assoc.common().get_pres_ctx_and_ts(cstore_ctx_id)?;
 
-                        let mut parser = ParserBuilder::default()
-                            .dataset_ts(ts)
-                            .stop(ParseStop::after(&SOPInstanceUID))
-                            .build(file, &STANDARD_DICOM_DICTIONARY);
-                        let sop_uid = DicomRoot::parse(&mut parser)
-                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?
-                            .and_then(|dcm_root| {
-                                dcm_root
-                                    .get_value_by_tag(&SOPInstanceUID)
-                                    .and_then(|v| v.string().cloned())
-                            });
-
-                        let Some(sop_uid) = sop_uid else {
-                            return fail(&format!(
-                                "Failed to read SOP Instance UID of received dataset, read {} bytes",
-                                parser.bytes_read()
-                            ))
-                            .map(|()| None);
-                        };
-
-                        // Release the file?
-                        drop(parser);
-                        std::fs::rename(&filename, format!("{sop_uid}.dcm"))
-                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+                        rename_file_to_sop(&filename, ts).map_err(AssocError::ab_failure)?;
 
                         let cmd = CommandMessage::c_store_rsp(
                             cstore_ctx_id,
