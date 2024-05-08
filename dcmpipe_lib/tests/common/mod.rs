@@ -47,9 +47,10 @@ pub mod common_stddicom {
 
     /// Gets the fixture file of the given file path, relative to the fixtures directory.
     pub fn fixture(path: &str) -> Result<BufReader<File>, std::io::Error> {
-        Ok(BufReader::new(File::open(
-            Path::new(FIXTURES_PATH).join(path),
-        )?))
+        Ok(BufReader::with_capacity(
+            1024 * 1024,
+            File::open(Path::new(FIXTURES_PATH).join(path))?,
+        ))
     }
 
     /// Parses the given file into a `DicomObject`. The fixture file path should be relative to the
@@ -80,7 +81,7 @@ pub mod common_stddicom {
         for path in get_dicom_file_paths() {
             let path_str: &str = path.to_str().expect("path");
 
-            let dataset = BufReader::new(File::open(path.clone())?);
+            let dataset = BufReader::with_capacity(1024 * 1024, File::open(path.clone())?);
             let parser = ParserBuilder::default().build(dataset, dict);
 
             if parse_all_element_values(parser, path_str).is_err() {

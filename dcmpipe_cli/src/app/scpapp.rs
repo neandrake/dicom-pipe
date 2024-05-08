@@ -266,7 +266,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
     }
 
     /// Flat-maps the search results from UID/Key -> Series to UID/Key -> Files.
-    pub(crate) fn resolve_to_files(
+    pub(crate) fn resolve_to_paths(
         group_map: HashMap<String, Vec<DicomDoc>>,
     ) -> HashMap<String, Vec<PathBuf>> {
         let mut path_map: HashMap<String, Vec<PathBuf>> = HashMap::new();

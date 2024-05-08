@@ -16,7 +16,7 @@
 
 use std::{
     fs::File,
-    io::{Read, Write},
+    io::{BufReader, Read, Write},
 };
 
 use dcmpipe_lib::{
@@ -51,7 +51,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 .read_dataset_in_mem(&mut self.reader, &mut self.writer, ts)?;
 
         let query_results = self.query_database(&dcm_query)?;
-        let path_map = Self::resolve_to_files(query_results.group_map);
+        let path_map = Self::resolve_to_paths(query_results.group_map);
 
         let sop_count = path_map.values().map(Vec::len).sum::<usize>();
         let sop_count = u16::try_from(sop_count).unwrap_or_default();
@@ -78,7 +78,8 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     }
                 };
 
-                let parser = ParserBuilder::default().build(file, &STANDARD_DICOM_DICTIONARY);
+                let input = BufReader::with_capacity(1024 * 1024, file);
+                let parser = ParserBuilder::default().build(input, &STANDARD_DICOM_DICTIONARY);
                 let store_rsp = self.assoc.common().c_store_req(
                     &mut self.reader,
                     &mut self.writer,

@@ -125,8 +125,11 @@ impl SvcUserApp {
         file: &[PathBuf],
     ) -> Result<Option<DimseMsg>, AssocError> {
         for f in file {
-            let f = File::open(f).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
-            let parser = ParserBuilder::default().build(f, &STANDARD_DICOM_DICTIONARY);
+            let input = BufReader::with_capacity(
+                1024 * 1024,
+                File::open(f).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
+            );
+            let parser = ParserBuilder::default().build(input, &STANDARD_DICOM_DICTIONARY);
             let store_msg_id = assoc.next_msg_id();
             let rsp = assoc.common().c_store_req(
                 &mut reader,
@@ -199,7 +202,8 @@ impl SvcUserApp {
         let mut cstore_msg_id: u16 = 0;
         let mut cstore_aff_sop: String = String::default();
         let mut filename = format!("rcv_dcm_{sop_count}.tmp");
-        let mut output = BufWriter::new(
+        let mut output = BufWriter::with_capacity(
+            1024 * 1024,
             File::create(&filename).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
         );
         loop {
@@ -212,7 +216,8 @@ impl SvcUserApp {
                         cstore_aff_sop = cmd.get_string(&AffectedSOPClassUID).unwrap_or_default();
 
                         filename = format!("rcv_dcm_{sop_count}.tmp");
-                        output = BufWriter::new(
+                        output = BufWriter::with_capacity(
+                            1024 * 1024,
                             File::create(&filename)
                                 .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
                         );
@@ -262,7 +267,8 @@ impl SvcUserApp {
 
                         sop_count += 1;
                         filename = format!("rcv_dcm_{sop_count}.tmp");
-                        output = BufWriter::new(
+                        output = BufWriter::with_capacity(
+                            1024 * 1024,
                             File::create_new(&filename)
                                 .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
                         );

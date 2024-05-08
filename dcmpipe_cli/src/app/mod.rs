@@ -54,7 +54,7 @@ fn parse_file(path: &Path, allow_partial_object: bool) -> Result<Parser<'_, BufR
     }
 
     let file = File::open(path)?;
-    let dataset = BufReader::new(file);
+    let dataset = BufReader::with_capacity(1024 * 1024, file);
     let mut parser = ParserBuilder::default()
         .allow_partial_object(allow_partial_object)
         .build(dataset, &STANDARD_DICOM_DICTIONARY);
@@ -121,7 +121,7 @@ fn handle_assoc_result<W: Write>(
 /// - `DimseError` will occur if the file could not be parsed as DICOM or did not contain a SOP
 /// Instance UID.
 fn rename_file_to_sop(filename: &str, ts: TSRef) -> Result<(), DimseError> {
-    let file = BufReader::new(File::open(filename).map_err(DimseError::from)?);
+    let file = BufReader::with_capacity(8 * 1024, File::open(filename).map_err(DimseError::from)?);
     let mut parser = ParserBuilder::default()
         .dataset_ts(ts)
         .stop(ParseStop::after(&SOPInstanceUID))

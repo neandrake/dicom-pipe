@@ -18,7 +18,12 @@ mod common;
 
 #[cfg(feature = "stddicom")]
 mod writing_tests {
-    use std::{fs::File, io::Read, iter::once, path::PathBuf};
+    use std::{
+        fs::File,
+        io::{BufReader, Read},
+        iter::once,
+        path::PathBuf,
+    };
 
     use dcmpipe_lib::{
         core::{
@@ -34,7 +39,7 @@ mod writing_tests {
                     SPACE_PADDING, UI, US, UV,
                 },
             },
-            read::{Parser, ParserBuilder, ParserState},
+            read::{ParserBuilder, ParserState},
             values::{Attribute, RawValue},
             write::{
                 builder::WriterBuilder,
@@ -372,8 +377,8 @@ mod writing_tests {
     fn reencode_file_elements(path: PathBuf) -> Result<(), WriteError> {
         let path_str: &str = path.to_str().expect("path");
 
-        let mut parser: Parser<'_, File> =
-            ParserBuilder::default().build(File::open(path.clone())?, &STANDARD_DICOM_DICTIONARY);
+        let input = BufReader::with_capacity(1024 * 1024, File::open(path.clone())?);
+        let mut parser = ParserBuilder::default().build(input, &STANDARD_DICOM_DICTIONARY);
 
         while let Some(Ok(mut elem)) = parser.next() {
             assert_reencode_element(path_str, &mut elem)?;

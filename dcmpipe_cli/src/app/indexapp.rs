@@ -17,6 +17,7 @@
 use std::{
     collections::HashMap,
     fs::File,
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -30,7 +31,7 @@ use dcmpipe_lib::{
         dcmelement::DicomElement,
         dcmobject::DicomRoot,
         defn::vr::LT,
-        read::{stop::ParseStop, Parser, ParserBuilder},
+        read::{stop::ParseStop, ParserBuilder},
         RawValue,
     },
     dict::{
@@ -135,9 +136,8 @@ impl IndexApp {
                 continue;
             }
 
-            let file: File = File::open(entry.path())?;
-            let mut parser: Parser<'_, File> =
-                parser_builder.build(file, &STANDARD_DICOM_DICTIONARY);
+            let input = BufReader::with_capacity(16 * 1024, File::open(entry.path())?);
+            let mut parser = parser_builder.build(input, &STANDARD_DICOM_DICTIONARY);
 
             let dcm_root = DicomRoot::parse(&mut parser)?;
             let Some(dcm_root) = dcm_root else {
