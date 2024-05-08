@@ -20,22 +20,22 @@ use crate::dimse::commands::{CommandPriority, CommandStatus, CommandType};
 fn assert_status_eq(status: CommandStatus) {
     match status {
         CommandStatus::Success(c) => {
-            assert_eq!(status, CommandStatus::from(c))
+            assert_eq!(status, CommandStatus::from(c));
         }
         CommandStatus::Warning(c) => {
-            assert_eq!(status, CommandStatus::from(c))
+            assert_eq!(status, CommandStatus::from(c));
         }
         CommandStatus::Failure(c) => {
-            assert_eq!(status, CommandStatus::from(c))
+            assert_eq!(status, CommandStatus::from(c));
         }
         CommandStatus::Cancel(c) => {
-            assert_eq!(status, CommandStatus::from(c))
+            assert_eq!(status, CommandStatus::from(c));
         }
         CommandStatus::Pending(c) => {
-            assert_eq!(status, CommandStatus::from(c))
+            assert_eq!(status, CommandStatus::from(c));
         }
         CommandStatus::INVALID(c) => {
-            assert_eq!(status, CommandStatus::from(c))
+            assert_eq!(status, CommandStatus::from(c));
         }
     }
 }

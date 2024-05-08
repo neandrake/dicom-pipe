@@ -33,11 +33,11 @@ pub struct TransferSyntax {
     /// Identifier or name which can be used with a `DicomDictionary`.
     pub uid: UIDRef,
 
-    /// If Native Encoding, whether this encodes with ExplicitVR or ImplicitVR. The majority of
+    /// If Native Encoding, whether this encodes with `ExplicitVR` or `ImplicitVR`. The majority of
     /// transfer syntaxes are explicit VR.
     pub explicit_vr: bool,
 
-    /// If Native Encoding, whether this encodes using BigEndian or LittleEndian. The majority of
+    /// If Native Encoding, whether this encodes using `BigEndian` or `LittleEndian`. The majority of
     /// transfer syntaxes are little endian.
     pub big_endian: bool,
 
@@ -46,7 +46,7 @@ pub struct TransferSyntax {
     pub deflated: bool,
 
     /// Encapsulated transfer syntaxes (basically anything that isn't the handful of
-    /// implicit/explicit big/little endian), including all jpeg - the content of the PixelData
+    /// implicit/explicit big/little endian), including all jpeg - the content of the `PixelData`
     /// segment is encoded in a different format from the rest of the dicom elements.
     pub encapsulated: bool,
 }

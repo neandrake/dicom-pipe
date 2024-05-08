@@ -181,7 +181,9 @@ impl ServiceAssoc {
         }
 
         // Grab a copy of their user data for later, things like `MaxLengthItem` etc.
-        self.common.their_user_data.clone_from(rq.user_info().user_data());
+        self.common
+            .their_user_data
+            .clone_from(rq.user_info().user_data());
 
         // Copy the starting user data for this SCU, which should only have `MaxLengthItem` and
         // `AsyncOperationsWindowItem`, but not any `RoleSelectionItem`s.

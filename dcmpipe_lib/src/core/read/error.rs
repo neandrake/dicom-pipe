@@ -65,7 +65,7 @@ pub enum ParseError {
     #[error("dicom prefix is not 'DICM': {0:?}")]
     BadDICOMPrefix([u8; DICOM_PREFIX_LENGTH]),
 
-    /// If an unknown VR is parsed from an ExplicitVR stream.
+    /// If an unknown VR is parsed from an `ExplicitVR` stream.
     #[error("unknown explicit vr: {0:#06X}")]
     UnknownExplicitVR(u16),
 

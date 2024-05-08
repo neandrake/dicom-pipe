@@ -104,10 +104,10 @@ mod parsing_tests {
         match parse_error {
             ParseError::DetailedError { source, detail } => match *source {
                 ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {}
-                _ => panic!("{:?}", detail),
+                _ => panic!("{detail:?}"),
             },
             ParseError::BadDICOMPrefix([68, 79, 67, 77]) => {}
-            other => panic!("{:?}", other),
+            other => panic!("{other:?}"),
         };
     }
 
@@ -466,8 +466,8 @@ mod parsing_tests {
             .element();
 
         assert_eq!(&vr::UN, contour_data.vr());
-        assert_eq!(ValueLength::Explicit(107074), contour_data.vl());
-        assert_eq!(107074, contour_data.data().len());
+        assert_eq!(ValueLength::Explicit(107_074), contour_data.vl());
+        assert_eq!(107_074, contour_data.data().len());
 
         Ok(())
     }
@@ -521,7 +521,7 @@ mod parsing_tests {
         test_private_tag_un_sq(false)
     }
 
-    /// Private tags with UN VR and UndefinedLength should be parsed as sequences. This file uses tags
+    /// Private tags with UN VR and `UndefinedLength` should be parsed as sequences. This file uses tags
     /// which are not known to the dictionaries we're parsing with.
     fn test_private_tag_un_sq(with_std: bool) -> ParseResult<()> {
         let dcmroot: DicomRoot = parse_file(
@@ -593,7 +593,7 @@ mod parsing_tests {
     }
 
     /// `SequenceDelimitationItem`, `Item`, and `ItemDelimitationItem` are always encoded as IVRLE
-    /// despite what the transfer syntax is. This dataset encodes SourceImageSequence with an explicit
+    /// despite what the transfer syntax is. This dataset encodes `SourceImageSequence` with an explicit
     /// VR of UN rather than SQ which requires using a parser on the sequence's data field to decode
     /// its contents.
     fn test_seq_switch_to_ivrle(with_std: bool) -> ParseResult<()> {
@@ -744,7 +744,7 @@ mod parsing_tests {
         } else {
             String::from_utf8(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).map_err(|e| {
                 ParseError::IOError {
-                    source: std::io::Error::new(ErrorKind::InvalidData, format!("{:?}", e)),
+                    source: std::io::Error::new(ErrorKind::InvalidData, format!("{e:?}")),
                 }
             })?
         };
@@ -1320,8 +1320,8 @@ mod parsing_tests {
         test_explicit_vr_for_pub_element_implicit_vr_for_shadow_elements(false)
     }
 
-    /// This dataset seems partially malformed. It looks like after the SourceImageSequence the transfer
-    /// syntax of elements at the root switch to being ImplicitVR rather than the defined ExplicitVR.
+    /// This dataset seems partially malformed. It looks like after the `SourceImageSequence` the transfer
+    /// syntax of elements at the root switch to being `ImplicitVR` rather than the defined `ExplicitVR`.
     /// It's not clear if this is something that we can handle -- dcmtk also is unable to parse this
     /// though it's not clear if for the same reason.
     ///
@@ -1386,7 +1386,7 @@ mod parsing_tests {
     }
 
     /// This dataset also randomly switches between implicit and explicit transfer syntax. This one
-    /// switches to implicit after Modality, and seems to switch back shortly after SeriesDescription.
+    /// switches to implicit after Modality, and seems to switch back shortly after `SeriesDescription`.
     fn test_explicit_implicit_bogus_iop(with_std: bool) -> ParseResult<()> {
         let _dcmroot: DicomRoot = parse_file(
             "gdcm/gdcmData/DMCPACS_ExplicitImplicit_BogusIOP.dcm",
@@ -1406,8 +1406,8 @@ mod parsing_tests {
         test_jpeg_lossless3a(false)
     }
 
-    /// This dataset has a few extra bytes after the second item/frame in PixelData, which don't parse
-    /// as a valid DicomElement. This test verifies the parser can be configured to return a partial
+    /// This dataset has a few extra bytes after the second item/frame in `PixelData`, which don't parse
+    /// as a valid `DicomElement`. This test verifies the parser can be configured to return a partial
     /// result, which enables parsing objects which end in garbage data.
     fn test_jpeg_lossless3a(with_std: bool) -> ParseResult<()> {
         let dict: &dyn DicomDictionary = if with_std {
@@ -1446,7 +1446,7 @@ mod parsing_tests {
         test_kodak_compressed_icon(false)
     }
 
-    /// This dataset has a pixel data inside IconImageSqeuence - the pixel data itself having 2 items.
+    /// This dataset has a pixel data inside `IconImageSqeuence` - the pixel data itself having 2 items.
     /// This pixel data is undefined length and its items are defined so do not have item delimiters,
     /// but does have a sequence delimiter which should pop off the inner item.
     fn test_kodak_compressed_icon(with_std: bool) -> ParseResult<()> {
@@ -1476,10 +1476,7 @@ mod parsing_tests {
         if let RawValue::Doubles(vals) = value {
             assert!(vals.is_empty());
         } else {
-            panic!(
-                "PatientsWeight should parse as a list of doubles but was {:?}",
-                value
-            );
+            panic!("PatientsWeight should parse as a list of doubles but was {value:?}");
         }
 
         Ok(())
@@ -1525,7 +1522,7 @@ mod parsing_tests {
             Err(ParseError::IOError {
                 source: std::io::Error::new(
                     ErrorKind::InvalidData,
-                    format!("Failed to parse DICOM files: {}", num_failed),
+                    format!("Failed to parse DICOM files: {num_failed}"),
                 ),
             })
         } else {
@@ -1541,7 +1538,7 @@ mod parsing_tests {
             Err(ParseError::IOError {
                 source: std::io::Error::new(
                     ErrorKind::InvalidData,
-                    format!("Failed to parse DICOM files: {}", num_failed),
+                    format!("Failed to parse DICOM files: {num_failed}"),
                 ),
             })
         } else {

@@ -111,7 +111,7 @@ pub struct SvcProviderArgs {
     #[arg(short, long)]
     /// The maximum PDU size to receive.
     ///
-    /// Size is specified in bytes and should be no more than u32::MAX. If not specified then no
+    /// Size is specified in bytes and should be no more than `u32::MAX`. If not specified then no
     /// maximum is configured.
     pub max_pdu_size: Option<usize>,
 
@@ -154,7 +154,7 @@ pub struct SvcUserArgs {
     #[arg(short, long)]
     /// The maximum PDU size to receive.
     ///
-    /// Size is specified in bytes and should be no more than u32::MAX. If not specified then no
+    /// Size is specified in bytes and should be no more than `u32::MAX`. If not specified then no
     /// maximum is configured.
     pub max_pdu_size: Option<usize>,
 

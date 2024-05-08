@@ -185,8 +185,7 @@ pub mod common_stddicom {
                         Ok(_) => Ok(()),
                         Err(e) => {
                             eprintln!(
-                                "Error parsing DICOM Element:\n\tfile: {}\n\terr: {}",
-                                path_str, e
+                                "Error parsing DICOM Element:\n\tfile: {path_str}\n\terr: {e}"
                             );
                             Err(e)
                         }
@@ -194,7 +193,7 @@ pub mod common_stddicom {
                     Ok(())
                 }
                 Err(e) => {
-                    eprintln!("Error parsing DICOM:\n\tfile: {}\n\terr: {}", path_str, e);
+                    eprintln!("Error parsing DICOM:\n\tfile: {path_str}\n\terr: {e}");
                     Err(e)
                 }
             }?;

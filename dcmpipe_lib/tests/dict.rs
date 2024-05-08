@@ -44,7 +44,7 @@ mod dict_tests {
         assert_eq!(&PixelData, pd_by_ident);
 
         let pd_by_tag: &Tag = TAG_BY_VALUE
-            .get(&0x7FE00010)
+            .get(&0x7FE0_0010)
             .expect("Tag 0x7FE00010 not found");
         assert_eq!(&PixelData, pd_by_tag);
 
@@ -55,7 +55,7 @@ mod dict_tests {
         assert_eq!(&FilesetID, fsid_by_ident);
 
         let fsid_by_tag: &Tag = TAG_BY_VALUE
-            .get(&0x00041130)
+            .get(&0x0004_1130)
             .expect("Tag 0x00041130 not found");
         assert_eq!(&FilesetID, fsid_by_tag);
 
@@ -66,7 +66,7 @@ mod dict_tests {
         assert_eq!(&TransferSyntaxUID, tsuid_by_ident);
 
         let tsuid_by_tag: &Tag = TAG_BY_VALUE
-            .get(&0x00020010)
+            .get(&0x0002_0010)
             .expect("Tag 0x00020010 not found");
         assert_eq!(&TransferSyntaxUID, tsuid_by_tag);
     }
@@ -127,7 +127,7 @@ mod dict_tests {
         assert_eq!(&CTImageStorage, ctis_by_id);
     }
 
-    /// Sanity-check of the pre-defined TransferSyntax's to ensure
+    /// Sanity-check of the pre-defined `TransferSyntax`'s to ensure
     /// that their defined properties reflect the UID's name.
     /// May catch issues with improperly copying over values from definitions.
     #[test]
@@ -187,7 +187,7 @@ mod dict_tests {
                     ts.deflated,
                     "Name contains \"Deflate\" but is not deflated: {:?}",
                     ts.uid
-                )
+                );
             }
 
             if contains_encapsulated {
@@ -195,7 +195,7 @@ mod dict_tests {
                     ts.encapsulated,
                     "Name contains \"Encapsulated\" but is not encapsulated: {:?}",
                     ts.uid
-                )
+                );
             }
         }
     }

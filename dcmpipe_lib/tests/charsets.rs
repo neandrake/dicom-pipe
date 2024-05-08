@@ -132,8 +132,7 @@ mod charsets_tests {
 
         let item_scs = item_scs_values
             .into_iter()
-            .filter(|cs_entry| !cs_entry.is_empty())
-            .next()
+            .find(|cs_entry| !cs_entry.is_empty())
             .expect("Should have at least one value for SCS");
 
         assert_eq!(scs, item_scs);
@@ -294,8 +293,7 @@ mod charsets_tests {
         // value can be multiple and sometimes contains empties -- match logic from the parser
         let scs_val: String = Vec::<String>::try_from(scs_elem)?
             .into_iter()
-            .filter(|cs_entry| !cs_entry.is_empty())
-            .next()
+            .find(|cs_entry| !cs_entry.is_empty())
             .expect("Should have at least one value for SCS");
         assert_eq!(scs, scs_val);
 

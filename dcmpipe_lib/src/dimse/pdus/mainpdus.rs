@@ -2039,7 +2039,7 @@ mod tests {
         AeTitle,
     };
 
-    /// Creates a dummy AssocRQ populated
+    /// Creates a dummy `AssocRQ` populated
     fn create_assoc_rq() -> AssocRQ {
         let ae_dest: AeTitle = "AE_DEST".as_bytes().try_into().expect("create ae_dest");
         let ae_source: AeTitle = "AE_SOURCE".as_bytes().try_into().expect("create ae_source");

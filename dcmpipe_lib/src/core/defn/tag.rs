@@ -44,7 +44,7 @@ pub struct Tag {
     pub tag: u32,
 
     /// The default value representation which should be used to read this tag when parsing
-    /// ImplicitVR transfer syntaxes. Some tags may support multiple possible implicit VRs,
+    /// `ImplicitVR` transfer syntaxes. Some tags may support multiple possible implicit VRs,
     /// however this is not currently supported.
     pub implicit_vr: Option<VRRef>,
 

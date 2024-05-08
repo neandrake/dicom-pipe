@@ -201,19 +201,18 @@ mod writing_tests {
         let chunk_size = 0x1000;
         let written_chunks = written_bytes
             .chunks(chunk_size)
-            .map(|v| v.to_vec())
+            .map(<[u8]>::to_vec)
             .collect::<Vec<Vec<u8>>>();
         let file_chunks = file_bytes
             .chunks(chunk_size)
-            .map(|v| v.to_vec())
+            .map(<[u8]>::to_vec)
             .collect::<Vec<Vec<u8>>>();
 
         for i in 0..written_chunks.len() {
             assert_eq!(
                 file_chunks.get(i).unwrap(),
                 written_chunks.get(i).unwrap(),
-                "chunk mismatch: {}",
-                i
+                "chunk mismatch: {i}"
             );
         }
     }
@@ -242,9 +241,9 @@ mod writing_tests {
         let re_value = elem.parse_value()?;
         match re_value {
             RawValue::UShorts(shorts) => {
-                assert_eq!(value, shorts, "mismatch shorts: {:?}", elem);
+                assert_eq!(value, shorts, "mismatch shorts: {elem:?}");
             }
-            _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
+            _ => panic!("Parsed value was not ushorts. Actually: {re_value:?}"),
         }
 
         Ok(())
@@ -273,9 +272,9 @@ mod writing_tests {
         let re_value = elem.parse_value()?;
         match re_value {
             RawValue::Attributes(attrs) => {
-                assert_eq!(value, attrs, "mismatch attribute: {:?}", elem);
+                assert_eq!(value, attrs, "mismatch attribute: {elem:?}");
             }
-            _ => panic!("Parsed value was not ushorts. Actually: {:?}", re_value),
+            _ => panic!("Parsed value was not ushorts. Actually: {re_value:?}"),
         }
 
         Ok(())
@@ -286,7 +285,7 @@ mod writing_tests {
         let tag: u32 = 0x7fe1_1052;
         let mut elem = DicomElement::new_empty(tag, &FD, &JPEGBaselineProcess1);
 
-        let value = vec![3499.9999999999995];
+        let value = vec![3_499.999_999_999_999_5];
         elem.encode_val(RawValue::Doubles(value.clone()))?;
 
         let raw_data = vec![255, 255, 255, 255, 255, 87, 171, 64];
@@ -305,9 +304,9 @@ mod writing_tests {
         let re_value = elem.parse_value()?;
         match re_value {
             RawValue::Doubles(doubles) => {
-                assert_eq!(value, doubles, "mismatch doubles: {:?}", elem);
+                assert_eq!(value, doubles, "mismatch doubles: {elem:?}");
             }
-            _ => panic!("Parsed value was not doubles. Actually: {:?}", re_value),
+            _ => panic!("Parsed value was not doubles. Actually: {re_value:?}"),
         }
 
         Ok(())
@@ -328,7 +327,7 @@ mod writing_tests {
         // `StudyComments` is used as an arbitrary tag and its implicit VR is ignored by explicitly
         // configuring the `DicomElement` and the parsing below to use `UV`, which will
         // encode/decode u64 values which are long enough to require endian-swapping of bytes.
-        let value = RawValue::of_ulong(123456789u64);
+        let value = RawValue::of_ulong(123_456_789_u64);
         let mut element = DicomElement::new_empty(&StudyComments, &UV, &ExplicitVRLittleEndian);
         element.encode_val(value)?;
         let original_data = element.data().to_owned();
@@ -349,7 +348,7 @@ mod writing_tests {
 
         let study_comments_val = read_elem.parse_value_as(&UV).unwrap();
         let study_comments = study_comments_val.ulong().unwrap();
-        assert_eq!(123456789u64, study_comments);
+        assert_eq!(123_456_789_u64, study_comments);
 
         Ok(())
     }
@@ -361,13 +360,11 @@ mod writing_tests {
         for path in get_dicom_file_paths() {
             if let Err(e) = reencode_file_elements(path.clone()) {
                 any_failed = true;
-                eprintln!("Error in file: {:?}\n\t{:?}", path, e);
+                eprintln!("Error in file: {path:?}\n\t{e:?}");
             }
         }
 
-        if any_failed {
-            panic!("Failed reencoding element values");
-        }
+        assert!(!any_failed, "Failed reencoding element values");
 
         Ok(())
     }
@@ -417,12 +414,12 @@ mod writing_tests {
             let trimmer = |v: &Vec<u8>| {
                 v.iter()
                     .rev()
-                    .map(|b| b.to_owned())
+                    .map(std::borrow::ToOwned::to_owned)
                     .skip_while(|&b| b == SPACE_PADDING || b == NULL_PADDING)
                     .collect::<Vec<u8>>()
                     .iter()
                     .rev()
-                    .map(|b| b.to_owned())
+                    .map(std::borrow::ToOwned::to_owned)
                     .skip_while(|&b| b == SPACE_PADDING)
                     .collect::<Vec<u8>>()
             };
@@ -448,27 +445,27 @@ mod writing_tests {
                 };
 
                 v.iter()
-                    .map(|b| b.to_owned())
+                    .map(std::borrow::ToOwned::to_owned)
                     .skip_while(|&b| b == SPACE_PADDING || b == b'0')
                     .collect::<Vec<u8>>()
                     .iter()
                     .rev()
-                    .map(|b| b.to_owned())
+                    .map(std::borrow::ToOwned::to_owned)
                     .skip_while(|&b| b == SPACE_PADDING || (remove_trailing_zeroes && b == b'0'))
                     .collect::<Vec<u8>>()
                     .iter()
                     .rev()
-                    .map(|b| b.to_owned())
+                    .map(std::borrow::ToOwned::to_owned)
                     .collect::<Vec<u8>>()
             };
 
             let orig_pieces = orig_parsed_data
                 .split(|&b| b == CS_SEPARATOR_BYTE)
-                .map(|b| b.to_owned())
+                .map(std::borrow::ToOwned::to_owned)
                 .collect::<Vec<Vec<u8>>>();
             let reencoded_pieces = reencoded_data
                 .split(|&b| b == CS_SEPARATOR_BYTE)
-                .map(|b| b.to_owned())
+                .map(std::borrow::ToOwned::to_owned)
                 .collect::<Vec<Vec<u8>>>();
 
             if orig_pieces.len() == reencoded_pieces.len() {
