@@ -361,7 +361,12 @@ where
             // swap out the writer with a new one to write the element to, and return the old one
             // in a new PresentationDataItem.
             if bytes_written + elem_size > self.max_payload_size {
-                let big_elem = self.writer.bytes_written() == 0;
+                // Grab any existing elements/bytes that need sent out before moving on to the
+                // element that will cause the current writer to overflow.
+                let buffer = self.swap_writer();
+
+                // Check if this element would cause a brand new writer to also overflow.
+                let big_elem = elem_size > self.max_payload_size;
 
                 // If the writer hasn't written anything and the element's size is still too large
                 // then we're in a big element like PixelData. Put the bytes into the leftover
@@ -376,10 +381,16 @@ where
                         return Some(Err(e));
                     }
                     self.big_element_data = self.swap_writer();
+
+                    if !buffer.is_empty() {
+                        // This isn't the last PDI since big_element_data was just prepped for next
+                        // iteration.
+                        return Some(Ok(self.create_pdi(buffer, false)));
+                    }
                     continue;
                 }
 
-                let buffer = self.swap_writer();
+                // The element will not cause a new writer to overflow.
                 let write_result = self
                     .writer
                     .write_elements(once(element))
@@ -396,6 +407,7 @@ where
                 if is_last {
                     self.finished = true;
                 }
+                // Return the previous writer buffer.
                 return Some(Ok(self.create_pdi(buffer, is_last)));
             }
 

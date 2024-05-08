@@ -384,11 +384,12 @@ impl CommonAssoc {
         mut writer: &mut W,
     ) -> Result<(), AssocError> {
         let elements = cmd.message().flatten();
+        let elements = elements.iter().copied();
         let pdi_iter = PresDataIter::new(
             cmd.ctx_id(),
             self.get_pdu_max_snd_size(),
             true,
-            elements.iter().copied(),
+            elements,
             &ImplicitVRLittleEndian,
             CSRef::default(),
         );
@@ -415,11 +416,12 @@ impl CommonAssoc {
         mut writer: &mut W,
     ) -> Result<(), AssocError> {
         let elements = dataset.flatten();
+        let elements = elements.iter().copied();
         let pdi_iter = PresDataIter::new(
             ctx_id,
             self.get_pdu_max_snd_size(),
             false,
-            elements.iter().copied(),
+            elements,
             dataset.ts(),
             dataset.cs(),
         );

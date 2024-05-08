@@ -466,13 +466,6 @@ impl CommandMessage {
         status: &CommandStatus,
         progress: &SubOpProgress,
     ) -> Self {
-        // A C-GET response will include the result as a following dataset only if the status is
-        // marked as pending.
-        let dataset_type = if status.is_pending() {
-            COMMAND_DATASET_TYPE_SOME
-        } else {
-            COMMAND_DATASET_TYPE_NONE
-        };
         let mut elements = vec![
             (&AffectedSOPClassUID, RawValue::of_uid(aff_sop_class_uid)),
             (
@@ -480,7 +473,10 @@ impl CommandMessage {
                 RawValue::of_ushort(u16::from(&CommandType::CGetRsp)),
             ),
             (&MessageIDBeingRespondedTo, RawValue::of_ushort(msg_id)),
-            (&CommandDataSetType, RawValue::of_ushort(dataset_type)),
+            (
+                &CommandDataSetType,
+                RawValue::of_ushort(COMMAND_DATASET_TYPE_NONE),
+            ),
             (&Status, RawValue::from(status)),
         ];
         elements.append(&mut progress.as_elements(status));
