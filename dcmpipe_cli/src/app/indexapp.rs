@@ -249,7 +249,7 @@ impl IndexApp {
         println!("Updating {} records", updates.len());
         for (id, doc) in updates {
             let query: Document = doc! { MONGO_ID_KEY: id };
-            dicom_coll.update_one(query, doc, None)?;
+            dicom_coll.replace_one(query, doc, None)?;
         }
 
         Ok(())

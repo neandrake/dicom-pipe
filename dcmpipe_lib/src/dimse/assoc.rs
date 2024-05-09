@@ -93,12 +93,35 @@ impl QueryLevel {
 
     #[must_use]
     pub fn include_patient_tags(&self) -> bool {
-        true
+        match self {
+            QueryLevel::Patient | QueryLevel::Study | QueryLevel::Series | QueryLevel::Image => {
+                true
+            }
+        }
     }
 
     #[must_use]
     pub fn include_study_tags(&self) -> bool {
-        self != &QueryLevel::Patient
+        match self {
+            QueryLevel::Patient => false,
+            QueryLevel::Study | QueryLevel::Series | QueryLevel::Image => true,
+        }
+    }
+
+    #[must_use]
+    pub fn include_series_tags(&self) -> bool {
+        match self {
+            QueryLevel::Patient | QueryLevel::Study => false,
+            QueryLevel::Series | QueryLevel::Image => true,
+        }
+    }
+
+    #[must_use]
+    pub fn include_image_tags(&self) -> bool {
+        match self {
+            QueryLevel::Patient | QueryLevel::Study | QueryLevel::Series => false,
+            QueryLevel::Image => true,
+        }
     }
 }
 
