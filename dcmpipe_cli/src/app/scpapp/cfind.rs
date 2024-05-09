@@ -39,16 +39,16 @@ use dcmpipe_lib::{
         tags::{
             AccessionNumber, AdditionalPatientHistory, AdmittingDiagnosesDescription,
             AffectedSOPClassUID, EthnicGroup, InstanceCreationDate, InstanceNumber,
-            IssuerofPatientID, MessageID, ModalitiesinStudy, NameofPhysiciansReadingStudy,
-            NumberofPatientRelatedInstances, NumberofPatientRelatedSeries,
-            NumberofPatientRelatedStudies, NumberofStudyRelatedInstances,
-            NumberofStudyRelatedSeries, Occupation, OtherPatientIDs, OtherPatientNames,
-            OtherStudyNumbers, PatientComments, PatientID, PatientsAge, PatientsBirthDate,
-            PatientsBirthTime, PatientsName, PatientsSex, PatientsSize, PatientsWeight,
-            ProcedureCodeSequence, QueryRetrieveLevel, ReferencedPatientSequence,
+            IssuerofPatientID, MessageID, ModalitiesinStudy, Modality,
+            NameofPhysiciansReadingStudy, NumberofPatientRelatedInstances,
+            NumberofPatientRelatedSeries, NumberofPatientRelatedStudies,
+            NumberofStudyRelatedInstances, NumberofStudyRelatedSeries, Occupation, OtherPatientIDs,
+            OtherPatientNames, OtherStudyNumbers, PatientComments, PatientID, PatientsAge,
+            PatientsBirthDate, PatientsBirthTime, PatientsName, PatientsSex, PatientsSize,
+            PatientsWeight, ProcedureCodeSequence, QueryRetrieveLevel, ReferencedPatientSequence,
             ReferencedStudySequence, ReferringPhysiciansName, SOPClassUID, SOPClassesinStudy,
-            SOPInstanceUID, SeriesDate, SeriesDescription, SeriesInstanceUID, SeriesTime,
-            StudyDate, StudyDescription, StudyID, StudyInstanceUID, StudyTime,
+            SOPInstanceUID, SeriesDate, SeriesDescription, SeriesInstanceUID, SeriesNumber,
+            SeriesTime, StudyDate, StudyDescription, StudyID, StudyInstanceUID, StudyTime,
         },
     },
     dimse::{
@@ -112,15 +112,21 @@ static STUDY_LEVEL_META_TAGS: [TagRef; 4] = [
     &SOPClassesinStudy,
 ];
 
-static SERIES_LEVEL_TAGS: [TagRef; 5] = [
-    &SOPClassUID,
+static SERIES_LEVEL_TAGS: [TagRef; 6] = [
+    &Modality,
     &SeriesInstanceUID,
+    &SeriesNumber,
     &SeriesDescription,
     &SeriesDate,
     &SeriesTime,
 ];
 
-static IMAGE_LEVEL_TAGS: [TagRef; 3] = [&SOPInstanceUID, &InstanceNumber, &InstanceCreationDate];
+static IMAGE_LEVEL_TAGS: [TagRef; 4] = [
+    &SOPClassUID,
+    &SOPInstanceUID,
+    &InstanceNumber,
+    &InstanceCreationDate,
+];
 
 pub(crate) struct MongoQuery {
     pub ql: QueryLevel,
