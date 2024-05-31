@@ -40,7 +40,7 @@ use dcmpipe_lib::{
         commands::{messages::CommandMessage, CommandStatus, CommandType, SubOpProgress},
         error::{AssocError, DimseError},
         pdus::PduType,
-        svcops::{AssocSvcOp, EchoSvcOp, FindSvcOp, GetSvcOp},
+        svcops::{EchoSvcOp, FindSvcOp, GetSvcOp},
     },
 };
 use std::{
@@ -138,8 +138,8 @@ pub(crate) type Stat = CommandStatus;
 
 /// Convenience to create `Err(AssocError::ab_failure(DimseError::GeneralError(msg)))`.
 pub(crate) fn fail(msg: &str) -> Result<(), AssocError> {
-    Err(AssocError::ab_failure(DimseError::GeneralError(
-        msg.to_owned(),
+    Err(AssocError::ab_failure(DimseError::ApplicationError(
+        msg.into(),
     )))
 }
 
@@ -249,34 +249,29 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             }
 
             // TODO: Add 'op' to a map for tracking incomplete ops.
-            let op = if cmd.cmd_type() == &CommandType::CEchoReq {
+            if cmd.cmd_type() == &CommandType::CEchoReq {
                 let mut op = EchoSvcOp::new(cmd.msg_id());
                 self.handle_c_echo_req(&mut op, &cmd)?;
                 println!("[info ->]: {:?}", CommandType::CEchoRsp);
-                AssocSvcOp::Echo(op)
             } else if cmd.cmd_type() == &CommandType::CFindReq {
                 let mut op = FindSvcOp::new(cmd.msg_id());
                 self.handle_c_find_req(&mut op, &cmd)?;
                 println!("[info ->]: {:?}", CommandType::CFindRsp);
-                AssocSvcOp::Find(op)
             } else if cmd.cmd_type() == &CommandType::CStoreReq {
                 self.handle_c_store_req(&cmd)?;
                 println!("[info ->]: {:?}", CommandType::CStoreRsp);
-                AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id()))
             } else if cmd.cmd_type() == &CommandType::CMoveReq {
                 self.handle_c_move_req(&cmd)?;
                 println!("[info ->]: {:?}", CommandType::CMoveRsp);
-                AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id()))
             } else if cmd.cmd_type() == &CommandType::CGetReq {
                 let mut op = GetSvcOp::new(cmd.msg_id());
                 self.handle_c_get_req(&mut op, &cmd)?;
                 println!("[info ->]: {:?}", CommandType::CGetRsp);
-                AssocSvcOp::Get(op)
             } else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(
-                    "".to_owned(),
+                return Err(AssocError::ab_failure(DimseError::UnexpectedCommandType(
+                    cmd.cmd_type().clone(),
                 )));
-            };
+            }
         }
     }
 

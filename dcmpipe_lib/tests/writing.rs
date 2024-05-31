@@ -73,55 +73,48 @@ mod writing_tests {
             .ts(&ExplicitVRLittleEndian)
             .build(Vec::new());
 
-        let mut elements: Vec<DicomElement> = Vec::new();
-
-        elements.push(writer.create_element(
-            &FileMetaInformationVersion,
-            &OB,
-            RawValue::Bytes(vec![0x00, 0x01]),
-        )?);
-
-        elements.push(writer.create_element(
-            &MediaStorageSOPClassUID,
-            &UI,
-            RawValue::Uid(CTImageStorage.uid().to_string()),
-        )?);
-
-        elements.push(writer.create_element(
-            &MediaStorageSOPInstanceUID,
-            &UI,
-            RawValue::Uid("1.2.276.0.7230010.3.1.4.1787205428.2345.1071048146.1".to_string()),
-        )?);
-
-        elements.push(writer.create_element(
-            &TransferSyntaxUID,
-            &UI,
-            RawValue::Uid(RLELossless.uid().uid().to_string()),
-        )?);
-
-        elements.push(writer.create_element(
-            &ImplementationClassUID,
-            &UI,
-            RawValue::Uid("1.2.826.0.1.3680043.2.1143.107.104.103.115.2.1.0".to_string()),
-        )?);
-
-        elements.push(writer.create_element(
-            &ImplementationVersionName,
-            &SH,
-            RawValue::of_string("GDCM 2.1.0".to_string()),
-        )?);
-
-        elements.push(writer.create_element(
-            &SourceApplicationEntityTitle,
-            &AE,
-            RawValue::of_string("gdcmconv".to_string()),
-        )?);
-
-        elements.push(writer.create_element(
-            &SpecificCharacterSet,
-            &CS,
-            RawValue::of_string("ISO_IR 100".to_string()),
-        )?);
+        let elements: Vec<DicomElement> = vec![
+            writer.create_element(
+                &FileMetaInformationVersion,
+                &OB,
+                RawValue::Bytes(vec![0x00, 0x01]),
+            )?,
+            writer.create_element(
+                &MediaStorageSOPClassUID,
+                &UI,
+                RawValue::Uid(CTImageStorage.uid().to_string()),
+            )?,
+            writer.create_element(
+                &MediaStorageSOPInstanceUID,
+                &UI,
+                RawValue::Uid("1.2.276.0.7230010.3.1.4.1787205428.2345.1071048146.1".to_string()),
+            )?,
+            writer.create_element(
+                &TransferSyntaxUID,
+                &UI,
+                RawValue::Uid(RLELossless.uid().uid().to_string()),
+            )?,
+            writer.create_element(
+                &ImplementationClassUID,
+                &UI,
+                RawValue::Uid("1.2.826.0.1.3680043.2.1143.107.104.103.115.2.1.0".to_string()),
+            )?,
+            writer.create_element(
+                &ImplementationVersionName,
+                &SH,
+                RawValue::of_string("GDCM 2.1.0".to_string()),
+            )?,
+            writer.create_element(
+                &SourceApplicationEntityTitle,
+                &AE,
+                RawValue::of_string("gdcmconv".to_string()),
+            )?,
+            writer.create_element(
+                &SpecificCharacterSet,
+                &CS,
+                RawValue::of_string("ISO_IR 100".to_string()),
+            )?,
+        ];
 
         writer.write_elements(elements.iter())?;
 
@@ -165,8 +158,8 @@ mod writing_tests {
         let dataset = fixture(file_path)?;
         let mut parser = ParserBuilder::default().build(dataset, &STANDARD_DICOM_DICTIONARY);
 
-        while let Some(Ok(mut elem)) = parser.next() {
-            assert_reencode_element(file_path, &mut elem)?;
+        while let Some(Ok(elem)) = parser.next() {
+            assert_reencode_element(file_path, &elem)?;
         }
 
         Ok(())
@@ -202,7 +195,7 @@ mod writing_tests {
         Ok(())
     }
 
-    fn assert_byte_chunks(file_bytes: &Vec<u8>, written_bytes: &Vec<u8>) {
+    fn assert_byte_chunks(file_bytes: &[u8], written_bytes: &[u8]) {
         let chunk_size = 0x1000;
         let written_chunks = written_bytes
             .chunks(chunk_size)
@@ -380,8 +373,8 @@ mod writing_tests {
         let input = BufReader::with_capacity(1024 * 1024, File::open(path.clone())?);
         let mut parser = ParserBuilder::default().build(input, &STANDARD_DICOM_DICTIONARY);
 
-        while let Some(Ok(mut elem)) = parser.next() {
-            assert_reencode_element(path_str, &mut elem)?;
+        while let Some(Ok(elem)) = parser.next() {
+            assert_reencode_element(path_str, &elem)?;
         }
         Ok(())
     }

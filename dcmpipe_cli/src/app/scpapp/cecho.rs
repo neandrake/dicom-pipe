@@ -28,7 +28,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         op: &mut EchoSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
-        let rsp = op.process_req(&cmd)?;
+        let rsp = op.process_req(cmd)?;
         op.write_response(&rsp, self.assoc.common(), &mut self.writer)
     }
 }

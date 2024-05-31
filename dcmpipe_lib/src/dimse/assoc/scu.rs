@@ -31,7 +31,7 @@ use crate::{
                 ReleaseRQ, TransferSyntaxItem, UserInformationItem,
             },
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
-            Pdu, PduType, UserPdu,
+            Pdu, UserPdu,
         },
         AeTitle,
     },
@@ -80,10 +80,9 @@ impl UserAssoc {
         reader: R,
         mut writer: W,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        let called_ae = AeTitle::try_from(self.service_ae.trim())
-            .map_err(|e| AssocError::error(DimseError::OtherError(e.into())))?;
-        let calling_ae = AeTitle::try_from(self.common.this_ae.trim())
-            .map_err(|e| AssocError::error(DimseError::OtherError(e.into())))?;
+        let called_ae = AeTitle::try_from(self.service_ae.trim()).map_err(AssocError::error)?;
+        let calling_ae =
+            AeTitle::try_from(self.common.this_ae.trim()).map_err(AssocError::error)?;
 
         let mut app_ctx = DICOMApplicationContextName.uid().as_bytes().to_vec();
         if app_ctx.len() % 2 != 0 {
@@ -149,8 +148,8 @@ impl UserAssoc {
         }
 
         if self.common.negotiated_pres_ctx.is_empty() {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(
-                "No presentation contexts negotiated".to_owned(),
+            return Err(AssocError::ab_failure(DimseError::AssocNegotiationFailure(
+                "no presentation contexts negotiated".to_owned(),
             )));
         }
 
@@ -171,10 +170,7 @@ impl UserAssoc {
         CommonAssoc::write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
         match CommonAssoc::next_msg(reader, &mut writer, self.common.get_pdu_max_rcv_size())? {
             DimseMsg::CloseMsg(close_msg) => Ok(Some(DimseMsg::CloseMsg(close_msg))),
-            other => Err(AssocError::error(DimseError::GeneralError(format!(
-                "Did not get response for {:?}: {other:?}",
-                PduType::ReleaseRQ
-            )))),
+            other => Err(AssocError::error(DimseError::DimseCloseMissing(other))),
         }
     }
 }

@@ -443,6 +443,19 @@ impl<'e> From<&CommandStatus> for RawValue<'e> {
     }
 }
 
+impl From<&CommandStatus> for u16 {
+    fn from(value: &CommandStatus) -> Self {
+        match value {
+            CommandStatus::Success(code) => *code,
+            CommandStatus::Warning(code) => *code,
+            CommandStatus::Failure(code) => *code,
+            CommandStatus::Cancel(code) => *code,
+            CommandStatus::Pending(code) => *code,
+            CommandStatus::INVALID(code) => *code,
+        }
+    }
+}
+
 impl From<u16> for CommandStatus {
     fn from(value: u16) -> Self {
         if value == 0x0000 {

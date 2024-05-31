@@ -24,7 +24,7 @@ use crate::{
         defn::{
             constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
         },
-        read::{Parser, ParserBuilder, ParserState},
+        read::{ParseError, Parser, ParserBuilder, ParserState},
         RawValue,
     },
     dict::{
@@ -97,10 +97,9 @@ impl EchoUserOp {
     ) -> Result<(), AssocError> {
         self.is_complete = true;
         if !msg.status().is_success() {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "C-ECHO response: {:?}",
-                msg.status()
-            ))));
+            return Err(AssocError::ab_failure(DimseError::UnexpectedCommandStatus(
+                msg.status().clone(),
+            )));
         }
         Ok(())
     }
@@ -185,9 +184,9 @@ impl FindUserOp {
                     }
                 }
                 DimseMsg::Cmd(cmd) => {
-                    return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                        "Unexpected command: {cmd:?}"
-                    ))))
+                    return Err(AssocError::ab_failure(DimseError::DimseDicomMissing(
+                        DimseMsg::Cmd(cmd),
+                    )));
                 }
                 DimseMsg::CloseMsg(close_msg) => return Err(AssocError::handled_close(close_msg)),
             }
@@ -201,8 +200,8 @@ impl FindUserOp {
                 .build(&mut buf, &STANDARD_DICOM_DICTIONARY);
             match DicomRoot::parse(&mut parser) {
                 Ok(Some(dcm_root)) => Ok(Some(dcm_root)),
-                Ok(None) => Err(AssocError::ab_failure(DimseError::GeneralError(
-                    "Failed parsing dicom dataset".to_owned(),
+                Ok(None) => Err(AssocError::ab_failure(DimseError::ParseError(
+                    ParseError::GeneralDecodeError("Failed parsing dicom dataset".to_owned()),
                 ))),
                 Err(err) => Err(AssocError::ab_failure(DimseError::from(err))),
             }
@@ -295,13 +294,13 @@ impl StoreUserOp {
         let sop_class_uid = sop_class_uid
             .and_then(|s| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&s))
             .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
-                    "SOP Instance to send is missing SOPClassUID".to_owned(),
+                AssocError::ab_failure(DimseError::DimseElementMissing(
+                    SOPClassUID.ident().to_owned(),
                 ))
             })?;
         let sop_inst_uid = sop_inst_uid.ok_or_else(|| {
-            AssocError::ab_failure(DimseError::GeneralError(
-                "SOP Instance to send is missing SOPInstanceUID".to_owned(),
+            AssocError::ab_failure(DimseError::DimseElementMissing(
+                SOPInstanceUID.ident().to_owned(),
             ))
         })?;
 

@@ -164,17 +164,17 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
 
     pub(crate) fn query_database(&self, dcm_query: &DicomRoot) -> Result<QueryResults, AssocError> {
         let Some(db) = &self.db else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(
-                "Failed connecting to databse".to_owned(),
+            return Err(AssocError::ab_failure(DimseError::ApplicationError(
+                "Failed connecting to database".into(),
             )));
         };
 
         let coll = IndexApp::get_dicom_coll(db)
-            .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
+            .map_err(|e| AssocError::ab_failure(DimseError::ApplicationError(e.into())))?;
         let mongo_query = Self::convert_dcm_query_to_mongo_query(dcm_query)?;
 
         let query_results = IndexApp::query_docs(&coll, Some(mongo_query.query.clone()))
-            .map_err(|e| AssocError::ab_failure(DimseError::OtherError(e.into())))?;
+            .map_err(|e| AssocError::ab_failure(DimseError::ApplicationError(e.into())))?;
 
         // XXX: Stream results from mongo to avoid pulling all into memory?
         let group_map = Self::group_results(mongo_query.ql, query_results);

@@ -38,14 +38,16 @@ impl TryFrom<&[u8]> for AeTitle {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if value.is_empty() || value.len() > 16 {
-            return Err(DimseError::InvalidAeTitle(value.into()));
+            return Err(DimseError::InvalidAeTitle(
+                String::from_utf8(value.to_vec()).unwrap_or_default(),
+            ));
         }
         // Create vec of size 16, copy the input, convert to an array, then into AeTitle
         let mut filled_ae: Vec<u8> = vec![b' '; 16];
         let () = &mut filled_ae[0..value.len()].copy_from_slice(value);
         TryInto::<[u8; 16]>::try_into(filled_ae)
             .map(AeTitle::from)
-            .map_err(DimseError::InvalidAeTitle)
+            .map_err(|val| DimseError::InvalidAeTitle(String::from_utf8(val).unwrap_or_default()))
     }
 }
 

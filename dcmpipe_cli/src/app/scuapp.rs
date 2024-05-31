@@ -181,7 +181,7 @@ impl SvcUserApp {
                             .flush()
                             .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
                         let file = output.into_inner().map_err(|e| {
-                            AssocError::ab_failure(DimseError::OtherError(e.into()))
+                            AssocError::ab_failure(DimseError::ApplicationError(e.into()))
                         })?;
                         file.sync_all()
                             .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
@@ -229,9 +229,9 @@ impl SvcUserApp {
                 .map_err(|e| AssocError::error(DimseError::from(e)))
                 .map(|t| STANDARD_DICOM_DICTIONARY.get_tag_by_number(t.tag()))?
                 .ok_or_else(|| {
-                    AssocError::error(DimseError::GeneralError(format!(
-                        "Unable resolve tag: {tag}"
-                    )))
+                    AssocError::error(DimseError::ApplicationError(
+                        format!("Unable resolve tag: {tag}").into(),
+                    ))
                 })?;
             let val = RawValue::try_from(StringAndVr(val, tag.implicit_vr().unwrap_or(&LT)))
                 .map_err(|e| AssocError::error(DimseError::from(e)))?;
@@ -390,9 +390,7 @@ impl SvcUserApp {
             if cmd.cmd_type() == &CommandType::CStoreReq {}
 
             let Some(op) = assoc.common_mut().op(msg_id) else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "No active op for message: {msg_id}",
-                ))));
+                return Err(AssocError::ab_failure(DimseError::UnknownMessageID(msg_id)));
             };
 
             let is_complete = match op {

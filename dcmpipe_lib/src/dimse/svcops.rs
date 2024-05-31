@@ -80,7 +80,7 @@ impl EchoSvcOp {
         assoc: &CommonAssoc,
         writer: &mut W,
     ) -> Result<(), AssocError> {
-        assoc.write_command(&rsp, writer)?;
+        assoc.write_command(rsp, writer)?;
         self.is_complete = true;
         Ok(())
     }
@@ -154,7 +154,7 @@ impl FindSvcOp {
                 &CommandStatus::pending(),
             );
             assoc.write_command(&cmd, &mut writer)?;
-            assoc.write_dataset(self.ctx_id, &result, &mut writer)?;
+            assoc.write_dataset(self.ctx_id, result, &mut writer)?;
         }
 
         let cmd = CommandMessage::c_find_rsp(
@@ -224,7 +224,7 @@ impl GetSvcOp {
         writer: &mut W,
     ) -> Result<DicomRoot, AssocError> {
         self.ctx_id = cmd.ctx_id();
-        self.this_ae = assoc.this_ae().clone();
+        self.this_ae.clone_from(assoc.this_ae());
         self.aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
             .map_err(AssocError::ab_failure)?;

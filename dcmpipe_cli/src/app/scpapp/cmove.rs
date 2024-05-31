@@ -58,9 +58,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 &statter.msg(&Stat::fail_unknown_dest(), &prog(0, 0, 0, 0)),
                 &mut self.writer,
             )?;
-            return Err(AssocError::ab_failure(DimseError::InvalidAeTitle(
-                dest.into_bytes(),
-            )));
+            return Err(AssocError::ab_failure(DimseError::InvalidAeTitle(dest)));
         };
 
         let (_pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;
@@ -152,8 +150,9 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     &mut self.writer,
                 ) {
                     // Create error to abort the sub-association but return the original error.
-                    let _ = AssocError::ab_failure(DimseError::GeneralError(String::new()))
-                        .write(&mut dest_writer);
+                    let _ =
+                        AssocError::ab_failure(DimseError::ApplicationError("unused error".into()))
+                            .write(&mut dest_writer);
                     return Err(e);
                 }
             }

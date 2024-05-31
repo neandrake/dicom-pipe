@@ -39,7 +39,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
         let dcm_query = op.process_req(
-            &cmd,
+            cmd,
             self.assoc.common(),
             &mut self.reader,
             &mut self.writer,

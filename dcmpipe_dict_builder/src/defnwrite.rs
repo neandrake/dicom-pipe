@@ -380,11 +380,7 @@ fn process_uid(
     }
 
     let type_clone = uid.uid_type.clone();
-    let comment_uid_type: String = if let Some(uid_type) = type_clone {
-        uid_type
-    } else {
-        String::new()
-    };
+    let comment_uid_type = type_clone.unwrap_or_default();
 
     let code: String = uid_definition!(
         uid.name,

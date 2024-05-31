@@ -141,7 +141,7 @@ mod parsing_tests {
 
     #[test]
     fn test_unknown_explicit_vr_parses_as_invalid() {
-        let parser: Parser<'_, MockDicomDataset> =
+        let mut parser: Parser<'_, MockDicomDataset> =
             MockDicomDataset::build_mock_parser(&[STANDARD_HEADER, INVALID_VR_ELEMENT]);
 
         // a test dataset that has a regular file-meta section (defines explicit vr) and the first
@@ -151,8 +151,7 @@ mod parsing_tests {
         // zero tag is not technically valid but itself should't cause a parse error). for an implicit
         // vr transfer syntax the VR will be selected as UN and should parse
         let first_elem: DicomElement = parser
-            .skip_while(|x| x.is_ok() && x.as_ref().unwrap().tag() <= SpecificCharacterSet.tag)
-            .next()
+            .find(|x| !x.is_ok() || x.as_ref().unwrap().tag() > SpecificCharacterSet.tag)
             .expect("Should have returned Some(Ok(elem))")
             .expect("Should have returned Ok(elem)");
 
@@ -161,12 +160,11 @@ mod parsing_tests {
 
     #[test]
     fn test_trailing_zeroes_does_not_error() {
-        let parser: Parser<'_, MockDicomDataset> =
+        let mut parser: Parser<'_, MockDicomDataset> =
             MockDicomDataset::build_mock_parser(&[STANDARD_HEADER, NULL_ELEMENT]);
 
         let first_non_fme: Option<std::result::Result<DicomElement, ParseError>> = parser
-            .skip_while(|x| x.is_ok() && x.as_ref().unwrap().tag() <= SpecificCharacterSet.tag)
-            .next();
+            .find(|x| !x.is_ok() || x.as_ref().unwrap().tag() > SpecificCharacterSet.tag);
 
         assert!(first_non_fme.is_none());
     }

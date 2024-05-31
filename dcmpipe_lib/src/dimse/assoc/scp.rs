@@ -217,19 +217,11 @@ impl ServiceAssoc {
 
         let app_ctx_uid = STANDARD_DICOM_DICTIONARY
             .get_uid_by_uid(&app_ctx)
-            .ok_or_else(|| {
-                AssocError::rj_unsupported(DimseError::GeneralError(format!(
-                    "Application Context not found: {app_ctx}"
-                )))
-            })?;
+            .ok_or_else(|| AssocError::rj_unsupported(DimseError::InvalidAppContext(app_ctx)))?;
 
         if app_ctx_uid != &DICOMApplicationContextName {
-            return Err(AssocError::rj_unsupported(DimseError::GeneralError(
-                format!(
-                    "Unsupported Application Context: {}, {}",
-                    app_ctx_uid.name(),
-                    app_ctx_uid.uid()
-                ),
+            return Err(AssocError::rj_unsupported(DimseError::InvalidAppContext(
+                format!("{}, {}", app_ctx_uid.name(), app_ctx_uid.uid()),
             )));
         }
 
@@ -248,8 +240,8 @@ impl ServiceAssoc {
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::CharsetError(e)))?;
         if called_ae != host_ae {
-            return Err(AssocError::rj_called_aet(DimseError::GeneralError(
-                format!("Called AE \"{called_ae}\" is not host AE \"{host_ae}\""),
+            return Err(AssocError::rj_called_aet(DimseError::InvalidCalledAeTitle(
+                called_ae,
             )));
         }
 
@@ -258,9 +250,9 @@ impl ServiceAssoc {
             .map(|ae| ae.trim().to_owned())
             .map_err(|e| AssocError::ab_invalid_pdu(DimseError::from(e)))?;
         if !accepted_calling.is_empty() && !accepted_calling.contains_key(&calling_ae) {
-            return Err(AssocError::rj_calling_aet(DimseError::GeneralError(
-                format!("Calling AE Title \"{calling_ae}\" not in accepted list"),
-            )));
+            return Err(AssocError::rj_calling_aet(
+                DimseError::InvalidCallingAeTitle(calling_ae),
+            ));
         }
 
         Ok(())
