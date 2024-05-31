@@ -18,35 +18,22 @@ use std::{fmt::Display, io::Write};
 
 use crate::{
     core::{charset::CSError, defn::uid::UIDRef, read::ParseError, write::error::WriteError},
-    dimse::pdus::{
-        mainpdus::{Abort, AssocRJ},
-        PduType,
+    dimse::{
+        assoc::DimseMsg,
+        commands::CommandStatus,
+        pdus::{
+            mainpdus::{Abort, AssocRJ},
+            PduType,
+        },
     },
 };
 
 /// Errors related to the DIMSE protocol.
 #[derive(Debug, thiserror::Error)]
 pub enum DimseError {
-    /// A PDU type was encountered that is unknown, likely non-standard or a corruption in the
-    /// straem.
-    #[error("invalid pdu type: {0:04X}")]
-    InvalidPduType(u8),
-
-    /// An AE Title which is not correctly formatted.
-    #[error("invalid ae title: {0:?}")]
-    InvalidAeTitle(Vec<u8>),
-
-    /// The stream closed unexpectedly.
-    #[error("unexpected end of byte stream")]
-    UnexpectedEOF,
-
-    /// DIMSE Command Messages are expected to have a minimal set of elements.
-    #[error("element missing from request: {0}")]
-    DimseElementMissing(String),
-
-    /// A Pdu was encountered which was not anticipated.
-    #[error("unexpected pdu type {0:?}")]
-    UnexpectedPduType(PduType),
+    /// Wrapper around other errors, intended to be used by users of this library.
+    #[error("application error: {0}")]
+    ApplicationError(Box<dyn std::error::Error>),
 
     /// Error while parsing a DICOM element in a DIMSE request/response.
     #[error("error parsing value from request: {0}")]
@@ -64,19 +51,71 @@ pub enum DimseError {
     #[error("i/o error reading from dataset: {0}")]
     IOError(#[from] std::io::Error),
 
+    /// A PDU type was encountered that is unknown, likely non-standard or a corruption in the
+    /// straem.
+    #[error("invalid pdu type: {0:04X}")]
+    InvalidPduType(u8),
+
+    /// An AE Title which is not correctly formatted.
+    #[error("invalid ae title: {0}")]
+    InvalidAeTitle(String),
+
+    #[error("called ae title is not this ae title: {0}")]
+    InvalidCalledAeTitle(String),
+
+    #[error("calling ae title is not in accept-list: {0}")]
+    InvalidCallingAeTitle(String),
+
+    /// A Pdu was encountered which was not anticipated.
+    #[error("unexpected pdu type {0:?}")]
+    UnexpectedPduType(PduType),
+
+    /// The stream closed unexpectedly.
+    #[error("unexpected end of byte stream")]
+    UnexpectedEOF,
+
+    #[error("expected PDU from association but did not receive one, connection may have closed")]
+    DimsePDUMissing,
+
+    #[error("invalid app context: {0}")]
+    InvalidAppContext(String),
+
+    #[error("expected command from association but got {0:?}")]
+    DimseCmdMissing(DimseMsg),
+
+    #[error("expected dicom from association but got: {0:?}")]
+    DimseDicomMissing(DimseMsg),
+
+    /// DIMSE Command Messages are expected to have a minimal set of elements.
+    #[error("element missing from request: {0}")]
+    DimseElementMissing(String),
+
+    #[error("dimse query parsing failed")]
+    QueryParseError,
+
     #[error("unsupported abstract syntax {0:?}")]
     UnsupportedAbstractSyntax(UIDRef),
 
     #[error("maximum pdu size exceeded, PDU is {0} bytes")]
     MaxPduSizeExceeded(usize),
 
-    /// Catch-all for error-states while interpreting the DIMSE stream.
-    #[error("{0}")]
-    GeneralError(String),
+    #[error("DICOM file is missing SOP Instance UID (bytes read: {0}): {1}")]
+    SOPInstanceUIDMissing(usize, String),
 
-    /// Wrapper around other errors.
-    #[error("error happened: {0}")]
-    OtherError(Box<dyn std::error::Error>),
+    #[error("Association negotiation failed: {0}")]
+    AssocNegotiationFailure(String),
+
+    #[error("PDU received with unknown context ID: {0}")]
+    UnknownContext(u8),
+
+    #[error("unknown transfer syntax: {0}")]
+    UnknownTransferSyntax(String),
+
+    #[error("unknown abstract syntax: {0}")]
+    UnknownAbstractSyntax(String),
+
+    #[error("unexpected response status: {0:?}")]
+    UnexpectedCommandStatus(CommandStatus),
 }
 
 #[derive(Debug)]

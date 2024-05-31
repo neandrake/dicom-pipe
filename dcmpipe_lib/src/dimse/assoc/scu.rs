@@ -75,10 +75,9 @@ impl UserAssoc {
         reader: R,
         mut writer: W,
     ) -> Result<Option<DimseMsg>, AssocError> {
-        let called_ae = AeTitle::try_from(self.service_ae.trim())
-            .map_err(|e| AssocError::error(DimseError::OtherError(e.into())))?;
-        let calling_ae = AeTitle::try_from(self.common.this_ae.trim())
-            .map_err(|e| AssocError::error(DimseError::OtherError(e.into())))?;
+        let called_ae = AeTitle::try_from(self.service_ae.trim()).map_err(AssocError::error)?;
+        let calling_ae =
+            AeTitle::try_from(self.common.this_ae.trim()).map_err(AssocError::error)?;
 
         let mut app_ctx = DICOMApplicationContextName.uid().as_bytes().to_vec();
         if app_ctx.len() % 2 != 0 {
@@ -144,8 +143,8 @@ impl UserAssoc {
         }
 
         if self.common.negotiated_pres_ctx.is_empty() {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(
-                "No presentation contexts negotiated".to_owned(),
+            return Err(AssocError::ab_failure(DimseError::AssocNegotiationFailure(
+                "no presentation contexts negotiated".to_owned(),
             )));
         }
 
@@ -166,10 +165,18 @@ impl UserAssoc {
         CommonAssoc::write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
         match self.common.next_msg(reader, &mut writer)? {
             DimseMsg::ReleaseRP => Ok(Some(DimseMsg::ReleaseRP)),
-            other => Err(AssocError::error(DimseError::GeneralError(format!(
-                "Did not get response for {:?}: {other:?}",
-                PduType::ReleaseRQ
-            )))),
+            DimseMsg::Cmd(_) | DimseMsg::Dataset(_) => Err(AssocError::error(
+                DimseError::UnexpectedPduType(PduType::PresentationDataItem),
+            )),
+            DimseMsg::ReleaseRQ => Err(AssocError::error(DimseError::UnexpectedPduType(
+                PduType::ReleaseRQ,
+            ))),
+            DimseMsg::Abort(_) => Err(AssocError::error(DimseError::UnexpectedPduType(
+                PduType::Abort,
+            ))),
+            DimseMsg::Reject(_) => Err(AssocError::error(DimseError::UnexpectedPduType(
+                PduType::AssocRJ,
+            ))),
         }
     }
 }

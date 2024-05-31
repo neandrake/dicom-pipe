@@ -35,6 +35,7 @@ use crate::{
     },
     dict::stdlookup::STANDARD_DICOM_DICTIONARY,
     dimse::{
+        assoc::DimseMsg,
         commands::messages::CommandMessage,
         pdus::{
             mainpdus::{PresentationDataItem, PresentationDataValue},
@@ -177,10 +178,8 @@ impl<R: Read> Iterator for CommandIter<R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let cmd = match self.reader.next() {
-            Some(Ok(PduIterItem::Dataset(_pdv))) => {
-                return Some(Err(DimseError::GeneralError(
-                    "Received Dataset instead of Command".to_owned(),
-                )))
+            Some(Ok(PduIterItem::Dataset(pdv))) => {
+                return Some(Err(DimseError::DimseCmdMissing(DimseMsg::Dataset(pdv))));
             }
             Some(Ok(PduIterItem::Pdu(pdu))) => {
                 return Some(Err(DimseError::UnexpectedPduType(pdu.pdu_type())));
@@ -207,10 +206,8 @@ impl<R: Read> Iterator for CommandIter<R> {
                 Some(Ok(PduIterItem::Pdu(pdu))) => {
                     return Some(Err(DimseError::UnexpectedPduType(pdu.pdu_type())))
                 }
-                Some(Ok(PduIterItem::CmdMessage(_cmd))) => {
-                    return Some(Err(DimseError::GeneralError(
-                        "Received Command instead of Dataset".to_owned(),
-                    )))
+                Some(Ok(PduIterItem::CmdMessage(cmd))) => {
+                    return Some(Err(DimseError::DimseDicomMissing(DimseMsg::Cmd(cmd))));
                 }
                 Some(Err(e)) => return Some(Err(e)),
                 None => break,

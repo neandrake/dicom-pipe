@@ -137,8 +137,8 @@ pub(crate) type Stat = CommandStatus;
 
 /// Convenience to create `Err(AssocError::ab_failure(DimseError::GeneralError(msg)))`.
 pub(crate) fn fail(msg: &str) -> Result<(), AssocError> {
-    Err(AssocError::ab_failure(DimseError::GeneralError(
-        msg.to_owned(),
+    Err(AssocError::ab_failure(DimseError::ApplicationError(
+        msg.into(),
     )))
 }
 

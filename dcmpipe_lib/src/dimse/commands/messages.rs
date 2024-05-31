@@ -27,12 +27,10 @@ use crate::{
         MoveOriginatorApplicationEntityTitle, MoveOriginatorMessageID, Priority, Status,
     },
     dimse::{
-        commands::{CommandPriority, CommandStatus, CommandType},
+        commands::{CommandPriority, CommandStatus, CommandType, SubOpProgress},
         DimseError,
     },
 };
-
-use super::SubOpProgress;
 
 /// Sentinel value of `CommandDataSetType` (0000,0800) to indicate that there is no Data Set
 /// present in the message. Any other value in `CommandDataSetType` indicates a Data Set is present

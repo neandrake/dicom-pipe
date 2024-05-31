@@ -207,19 +207,14 @@ impl CommonAssoc {
         ctx_id: u8,
     ) -> Result<(&AssocACPresentationContext, TSRef), AssocError> {
         let Some(pres_ctx) = self.get_pres_ctx(ctx_id) else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Negotiated Presentation Context ID not found: {ctx_id}"
-            ))));
+            return Err(AssocError::ab_failure(DimseError::UnknownContext(ctx_id)));
         };
 
-        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
-            .ok()
-            .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
-                    "Failed to resolve transfer syntax".to_string(),
-                ))
-            })?;
+        let ts_bytes = pres_ctx.transfer_syntax().transfer_syntaxes();
+        let ts_str = String::try_from(&Syntax(ts_bytes)).map_err(AssocError::ab_failure)?;
+        let ts = STANDARD_DICOM_DICTIONARY
+            .get_ts_by_uid(&ts_str)
+            .ok_or_else(|| AssocError::ab_failure(DimseError::UnknownTransferSyntax(ts_str)))?;
 
         Ok((pres_ctx, ts))
     }
@@ -239,20 +234,16 @@ impl CommonAssoc {
             .iter()
             .find(|(_ctx_id, (_pres_ctx, abs_uid))| *abs_uid == ab_ref)
         else {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Requested Presentation Context not found by abstract syntax: {}",
-                ab_ref.uid()
-            ))));
+            return Err(AssocError::ab_failure(DimseError::UnknownAbstractSyntax(
+                ab_ref.uid().to_owned(),
+            )));
         };
 
-        let ts = String::try_from(&Syntax(pres_ctx.transfer_syntax().transfer_syntaxes()))
-            .ok()
-            .and_then(|v| STANDARD_DICOM_DICTIONARY.get_ts_by_uid(&v))
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
-                    "Failed to resolve transfer syntax".to_string(),
-                ))
-            })?;
+        let ts_bytes = pres_ctx.transfer_syntax().transfer_syntaxes();
+        let ts_str = String::try_from(&Syntax(ts_bytes)).map_err(AssocError::ab_failure)?;
+        let ts = STANDARD_DICOM_DICTIONARY
+            .get_ts_by_uid(&ts_str)
+            .ok_or_else(|| AssocError::ab_failure(DimseError::UnknownTransferSyntax(ts_str)))?;
 
         Ok((pres_ctx, ts))
     }
@@ -323,9 +314,7 @@ impl CommonAssoc {
             Some(Ok(PduIterItem::CmdMessage(cmd))) => Ok(DimseMsg::Cmd(cmd)),
             Some(Ok(PduIterItem::Dataset(dataset))) => Ok(DimseMsg::Dataset(dataset)),
             Some(Err(err)) => Err(AssocError::ab_failure(err)),
-            None => Err(AssocError::ab_failure(DimseError::GeneralError(
-                "No DIMSE message received".to_owned(),
-            ))),
+            None => Err(AssocError::ab_failure(DimseError::DimsePDUMissing)),
         }
     }
 
@@ -349,8 +338,8 @@ impl CommonAssoc {
         while !all_read {
             let dcm_msg = self.next_msg(&mut reader, &mut writer)?;
             let DimseMsg::Dataset(pdv) = dcm_msg else {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(
-                    "Expected DICOM dataset".to_string(),
+                return Err(AssocError::ab_failure(DimseError::DimseDicomMissing(
+                    dcm_msg,
                 )));
             };
 
@@ -387,11 +376,7 @@ impl CommonAssoc {
             .build(dcm_bytes, &STANDARD_DICOM_DICTIONARY);
         DicomRoot::parse(&mut parser)
             .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
-                    "Parsing dicom query did not result in any query".to_owned(),
-                ))
-            })
+            .ok_or_else(|| AssocError::ab_failure(DimseError::QueryParseError))
     }
 
     /// Writes the given command, chunking into `PresentationDataItem`'s based on the SCU's
@@ -507,9 +492,9 @@ impl CommonAssoc {
         self.write_command(&cmd, &mut writer)?;
 
         let rsp_cmd = self.next_msg(&mut reader, &mut writer)?;
-        if let DimseMsg::Dataset(_ds) = rsp_cmd {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(
-                "Got dataset instead of command".to_owned(),
+        if let DimseMsg::Dataset(ds) = rsp_cmd {
+            return Err(AssocError::ab_failure(DimseError::DimseCmdMissing(
+                DimseMsg::Dataset(ds),
             )));
         }
         let DimseMsg::Cmd(rsp_msg) = rsp_cmd else {
@@ -517,10 +502,9 @@ impl CommonAssoc {
         };
 
         if !rsp_msg.status().is_success() {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Response status is not success: {:?}",
-                rsp_msg.status()
-            ))));
+            return Err(AssocError::ab_failure(DimseError::UnexpectedCommandStatus(
+                rsp_msg.status().clone(),
+            )));
         }
 
         Ok(None)
@@ -655,12 +639,12 @@ impl CommonAssoc {
         let sop_class_uid = sop_class_uid
             .and_then(|s| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&s))
             .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
+                AssocError::ab_failure(DimseError::DimseElementMissing(
                     "SOP Instance to send is missing SOPClassUID".to_owned(),
                 ))
             })?;
         let sop_inst_uid = sop_inst_uid.ok_or_else(|| {
-            AssocError::ab_failure(DimseError::GeneralError(
+            AssocError::ab_failure(DimseError::DimseElementMissing(
                 "SOP Instance to send is missing SOPInstanceUID".to_owned(),
             ))
         })?;
