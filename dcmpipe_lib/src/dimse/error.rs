@@ -24,11 +24,17 @@ use crate::{
     },
 };
 
+use super::assoc::CloseMsg;
+
 /// Errors related to the DIMSE protocol.
 #[derive(Debug, thiserror::Error)]
 pub enum DimseError {
+    /// The connection was closed.
+    #[error("connection closed: {0:?}")]
+    ConnectionClosed(CloseMsg),
+
     /// A PDU type was encountered that is unknown, likely non-standard or a corruption in the
-    /// straem.
+    /// stream.
     #[error("invalid pdu type: {0:04X}")]
     InvalidPduType(u8),
 
@@ -127,9 +133,34 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: None,
             err: DimseError::from(err),
+        }
+    }
+
+    /// Creates an `AssocError` indicating the connection was clsoed and no response to be
+    /// returned.
+    #[must_use]
+    pub fn handled_close(close_msg: CloseMsg) -> Self {
+        Self {
+            rsp: None,
+            err: DimseError::ConnectionClosed(close_msg),
+        }
+    }
+
+    /// Creates an `AssocError` indicating the connection should be closed.
+    #[must_use]
+    pub fn unhandled_close(close_msg: CloseMsg) -> Self {
+        let rsp = match close_msg {
+            CloseMsg::ReleaseRQ => None,
+            CloseMsg::ReleaseRP => None,
+            CloseMsg::Reject(ref rj) => Some(AssocRsp::RJ(rj.clone())),
+            CloseMsg::Abort(ref ab) => Some(AssocRsp::AB(ab.clone())),
+        };
+        Self {
+            rsp,
+            err: DimseError::ConnectionClosed(close_msg),
         }
     }
 
@@ -140,7 +171,7 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: Some(AssocRsp::AB(Abort::new(0u8, 0u8))),
             err: DimseError::from(err),
         }
@@ -152,7 +183,7 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: Some(AssocRsp::AB(Abort::new(2u8, 2u8))),
             err: DimseError::from(err),
         }
@@ -164,7 +195,7 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: Some(AssocRsp::AB(Abort::new(2u8, 6u8))),
             err: DimseError::from(err),
         }
@@ -177,7 +208,7 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 1u8))),
             err: DimseError::from(err),
         }
@@ -189,7 +220,7 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 3u8))),
             err: DimseError::from(err),
         }
@@ -201,7 +232,7 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 7u8))),
             err: DimseError::from(err),
         }
@@ -214,7 +245,7 @@ impl AssocError {
     where
         DimseError: From<E>,
     {
-        AssocError {
+        Self {
             rsp: Some(AssocRsp::RJ(AssocRJ::new(1u8, 1u8, 2u8))),
             err: DimseError::from(err),
         }

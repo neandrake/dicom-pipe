@@ -30,7 +30,7 @@ use dcmpipe_lib::{
     },
     dict::{stdlookup::STANDARD_DICOM_DICTIONARY, tags::SOPInstanceUID},
     dimse::{
-        assoc::DimseMsg,
+        assoc::{CloseMsg, DimseMsg},
         error::{AssocError, AssocRsp, DimseError},
         pdus::PduType,
     },
@@ -77,14 +77,18 @@ fn handle_assoc_result<W: Write>(
     writer: W,
 ) -> Vec<Result<String, String>> {
     match result {
-        Ok(DimseMsg::ReleaseRQ) => vec![Ok(format!("[info <-]: {:?}", PduType::ReleaseRQ))],
-        Ok(DimseMsg::ReleaseRP) => vec![Ok(format!("[info <-]: {:?}", PduType::ReleaseRP))],
-        Ok(DimseMsg::Reject(rj)) => vec![Ok(format!(
+        Ok(DimseMsg::CloseMsg(CloseMsg::ReleaseRQ)) => {
+            vec![Ok(format!("[info <-]: {:?}", PduType::ReleaseRQ))]
+        }
+        Ok(DimseMsg::CloseMsg(CloseMsg::ReleaseRP)) => {
+            vec![Ok(format!("[info <-]: {:?}", PduType::ReleaseRP))]
+        }
+        Ok(DimseMsg::CloseMsg(CloseMsg::Reject(rj))) => vec![Ok(format!(
             "[warn <-]: {:?}: {}",
             PduType::AssocRJ,
             rj.get_reason_desc()
         ))],
-        Ok(DimseMsg::Abort(ab)) => vec![Ok(format!(
+        Ok(DimseMsg::CloseMsg(CloseMsg::Abort(ab))) => vec![Ok(format!(
             "[warn <-]: {:?}: {}",
             PduType::Abort,
             ab.get_reason_desc()

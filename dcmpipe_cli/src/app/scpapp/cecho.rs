@@ -16,30 +16,19 @@
 
 use std::io::{Read, Write};
 
-use dcmpipe_lib::{
-    dict::tags::AffectedSOPClassUID,
-    dimse::{
-        commands::{messages::CommandMessage, CommandStatus},
-        error::AssocError,
-    },
+use dcmpipe_lib::dimse::{
+    commands::messages::CommandMessage, error::AssocError, svcops::EchoSvcOp,
 };
 
 use crate::app::scpapp::AssociationDevice;
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_echo_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
-
-        let cmd = CommandMessage::c_echo_rsp(
-            cmd.ctx_id(),
-            cmd.msg_id(),
-            &aff_sop_class,
-            &CommandStatus::success(),
-        );
-
-        self.assoc.common().write_command(&cmd, &mut self.writer)?;
-        Ok(())
+    pub(crate) fn handle_c_echo_req(
+        &mut self,
+        op: &mut EchoSvcOp,
+        cmd: &CommandMessage,
+    ) -> Result<(), AssocError> {
+        let rsp = op.process_req(&cmd)?;
+        op.write_response(&rsp, self.assoc.common(), &mut self.writer)
     }
 }

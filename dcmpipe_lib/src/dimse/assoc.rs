@@ -23,38 +23,24 @@ use std::{
 use crate::{
     core::{
         charset::CSRef,
-        dcmelement::DicomElement,
         dcmobject::DicomRoot,
-        defn::{
-            constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
-            uid::UIDRef,
-        },
+        defn::{dcmdict::DicomDictionary, tag::Tag, ts::TSRef, uid::UIDRef},
         read::{ParseError, Parser, ParserBuilder, ParserState},
         RawValue,
     },
-    dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{QueryRetrieveLevel, SOPClassUID, SOPInstanceUID, SpecificCharacterSet},
-        transfer_syntaxes::ImplicitVRLittleEndian,
-        uids::{
-            PatientRootQueryRetrieveInformationModelFIND,
-            PatientRootQueryRetrieveInformationModelGET,
-            PatientRootQueryRetrieveInformationModelMOVE,
-            StudyRootQueryRetrieveInformationModelFIND, StudyRootQueryRetrieveInformationModelGET,
-            StudyRootQueryRetrieveInformationModelMOVE, VerificationSOPClass,
-        },
-    },
+    dict::{stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian},
     dimse::{
-        commands::{messages::CommandMessage, CommandPriority},
+        commands::messages::CommandMessage,
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
                 Abort, AssocACPresentationContext, AssocRJ, PresentationDataValue, ReleaseRP,
             },
-            pduiter::{read_next_pdu, CommandIter, PduIterItem, PresDataIter},
+            pduiter::{read_next_pdu, PduIterItem, PresDataIter},
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem},
             Pdu, UserPdu,
         },
+        userops::{AssocUserOp, EchoUserOp, FindUserOp, GetUserOp, MoveUserOp, StoreUserOp},
         Syntax,
     },
 };
@@ -63,13 +49,18 @@ pub mod scp;
 pub mod scu;
 
 #[derive(Debug)]
-pub enum DimseMsg {
-    Cmd(CommandMessage),
-    Dataset(PresentationDataValue),
+pub enum CloseMsg {
     ReleaseRQ,
     ReleaseRP,
     Reject(AssocRJ),
     Abort(Abort),
+}
+
+#[derive(Debug)]
+pub enum DimseMsg {
+    Cmd(CommandMessage),
+    Dataset(PresentationDataValue),
+    CloseMsg(CloseMsg),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -158,6 +149,9 @@ pub struct CommonAssoc {
     /* Fields negotiated with other SCU. */
     their_user_data: Vec<UserPdu>,
     negotiated_pres_ctx: HashMap<u8, (AssocACPresentationContext, UIDRef)>,
+
+    /* Active State */
+    active_ops: HashMap<u16, AssocUserOp>,
 }
 
 impl CommonAssoc {
@@ -314,11 +308,11 @@ impl CommonAssoc {
     /// - I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
     /// disconnect response to the writer.
     pub fn next_msg<R: Read, W: Write>(
-        &self,
         reader: &mut R,
         writer: &mut W,
+        max_pdu_rcv_size: usize,
     ) -> Result<DimseMsg, AssocError> {
-        match read_next_pdu(reader, self.get_pdu_max_rcv_size()) {
+        match read_next_pdu(reader, max_pdu_rcv_size) {
             Some(Ok(PduIterItem::Pdu(pdu))) => Self::handle_disconnect(pdu, writer),
             Some(Ok(PduIterItem::CmdMessage(cmd))) => Ok(DimseMsg::Cmd(cmd)),
             Some(Ok(PduIterItem::Dataset(dataset))) => Ok(DimseMsg::Dataset(dataset)),
@@ -326,6 +320,28 @@ impl CommonAssoc {
             None => Err(AssocError::ab_failure(DimseError::GeneralError(
                 "No DIMSE message received".to_owned(),
             ))),
+        }
+    }
+
+    /// Parse the next message and interpret as a Command, returning an error if the next message
+    /// was a DICOM Dataset, release/abort, or unexpected PDU.
+    ///
+    /// # Errors
+    /// - `DimseError` if the message was a DICOM Dataset or unexpected PDU.
+    /// - `DimseError` if the connection should be closed.
+    /// - I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
+    /// disconnect response to the writer.
+    pub fn next_cmd<R: Read, W: Write>(
+        reader: &mut R,
+        writer: &mut W,
+        max_pdu_rcv_size: usize,
+    ) -> Result<CommandMessage, AssocError> {
+        match Self::next_msg(reader, writer, max_pdu_rcv_size)? {
+            DimseMsg::Cmd(cmd) => Ok(cmd),
+            DimseMsg::Dataset(_ds) => Err(AssocError::ab_failure(DimseError::GeneralError(
+                "Received dataset instead of command".into(),
+            ))),
+            DimseMsg::CloseMsg(close_msg) => Err(AssocError::unhandled_close(close_msg)),
         }
     }
 
@@ -347,7 +363,7 @@ impl CommonAssoc {
     ) -> Result<(), AssocError> {
         let mut all_read = false;
         while !all_read {
-            let dcm_msg = self.next_msg(&mut reader, &mut writer)?;
+            let dcm_msg = Self::next_msg(&mut reader, &mut writer, self.get_pdu_max_rcv_size())?;
             let DimseMsg::Dataset(pdv) = dcm_msg else {
                 return Err(AssocError::ab_failure(DimseError::GeneralError(
                     "Expected DICOM dataset".to_string(),
@@ -471,14 +487,17 @@ impl CommonAssoc {
     /// # Errors
     /// - I/O errors may occur when writing to the stream.
     /// - `DimseError`s may occur if `pdu` is not one the expected/valid PDUs.
-    fn handle_disconnect<W: Write>(pdu: Pdu, writer: &mut W) -> Result<DimseMsg, AssocError> {
+    pub(crate) fn handle_disconnect<W: Write>(
+        pdu: Pdu,
+        writer: &mut W,
+    ) -> Result<DimseMsg, AssocError> {
         match pdu {
             Pdu::ReleaseRQ(_rq) => {
                 CommonAssoc::write_pdu(&Pdu::ReleaseRP(ReleaseRP::new()), writer)?;
-                Ok(DimseMsg::ReleaseRQ)
+                Ok(DimseMsg::CloseMsg(CloseMsg::ReleaseRQ))
             }
-            Pdu::ReleaseRP(_rp) => Ok(DimseMsg::ReleaseRP),
-            Pdu::Abort(ab) => Ok(DimseMsg::Abort(ab)),
+            Pdu::ReleaseRP(_rp) => Ok(DimseMsg::CloseMsg(CloseMsg::ReleaseRP)),
+            Pdu::Abort(ab) => Ok(DimseMsg::CloseMsg(CloseMsg::Abort(ab))),
             other => {
                 CommonAssoc::write_pdu(&Pdu::Abort(Abort::new(2, 2)), writer)?;
                 Err(AssocError::error(DimseError::UnexpectedPduType(
@@ -488,42 +507,32 @@ impl CommonAssoc {
         }
     }
 
+    /// Get a mutable reference to an active association operation.
+    pub fn op(&mut self, msg_id: u16) -> Option<&mut AssocUserOp> {
+        self.active_ops.get_mut(&msg_id)
+    }
+
+    /// Stop tracking the operation, presumed to be complete.
+    pub fn remove_op(&mut self, msg_id: u16) {
+        self.active_ops.remove(&msg_id);
+    }
+
     /// Issue a C-ECHO request.
     ///
     /// # Errors
     /// - I/O errors may occur with the reader/writer.
     /// - `DimseError` will be returned if there are protocol errors.
     /// - An error will be returned if the response is not successful.
-    pub fn c_echo_rq<R: Read, W: Write>(
-        &self,
-        mut reader: R,
-        mut writer: W,
-        msg_id: u16,
-    ) -> Result<Option<DimseMsg>, AssocError> {
-        let (pres_ctx, _ts) = self.get_rq_pres_ctx_and_ts_by_ab(&VerificationSOPClass)?;
+    pub fn c_echo_rq<W: Write>(&mut self, mut writer: W, msg_id: u16) -> Result<(), AssocError> {
+        let echo_op = EchoUserOp::new(msg_id);
+        let cmd = echo_op.create_req(self)?;
 
-        let ctx_id = pres_ctx.ctx_id();
-        let cmd = CommandMessage::c_echo_req(ctx_id, msg_id, VerificationSOPClass.uid());
+        self.active_ops
+            .insert(cmd.msg_id(), AssocUserOp::Echo(echo_op));
+
         self.write_command(&cmd, &mut writer)?;
 
-        let rsp_cmd = self.next_msg(&mut reader, &mut writer)?;
-        if let DimseMsg::Dataset(_ds) = rsp_cmd {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(
-                "Got dataset instead of command".to_owned(),
-            )));
-        }
-        let DimseMsg::Cmd(rsp_msg) = rsp_cmd else {
-            return Ok(Some(rsp_cmd));
-        };
-
-        if !rsp_msg.status().is_success() {
-            return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                "Response status is not success: {:?}",
-                rsp_msg.status()
-            ))));
-        }
-
-        Ok(None)
+        Ok(())
     }
 
     /// Issues a C-FIND query.
@@ -536,33 +545,23 @@ impl CommonAssoc {
     /// # Errors
     /// - I/O errors may occur while using the reader/writer.
     /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
-    pub fn c_find_req<R: Read, W: Write>(
-        &self,
-        reader: R,
+    pub fn c_find_req<W: Write>(
+        &mut self,
         mut writer: W,
         msg_id: u16,
         ql: QueryLevel,
         query: Vec<(&Tag, RawValue)>,
-    ) -> Result<CommandIter<R>, AssocError> {
-        let sop_class_uid = match ql {
-            QueryLevel::Patient => &PatientRootQueryRetrieveInformationModelFIND,
-            _ => &StudyRootQueryRetrieveInformationModelFIND,
-        };
-        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+    ) -> Result<(), AssocError> {
+        let mut find_op = FindUserOp::new(msg_id, self.get_pdu_max_rcv_size());
+        let (cmd, dcm_query) = find_op.create_req(self, ql, query)?;
 
-        let ctx_id = pres_ctx.ctx_id();
-        let cmd = CommandMessage::c_find_req(ctx_id, msg_id, sop_class_uid.uid());
-
-        let mut dcm_query = DicomRoot::new_empty(ts, CSRef::default());
-        dcm_query.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
-        for (tag, val) in query {
-            dcm_query.add_child_with_val(tag, val);
-        }
+        self.active_ops
+            .insert(cmd.msg_id(), AssocUserOp::Find(find_op));
 
         self.write_command(&cmd, &mut writer)?;
-        self.write_dataset(ctx_id, &dcm_query, &mut writer)?;
+        self.write_dataset(cmd.ctx_id(), &dcm_query, &mut writer)?;
 
-        Ok(CommandIter::new(reader, ts, self.get_pdu_max_rcv_size()))
+        Ok(())
     }
 
     /// Issues a C-GET query.
@@ -571,29 +570,20 @@ impl CommonAssoc {
     /// - I/O errors may occur while using the reader/writer.
     /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
     pub fn c_get_req<W: Write>(
-        &self,
+        &mut self,
         mut writer: W,
         msg_id: u16,
         ql: QueryLevel,
         query: Vec<(&Tag, RawValue)>,
     ) -> Result<(), AssocError> {
-        let sop_class_uid = match ql {
-            QueryLevel::Patient => &PatientRootQueryRetrieveInformationModelGET,
-            _ => &StudyRootQueryRetrieveInformationModelGET,
-        };
-        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
+        let mut get_op = GetUserOp::new(msg_id);
+        let (cmd, dcm_query) = get_op.create_req(self, ql, query)?;
 
-        let ctx_id = pres_ctx.ctx_id();
-        let cmd = CommandMessage::c_get_req(ctx_id, msg_id, sop_class_uid.uid());
-
-        let mut dcm_query = DicomRoot::new_empty(ts, CSRef::default());
-        dcm_query.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
-        for (tag, val) in query {
-            dcm_query.add_child_with_val(tag, val);
-        }
+        self.active_ops
+            .insert(cmd.msg_id(), AssocUserOp::Get(get_op));
 
         self.write_command(&cmd, &mut writer)?;
-        self.write_dataset(ctx_id, &dcm_query, &mut writer)?;
+        self.write_dataset(cmd.ctx_id(), &dcm_query, &mut writer)?;
 
         Ok(())
     }
@@ -604,89 +594,22 @@ impl CommonAssoc {
     /// - I/O errors may occur while using the reader/writer.
     /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
     pub fn c_store_req<PR: Read, R: Read, W: Write>(
-        &self,
-        mut reader: R,
+        &mut self,
+        mut _reader: R,
         mut writer: W,
         parser: Parser<'_, PR>,
         store_msg_id: u16,
         origin_ae: &str,
         orig_msg_id: u16,
-    ) -> Result<Option<DimseMsg>, AssocError> {
-        let mut parser = parser
-            .filter_map(Result::ok)
-            // Do not transfer any beginning FileMeta elements.
-            .skip_while(|e| e.tag() <= FILE_META_GROUP_END);
+    ) -> Result<(), AssocError> {
+        let store_op = StoreUserOp::new(store_msg_id, self.get_pdu_max_rcv_size());
+        let (cmd, pdi_iter) =
+            store_op.create_req(self, parser, store_msg_id, origin_ae, orig_msg_id)?;
 
-        let mut spec_char_set: Option<String> = None;
-        let mut sop_class_uid: Option<String> = None;
-        let mut sop_inst_uid: Option<String> = None;
-        let mut header_elems: Vec<DicomElement> = Vec::new();
-        for elem in parser.by_ref() {
-            let tag = elem.tag();
-            if tag == SpecificCharacterSet.tag() {
-                spec_char_set = elem
-                    .parse_value()
-                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-                    .string()
-                    .cloned();
-            } else if tag == SOPClassUID.tag() {
-                sop_class_uid = elem
-                    .parse_value()
-                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-                    .string()
-                    .cloned();
-            } else if tag == SOPInstanceUID.tag() {
-                sop_inst_uid = elem
-                    .parse_value()
-                    .map_err(|e| AssocError::ab_failure(DimseError::ParseError(e)))?
-                    .string()
-                    .cloned();
-            }
-            header_elems.push(elem);
-            if tag >= SOPInstanceUID.tag() {
-                break;
-            }
-        }
-        let stitched_elems = header_elems.into_iter().chain(parser);
+        self.active_ops
+            .insert(cmd.msg_id(), AssocUserOp::Store(store_op));
 
-        let spec_char_set = spec_char_set
-            .and_then(|s| CSRef::lookup_charset(&s))
-            .unwrap_or_default();
-        let sop_class_uid = sop_class_uid
-            .and_then(|s| STANDARD_DICOM_DICTIONARY.get_uid_by_uid(&s))
-            .ok_or_else(|| {
-                AssocError::ab_failure(DimseError::GeneralError(
-                    "SOP Instance to send is missing SOPClassUID".to_owned(),
-                ))
-            })?;
-        let sop_inst_uid = sop_inst_uid.ok_or_else(|| {
-            AssocError::ab_failure(DimseError::GeneralError(
-                "SOP Instance to send is missing SOPInstanceUID".to_owned(),
-            ))
-        })?;
-
-        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
-        let ctx_id = pres_ctx.ctx_id();
-        let priority = CommandPriority::Medium;
-        let cmd = CommandMessage::c_store_req(
-            ctx_id,
-            store_msg_id,
-            &priority,
-            sop_class_uid.uid(),
-            &sop_inst_uid,
-            origin_ae,
-            orig_msg_id,
-        );
         self.write_command(&cmd, &mut writer)?;
-
-        let pdi_iter = PresDataIter::new(
-            ctx_id,
-            self.get_pdu_max_snd_size(),
-            false,
-            stitched_elems,
-            ts,
-            spec_char_set,
-        );
         for pdi in pdi_iter {
             match pdi {
                 Ok(pdi) => CommonAssoc::write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
@@ -694,8 +617,7 @@ impl CommonAssoc {
             }
         }
 
-        let rsp = self.next_msg(&mut reader, &mut writer)?;
-        Ok(Some(rsp))
+        Ok(())
     }
 
     /// Issue a C-MOVE request.
@@ -703,35 +625,24 @@ impl CommonAssoc {
     /// # Errors
     /// - I/O errors may occur using the reader/writer.
     /// - `DimseError` will occur if there are protocol errors.
-    pub fn c_move_req<R: Read, W: Write>(
-        &self,
-        reader: R,
+    pub fn c_move_req<W: Write>(
+        &mut self,
         mut writer: W,
         msg_id: u16,
         dest_ae: &str,
         ql: QueryLevel,
         query: Vec<(&Tag, RawValue)>,
-    ) -> Result<CommandIter<R>, AssocError> {
-        let sop_class_uid = if ql == QueryLevel::Patient {
-            &PatientRootQueryRetrieveInformationModelMOVE
-        } else {
-            &StudyRootQueryRetrieveInformationModelMOVE
-        };
-        let (pres_ctx, ts) = self.get_rq_pres_ctx_and_ts_by_ab(sop_class_uid)?;
-        let ctx_id = pres_ctx.ctx_id();
-        let cmd = CommandMessage::c_move_req(ctx_id, msg_id, sop_class_uid.uid(), dest_ae);
+    ) -> Result<(), AssocError> {
+        let mut move_op = MoveUserOp::new(msg_id);
+        let (cmd, dcm_root) = move_op.create_req(self, dest_ae, ql, query)?;
 
-        let mut dcm_root = DicomRoot::new_empty(ts, CSRef::default());
-        dcm_root.add_child_with_val(&QueryRetrieveLevel, RawValue::of_string(ql.as_str()));
-        for (tag, val) in query {
-            dcm_root.add_child_with_val(tag, val);
-        }
+        self.active_ops
+            .insert(cmd.msg_id(), AssocUserOp::Move(move_op));
 
         self.write_command(&cmd, &mut writer)?;
-        self.write_dataset(ctx_id, &dcm_root, &mut writer)?;
+        self.write_dataset(cmd.ctx_id(), &dcm_root, &mut writer)?;
 
-        // Iterator over potential progress responses. The SCP should report at least one.
-        Ok(CommandIter::new(reader, ts, self.get_pdu_max_rcv_size()))
+        Ok(())
     }
 }
 
@@ -804,6 +715,8 @@ impl CommonAssocBuilder {
 
             their_user_data: Vec::with_capacity(num_user_data),
             negotiated_pres_ctx: HashMap::with_capacity(num_abs),
+
+            active_ops: HashMap::new(),
         }
     }
 }

@@ -53,6 +53,12 @@ impl ServiceAssoc {
         &self.common
     }
 
+    /// Mutably access the fields & functions that are common to both SCU and SCP associations.
+    #[must_use]
+    pub fn common_mut(&mut self) -> &mut CommonAssoc {
+        &mut self.common
+    }
+
     /// Check if the given AE title is known or should be accepted.
     #[must_use]
     pub fn accept_aet(&self, aet: &str) -> bool {
@@ -359,6 +365,7 @@ impl ServiceAssocBuilder {
 
             their_user_data: Vec::with_capacity(num_user_data),
             negotiated_pres_ctx: HashMap::with_capacity(num_abs),
+            active_ops: HashMap::new(),
         };
 
         ServiceAssoc {

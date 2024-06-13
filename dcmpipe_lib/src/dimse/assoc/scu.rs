@@ -51,6 +51,11 @@ impl UserAssoc {
         &self.common
     }
 
+    #[must_use]
+    pub fn common_mut(&mut self) -> &mut CommonAssoc {
+        &mut self.common
+    }
+
     /// Produces the next message ID that should be used for the `MessageID` field in requests.
     #[must_use]
     pub fn next_msg_id(&mut self) -> u16 {
@@ -164,8 +169,8 @@ impl UserAssoc {
         mut writer: &mut W,
     ) -> Result<Option<DimseMsg>, AssocError> {
         CommonAssoc::write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
-        match self.common.next_msg(reader, &mut writer)? {
-            DimseMsg::ReleaseRP => Ok(Some(DimseMsg::ReleaseRP)),
+        match CommonAssoc::next_msg(reader, &mut writer, self.common.get_pdu_max_rcv_size())? {
+            DimseMsg::CloseMsg(close_msg) => Ok(Some(DimseMsg::CloseMsg(close_msg))),
             other => Err(AssocError::error(DimseError::GeneralError(format!(
                 "Did not get response for {:?}: {other:?}",
                 PduType::ReleaseRQ
@@ -257,6 +262,7 @@ impl UserAssocBuilder {
             this_user_data,
             their_user_data: Vec::with_capacity(num_user_data),
             negotiated_pres_ctx: HashMap::with_capacity(num_abs),
+            active_ops: HashMap::new(),
         };
 
         UserAssoc {

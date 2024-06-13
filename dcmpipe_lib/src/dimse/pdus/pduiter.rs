@@ -232,7 +232,7 @@ impl<R: Read> Iterator for CommandIter<R> {
 
 /// Wraps an `Iterator<Item = DicomElement>` converting them into `PresentationDataItem`, while
 /// obeying the `MaxLengthItem`.
-pub struct PresDataIter<I, B>
+pub struct PresDataIter<B, I>
 where
     B: Borrow<DicomElement>,
     I: Iterator<Item = B>,
@@ -246,7 +246,7 @@ where
     big_element_data: Vec<u8>,
 }
 
-impl<I, B> PresDataIter<I, B>
+impl<B, I> PresDataIter<B, I>
 where
     B: Borrow<DicomElement>,
     I: Iterator<Item = B>,
@@ -311,7 +311,7 @@ where
     }
 }
 
-impl<I, B> Iterator for PresDataIter<I, B>
+impl<B, I> Iterator for PresDataIter<B, I>
 where
     B: Borrow<DicomElement>,
     I: Iterator<Item = B>,

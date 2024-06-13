@@ -27,7 +27,10 @@ use dcmpipe_lib::{
         tags::{AffectedSOPClassUID, MessageID, MoveDestination},
     },
     dimse::{
-        assoc::scu::{UserAssoc, UserAssocBuilder},
+        assoc::{
+            scu::{UserAssoc, UserAssocBuilder},
+            CommonAssoc,
+        },
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
     },
@@ -117,13 +120,19 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 let input = BufReader::with_capacity(1024 * 1024, file);
                 let parser = ParserBuilder::default().build(input, &STANDARD_DICOM_DICTIONARY);
                 let store_msg_id = scu_assoc.next_msg_id();
-                let store_rsp = scu_assoc.common().c_store_req(
+                scu_assoc.common_mut().c_store_req(
                     &mut dest_reader,
                     &mut dest_writer,
                     parser,
                     store_msg_id,
                     self.assoc.common().this_ae(),
                     msg_id,
+                )?;
+
+                let store_rsp = CommonAssoc::next_msg(
+                    &mut dest_reader,
+                    &mut dest_writer,
+                    self.assoc.common().get_pdu_max_rcv_size(),
                 );
 
                 if let Err(e) = self.interpret_cstore_rsp(

@@ -21,34 +21,35 @@ use std::{
 
 use dcmpipe_lib::{
     core::read::ParserBuilder,
-    dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{AffectedSOPClassUID, MessageID},
-    },
+    dict::stdlookup::STANDARD_DICOM_DICTIONARY,
     dimse::{
+        assoc::CommonAssoc,
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
+        svcops::GetSvcOp,
     },
 };
 
 use crate::app::scpapp::{fail, prog, AssociationDevice, Stat, StatusMsgBuilder};
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_get_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
-        let ctx_id = cmd.ctx_id();
-        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
-
-        let statter = StatusMsgBuilder::new(false, ctx_id, msg_id, aff_sop_class);
-
-        let (_pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;
-
-        let dcm_query =
-            self.assoc
-                .common()
-                .read_dataset_in_mem(&mut self.reader, &mut self.writer, ts)?;
+    pub(crate) fn handle_c_get_req(
+        &mut self,
+        op: &mut GetSvcOp,
+        cmd: &CommandMessage,
+    ) -> Result<(), AssocError> {
+        let dcm_query = op.process_req(
+            &cmd,
+            self.assoc.common(),
+            &mut self.reader,
+            &mut self.writer,
+        )?;
+        let statter = StatusMsgBuilder::new(
+            false,
+            op.ctx_id(),
+            op.msg_id(),
+            op.aff_sop_class().to_owned(),
+        );
 
         let query_results = self.query_database(&dcm_query)?;
         let path_map = Self::resolve_to_paths(query_results.group_map);
@@ -58,7 +59,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
 
         let mut successful: u16 = 0;
         let mut remaining: u16 = sop_count;
-        let mut store_msg_id = msg_id + 1;
+        let mut store_msg_id = op.msg_id() + 1;
         for (_key, paths) in path_map {
             for path in paths {
                 let file = match File::open(&path)
@@ -80,13 +81,18 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
 
                 let input = BufReader::with_capacity(1024 * 1024, file);
                 let parser = ParserBuilder::default().build(input, &STANDARD_DICOM_DICTIONARY);
-                let store_rsp = self.assoc.common().c_store_req(
+                self.assoc.common_mut().c_store_req(
                     &mut self.reader,
                     &mut self.writer,
                     parser,
                     store_msg_id,
-                    self.assoc.common().this_ae(),
-                    msg_id,
+                    op.this_ae(),
+                    op.msg_id(),
+                )?;
+                let store_rsp = CommonAssoc::next_msg(
+                    &mut self.reader,
+                    &mut self.writer,
+                    self.assoc.common().get_pdu_max_rcv_size(),
                 );
                 self.interpret_cstore_rsp(store_rsp, &statter, &prog(0, successful, remaining, 0))?;
 

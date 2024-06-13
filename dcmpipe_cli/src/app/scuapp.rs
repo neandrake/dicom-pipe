@@ -1,13 +1,29 @@
+/*
+   Copyright 2024 Christopher Speck
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 use std::{
     collections::HashSet,
     fs::File,
     io::{stdout, BufReader, BufWriter, Write},
     net::TcpStream,
-    path::PathBuf,
 };
 
 use dcmpipe_lib::{
     core::{
+        dcmobject::DicomRoot,
         defn::{
             constants::ts::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
             dcmdict::DicomDictionary,
@@ -36,10 +52,11 @@ use dcmpipe_lib::{
     dimse::{
         assoc::{
             scu::{UserAssoc, UserAssocBuilder},
-            DimseMsg, QueryLevel,
+            CommonAssoc, DimseMsg, QueryLevel,
         },
         commands::{messages::CommandMessage, CommandStatus, CommandType, SubOpProgress},
         error::{AssocError, DimseError},
+        userops::AssocUserOp,
     },
 };
 
@@ -58,38 +75,20 @@ impl SvcUserApp {
         SvcUserApp { args }
     }
 
-    fn issue_c_echo(
-        assoc: &mut UserAssoc,
-        mut reader: BufReader<&TcpStream>,
-        mut writer: &mut BufWriter<&TcpStream>,
-    ) -> Result<Option<DimseMsg>, AssocError> {
-        let msg_id = assoc.next_msg_id();
-        assoc.common().c_echo_rq(&mut reader, &mut writer, msg_id)?;
-        assoc.release_association(&mut reader, &mut writer)
+    fn print_progress(cmd: &CommandMessage, title: &str) {
+        let progress = SubOpProgress::from(cmd);
+        println!("{title}: {}/{}", progress.completed(), progress.total());
     }
 
-    fn issue_c_find(
-        assoc: &mut UserAssoc,
-        mut reader: BufReader<&TcpStream>,
-        mut writer: &mut BufWriter<&TcpStream>,
-        query_level: QueryLevel,
-        query: &[(String, String)],
-    ) -> Result<Option<DimseMsg>, AssocError> {
-        let msg_id = assoc.next_msg_id();
-        let query_vals_resolved = Self::resolve_cli_query(query)?;
-        let results = assoc.common().c_find_req(
-            &mut reader,
-            &mut writer,
-            msg_id,
-            query_level,
-            query_vals_resolved,
-        )?;
+    fn print_cfind_result(
+        result: Option<DicomRoot>,
+        cmd: &CommandMessage,
+    ) -> Result<(), AssocError> {
         let mut stdout = stdout().lock();
-        for (i, result) in results.enumerate() {
-            let result = result.map_err(AssocError::ab_failure)?;
-            if let Some(dcm) = result.1 {
+        match result {
+            Some(dcm) => {
                 stdout
-                    .write_all(format!("### Result {i}\n").as_ref())
+                    .write_all("### Result\n".as_bytes())
                     .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
                 let elems = dcm
                     .flatten()
@@ -101,86 +100,17 @@ impl SvcUserApp {
                         .write_all(format!("{elem}\n").as_ref())
                         .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
                 }
-            }
-            if !result.0.status().is_pending() {
                 stdout
-                    .write_all(format!("### End Results: {:?}", result.0.status()).as_ref())
+                    .write_all("\n".to_owned().as_ref())
                     .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
-                break;
             }
-
-            stdout
-                .write_all("\n".to_owned().as_ref())
-                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
-        }
-
-        assoc.release_association(&mut reader, &mut writer)
-    }
-
-    fn issue_c_store(
-        assoc: &mut UserAssoc,
-        mut reader: BufReader<&TcpStream>,
-        mut writer: &mut BufWriter<&TcpStream>,
-        my_ae: &str,
-        file: &[PathBuf],
-    ) -> Result<Option<DimseMsg>, AssocError> {
-        for f in file {
-            let input = BufReader::with_capacity(
-                1024 * 1024,
-                File::open(f).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
-            );
-            let parser = ParserBuilder::default().build(input, &STANDARD_DICOM_DICTIONARY);
-            let store_msg_id = assoc.next_msg_id();
-            let rsp = assoc.common().c_store_req(
-                &mut reader,
-                &mut writer,
-                parser,
-                store_msg_id,
-                my_ae,
-                0,
-            )?;
-            let Some(DimseMsg::Cmd(cmd)) = rsp else {
-                return Ok(rsp);
-            };
-
-            if !cmd.status().is_success() {
-                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
-                    "Transfer of file failed with status: {:?}",
-                    *cmd.status()
-                ))));
+            None => {
+                stdout
+                    .write_all(format!("### End Results: {:?}\n", cmd.status()).as_ref())
+                    .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
             }
         }
-
-        assoc.release_association(&mut reader, &mut writer)
-    }
-
-    fn issue_c_move(
-        assoc: &mut UserAssoc,
-        mut reader: BufReader<&TcpStream>,
-        mut writer: &mut BufWriter<&TcpStream>,
-        dest_ae: &str,
-        query_level: QueryLevel,
-        query: &[(String, String)],
-    ) -> Result<Option<DimseMsg>, AssocError> {
-        let msg_id = assoc.next_msg_id();
-        let query_vals_resolved = Self::resolve_cli_query(query)?;
-        let prog_iter = assoc.common().c_move_req(
-            &mut reader,
-            &mut writer,
-            msg_id,
-            dest_ae,
-            query_level,
-            query_vals_resolved,
-        )?;
-
-        for prog in prog_iter {
-            let (prog, _dataset) = prog.map_err(AssocError::ab_failure)?;
-            let prog = SubOpProgress::from(&prog);
-            let total = prog.0 + prog.1 + prog.2 + prog.3;
-            println!("C-MOVE Progress: {}/{}", prog.1, total);
-        }
-
-        assoc.release_association(&mut reader, &mut writer)
+        Ok(())
     }
 
     fn issue_c_get(
@@ -194,7 +124,7 @@ impl SvcUserApp {
         let query_vals_resolved = Self::resolve_cli_query(query)?;
 
         assoc
-            .common()
+            .common_mut()
             .c_get_req(&mut writer, msg_id, query_level, query_vals_resolved)?;
 
         let mut sop_count = 0;
@@ -207,7 +137,11 @@ impl SvcUserApp {
             File::create(&filename).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
         );
         loop {
-            match assoc.common().next_msg(&mut reader, &mut writer)? {
+            match CommonAssoc::next_msg(
+                &mut reader,
+                &mut writer,
+                assoc.common().get_pdu_max_rcv_size(),
+            )? {
                 DimseMsg::Cmd(cmd) => {
                     // SCP will respond with individual C-STORE requests for each SOP.
                     if cmd.cmd_type() == &CommandType::CStoreReq {
@@ -347,9 +281,9 @@ impl CommandApplication for SvcUserApp {
             .build();
 
         let stream = TcpStream::connect(&self.args.host)?;
-        let reader = BufReader::new(&stream);
+        let mut reader = BufReader::new(&stream);
         let mut writer = BufWriter::new(&stream);
-        let result = self.start(reader, &mut writer, &mut assoc);
+        let result = self.start(&mut reader, &mut writer, &mut assoc);
         match result {
             Ok(None) => {}
             Ok(Some(res)) => {
@@ -373,7 +307,7 @@ impl CommandApplication for SvcUserApp {
 impl SvcUserApp {
     fn start(
         &self,
-        mut reader: BufReader<&TcpStream>,
+        mut reader: &mut BufReader<&TcpStream>,
         mut writer: &mut BufWriter<&TcpStream>,
         assoc: &mut UserAssoc,
     ) -> Result<Option<DimseMsg>, AssocError> {
@@ -383,32 +317,118 @@ impl SvcUserApp {
         }
 
         match &self.args.cmd {
-            SvcUserCommand::Echo => Self::issue_c_echo(assoc, reader, writer),
+            SvcUserCommand::Echo => {
+                let msg_id = assoc.next_msg_id();
+                assoc.common_mut().c_echo_rq(&mut writer, msg_id)?;
+            }
             SvcUserCommand::Find { query_level, query } => {
-                Self::issue_c_find(assoc, reader, writer, *query_level, query)
+                let msg_id = assoc.next_msg_id();
+                let query_vals_resolved = Self::resolve_cli_query(query)?;
+                assoc.common_mut().c_find_req(
+                    &mut writer,
+                    msg_id,
+                    *query_level,
+                    query_vals_resolved,
+                )?;
             }
             SvcUserCommand::Store { file } => {
-                Self::issue_c_store(assoc, reader, writer, &self.args.my_ae, file)
+                for f in file {
+                    let file = BufReader::new(
+                        File::open(f).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
+                    );
+                    let this_ae = assoc.common().this_ae().clone();
+                    let store_msg_id = assoc.next_msg_id();
+                    let parser = ParserBuilder::default().build(file, &STANDARD_DICOM_DICTIONARY);
+                    assoc.common_mut().c_store_req(
+                        &mut reader,
+                        &mut writer,
+                        parser,
+                        store_msg_id,
+                        &this_ae,
+                        store_msg_id,
+                    )?;
+                }
             }
             SvcUserCommand::Move {
                 dest_ae,
                 query_level,
                 query,
-            } => Self::issue_c_move(
-                assoc,
-                reader,
-                writer,
-                dest_ae,
-                query_level.unwrap_or(QueryLevel::Study),
-                query,
-            ),
-            SvcUserCommand::Get { query_level, query } => Self::issue_c_get(
-                assoc,
-                reader,
-                writer,
-                query_level.unwrap_or(QueryLevel::Study),
-                query,
-            ),
+            } => {
+                let msg_id = assoc.next_msg_id();
+                let query_level = query_level.unwrap_or(QueryLevel::Study);
+                let query_vals_resolved = Self::resolve_cli_query(query)?;
+                assoc.common_mut().c_move_req(
+                    &mut writer,
+                    msg_id,
+                    dest_ae,
+                    query_level,
+                    query_vals_resolved,
+                )?;
+            }
+            SvcUserCommand::Get { query_level, query } => {
+                let msg_id = assoc.next_msg_id();
+                let query_level = query_level.unwrap_or(QueryLevel::Study);
+                let query_vals_resolved = Self::resolve_cli_query(query)?;
+                assoc.common_mut().c_get_req(
+                    &mut writer,
+                    msg_id,
+                    query_level,
+                    query_vals_resolved,
+                )?;
+            }
         }
+
+        loop {
+            let cmd = CommonAssoc::next_cmd(
+                &mut reader,
+                &mut writer,
+                assoc.common().get_pdu_max_rcv_size(),
+            )?;
+            let msg_id = cmd.msg_id();
+
+            // When issuing a C-GET requets the SCP will respond with a C-STORE request.
+            if cmd.cmd_type() == &CommandType::CStoreReq {}
+
+            let Some(op) = assoc.common_mut().op(msg_id) else {
+                return Err(AssocError::ab_failure(DimseError::GeneralError(format!(
+                    "No active op for message: {msg_id}",
+                ))));
+            };
+
+            let is_complete = match op {
+                AssocUserOp::Echo(op) => {
+                    op.process_rsp(&mut reader, &mut writer, &cmd)?;
+                    op.is_complete()
+                }
+                AssocUserOp::Find(op) => {
+                    let result = op.process_rsp(&mut reader, &mut writer, &cmd)?;
+                    Self::print_cfind_result(result, &cmd)?;
+                    op.is_complete()
+                }
+                AssocUserOp::Get(op) => {
+                    op.process_rsp(&mut reader, &mut writer, &cmd)?;
+                    let is_complete = op.is_complete();
+                    if !is_complete {}
+                    is_complete
+                }
+                AssocUserOp::Store(op) => {
+                    op.process_rsp(&mut reader, &mut writer, &cmd)?;
+                    Self::print_progress(&cmd, "C-STORE");
+                    op.is_complete()
+                }
+                AssocUserOp::Move(op) => {
+                    op.process_rsp(&mut reader, &mut writer, &cmd)?;
+                    Self::print_progress(&cmd, "C-MOVE");
+                    op.is_complete()
+                }
+            };
+
+            if is_complete {
+                assoc.common_mut().remove_op(msg_id);
+                break;
+            }
+        }
+
+        assoc.release_association(&mut reader, &mut writer)
     }
 }

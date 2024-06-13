@@ -37,9 +37,8 @@ use dcmpipe_lib::{
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,
         tags::{
-            AccessionNumber, AdditionalPatientHistory, AdmittingDiagnosesDescription,
-            AffectedSOPClassUID, EthnicGroup, InstanceCreationDate, InstanceNumber,
-            IssuerofPatientID, MessageID, ModalitiesinStudy, Modality,
+            AccessionNumber, AdditionalPatientHistory, AdmittingDiagnosesDescription, EthnicGroup,
+            InstanceCreationDate, InstanceNumber, IssuerofPatientID, ModalitiesinStudy, Modality,
             NameofPhysiciansReadingStudy, NumberofPatientRelatedInstances,
             NumberofPatientRelatedSeries, NumberofPatientRelatedStudies,
             NumberofStudyRelatedInstances, NumberofStudyRelatedSeries, Occupation, OtherPatientIDs,
@@ -53,8 +52,9 @@ use dcmpipe_lib::{
     },
     dimse::{
         assoc::QueryLevel,
-        commands::{messages::CommandMessage, CommandStatus},
+        commands::messages::CommandMessage,
         error::{AssocError, DimseError},
+        svcops::FindSvcOp,
     },
 };
 
@@ -141,22 +141,15 @@ pub(crate) struct QueryResults {
 }
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_find_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
-        let ctx_id = cmd.ctx_id();
-        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
-
-        let (_pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;
-
+    pub(crate) fn handle_c_find_req(
+        &mut self,
+        op: &mut FindSvcOp,
+        cmd: &CommandMessage,
+    ) -> Result<(), AssocError> {
         let dcm_query =
-            self.assoc
-                .common()
-                .read_dataset_in_mem(&mut self.reader, &mut self.writer, ts)?;
+            op.process_req(cmd, self.assoc.common(), &mut self.reader, &mut self.writer)?;
 
         let query_results = &self.query_database(&dcm_query)?;
-
         let dcm_results = Self::create_results(
             &dcm_query,
             &query_results.query.include_keys,
@@ -164,22 +157,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             &query_results.group_map,
         )?;
 
-        for result in dcm_results {
-            let cmd = CommandMessage::c_find_rsp(
-                ctx_id,
-                msg_id,
-                &aff_sop_class,
-                &CommandStatus::pending(),
-            );
-            self.assoc.common().write_command(&cmd, &mut self.writer)?;
-            self.assoc
-                .common()
-                .write_dataset(ctx_id, &result, &mut self.writer)?;
-        }
-
-        let cmd =
-            CommandMessage::c_find_rsp(ctx_id, msg_id, &aff_sop_class, &CommandStatus::success());
-        self.assoc.common().write_command(&cmd, &mut self.writer)?;
+        op.write_response(self.assoc.common(), &mut self.writer, &dcm_results)?;
 
         Ok(())
     }

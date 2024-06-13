@@ -8,7 +8,7 @@ resolver = "2"
 
 # Compile dependencies as optimized, without debug info, to save significant space.
 [profile.dev.package."*"]
-opt-level = 3
+opt-level = 0
 debug = false
 strip = true
 debug-assertions = false

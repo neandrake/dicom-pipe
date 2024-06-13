@@ -22,6 +22,8 @@ pub mod assoc;
 pub mod commands;
 pub mod error;
 pub mod pdus;
+pub mod svcops;
+pub mod userops;
 
 pub struct AeTitle(pub [u8; 16]);
 

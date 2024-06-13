@@ -475,6 +475,31 @@ impl From<u16> for CommandStatus {
 pub struct SubOpProgress(pub u16, pub u16, pub u16, pub u16);
 
 impl SubOpProgress {
+    #[must_use]
+    pub fn remaining(&self) -> u16 {
+        self.0
+    }
+
+    #[must_use]
+    pub fn completed(&self) -> u16 {
+        self.1
+    }
+
+    #[must_use]
+    pub fn failed(&self) -> u16 {
+        self.2
+    }
+
+    #[must_use]
+    pub fn warning(&self) -> u16 {
+        self.3
+    }
+
+    #[must_use]
+    pub fn total(&self) -> u16 {
+        self.0 + self.1 + self.2 + self.3
+    }
+
     /// Create the individual elements that will report this progress.
     #[must_use]
     pub fn as_elements(&self, status: &CommandStatus) -> Vec<(&Tag, RawValue)> {
