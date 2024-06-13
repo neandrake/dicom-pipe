@@ -65,6 +65,7 @@ impl ServiceAssoc {
         self.accept_aets.is_empty() || self.accept_aets.contains_key(aet)
     }
 
+    /// Gets the connection info for a known AE Title.
     #[must_use]
     pub fn aet_host(&self, aet: &str) -> Option<&String> {
         self.accept_aets.get(aet)

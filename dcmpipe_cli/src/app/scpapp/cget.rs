@@ -38,12 +38,8 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         op: &mut GetSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
-        let dcm_query = op.process_req(
-            cmd,
-            self.assoc.common(),
-            &mut self.reader,
-            &mut self.writer,
-        )?;
+        let dcm_query =
+            op.process_req(cmd, self.assoc.common(), &mut self.reader, &mut self.writer)?;
         let statter = StatusMsgBuilder::new(
             false,
             op.ctx_id(),

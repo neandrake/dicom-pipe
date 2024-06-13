@@ -23,7 +23,7 @@ use crate::{
     core::defn::{ts::TSRef, uid::UIDRef, vr::UI},
     dict::uids::DICOMApplicationContextName,
     dimse::{
-        assoc::{CommonAssoc, DimseMsg},
+        assoc::{CloseMsg, CommonAssoc, DimseMsg},
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
@@ -31,7 +31,7 @@ use crate::{
                 ReleaseRQ, TransferSyntaxItem, UserInformationItem,
             },
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem, RoleSelectionItem},
-            Pdu, UserPdu,
+            Pdu, PduType, UserPdu,
         },
         AeTitle,
     },
@@ -169,8 +169,15 @@ impl UserAssoc {
     ) -> Result<Option<DimseMsg>, AssocError> {
         CommonAssoc::write_pdu(&Pdu::ReleaseRQ(ReleaseRQ::new()), &mut writer)?;
         match CommonAssoc::next_msg(reader, &mut writer, self.common.get_pdu_max_rcv_size())? {
-            DimseMsg::CloseMsg(close_msg) => Ok(Some(DimseMsg::CloseMsg(close_msg))),
-            other => Err(AssocError::error(DimseError::DimseCloseMissing(other))),
+            DimseMsg::CloseMsg(CloseMsg::ReleaseRP) => {
+                Ok(Some(DimseMsg::CloseMsg(CloseMsg::ReleaseRP)))
+            }
+            DimseMsg::CloseMsg(other) => {
+                Err(AssocError::error(DimseError::ConnectionClosed(other)))
+            }
+            DimseMsg::Cmd(_) | DimseMsg::Dataset(_) => Err(AssocError::error(
+                DimseError::UnexpectedPduType(PduType::PresentationDataItem),
+            )),
         }
     }
 }

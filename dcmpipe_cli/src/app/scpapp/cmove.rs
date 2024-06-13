@@ -58,7 +58,9 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 &statter.msg(&Stat::fail_unknown_dest(), &prog(0, 0, 0, 0)),
                 &mut self.writer,
             )?;
-            return Err(AssocError::ab_failure(DimseError::InvalidAeTitle(dest)));
+            return Err(AssocError::ab_failure(DimseError::InvalidCallingAeTitle(
+                dest,
+            )));
         };
 
         let (_pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;

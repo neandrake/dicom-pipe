@@ -138,10 +138,7 @@ fn rename_file_to_sop(filename: &str, ts: TSRef) -> Result<(), DimseError> {
                 .and_then(|v| v.string().cloned())
         });
     let Some(sop_uid) = sop_uid else {
-        return Err(DimseError::SOPInstanceUIDMissing(
-            usize::try_from(parser.bytes_read()).unwrap_or_default(),
-            filename.to_owned(),
-        ));
+        return Err(DimseError::DimseElementMissing(filename.to_owned()));
     };
     drop(parser);
     std::fs::rename(filename, format!("{sop_uid}.dcm")).map_err(DimseError::from)?;
