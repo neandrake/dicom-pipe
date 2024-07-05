@@ -27,6 +27,7 @@ use dcmpipe_lib::{
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
         svcops::GetSvcOp,
+        userops::AssocUserOp,
     },
 };
 
@@ -71,7 +72,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                             &statter.msg(&Stat::fail(), &prog(0, successful, remaining, 0)),
                             &mut self.writer,
                         )?;
-                        return fail(&format!("Failed resolving {path:?}"));
+                        return Err(fail(&format!("Failed resolving {path:?}")));
                     }
                 };
 
@@ -90,7 +91,16 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     &mut self.writer,
                     self.assoc.common().get_pdu_max_rcv_size(),
                 );
-                self.interpret_cstore_rsp(store_rsp, &statter, &prog(0, successful, remaining, 0))?;
+                let store_rsp = self.interpret_cstore_rsp(
+                    store_rsp,
+                    &statter,
+                    &prog(0, successful, remaining, 0),
+                )?;
+                if let Some(AssocUserOp::Store(store_op)) =
+                    self.assoc.common_mut().user_op(store_msg_id)
+                {
+                    store_op.process_rsp(&store_rsp);
+                }
 
                 store_msg_id += 1;
                 successful += 1;
@@ -103,9 +113,11 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             }
         }
 
-        self.assoc.common().write_command(
-            &statter.msg(&Stat::success(), &prog(0, successful, 0, 0)),
+        op.write_response(
+            self.assoc.common(),
             &mut self.writer,
+            &Stat::success(),
+            &prog(0, successful, 0, 0),
         )?;
 
         Ok(())

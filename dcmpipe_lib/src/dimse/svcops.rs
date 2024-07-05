@@ -18,14 +18,13 @@ use std::io::{Read, Write};
 
 use crate::{
     core::dcmobject::DicomRoot,
-    dict::tags::AffectedSOPClassUID,
+    dict::tags::{AffectedSOPClassUID, MoveDestination},
     dimse::{
-        commands::{messages::CommandMessage, CommandStatus},
+        assoc::CommonAssoc,
+        commands::{messages::CommandMessage, CommandStatus, SubOpProgress},
         error::AssocError,
     },
 };
-
-use super::assoc::CommonAssoc;
 
 pub enum AssocSvcOp {
     Echo(EchoSvcOp),
@@ -144,28 +143,22 @@ impl FindSvcOp {
         &mut self,
         assoc: &CommonAssoc,
         mut writer: &mut W,
-        dcm_results: &[DicomRoot],
+        dcm_result: &DicomRoot,
+        status: &CommandStatus,
     ) -> Result<(), AssocError> {
-        for result in dcm_results {
-            let cmd = CommandMessage::c_find_rsp(
-                self.ctx_id,
-                self.msg_id,
-                &self.aff_sop_class,
-                &CommandStatus::pending(),
-            );
-            assoc.write_command(&cmd, &mut writer)?;
-            assoc.write_dataset(self.ctx_id, result, &mut writer)?;
-        }
-
         let cmd = CommandMessage::c_find_rsp(
             self.ctx_id,
             self.msg_id,
             &self.aff_sop_class,
-            &CommandStatus::success(),
+            &CommandStatus::pending(),
         );
         assoc.write_command(&cmd, &mut writer)?;
+        assoc.write_dataset(self.ctx_id, dcm_result, &mut writer)?;
 
-        self.is_complete = true;
+        let cmd = CommandMessage::c_find_rsp(self.ctx_id, self.msg_id, &self.aff_sop_class, status);
+        assoc.write_command(&cmd, &mut writer)?;
+
+        self.is_complete = !status.is_pending();
 
         Ok(())
     }
@@ -230,23 +223,37 @@ impl GetSvcOp {
             .map_err(AssocError::ab_failure)?;
 
         let (_pres_ctx, ts) = assoc.get_pres_ctx_and_ts(self.ctx_id)?;
-
         let dcm_query = assoc.read_dataset_in_mem(reader, writer, ts)?;
         Ok(dcm_query)
     }
 
-    pub fn write_response<R: Read, W: Write>(
+    pub fn write_response<W: Write>(
         &mut self,
         assoc: &CommonAssoc,
         mut writer: &mut W,
-        dcm_results: &[DicomRoot],
+        status: &CommandStatus,
+        progress: &SubOpProgress,
     ) -> Result<(), AssocError> {
+        let cmd = CommandMessage::c_get_rsp(
+            self.ctx_id,
+            self.msg_id,
+            &self.aff_sop_class,
+            status,
+            progress,
+        );
+        assoc.write_command(&cmd, &mut writer)?;
+
+        self.is_complete = !status.is_pending();
+
         Ok(())
     }
 }
 
 pub struct MoveSvcOp {
     msg_id: u16,
+    ctx_id: u8,
+    aff_sop_class: String,
+    aet_dest: String,
     is_complete: bool,
 }
 
@@ -255,6 +262,9 @@ impl MoveSvcOp {
     pub fn new(msg_id: u16) -> Self {
         Self {
             msg_id,
+            ctx_id: 0,
+            aff_sop_class: String::new(),
+            aet_dest: String::new(),
             is_complete: false,
         }
     }
@@ -265,13 +275,72 @@ impl MoveSvcOp {
     }
 
     #[must_use]
+    pub fn ctx_id(&self) -> u8 {
+        self.ctx_id
+    }
+
+    #[must_use]
+    pub fn aff_sop_class(&self) -> &str {
+        &self.aff_sop_class
+    }
+
+    #[must_use]
+    pub fn aet_dest(&self) -> &str {
+        &self.aet_dest
+    }
+
+    #[must_use]
     pub fn is_complete(&self) -> bool {
         self.is_complete
+    }
+
+    pub fn process_req<R: Read, W: Write>(
+        &mut self,
+        cmd: &CommandMessage,
+        assoc: &CommonAssoc,
+        reader: &mut R,
+        writer: &mut W,
+    ) -> Result<DicomRoot, AssocError> {
+        self.ctx_id = cmd.ctx_id();
+        self.aff_sop_class = cmd
+            .get_string(&AffectedSOPClassUID)
+            .map_err(AssocError::ab_failure)?;
+        self.aet_dest = cmd
+            .get_string(&MoveDestination)
+            .map_err(AssocError::ab_failure)?;
+
+        let (_pres_ctx, ts) = assoc.get_pres_ctx_and_ts(self.ctx_id)?;
+        let dcm_query = assoc.read_dataset_in_mem(reader, writer, ts)?;
+        Ok(dcm_query)
+    }
+
+    pub fn write_response<W: Write>(
+        &mut self,
+        assoc: &CommonAssoc,
+        mut writer: &mut W,
+        status: &CommandStatus,
+        progress: &SubOpProgress,
+    ) -> Result<(), AssocError> {
+        let cmd = CommandMessage::c_move_rsp(
+            self.ctx_id,
+            self.msg_id,
+            &self.aff_sop_class,
+            status,
+            progress,
+        );
+
+        assoc.write_command(&cmd, &mut writer)?;
+
+        self.is_complete = !status.is_pending();
+
+        Ok(())
     }
 }
 
 pub struct StoreSvcOp {
     msg_id: u16,
+    ctx_id: u8,
+    aff_sop_class: String,
     is_complete: bool,
 }
 
@@ -280,6 +349,8 @@ impl StoreSvcOp {
     pub fn new(msg_id: u16) -> Self {
         Self {
             msg_id,
+            ctx_id: 0,
+            aff_sop_class: String::new(),
             is_complete: false,
         }
     }
@@ -292,5 +363,31 @@ impl StoreSvcOp {
     #[must_use]
     pub fn is_complete(&self) -> bool {
         self.is_complete
+    }
+
+    /// Initial processing of the request. After calling this the dataset can be read directly from
+    /// the reader stream.
+    pub fn process_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
+        self.ctx_id = cmd.ctx_id();
+        self.aff_sop_class = cmd
+            .get_string(&AffectedSOPClassUID)
+            .map_err(AssocError::ab_failure)?;
+
+        Ok(())
+    }
+
+    pub fn write_response<W: Write>(
+        &mut self,
+        assoc: &CommonAssoc,
+        mut writer: &mut W,
+        status: &CommandStatus,
+    ) -> Result<(), AssocError> {
+        let cmd =
+            CommandMessage::c_store_rsp(self.ctx_id, self.msg_id, &self.aff_sop_class, status);
+        assoc.write_command(&cmd, &mut writer)?;
+
+        self.is_complete = !status.is_pending();
+
+        Ok(())
     }
 }

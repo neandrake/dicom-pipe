@@ -265,7 +265,8 @@ impl UserAssocBuilder {
             this_user_data,
             their_user_data: Vec::with_capacity(num_user_data),
             negotiated_pres_ctx: HashMap::with_capacity(num_abs),
-            active_ops: HashMap::new(),
+            active_user_ops: HashMap::new(),
+            active_svc_ops: HashMap::new(),
         };
 
         UserAssoc {

@@ -15,7 +15,7 @@
 */
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     io::{Cursor, Read, Write},
     str::FromStr,
 };
@@ -40,9 +40,15 @@ use crate::{
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem},
             Pdu, UserPdu,
         },
+        svcops::{AssocSvcOp, EchoSvcOp},
         userops::{AssocUserOp, EchoUserOp, FindUserOp, GetUserOp, MoveUserOp, StoreUserOp},
         Syntax,
     },
+};
+
+use super::{
+    commands::CommandType,
+    svcops::{FindSvcOp, GetSvcOp, MoveSvcOp, StoreSvcOp},
 };
 
 pub mod scp;
@@ -151,7 +157,8 @@ pub struct CommonAssoc {
     negotiated_pres_ctx: HashMap<u8, (AssocACPresentationContext, UIDRef)>,
 
     /* Active State */
-    active_ops: HashMap<u16, AssocUserOp>,
+    active_user_ops: HashMap<u16, AssocUserOp>,
+    active_svc_ops: HashMap<u16, AssocSvcOp>,
 }
 
 impl CommonAssoc {
@@ -493,13 +500,60 @@ impl CommonAssoc {
     }
 
     /// Get a mutable reference to an active association operation.
-    pub fn op(&mut self, msg_id: u16) -> Option<&mut AssocUserOp> {
-        self.active_ops.get_mut(&msg_id)
+    pub fn user_op(&mut self, msg_id: u16) -> Option<&mut AssocUserOp> {
+        self.active_user_ops.get_mut(&msg_id)
     }
 
     /// Stop tracking the operation, presumed to be complete.
-    pub fn remove_op(&mut self, msg_id: u16) {
-        self.active_ops.remove(&msg_id);
+    pub fn remove_user_op(&mut self, msg_id: u16) {
+        self.active_user_ops.remove(&msg_id);
+    }
+
+    pub fn svc_op(&mut self, msg_id: u16) -> Option<&mut AssocSvcOp> {
+        self.active_svc_ops.get_mut(&msg_id)
+    }
+
+    pub fn remove_svc_op(&mut self, msg_id: u16) {
+        self.active_svc_ops.remove(&msg_id);
+    }
+
+    /// Registers a `CommandMessage` request.
+    ///
+    /// # Return
+    /// The `AssocSvcOp` which can be used for further processing. If the request is a C-CANCEL or
+    /// any N- request then `None` will be returned.
+    ///
+    /// # Errors
+    /// - `AssocError` will be returned if an existing operation with the same message ID is
+    ///   already active.
+    pub fn recv_req(
+        &mut self,
+        cmd: &CommandMessage,
+    ) -> Result<Option<&mut AssocSvcOp>, AssocError> {
+        let op = match cmd.cmd_type() {
+            CommandType::CEchoReq => AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id())),
+            CommandType::CFindReq => AssocSvcOp::Find(FindSvcOp::new(cmd.msg_id())),
+            CommandType::CGetReq => AssocSvcOp::Get(GetSvcOp::new(cmd.msg_id())),
+            CommandType::CMoveReq => AssocSvcOp::Move(MoveSvcOp::new(cmd.msg_id())),
+            CommandType::CStoreReq => AssocSvcOp::Store(StoreSvcOp::new(cmd.msg_id())),
+            CommandType::CCancelReq => {
+                return Ok(self.active_svc_ops.remove(&cmd.msg_id()).and_then(|_op| {
+                    // TODO: Cancel in-flight operation.
+                    self.active_svc_ops.remove(&cmd.msg_id());
+                    None
+                }));
+            }
+            _ => {
+                return Ok(None);
+            }
+        };
+
+        match self.active_svc_ops.entry(cmd.msg_id()) {
+            Entry::Occupied(mut _existing) => Err(AssocError::ab_failure(
+                DimseError::UnknownMessageID(cmd.msg_id()),
+            )),
+            Entry::Vacant(entry) => Ok(Some(entry.insert(op))),
+        }
     }
 
     /// Issue a C-ECHO request.
@@ -508,11 +562,15 @@ impl CommonAssoc {
     /// - I/O errors may occur with the reader/writer.
     /// - `DimseError` will be returned if there are protocol errors.
     /// - An error will be returned if the response is not successful.
-    pub fn c_echo_rq<W: Write>(&mut self, mut writer: W, msg_id: u16) -> Result<(), AssocError> {
+    pub fn send_cecho_req<W: Write>(
+        &mut self,
+        mut writer: W,
+        msg_id: u16,
+    ) -> Result<(), AssocError> {
         let echo_op = EchoUserOp::new(msg_id);
         let cmd = echo_op.create_req(self)?;
 
-        self.active_ops
+        self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Echo(echo_op));
 
         self.write_command(&cmd, &mut writer)?;
@@ -530,7 +588,7 @@ impl CommonAssoc {
     /// # Errors
     /// - I/O errors may occur while using the reader/writer.
     /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
-    pub fn c_find_req<W: Write>(
+    pub fn send_cfind_req<W: Write>(
         &mut self,
         mut writer: W,
         msg_id: u16,
@@ -540,7 +598,7 @@ impl CommonAssoc {
         let mut find_op = FindUserOp::new(msg_id, self.get_pdu_max_rcv_size());
         let (cmd, dcm_query) = find_op.create_req(self, ql, query)?;
 
-        self.active_ops
+        self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Find(find_op));
 
         self.write_command(&cmd, &mut writer)?;
@@ -564,7 +622,7 @@ impl CommonAssoc {
         let mut get_op = GetUserOp::new(msg_id);
         let (cmd, dcm_query) = get_op.create_req(self, ql, query)?;
 
-        self.active_ops
+        self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Get(get_op));
 
         self.write_command(&cmd, &mut writer)?;
@@ -591,7 +649,7 @@ impl CommonAssoc {
         let (cmd, pdi_iter) =
             store_op.create_req(self, parser, store_msg_id, origin_ae, orig_msg_id)?;
 
-        self.active_ops
+        self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Store(store_op));
 
         self.write_command(&cmd, &mut writer)?;
@@ -621,7 +679,7 @@ impl CommonAssoc {
         let mut move_op = MoveUserOp::new(msg_id);
         let (cmd, dcm_root) = move_op.create_req(self, dest_ae, ql, query)?;
 
-        self.active_ops
+        self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Move(move_op));
 
         self.write_command(&cmd, &mut writer)?;
@@ -701,7 +759,8 @@ impl CommonAssocBuilder {
             their_user_data: Vec::with_capacity(num_user_data),
             negotiated_pres_ctx: HashMap::with_capacity(num_abs),
 
-            active_ops: HashMap::new(),
+            active_user_ops: HashMap::new(),
+            active_svc_ops: HashMap::new(),
         }
     }
 }

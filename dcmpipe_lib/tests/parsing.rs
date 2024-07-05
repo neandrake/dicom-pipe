@@ -163,8 +163,8 @@ mod parsing_tests {
         let mut parser: Parser<'_, MockDicomDataset> =
             MockDicomDataset::build_mock_parser(&[STANDARD_HEADER, NULL_ELEMENT]);
 
-        let first_non_fme: Option<std::result::Result<DicomElement, ParseError>> = parser
-            .find(|x| !x.is_ok() || x.as_ref().unwrap().tag() > SpecificCharacterSet.tag);
+        let first_non_fme: Option<std::result::Result<DicomElement, ParseError>> =
+            parser.find(|x| !x.is_ok() || x.as_ref().unwrap().tag() > SpecificCharacterSet.tag);
 
         assert!(first_non_fme.is_none());
     }

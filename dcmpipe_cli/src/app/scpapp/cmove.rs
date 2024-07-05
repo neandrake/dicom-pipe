@@ -22,10 +22,7 @@ use std::{
 
 use dcmpipe_lib::{
     core::read::ParserBuilder,
-    dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{AffectedSOPClassUID, MessageID, MoveDestination},
-    },
+    dict::stdlookup::STANDARD_DICOM_DICTIONARY,
     dimse::{
         assoc::{
             scu::{UserAssoc, UserAssocBuilder},
@@ -33,25 +30,25 @@ use dcmpipe_lib::{
         },
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
+        svcops::MoveSvcOp,
     },
 };
 
 use crate::app::scpapp::{fail, prog, AssociationDevice, Stat, StatusMsgBuilder};
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_move_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
-        let ctx_id = cmd.ctx_id();
-        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
-
-        let statter = StatusMsgBuilder::new(true, ctx_id, msg_id, aff_sop_class);
-
-        let dest = cmd
-            .get_string(&MoveDestination)
-            .map_err(AssocError::ab_failure)?;
-        let Some(aet_host) = self.assoc.aet_host(&dest).cloned() else {
+    pub(crate) fn handle_c_move_req(
+        &mut self,
+        op: &mut MoveSvcOp,
+        cmd: &CommandMessage,
+    ) -> Result<(), AssocError> {
+        let statter = StatusMsgBuilder::new(
+            true,
+            op.ctx_id(),
+            op.msg_id(),
+            op.aff_sop_class().to_owned(),
+        );
+        let Some(aet_host) = self.assoc.aet_host(op.aet_dest()).cloned() else {
             // Report failed progress to C-MOVE requestor. The query for matching SOPs happens
             // after validating the AE title so we can't report any numbers for progress.
             self.assoc.common().write_command(
@@ -59,15 +56,12 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 &mut self.writer,
             )?;
             return Err(AssocError::ab_failure(DimseError::InvalidCallingAeTitle(
-                dest,
+                op.aet_dest().to_owned(),
             )));
         };
 
-        let (_pres_ctx, ts) = self.assoc.common().get_pres_ctx_and_ts(ctx_id)?;
         let dcm_query =
-            self.assoc
-                .common()
-                .read_dataset_in_mem(&mut self.reader, &mut self.writer, ts)?;
+            op.process_req(cmd, self.assoc.common(), &mut self.reader, &mut self.writer)?;
 
         let query_results = self.query_database(&dcm_query)?;
         let path_map = Self::resolve_to_paths(query_results.group_map);
@@ -75,25 +69,30 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         let sop_count = path_map.values().map(Vec::len).sum::<usize>();
         let sop_count = u16::try_from(sop_count).unwrap_or_default();
 
-        self.assoc.common().write_command(
-            &statter.msg(&Stat::pending(), &prog(sop_count, 0, 0, 0)),
+        op.write_response(
+            self.assoc.common(),
             &mut self.writer,
+            &Stat::pending(),
+            &prog(sop_count, 0, 0, 0),
         )?;
 
-        let mut scu_assoc = self.create_sub_assoc(&dest);
+        let mut scu_assoc = self.create_sub_assoc(op.aet_dest());
 
         let stream = TcpStream::connect(aet_host)
             .map_err(|e| AssocError::ab_failure(DimseError::IOError(e)))?;
         let mut dest_reader = BufReader::new(&stream);
         let mut dest_writer = BufWriter::new(&stream);
         if let Some(msg) = scu_assoc.request_association(&mut dest_reader, &mut dest_writer)? {
-            self.assoc.common().write_command(
-                &statter.msg(&Stat::fail(), &prog(0, 0, sop_count, 0)),
+            op.write_response(
+                self.assoc.common(),
                 &mut self.writer,
+                &Stat::fail(),
+                &prog(0, 0, sop_count, 0),
             )?;
-            return fail(&format!(
-                "Association to {dest} failed with response: {msg:?}"
-            ));
+            return Err(fail(&format!(
+                "Association to {} failed with response: {msg:?}",
+                op.aet_dest()
+            )));
         }
 
         let mut successful: u16 = 0;
@@ -113,7 +112,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                             &statter.msg(&Stat::fail(), &prog(0, successful, remaining, 0)),
                             &mut self.writer,
                         )?;
-                        return fail(&format!("Failed resolving {path:?}"));
+                        return Err(fail(&format!("Failed resolving {path:?}")));
                     }
                 };
 
@@ -126,7 +125,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     parser,
                     store_msg_id,
                     self.assoc.common().this_ae(),
-                    msg_id,
+                    op.msg_id(),
                 )?;
 
                 let store_rsp = CommonAssoc::next_msg(
@@ -147,9 +146,11 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 successful += 1;
                 remaining -= 1;
 
-                if let Err(e) = self.assoc.common().write_command(
-                    &statter.msg(&Stat::pending(), &prog(remaining, successful, 0, 0)),
+                if let Err(e) = op.write_response(
+                    self.assoc.common(),
                     &mut self.writer,
+                    &Stat::pending(),
+                    &prog(remaining, successful, 0, 0),
                 ) {
                     // Create error to abort the sub-association but return the original error.
                     let _ =
@@ -163,9 +164,11 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         // If there's an error releasing the association don't propagate as an error.
         let _ = scu_assoc.release_association(&mut dest_reader, &mut dest_writer);
 
-        self.assoc.common().write_command(
-            &statter.msg(&Stat::success(), &prog(remaining, successful, 0, 0)),
+        op.write_response(
+            self.assoc.common(),
             &mut self.writer,
+            &Stat::success(),
+            &prog(remaining, successful, 0, 0),
         )?;
         Ok(())
     }

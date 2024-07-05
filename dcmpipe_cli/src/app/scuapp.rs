@@ -319,12 +319,12 @@ impl SvcUserApp {
         match &self.args.cmd {
             SvcUserCommand::Echo => {
                 let msg_id = assoc.next_msg_id();
-                assoc.common_mut().c_echo_rq(&mut writer, msg_id)?;
+                assoc.common_mut().send_cecho_req(&mut writer, msg_id)?;
             }
             SvcUserCommand::Find { query_level, query } => {
                 let msg_id = assoc.next_msg_id();
                 let query_vals_resolved = Self::resolve_cli_query(query)?;
-                assoc.common_mut().c_find_req(
+                assoc.common_mut().send_cfind_req(
                     &mut writer,
                     msg_id,
                     *query_level,
@@ -410,7 +410,7 @@ impl SvcUserApp {
                     is_complete
                 }
                 AssocUserOp::Store(op) => {
-                    op.process_rsp(&mut reader, &mut writer, &cmd)?;
+                    op.process_rsp(&cmd);
                     Self::print_progress(&cmd, "C-STORE");
                     op.is_complete()
                 }
@@ -422,7 +422,7 @@ impl SvcUserApp {
             };
 
             if is_complete {
-                assoc.common_mut().remove_op(msg_id);
+                assoc.common_mut().remove_user_op(msg_id);
                 break;
             }
         }

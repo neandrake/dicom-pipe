@@ -329,14 +329,8 @@ impl StoreUserOp {
         Ok((cmd, pdi_iter))
     }
 
-    pub fn process_rsp<R: Read, W: Write>(
-        &mut self,
-        mut _reader: R,
-        mut _writer: W,
-        msg: &CommandMessage,
-    ) -> Result<(), AssocError> {
+    pub fn process_rsp(&mut self, msg: &CommandMessage) {
         self.is_complete |= !msg.status().is_pending();
-        Ok(())
     }
 }
 

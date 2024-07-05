@@ -52,7 +52,7 @@ use dcmpipe_lib::{
     },
     dimse::{
         assoc::QueryLevel,
-        commands::messages::CommandMessage,
+        commands::{messages::CommandMessage, CommandStatus},
         error::{AssocError, DimseError},
         svcops::FindSvcOp,
     },
@@ -157,7 +157,14 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             &query_results.group_map,
         )?;
 
-        op.write_response(self.assoc.common(), &mut self.writer, &dcm_results)?;
+        for (i, result) in dcm_results.iter().enumerate() {
+            let status = if i == dcm_results.len() - 1 {
+                CommandStatus::success()
+            } else {
+                CommandStatus::pending()
+            };
+            op.write_response(self.assoc.common(), &mut self.writer, result, &status)?;
+        }
 
         Ok(())
     }
