@@ -15,7 +15,7 @@
 */
 
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     io::{Cursor, Read, Write},
     str::FromStr,
 };
@@ -30,7 +30,7 @@ use crate::{
     },
     dict::{stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian},
     dimse::{
-        commands::messages::CommandMessage,
+        commands::{messages::CommandMessage, CommandType},
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
@@ -40,15 +40,10 @@ use crate::{
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem},
             Pdu, UserPdu,
         },
-        svcops::{AssocSvcOp, EchoSvcOp},
+        svcops::{AssocSvcOp, CancelSvcOp, EchoSvcOp, FindSvcOp, GetSvcOp, MoveSvcOp, StoreSvcOp},
         userops::{AssocUserOp, EchoUserOp, FindUserOp, GetUserOp, MoveUserOp, StoreUserOp},
         Syntax,
     },
-};
-
-use super::{
-    commands::CommandType,
-    svcops::{FindSvcOp, GetSvcOp, MoveSvcOp, StoreSvcOp},
 };
 
 pub mod scp;
@@ -202,7 +197,7 @@ impl CommonAssoc {
     ///
     /// # Errors
     /// - `AssocError` may occur if the negotiated presentation context cannot be resolved, or if a
-    /// known transfer syntax for it cannot be resolved.
+    ///   known transfer syntax for it cannot be resolved.
     pub fn get_pres_ctx_and_ts(
         &self,
         ctx_id: u8,
@@ -225,7 +220,7 @@ impl CommonAssoc {
     ///
     /// # Errors
     /// - `AssocError` may occur if the requested or negotiated presentation context cannot be
-    /// resolved, or if a known transfer syntax for it cannot be resolved.
+    ///   resolved, or if a known transfer syntax for it cannot be resolved.
     pub fn get_rq_pres_ctx_and_ts_by_ab(
         &self,
         ab_ref: UIDRef,
@@ -304,7 +299,7 @@ impl CommonAssoc {
     ///
     /// # Errors
     /// - I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
-    /// disconnect response to the writer.
+    ///   disconnect response to the writer.
     pub fn next_msg<R: Read, W: Write>(
         reader: &mut R,
         writer: &mut W,
@@ -326,7 +321,7 @@ impl CommonAssoc {
     /// - `DimseError` if the message was a DICOM Dataset or unexpected PDU.
     /// - `DimseError` if the connection should be closed.
     /// - I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
-    /// disconnect response to the writer.
+    ///   disconnect response to the writer.
     pub fn next_cmd<R: Read, W: Write>(
         reader: &mut R,
         writer: &mut W,
@@ -347,19 +342,20 @@ impl CommonAssoc {
     /// # Parameters
     /// `reader` - The reader the `PresentationDataValue` PDUs will be read from.
     /// `writer` - The protocol's corresponding writer for sending A-ABORT if encountering errors.
+    /// `pdu_max_rcv_size` - The maximum PDU size to read/receive.
     /// `out_writer` - The destination to write the `PresentationDataValue` data bytes to.
     ///
     /// # Errors
     /// - I/O errors may occur with the reader/writer.
     pub fn read_dataset<R: Read, W: Write, OW: Write>(
-        &self,
         mut reader: &mut R,
         mut writer: &mut W,
+        pdu_max_rcv_size: usize,
         out_writer: &mut OW,
     ) -> Result<(), AssocError> {
         let mut all_read = false;
         while !all_read {
-            let dcm_msg = Self::next_msg(&mut reader, &mut writer, self.get_pdu_max_rcv_size())?;
+            let dcm_msg = Self::next_msg(&mut reader, &mut writer, pdu_max_rcv_size)?;
             let DimseMsg::Dataset(pdv) = dcm_msg else {
                 return Err(AssocError::ab_failure(DimseError::DimseDicomMissing(
                     dcm_msg,
@@ -383,15 +379,15 @@ impl CommonAssoc {
     /// - I/O errors may occur with reader/writer.
     /// - `DimseError` may occur in parsing DICOM/DIMSE.
     pub fn read_dataset_in_mem<R: Read, W: Write>(
-        &self,
         mut reader: &mut R,
         writer: &mut W,
+        pdu_max_rcv_size: usize,
         ts: TSRef,
     ) -> Result<DicomRoot, AssocError> {
         // Read bytes into vec, then wrap in cursor. Wrap in cursor after reading otherwise the
         // cursor's position will be the end of the vec (alternatively could set_position(0)).
         let mut dcm_bytes: Vec<u8> = Vec::new();
-        self.read_dataset(&mut reader, writer, &mut dcm_bytes)?;
+        CommonAssoc::read_dataset(&mut reader, writer, pdu_max_rcv_size, &mut dcm_bytes)?;
         let dcm_bytes = Cursor::new(dcm_bytes);
         let mut parser = ParserBuilder::default()
             .state(ParserState::ReadElement)
@@ -408,17 +404,17 @@ impl CommonAssoc {
     /// # Errors
     /// - I/O errors may occur when writing to the stream.
     /// - Parsing/encoding errors may occur when serializing the given command to
-    /// `PresentationDataItem`s.
+    ///   `PresentationDataItem`s.
     pub fn write_command<W: Write>(
-        &self,
         cmd: &CommandMessage,
         mut writer: &mut W,
+        pdu_max_snd_size: usize,
     ) -> Result<(), AssocError> {
         let elements = cmd.message().flatten();
         let elements = elements.iter().copied();
         let pdi_iter = PresDataIter::new(
             cmd.ctx_id(),
-            self.get_pdu_max_snd_size(),
+            pdu_max_snd_size,
             true,
             elements,
             &ImplicitVRLittleEndian,
@@ -439,18 +435,18 @@ impl CommonAssoc {
     /// # Errors
     /// - I/O errors may occur when writing to the stream.
     /// - Parsing/encoding errors may occur when serializing the given dataset to
-    /// `PresentationDataItem`s.
+    ///   `PresentationDataItem`s.
     pub fn write_dataset<W: Write>(
-        &self,
         ctx_id: u8,
         dataset: &DicomRoot,
         mut writer: &mut W,
+        max_pdu_snd_size: usize,
     ) -> Result<(), AssocError> {
         let elements = dataset.flatten();
         let elements = elements.iter().copied();
         let pdi_iter = PresDataIter::new(
             ctx_id,
-            self.get_pdu_max_snd_size(),
+            max_pdu_snd_size,
             false,
             elements,
             dataset.ts(),
@@ -499,8 +495,12 @@ impl CommonAssoc {
         }
     }
 
+    pub fn add_user_op(&mut self, msg_id: u16, op: AssocUserOp) {
+        self.active_user_ops.insert(msg_id, op);
+    }
+
     /// Get a mutable reference to an active association operation.
-    pub fn user_op(&mut self, msg_id: u16) -> Option<&mut AssocUserOp> {
+    pub fn get_user_op(&mut self, msg_id: u16) -> Option<&mut AssocUserOp> {
         self.active_user_ops.get_mut(&msg_id)
     }
 
@@ -509,7 +509,11 @@ impl CommonAssoc {
         self.active_user_ops.remove(&msg_id);
     }
 
-    pub fn svc_op(&mut self, msg_id: u16) -> Option<&mut AssocSvcOp> {
+    pub fn add_svc_op(&mut self, msg_id: u16, op: AssocSvcOp) {
+        self.active_svc_ops.insert(msg_id, op);
+    }
+
+    pub fn get_svc_op(&mut self, msg_id: u16) -> Option<&mut AssocSvcOp> {
         self.active_svc_ops.get_mut(&msg_id)
     }
 
@@ -526,33 +530,15 @@ impl CommonAssoc {
     /// # Errors
     /// - `AssocError` will be returned if an existing operation with the same message ID is
     ///   already active.
-    pub fn recv_req(
-        &mut self,
-        cmd: &CommandMessage,
-    ) -> Result<Option<&mut AssocSvcOp>, AssocError> {
-        let op = match cmd.cmd_type() {
-            CommandType::CEchoReq => AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id())),
-            CommandType::CFindReq => AssocSvcOp::Find(FindSvcOp::new(cmd.msg_id())),
-            CommandType::CGetReq => AssocSvcOp::Get(GetSvcOp::new(cmd.msg_id())),
-            CommandType::CMoveReq => AssocSvcOp::Move(MoveSvcOp::new(cmd.msg_id())),
-            CommandType::CStoreReq => AssocSvcOp::Store(StoreSvcOp::new(cmd.msg_id())),
-            CommandType::CCancelReq => {
-                return Ok(self.active_svc_ops.remove(&cmd.msg_id()).and_then(|_op| {
-                    // TODO: Cancel in-flight operation.
-                    self.active_svc_ops.remove(&cmd.msg_id());
-                    None
-                }));
-            }
-            _ => {
-                return Ok(None);
-            }
-        };
-
-        match self.active_svc_ops.entry(cmd.msg_id()) {
-            Entry::Occupied(mut _existing) => Err(AssocError::ab_failure(
-                DimseError::UnknownMessageID(cmd.msg_id()),
-            )),
-            Entry::Vacant(entry) => Ok(Some(entry.insert(op))),
+    pub fn recv_req(cmd: &CommandMessage) -> Result<Option<AssocSvcOp>, AssocError> {
+        match cmd.cmd_type() {
+            CommandType::CEchoReq => Ok(Some(AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id())))),
+            CommandType::CFindReq => Ok(Some(AssocSvcOp::Find(FindSvcOp::new(cmd.msg_id())))),
+            CommandType::CGetReq => Ok(Some(AssocSvcOp::Get(GetSvcOp::new(cmd.msg_id())))),
+            CommandType::CMoveReq => Ok(Some(AssocSvcOp::Move(MoveSvcOp::new(cmd.msg_id())))),
+            CommandType::CStoreReq => Ok(Some(AssocSvcOp::Store(StoreSvcOp::new(cmd.msg_id())))),
+            CommandType::CCancelReq => Ok(Some(AssocSvcOp::Cancel(CancelSvcOp::new(cmd.msg_id())))),
+            _ => Ok(None),
         }
     }
 
@@ -573,7 +559,7 @@ impl CommonAssoc {
         self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Echo(echo_op));
 
-        self.write_command(&cmd, &mut writer)?;
+        CommonAssoc::write_command(&cmd, &mut writer, self.get_pdu_max_snd_size())?;
 
         Ok(())
     }
@@ -601,8 +587,13 @@ impl CommonAssoc {
         self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Find(find_op));
 
-        self.write_command(&cmd, &mut writer)?;
-        self.write_dataset(cmd.ctx_id(), &dcm_query, &mut writer)?;
+        CommonAssoc::write_command(&cmd, &mut writer, self.get_pdu_max_snd_size())?;
+        CommonAssoc::write_dataset(
+            cmd.ctx_id(),
+            &dcm_query,
+            &mut writer,
+            self.get_pdu_max_snd_size(),
+        )?;
 
         Ok(())
     }
@@ -625,8 +616,13 @@ impl CommonAssoc {
         self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Get(get_op));
 
-        self.write_command(&cmd, &mut writer)?;
-        self.write_dataset(cmd.ctx_id(), &dcm_query, &mut writer)?;
+        CommonAssoc::write_command(&cmd, &mut writer, self.get_pdu_max_snd_size())?;
+        CommonAssoc::write_dataset(
+            cmd.ctx_id(),
+            &dcm_query,
+            &mut writer,
+            self.get_pdu_max_snd_size(),
+        )?;
 
         Ok(())
     }
@@ -652,7 +648,7 @@ impl CommonAssoc {
         self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Store(store_op));
 
-        self.write_command(&cmd, &mut writer)?;
+        CommonAssoc::write_command(&cmd, &mut writer, self.get_pdu_max_snd_size())?;
         for pdi in pdi_iter {
             match pdi {
                 Ok(pdi) => CommonAssoc::write_pdu(&Pdu::PresentationDataItem(pdi), &mut writer)?,
@@ -682,8 +678,13 @@ impl CommonAssoc {
         self.active_user_ops
             .insert(cmd.msg_id(), AssocUserOp::Move(move_op));
 
-        self.write_command(&cmd, &mut writer)?;
-        self.write_dataset(cmd.ctx_id(), &dcm_root, &mut writer)?;
+        CommonAssoc::write_command(&cmd, &mut writer, self.get_pdu_max_snd_size())?;
+        CommonAssoc::write_dataset(
+            cmd.ctx_id(),
+            &dcm_root,
+            &mut writer,
+            self.get_pdu_max_snd_size(),
+        )?;
 
         Ok(())
     }

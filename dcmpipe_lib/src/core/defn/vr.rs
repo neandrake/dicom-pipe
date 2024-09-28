@@ -60,12 +60,12 @@ pub struct VR {
     ///
     /// Part 5, Ch 6.2:
     /// - Values with VRs constructed of character strings, except
-    /// in the case of the VR UI, shall be padded with SPACE characters
-    /// (20H, in the Default Character Repertoire).
+    ///   in the case of the VR UI, shall be padded with SPACE characters
+    ///   (20H, in the Default Character Repertoire).
     /// - Values with a VR of UI shall be padded with a single trailing
-    /// NULL (00H) character when necessary to achieve even length.
+    ///   NULL (00H) character when necessary to achieve even length.
     /// - Values with a VR of OB shall be padded with a single trailing
-    /// NULL byte value (00H) when necessary to achieve even length.
+    ///   NULL byte value (00H) when necessary to achieve even length.
     pub padding: u8,
 
     /// If this VR is encoded explicitly, then depending on VR there might be a 2-byte padding after
@@ -331,12 +331,12 @@ pub static CS: VR = VR {
 ///
 /// ### Notes
 /// 1. The ACR-NEMA Standard 300 (predecessor to DICOM) supported a
-/// string of characters of the format YYYY.MM.DD for this VR.
-/// Use of this format is not compliant.
+///    string of characters of the format YYYY.MM.DD for this VR.
+///    Use of this format is not compliant.
 /// 2. See also DT VR in this table.
 /// 3. Dates before year 1582, e.g. used for dating historical or
-/// archeological items, are interpreted as proleptic Gregorian calendar
-/// dates, unless otherwise specified.
+///    archeological items, are interpreted as proleptic Gregorian calendar
+///    dates, unless otherwise specified.
 ///
 /// ## Character Repertoire
 /// `'0'`-`'9'` of Default Character Repertoire
@@ -452,16 +452,16 @@ pub static DS: VR = VR {
 ///
 /// ### Notes
 /// 1. The range of the offset is -1200 to +1400. The offset for United States
-/// Eastern Standard Time is -0500.
-/// The offset for Japan Standard Time is +0900.
+///    Eastern Standard Time is -0500.
+///    The offset for Japan Standard Time is +0900.
 /// 2. The RFC 2822 use of -0000 as an offset to indicate local time is
-/// not allowed.
+///    not allowed.
 /// 3. A Date Time value of 195308 means August 1953, not specific to
-/// particular day. A Date Time value of 19530827111300.0 means
-/// August 27, 1953, 11;13 a.m. accurate to 1/10th second.
+///    particular day. A Date Time value of 19530827111300.0 means
+///    August 27, 1953, 11;13 a.m. accurate to 1/10th second.
 /// 4. The Second component may have a value of 60 only for a leap second.
 /// 5. The offset may be included regardless of null components; e.g.,
-/// 2007-0500 is a legal value.
+///    2007-0500 is a legal value.
 ///
 /// ## Character Repertoire
 /// `'0'`-`'9'`, `+`, `-`, `.` and the SPACE character of Default
@@ -999,7 +999,7 @@ pub static SV: VR = VR {
 /// - MM contains minutes (range "00" - "59"),
 /// - SS contains seconds (range "00" - "60"), and
 /// - FFFFFF contains a fractional part of a second as small
-/// as 1 millionth of a second (range "000000" - "999999").
+///   as 1 millionth of a second (range "000000" - "999999").
 ///
 /// A 24-hour clock is used. Midnight shall be represented by only "0000"
 /// since "2400" would violate the hour range. The string may be padded with
@@ -1015,14 +1015,14 @@ pub static SV: VR = VR {
 ///
 /// ### Examples
 /// 1. "070907.0705 " represents a time of 7 hours, 9 minutes and 7.0705
-/// seconds.
+///    seconds.
 /// 2. "1010" represents a time of 10 hours, and 10 minutes.
 /// 3. "021 " is an invalid value.
 ///
 /// ### Notes
 /// 1. The ACR-NEMA Standard 300 (predecessor to DICOM) supported a string of
-/// characters of the format HH:MM:SS.frac for this VR. Use of this format is
-/// not compliant.
+///    characters of the format HH:MM:SS.frac for this VR. Use of this format is
+///    not compliant.
 /// 2. See also DT VR in this table.
 /// 3. The SS component may have a value of 60 only for a leap second.
 ///

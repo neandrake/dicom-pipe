@@ -126,7 +126,7 @@ impl ServiceAssoc {
     ///
     /// # Errors
     /// - If the result of the request is to reject or abort, those are propagated as an
-    /// `AssocError`.
+    ///   `AssocError`.
     fn validate_assoc_rq(
         &mut self,
         rq: &AssocRQ,

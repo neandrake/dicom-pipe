@@ -71,8 +71,8 @@ impl CSRef {
     /// This is based off `encoding::label::encoding_from_whatwg_label` with a few minor changes
     /// - All whitespace, hyphens, and underscores are stripped when doing a lookup
     /// - Added `ISO-IR-192` mapping for `UTF-8`
-    /// See DICOM Part 2 Appendix D.6.2 Support of Character Sets - Character Sets
-    /// <http://dicom.nema.org/medical/dicom/current/output/chtml/part02/sect_D.6.2.html>
+    ///   See DICOM Part 2 Appendix D.6.2 Support of Character Sets - Character Sets
+    ///   <http://dicom.nema.org/medical/dicom/current/output/chtml/part02/sect_D.6.2.html>
     #[must_use]
     pub fn lookup_charset(label: &str) -> Option<CSRef> {
         let label: String = label

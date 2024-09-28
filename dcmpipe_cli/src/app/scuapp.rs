@@ -197,7 +197,11 @@ impl SvcUserApp {
                             &cstore_aff_sop,
                             &CommandStatus::success(),
                         );
-                        assoc.common().write_command(&cmd, &mut writer)?;
+                        CommonAssoc::write_command(
+                            &cmd,
+                            writer,
+                            assoc.common().get_pdu_max_snd_size(),
+                        )?;
 
                         sop_count += 1;
                         filename = format!("rcv_dcm_{sop_count}.tmp");
@@ -389,7 +393,7 @@ impl SvcUserApp {
             // When issuing a C-GET requets the SCP will respond with a C-STORE request.
             if cmd.cmd_type() == &CommandType::CStoreReq {}
 
-            let Some(op) = assoc.common_mut().op(msg_id) else {
+            let Some(op) = assoc.common_mut().get_user_op(msg_id) else {
                 return Err(AssocError::ab_failure(DimseError::UnknownMessageID(msg_id)));
             };
 

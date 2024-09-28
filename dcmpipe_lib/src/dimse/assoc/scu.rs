@@ -74,7 +74,7 @@ impl UserAssoc {
     /// # Errors
     /// - I/O errors may occur with the reader/writer.
     /// - `DimseError` may be returned if: an unexpected PDU was received during negotiation, or if
-    /// no presentation contexts could be negotiated.
+    ///   no presentation contexts could be negotiated.
     pub fn request_association<R: Read, W: Write>(
         &mut self,
         reader: R,

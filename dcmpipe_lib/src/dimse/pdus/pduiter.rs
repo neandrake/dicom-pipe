@@ -47,9 +47,9 @@ use crate::{
 
 pub fn read_next_pdu<R: Read>(
     reader: R,
-    max_pdu_size: usize,
+    max_pdu_rcv_size: usize,
 ) -> Option<Result<PduIterItem, DimseError>> {
-    PduIter::new(reader, max_pdu_size).next()
+    PduIter::new(reader, max_pdu_rcv_size).next()
 }
 
 #[derive(Debug)]

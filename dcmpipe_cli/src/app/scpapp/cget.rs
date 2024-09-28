@@ -36,7 +36,7 @@ use crate::app::scpapp::{fail, prog, AssociationDevice, Stat, StatusMsgBuilder};
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_get_req(
         &mut self,
-        op: &mut GetSvcOp,
+        mut op: GetSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
         let dcm_query =
@@ -68,9 +68,10 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                         let _ = err.write(&mut self.writer);
 
                         // For now, if one fails then do not attempt the rest.
-                        self.assoc.common().write_command(
+                        CommonAssoc::write_command(
                             &statter.msg(&Stat::fail(), &prog(0, successful, remaining, 0)),
                             &mut self.writer,
+                            self.assoc.common().get_pdu_max_snd_size(),
                         )?;
                         return Err(fail(&format!("Failed resolving {path:?}")));
                     }
@@ -97,7 +98,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     &prog(0, successful, remaining, 0),
                 )?;
                 if let Some(AssocUserOp::Store(store_op)) =
-                    self.assoc.common_mut().user_op(store_msg_id)
+                    self.assoc.common_mut().get_user_op(store_msg_id)
                 {
                     store_op.process_rsp(&store_rsp);
                 }
@@ -106,16 +107,17 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 successful += 1;
                 remaining -= 1;
 
-                self.assoc.common().write_command(
+                CommonAssoc::write_command(
                     &statter.msg(&Stat::pending(), &prog(remaining, successful, 0, 0)),
                     &mut self.writer,
+                    self.assoc.common().get_pdu_max_snd_size(),
                 )?;
             }
         }
 
         op.write_response(
-            self.assoc.common(),
             &mut self.writer,
+            self.assoc.common().get_pdu_max_snd_size(),
             &Stat::success(),
             &prog(0, successful, 0, 0),
         )?;

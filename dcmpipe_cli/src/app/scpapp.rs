@@ -246,30 +246,33 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 continue;
             }
 
-            let Some(op) = self.assoc.common_mut().recv_req(&cmd)? else {
+            let Some(op) = CommonAssoc::recv_req(&cmd)? else {
                 continue;
             };
 
             match op {
                 AssocSvcOp::Echo(op) => {
-                    self.handle_c_echo_req(&mut op, &cmd)?;
+                    self.handle_c_echo_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CEchoRsp);
                 }
                 AssocSvcOp::Find(op) => {
-                    self.handle_c_find_req(&mut op, &cmd)?;
+                    self.handle_c_find_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CFindRsp);
                 }
                 AssocSvcOp::Get(op) => {
-                    self.handle_c_get_req(&mut op, &cmd)?;
+                    self.handle_c_get_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CGetRsp);
                 }
                 AssocSvcOp::Move(op) => {
-                    self.handle_c_move_req(&mut op, &cmd)?;
+                    self.handle_c_move_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CMoveRsp);
                 }
                 AssocSvcOp::Store(op) => {
-                    self.handle_c_store_req(&mut op, &cmd)?;
+                    self.handle_c_store_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CStoreRsp);
+                }
+                AssocSvcOp::Cancel(op) => {
+                    self.assoc.common_mut().remove_svc_op(op.msg_id());
                 }
             }
         }
@@ -309,23 +312,29 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         let cmd_rsp = match store_rsp {
             Ok(DimseMsg::Cmd(cmd)) => cmd,
             Ok(rp) => {
-                self.assoc
-                    .common()
-                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                CommonAssoc::write_command(
+                    &stat_rpt.msg(&Stat::fail(), progress),
+                    &mut self.writer,
+                    self.assoc.common().get_pdu_max_snd_size(),
+                )?;
                 return Err(fail(&format!("Sub-operation C-STORE failed: {rp:?}")));
             }
             Err(e) => {
-                self.assoc
-                    .common()
-                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                CommonAssoc::write_command(
+                    &stat_rpt.msg(&Stat::fail(), progress),
+                    &mut self.writer,
+                    self.assoc.common().get_pdu_max_snd_size(),
+                )?;
                 return Err(e);
             }
         };
 
         if !cmd_rsp.status().is_success() {
-            self.assoc
-                .common()
-                .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+            CommonAssoc::write_command(
+                &stat_rpt.msg(&Stat::fail(), progress),
+                &mut self.writer,
+                self.assoc.common().get_pdu_max_snd_size(),
+            )?;
             return Err(fail(&format!("Sub-operation C-STORE failed: {cmd_rsp:?}")));
         }
 

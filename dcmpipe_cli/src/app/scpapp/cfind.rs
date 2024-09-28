@@ -143,9 +143,10 @@ pub(crate) struct QueryResults {
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_find_req(
         &mut self,
-        op: &mut FindSvcOp,
+        mut op: FindSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
+        let pdu_max_snd_size = self.assoc.common().get_pdu_max_snd_size();
         let dcm_query =
             op.process_req(cmd, self.assoc.common(), &mut self.reader, &mut self.writer)?;
 
@@ -157,13 +158,15 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             &query_results.group_map,
         )?;
 
+        // TODO: self.assoc.common_mut().add_svc_op(op)
+
         for (i, result) in dcm_results.iter().enumerate() {
             let status = if i == dcm_results.len() - 1 {
                 CommandStatus::success()
             } else {
                 CommandStatus::pending()
             };
-            op.write_response(self.assoc.common(), &mut self.writer, result, &status)?;
+            op.write_response(&mut self.writer, pdu_max_snd_size, result, &status)?;
         }
 
         Ok(())
