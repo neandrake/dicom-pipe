@@ -30,6 +30,6 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
     ) -> Result<(), AssocError> {
         let pdu_max_snd_size = self.assoc.common().get_pdu_max_snd_size();
         let rsp = op.process_req(cmd)?;
-        op.write_response(&rsp, &mut self.writer, pdu_max_snd_size)
+        op.end_response(&rsp, &mut self.writer, pdu_max_snd_size)
     }
 }

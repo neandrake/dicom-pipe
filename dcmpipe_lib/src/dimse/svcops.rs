@@ -74,7 +74,7 @@ impl EchoSvcOp {
         Ok(cmd)
     }
 
-    pub fn write_response<W: Write>(
+    pub fn end_response<W: Write>(
         &mut self,
         rsp: &CommandMessage,
         writer: &mut W,
@@ -148,20 +148,22 @@ impl FindSvcOp {
         dcm_result: &DicomRoot,
         status: &CommandStatus,
     ) -> Result<(), AssocError> {
-        let cmd = CommandMessage::c_find_rsp(
-            self.ctx_id,
-            self.msg_id,
-            &self.aff_sop_class,
-            &CommandStatus::pending(),
-        );
+        let cmd = CommandMessage::c_find_rsp(self.ctx_id, self.msg_id, &self.aff_sop_class, status);
         CommonAssoc::write_command(&cmd, &mut writer, pdu_max_snd_size)?;
         CommonAssoc::write_dataset(self.ctx_id, dcm_result, &mut writer, pdu_max_snd_size)?;
 
+        Ok(())
+    }
+
+    pub fn end_response<W: Write>(
+        &mut self,
+        mut writer: &mut W,
+        pdu_max_snd_size: usize,
+        status: &CommandStatus,
+    ) -> Result<(), AssocError> {
         let cmd = CommandMessage::c_find_rsp(self.ctx_id, self.msg_id, &self.aff_sop_class, status);
         CommonAssoc::write_command(&cmd, &mut writer, pdu_max_snd_size)?;
-
         self.is_complete = !status.is_pending();
-
         Ok(())
     }
 }
@@ -420,5 +422,10 @@ impl CancelSvcOp {
     #[must_use]
     pub fn is_complete(&self) -> bool {
         self.is_complete
+    }
+
+    pub fn process_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
+        self.ctx_id = cmd.ctx_id();
+        Ok(())
     }
 }

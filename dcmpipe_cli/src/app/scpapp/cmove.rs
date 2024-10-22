@@ -48,21 +48,25 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             op.msg_id(),
             op.aff_sop_class().to_owned(),
         );
+
+        // Process request first, which populates other fields in the operation,
+        // such as the destination AE Title.
+        let dcm_query =
+            op.process_req(cmd, self.assoc.common(), &mut self.reader, &mut self.writer)?;
+
         let Some(aet_host) = self.assoc.aet_host(op.aet_dest()).cloned() else {
             // Report failed progress to C-MOVE requestor. The query for matching SOPs happens
             // after validating the AE title so we can't report any numbers for progress.
-            CommonAssoc::write_command(
-                &statter.msg(&Stat::fail_unknown_dest(), &prog(0, 0, 0, 0)),
+            op.write_response(
                 &mut self.writer,
                 self.assoc.common().get_pdu_max_snd_size(),
+                &Stat::fail_unknown_dest(),
+                &prog(0, 0, 0, 0),
             )?;
             return Err(AssocError::ab_failure(DimseError::InvalidCallingAeTitle(
                 op.aet_dest().to_owned(),
             )));
         };
-
-        let dcm_query =
-            op.process_req(cmd, self.assoc.common(), &mut self.reader, &mut self.writer)?;
 
         let query_results = self.query_database(&dcm_query)?;
         let path_map = Self::resolve_to_paths(query_results.group_map);
@@ -109,10 +113,11 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                         let _ = err.write(&mut dest_writer);
 
                         // For now, if one fails then do not attempt the rest.
-                        CommonAssoc::write_command(
-                            &statter.msg(&Stat::fail(), &prog(0, successful, remaining, 0)),
+                        op.write_response(
                             &mut self.writer,
                             self.assoc.common().get_pdu_max_snd_size(),
+                            &Stat::fail(),
+                            &prog(0, successful, remaining, 0),
                         )?;
                         return Err(fail(&format!("Failed resolving {path:?}")));
                     }

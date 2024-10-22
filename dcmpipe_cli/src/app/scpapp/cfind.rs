@@ -158,16 +158,19 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             &query_results.group_map,
         )?;
 
-        // TODO: self.assoc.common_mut().add_svc_op(op)
-
-        for (i, result) in dcm_results.iter().enumerate() {
-            let status = if i == dcm_results.len() - 1 {
-                CommandStatus::success()
-            } else {
-                CommandStatus::pending()
-            };
-            op.write_response(&mut self.writer, pdu_max_snd_size, result, &status)?;
+        for result in dcm_results.iter() {
+            op.write_response(
+                &mut self.writer,
+                pdu_max_snd_size,
+                result,
+                &CommandStatus::pending(),
+            )?;
         }
+        op.end_response(
+            &mut self.writer,
+            pdu_max_snd_size,
+            &CommandStatus::success(),
+        )?;
 
         Ok(())
     }

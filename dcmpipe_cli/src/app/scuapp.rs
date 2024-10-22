@@ -113,113 +113,67 @@ impl SvcUserApp {
         Ok(())
     }
 
-    fn issue_c_get(
+    fn process_cstore_req(
+        msg: &CommandMessage,
         assoc: &mut UserAssoc,
-        mut reader: BufReader<&TcpStream>,
+        mut reader: &mut BufReader<&TcpStream>,
         mut writer: &mut BufWriter<&TcpStream>,
-        query_level: QueryLevel,
-        query: &[(String, String)],
     ) -> Result<Option<DimseMsg>, AssocError> {
-        let msg_id = assoc.next_msg_id();
-        let query_vals_resolved = Self::resolve_cli_query(query)?;
+        let cstore_ctx_id = msg.ctx_id();
+        let cstore_msg_id = msg.msg_id();
+        let cstore_aff_sop = msg.get_string(&AffectedSOPClassUID).unwrap_or_default();
 
-        assoc
-            .common_mut()
-            .c_get_req(&mut writer, msg_id, query_level, query_vals_resolved)?;
-
-        let mut sop_count = 0;
-        let mut cstore_ctx_id: u8 = 0;
-        let mut cstore_msg_id: u16 = 0;
-        let mut cstore_aff_sop: String = String::default();
-        let mut filename = format!("rcv_dcm_{sop_count}.tmp");
+        let filename = "rcv_dcm.tmp";
         let mut output = BufWriter::with_capacity(
             1024 * 1024,
-            File::create(&filename).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
+            File::create(filename).map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
         );
-        loop {
-            match CommonAssoc::next_msg(
-                &mut reader,
-                &mut writer,
-                assoc.common().get_pdu_max_rcv_size(),
-            )? {
-                DimseMsg::Cmd(cmd) => {
-                    // SCP will respond with individual C-STORE requests for each SOP.
-                    if cmd.cmd_type() == &CommandType::CStoreReq {
-                        cstore_ctx_id = cmd.ctx_id();
-                        cstore_msg_id = cmd.msg_id();
-                        cstore_aff_sop = cmd.get_string(&AffectedSOPClassUID).unwrap_or_default();
+        // TODO: Write FileMeta
 
-                        filename = format!("rcv_dcm_{sop_count}.tmp");
-                        output = BufWriter::with_capacity(
-                            1024 * 1024,
-                            File::create(&filename)
-                                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
-                        );
-                        // TODO: Write FileMeta
-                        continue;
-                    }
-                    // SCP may respond with status updates. As long as the status is "pending" this
-                    // should continue to expect C-STORE requests.
-                    if cmd.cmd_type() == &CommandType::CGetRsp && cmd.status().is_pending() {
-                        let progress = SubOpProgress::from(&cmd);
-                        println!(
-                            "C-GET Progress: {}/{}",
-                            progress.0,
-                            progress.0 + progress.1 + progress.2 + progress.3
-                        );
-                        continue;
-                    }
-                    break;
-                }
-                DimseMsg::Dataset(pdv) => {
+        match CommonAssoc::next_msg(
+            &mut reader,
+            &mut writer,
+            assoc.common().get_pdu_max_rcv_size(),
+        )? {
+            DimseMsg::Dataset(pdv) => {
+                output
+                    .write_all(pdv.data())
+                    .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+
+                if pdv.is_last_fragment() {
                     output
-                        .write_all(pdv.data())
+                        .flush()
                         .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+                    let file = output.into_inner().map_err(|e| {
+                        AssocError::ab_failure(DimseError::ApplicationError(e.into()))
+                    })?;
+                    file.sync_all()
+                        .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
+                    drop(file);
 
-                    if pdv.is_last_fragment() {
-                        output
-                            .flush()
-                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
-                        let file = output.into_inner().map_err(|e| {
-                            AssocError::ab_failure(DimseError::ApplicationError(e.into()))
-                        })?;
-                        file.sync_all()
-                            .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?;
-                        drop(file);
+                    let (_pres_ctx, ts) = assoc.common().get_pres_ctx_and_ts(cstore_ctx_id)?;
 
-                        let (_pres_ctx, ts) = assoc.common().get_pres_ctx_and_ts(cstore_ctx_id)?;
+                    rename_file_to_sop(filename, ts).map_err(AssocError::ab_failure)?;
 
-                        rename_file_to_sop(&filename, ts).map_err(AssocError::ab_failure)?;
-
-                        let cmd = CommandMessage::c_store_rsp(
-                            cstore_ctx_id,
-                            cstore_msg_id,
-                            &cstore_aff_sop,
-                            &CommandStatus::success(),
-                        );
-                        CommonAssoc::write_command(
-                            &cmd,
-                            writer,
-                            assoc.common().get_pdu_max_snd_size(),
-                        )?;
-
-                        sop_count += 1;
-                        filename = format!("rcv_dcm_{sop_count}.tmp");
-                        output = BufWriter::with_capacity(
-                            1024 * 1024,
-                            File::create_new(&filename)
-                                .map_err(|e| AssocError::ab_failure(DimseError::from(e)))?,
-                        );
-                    }
+                    let cmd = CommandMessage::c_store_rsp(
+                        cstore_ctx_id,
+                        cstore_msg_id,
+                        &cstore_aff_sop,
+                        &CommandStatus::success(),
+                    );
+                    CommonAssoc::write_command(
+                        &cmd,
+                        writer,
+                        assoc.common().get_pdu_max_snd_size(),
+                    )?;
                 }
-                other => {
-                    eprintln!("Unexpected response: {other:?}");
-                    break;
-                }
+            }
+            other => {
+                return Err(AssocError::error(DimseError::DimseDicomMissing(other)));
             }
         }
 
-        let _ = std::fs::remove_file(&filename);
+        let _ = std::fs::remove_file(filename);
 
         assoc.release_association(&mut reader, &mut writer)
     }
@@ -391,7 +345,21 @@ impl SvcUserApp {
             let msg_id = cmd.msg_id();
 
             // When issuing a C-GET requets the SCP will respond with a C-STORE request.
-            if cmd.cmd_type() == &CommandType::CStoreReq {}
+            if cmd.cmd_type() == &CommandType::CStoreReq {
+                // SCP will respond with individual C-STORE requests for each SOP.
+                Self::process_cstore_req(&cmd, assoc, reader, writer)?;
+                continue;
+            } else if cmd.cmd_type() == &CommandType::CGetRsp && cmd.status().is_pending() {
+                // SCP may respond with status updates. As long as the status is "pending" this
+                // should continue to expect C-STORE requests.
+                let progress = SubOpProgress::from(&cmd);
+                println!(
+                    "C-GET Progress: {}/{}",
+                    progress.0,
+                    progress.0 + progress.1 + progress.2 + progress.3
+                );
+                continue;
+            }
 
             let Some(op) = assoc.common_mut().get_user_op(msg_id) else {
                 return Err(AssocError::ab_failure(DimseError::UnknownMessageID(msg_id)));
@@ -409,9 +377,7 @@ impl SvcUserApp {
                 }
                 AssocUserOp::Get(op) => {
                     op.process_rsp(&mut reader, &mut writer, &cmd)?;
-                    let is_complete = op.is_complete();
-                    if !is_complete {}
-                    is_complete
+                    op.is_complete()
                 }
                 AssocUserOp::Store(op) => {
                     op.process_rsp(&cmd);

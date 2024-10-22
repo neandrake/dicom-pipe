@@ -87,6 +87,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     op.this_ae(),
                     op.msg_id(),
                 )?;
+                // TODO: This handling of response needs extracted for async handling.
                 let store_rsp = CommonAssoc::next_msg(
                     &mut self.reader,
                     &mut self.writer,
@@ -101,16 +102,20 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     self.assoc.common_mut().get_user_op(store_msg_id)
                 {
                     store_op.process_rsp(&store_rsp);
+                    if store_op.is_complete() {
+                        self.assoc.common_mut().remove_user_op(store_msg_id);
+                    }
                 }
 
                 store_msg_id += 1;
                 successful += 1;
                 remaining -= 1;
 
-                CommonAssoc::write_command(
-                    &statter.msg(&Stat::pending(), &prog(remaining, successful, 0, 0)),
+                op.write_response(
                     &mut self.writer,
                     self.assoc.common().get_pdu_max_snd_size(),
+                    &Stat::pending(),
+                    &prog(remaining, successful, 0, 0),
                 )?;
             }
         }

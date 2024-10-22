@@ -250,6 +250,8 @@ impl CommonAssoc {
     pub fn get_pdu_max_snd_size(&self) -> usize {
         for user_pdu in &self.their_user_data {
             if let UserPdu::MaxLengthItem(mli) = user_pdu {
+                // TODO: If this value is less than the PDI + PDV header sizes then error, or do
+                //       something else?
                 return usize::try_from(mli.max_length()).unwrap_or_default();
             }
         }
@@ -263,6 +265,8 @@ impl CommonAssoc {
     pub fn get_pdu_max_rcv_size(&self) -> usize {
         for user_pdu in &self.this_user_data {
             if let UserPdu::MaxLengthItem(mli) = user_pdu {
+                // TODO: If this value is less than the PDI + PDV header sizes then error, or do
+                //       something else?
                 return usize::try_from(mli.max_length()).unwrap_or_default();
             }
         }
@@ -641,7 +645,7 @@ impl CommonAssoc {
         origin_ae: &str,
         orig_msg_id: u16,
     ) -> Result<(), AssocError> {
-        let store_op = StoreUserOp::new(store_msg_id, self.get_pdu_max_rcv_size());
+        let store_op = StoreUserOp::new(store_msg_id, self.get_pdu_max_snd_size());
         let (cmd, pdi_iter) =
             store_op.create_req(self, parser, store_msg_id, origin_ae, orig_msg_id)?;
 
