@@ -16,34 +16,36 @@
 
 use std::io::{Read, Write};
 
-use dcmpipe_lib::{
-    dict::tags::{AffectedSOPClassUID, MessageID},
-    dimse::{
-        commands::{messages::CommandMessage, CommandStatus},
-        error::AssocError,
-    },
+use dcmpipe_lib::dimse::{
+    assoc::CommonAssoc,
+    commands::{messages::CommandMessage, CommandStatus},
+    error::AssocError,
+    svcops::StoreSvcOp,
 };
 
 use crate::app::scpapp::AssociationDevice;
 
 impl<R: Read, W: Write> AssociationDevice<R, W> {
-    pub(crate) fn handle_c_store_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
-        let ctx_id = cmd.ctx_id();
-        let msg_id = cmd.get_ushort(&MessageID).map_err(AssocError::ab_failure)?;
-        let aff_sop_class = cmd
-            .get_string(&AffectedSOPClassUID)
-            .map_err(AssocError::ab_failure)?;
+    pub(crate) fn handle_c_store_req(
+        &mut self,
+        mut op: StoreSvcOp,
+        cmd: &CommandMessage,
+    ) -> Result<(), AssocError> {
+        op.process_req(cmd)?;
 
         // TODO: Tuck this away somewhere. Add appropriate FileMeta elements.
         let mut empty = std::io::empty();
-        self.assoc
-            .common()
-            .read_dataset(&mut self.reader, &mut self.writer, &mut empty)?;
+        CommonAssoc::read_dataset(
+            &mut self.reader,
+            &mut self.writer,
+            self.assoc.common().get_pdu_max_rcv_size(),
+            &mut empty,
+        )?;
 
-        let cmd =
-            CommandMessage::c_store_rsp(ctx_id, msg_id, &aff_sop_class, &CommandStatus::success());
-        self.assoc.common().write_command(&cmd, &mut self.writer)?;
-
-        Ok(())
+        op.write_response(
+            &mut self.writer,
+            self.assoc.common().get_pdu_max_snd_size(),
+            &CommandStatus::success(),
+        )
     }
 }

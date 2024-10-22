@@ -27,6 +27,7 @@ use dcmpipe_lib::{
         commands::messages::CommandMessage,
         error::{AssocError, DimseError},
         svcops::GetSvcOp,
+        userops::AssocUserOp,
     },
 };
 
@@ -35,15 +36,11 @@ use crate::app::scpapp::{fail, prog, AssociationDevice, Stat, StatusMsgBuilder};
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_get_req(
         &mut self,
-        op: &mut GetSvcOp,
+        mut op: GetSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
-        let dcm_query = op.process_req(
-            cmd,
-            self.assoc.common(),
-            &mut self.reader,
-            &mut self.writer,
-        )?;
+        let dcm_query =
+            op.process_req(cmd, self.assoc.common(), &mut self.reader, &mut self.writer)?;
         let statter = StatusMsgBuilder::new(
             false,
             op.ctx_id(),
@@ -71,11 +68,12 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                         let _ = err.write(&mut self.writer);
 
                         // For now, if one fails then do not attempt the rest.
-                        self.assoc.common().write_command(
+                        CommonAssoc::write_command(
                             &statter.msg(&Stat::fail(), &prog(0, successful, remaining, 0)),
                             &mut self.writer,
+                            self.assoc.common().get_pdu_max_snd_size(),
                         )?;
-                        return fail(&format!("Failed resolving {path:?}"));
+                        return Err(fail(&format!("Failed resolving {path:?}")));
                     }
                 };
 
@@ -89,27 +87,44 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     op.this_ae(),
                     op.msg_id(),
                 )?;
+                // TODO: This handling of response needs extracted for async handling.
                 let store_rsp = CommonAssoc::next_msg(
                     &mut self.reader,
                     &mut self.writer,
                     self.assoc.common().get_pdu_max_rcv_size(),
                 );
-                self.interpret_cstore_rsp(store_rsp, &statter, &prog(0, successful, remaining, 0))?;
+                let store_rsp = self.interpret_cstore_rsp(
+                    store_rsp,
+                    &statter,
+                    &prog(0, successful, remaining, 0),
+                )?;
+                if let Some(AssocUserOp::Store(store_op)) =
+                    self.assoc.common_mut().get_user_op(store_msg_id)
+                {
+                    store_op.process_rsp(&store_rsp);
+                    if store_op.is_complete() {
+                        self.assoc.common_mut().remove_user_op(store_msg_id);
+                    }
+                }
 
                 store_msg_id += 1;
                 successful += 1;
                 remaining -= 1;
 
-                self.assoc.common().write_command(
-                    &statter.msg(&Stat::pending(), &prog(remaining, successful, 0, 0)),
+                op.write_response(
                     &mut self.writer,
+                    self.assoc.common().get_pdu_max_snd_size(),
+                    &Stat::pending(),
+                    &prog(remaining, successful, 0, 0),
                 )?;
             }
         }
 
-        self.assoc.common().write_command(
-            &statter.msg(&Stat::success(), &prog(0, successful, 0, 0)),
+        op.write_response(
             &mut self.writer,
+            self.assoc.common().get_pdu_max_snd_size(),
+            &Stat::success(),
+            &prog(0, successful, 0, 0),
         )?;
 
         Ok(())

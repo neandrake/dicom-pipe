@@ -292,11 +292,11 @@ impl DicomElement {
     ///
     /// * `value` - The value to be encoded according to `self.vr`.
     /// * `vl` - The value length to use. If `None` then the value length will be computed and
-    /// `ValueLength::Explicit` will be assigned to `self.vl`. If `Some` then it will only be used
-    /// if `self.is_seq_like()` would return true, otherwise the value length will be computed and
-    /// `ValueLength::Explicit` will be assigned to `self.vl`. Unconditionally, `self.vl` will be
-    /// assigned `ValueLength::Explicit(0)` if this element is `Item`, `ItemDelimitationItem`, or
-    /// `SequenceDelimitationItem`.
+    ///   `ValueLength::Explicit` will be assigned to `self.vl`. If `Some` then it will only be used
+    ///   if `self.is_seq_like()` would return true, otherwise the value length will be computed and
+    ///   `ValueLength::Explicit` will be assigned to `self.vl`. Unconditionally, `self.vl` will be
+    ///   assigned `ValueLength::Explicit(0)` if this element is `Item`, `ItemDelimitationItem`, or
+    ///   `SequenceDelimitationItem`.
     ///
     /// # Errors
     /// Encoding string values may fail.

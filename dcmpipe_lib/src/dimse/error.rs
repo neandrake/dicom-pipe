@@ -43,6 +43,11 @@ pub enum DimseError {
     #[error("application error: {0}")]
     ApplicationError(Box<dyn std::error::Error>),
 
+    /// A PDU type was encountered that is unknown, likely non-standard or a corruption in the
+    /// stream.
+    #[error("invalid pdu type: {0:04X}")]
+    InvalidPduType(u8),
+
     /// Error while parsing a DICOM element in a DIMSE request/response.
     #[error("error parsing value from request: {0}")]
     ParseError(#[from] ParseError),
@@ -59,14 +64,8 @@ pub enum DimseError {
     #[error("i/o error reading from dataset: {0}")]
     IOError(#[from] std::io::Error),
 
-    /// A PDU type was encountered that is unknown, likely non-standard or a corruption in the
-    /// straem.
-    #[error("invalid pdu type: {0:04X}")]
-    InvalidPduType(u8),
-
-    /// An AE Title which is not correctly formatted.
-    #[error("invalid ae title: {0}")]
-    InvalidAeTitle(String),
+    #[error("malformed ae title: {0}")]
+    MalformedAeTitle(String),
 
     #[error("called ae title is not this ae title: {0}")]
     InvalidCalledAeTitle(String),
@@ -100,14 +99,11 @@ pub enum DimseError {
     #[error("dimse query parsing failed")]
     QueryParseError,
 
-    #[error("unsupported abstract syntax {0:?}")]
-    UnsupportedAbstractSyntax(UIDRef),
+    #[error("unsupported abstract syntax {}", uid.name())]
+    UnsupportedAbstractSyntax { uid: UIDRef },
 
     #[error("maximum pdu size exceeded, PDU is {0} bytes")]
     MaxPduSizeExceeded(usize),
-
-    #[error("DICOM file is missing SOP Instance UID (bytes read: {0}): {1}")]
-    SOPInstanceUIDMissing(usize, String),
 
     #[error("Association negotiation failed: {0}")]
     AssocNegotiationFailure(String),
@@ -165,6 +161,11 @@ impl AssocError {
     #[must_use]
     pub fn rsp(&self) -> &Option<AssocRsp> {
         &self.rsp
+    }
+
+    #[must_use]
+    pub fn err(&self) -> &DimseError {
+        &self.err
     }
 
     #[must_use]

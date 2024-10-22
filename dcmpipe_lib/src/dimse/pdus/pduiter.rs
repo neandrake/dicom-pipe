@@ -47,9 +47,9 @@ use crate::{
 
 pub fn read_next_pdu<R: Read>(
     reader: R,
-    max_pdu_size: usize,
+    max_pdu_rcv_size: usize,
 ) -> Option<Result<PduIterItem, DimseError>> {
-    PduIter::new(reader, max_pdu_size).next()
+    PduIter::new(reader, max_pdu_rcv_size).next()
 }
 
 #[derive(Debug)]
@@ -252,7 +252,9 @@ where
     ///
     /// # Params
     /// `ctx_id` - The `ctx_id` that each resulting `PresentationDataItem` will be assocaited with.
-    /// `max_pdu_size` - The maximum size of each `PresentationDataItem`, in bytes.
+    /// `max_pdu_size` - The maximum size of each `PresentationDataItem`, in bytes. This should be
+    ///                  either zero to indicate no maximum, or a value greater than the sum of the
+    ///                  PDI and PDV header sizes.
     /// `is_command` - Whether this is for command messages or for DICOM datasets.
     /// `elements` - The iterator over elements to convert.
     /// `ts` - The transfer syntax that the elements should be written with.
@@ -266,6 +268,13 @@ where
         ts: TSRef,
         cs: CSRef,
     ) -> Self {
+        let header_size =
+            PresentationDataItem::header_byte_size() + PresentationDataValue::header_byte_size();
+        let max_pdu_size = if max_pdu_size == 0 {
+            usize::MAX - header_size
+        } else {
+            max_pdu_size - header_size
+        };
         let max_payload_size = max_pdu_size
             - PresentationDataItem::header_byte_size()
             - PresentationDataValue::header_byte_size();

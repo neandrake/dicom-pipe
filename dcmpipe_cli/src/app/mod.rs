@@ -123,7 +123,7 @@ fn handle_assoc_result<W: Write>(
 /// # Errors
 /// - I/O errors may occur reading or renaming the file.
 /// - `DimseError` will occur if the file could not be parsed as DICOM or did not contain a SOP
-/// Instance UID.
+///   Instance UID.
 fn rename_file_to_sop(filename: &str, ts: TSRef) -> Result<(), DimseError> {
     let file = BufReader::with_capacity(8 * 1024, File::open(filename).map_err(DimseError::from)?);
     let mut parser = ParserBuilder::default()
@@ -138,10 +138,7 @@ fn rename_file_to_sop(filename: &str, ts: TSRef) -> Result<(), DimseError> {
                 .and_then(|v| v.string().cloned())
         });
     let Some(sop_uid) = sop_uid else {
-        return Err(DimseError::SOPInstanceUIDMissing(
-            usize::try_from(parser.bytes_read()).unwrap_or_default(),
-            filename.to_owned(),
-        ));
+        return Err(DimseError::DimseElementMissing(filename.to_owned()));
     };
     drop(parser);
     std::fs::rename(filename, format!("{sop_uid}.dcm")).map_err(DimseError::from)?;

@@ -25,10 +25,11 @@ use crate::app::scpapp::AssociationDevice;
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_echo_req(
         &mut self,
-        op: &mut EchoSvcOp,
+        mut op: EchoSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
+        let pdu_max_snd_size = self.assoc.common().get_pdu_max_snd_size();
         let rsp = op.process_req(cmd)?;
-        op.write_response(&rsp, self.assoc.common(), &mut self.writer)
+        op.end_response(&rsp, &mut self.writer, pdu_max_snd_size)
     }
 }

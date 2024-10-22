@@ -40,7 +40,7 @@ use dcmpipe_lib::{
         commands::{messages::CommandMessage, CommandStatus, CommandType, SubOpProgress},
         error::{AssocError, DimseError},
         pdus::PduType,
-        svcops::{EchoSvcOp, FindSvcOp, GetSvcOp},
+        svcops::AssocSvcOp,
     },
 };
 use std::{
@@ -137,10 +137,8 @@ impl CommandApplication for SvcProviderApp {
 pub(crate) type Stat = CommandStatus;
 
 /// Convenience to create `Err(AssocError::ab_failure(DimseError::GeneralError(msg)))`.
-pub(crate) fn fail(msg: &str) -> Result<(), AssocError> {
-    Err(AssocError::ab_failure(DimseError::ApplicationError(
-        msg.into(),
-    )))
+pub(crate) fn fail(msg: &str) -> AssocError {
+    AssocError::ab_failure(DimseError::ApplicationError(msg.into()))
 }
 
 /// Convenience to create a `SubOpProgress`.
@@ -248,29 +246,34 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 continue;
             }
 
-            // TODO: Add 'op' to a map for tracking incomplete ops.
-            if cmd.cmd_type() == &CommandType::CEchoReq {
-                let mut op = EchoSvcOp::new(cmd.msg_id());
-                self.handle_c_echo_req(&mut op, &cmd)?;
-                println!("[info ->]: {:?}", CommandType::CEchoRsp);
-            } else if cmd.cmd_type() == &CommandType::CFindReq {
-                let mut op = FindSvcOp::new(cmd.msg_id());
-                self.handle_c_find_req(&mut op, &cmd)?;
-                println!("[info ->]: {:?}", CommandType::CFindRsp);
-            } else if cmd.cmd_type() == &CommandType::CStoreReq {
-                self.handle_c_store_req(&cmd)?;
-                println!("[info ->]: {:?}", CommandType::CStoreRsp);
-            } else if cmd.cmd_type() == &CommandType::CMoveReq {
-                self.handle_c_move_req(&cmd)?;
-                println!("[info ->]: {:?}", CommandType::CMoveRsp);
-            } else if cmd.cmd_type() == &CommandType::CGetReq {
-                let mut op = GetSvcOp::new(cmd.msg_id());
-                self.handle_c_get_req(&mut op, &cmd)?;
-                println!("[info ->]: {:?}", CommandType::CGetRsp);
-            } else {
-                return Err(AssocError::ab_failure(DimseError::UnexpectedCommandType(
-                    cmd.cmd_type().clone(),
-                )));
+            let Some(op) = CommonAssoc::recv_req(&cmd)? else {
+                continue;
+            };
+
+            match op {
+                AssocSvcOp::Echo(op) => {
+                    self.handle_c_echo_req(op, &cmd)?;
+                    println!("[info ->]: {:?}", CommandType::CEchoRsp);
+                }
+                AssocSvcOp::Find(op) => {
+                    self.handle_c_find_req(op, &cmd)?;
+                    println!("[info ->]: {:?}", CommandType::CFindRsp);
+                }
+                AssocSvcOp::Get(op) => {
+                    self.handle_c_get_req(op, &cmd)?;
+                    println!("[info ->]: {:?}", CommandType::CGetRsp);
+                }
+                AssocSvcOp::Move(op) => {
+                    self.handle_c_move_req(op, &cmd)?;
+                    println!("[info ->]: {:?}", CommandType::CMoveRsp);
+                }
+                AssocSvcOp::Store(op) => {
+                    self.handle_c_store_req(op, &cmd)?;
+                    println!("[info ->]: {:?}", CommandType::CStoreRsp);
+                }
+                AssocSvcOp::Cancel(op) => {
+                    self.assoc.common_mut().remove_svc_op(op.msg_id());
+                }
             }
         }
     }
@@ -305,30 +308,36 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
         store_rsp: Result<DimseMsg, AssocError>,
         stat_rpt: &StatusMsgBuilder,
         progress: &SubOpProgress,
-    ) -> Result<(), AssocError> {
+    ) -> Result<CommandMessage, AssocError> {
         let cmd_rsp = match store_rsp {
             Ok(DimseMsg::Cmd(cmd)) => cmd,
             Ok(rp) => {
-                self.assoc
-                    .common()
-                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
-                return fail(&format!("Sub-operation C-STORE failed: {rp:?}"));
+                CommonAssoc::write_command(
+                    &stat_rpt.msg(&Stat::fail(), progress),
+                    &mut self.writer,
+                    self.assoc.common().get_pdu_max_snd_size(),
+                )?;
+                return Err(fail(&format!("Sub-operation C-STORE failed: {rp:?}")));
             }
             Err(e) => {
-                self.assoc
-                    .common()
-                    .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
+                CommonAssoc::write_command(
+                    &stat_rpt.msg(&Stat::fail(), progress),
+                    &mut self.writer,
+                    self.assoc.common().get_pdu_max_snd_size(),
+                )?;
                 return Err(e);
             }
         };
 
         if !cmd_rsp.status().is_success() {
-            self.assoc
-                .common()
-                .write_command(&stat_rpt.msg(&Stat::fail(), progress), &mut self.writer)?;
-            return fail(&format!("Sub-operation C-STORE failed: {cmd_rsp:?}"));
+            CommonAssoc::write_command(
+                &stat_rpt.msg(&Stat::fail(), progress),
+                &mut self.writer,
+                self.assoc.common().get_pdu_max_snd_size(),
+            )?;
+            return Err(fail(&format!("Sub-operation C-STORE failed: {cmd_rsp:?}")));
         }
 
-        Ok(())
+        Ok(cmd_rsp)
     }
 }

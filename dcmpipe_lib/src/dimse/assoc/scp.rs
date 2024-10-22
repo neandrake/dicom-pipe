@@ -65,6 +65,7 @@ impl ServiceAssoc {
         self.accept_aets.is_empty() || self.accept_aets.contains_key(aet)
     }
 
+    /// Gets the connection info for a known AE Title.
     #[must_use]
     pub fn aet_host(&self, aet: &str) -> Option<&String> {
         self.accept_aets.get(aet)
@@ -125,7 +126,7 @@ impl ServiceAssoc {
     ///
     /// # Errors
     /// - If the result of the request is to reject or abort, those are propagated as an
-    /// `AssocError`.
+    ///   `AssocError`.
     fn validate_assoc_rq(
         &mut self,
         rq: &AssocRQ,
@@ -357,7 +358,8 @@ impl ServiceAssocBuilder {
 
             their_user_data: Vec::with_capacity(num_user_data),
             negotiated_pres_ctx: HashMap::with_capacity(num_abs),
-            active_ops: HashMap::new(),
+            active_user_ops: HashMap::new(),
+            active_svc_ops: HashMap::new(),
         };
 
         ServiceAssoc {
