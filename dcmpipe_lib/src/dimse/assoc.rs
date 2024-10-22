@@ -230,9 +230,9 @@ impl CommonAssoc {
             .iter()
             .find(|(_ctx_id, (_pres_ctx, abs_uid))| *abs_uid == ab_ref)
         else {
-            return Err(AssocError::ab_failure(DimseError::UnknownAbstractSyntax(
-                ab_ref.uid().to_owned(),
-            )));
+            return Err(AssocError::ab_failure(
+                DimseError::UnsupportedAbstractSyntax { uid: ab_ref },
+            ));
         };
 
         let ts_bytes = pres_ctx.transfer_syntax().transfer_syntaxes();

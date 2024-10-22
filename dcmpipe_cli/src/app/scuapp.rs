@@ -255,7 +255,7 @@ impl CommandApplication for SvcUserApp {
             }
             Err(e) => {
                 let _ = e.write(&mut writer);
-                eprintln!("Error: {e:?}");
+                eprintln!("[ err xx] {}", e.err());
             }
         }
         Ok(())

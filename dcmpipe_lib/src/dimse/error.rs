@@ -99,8 +99,8 @@ pub enum DimseError {
     #[error("dimse query parsing failed")]
     QueryParseError,
 
-    #[error("unsupported abstract syntax {0:?}")]
-    UnsupportedAbstractSyntax(UIDRef),
+    #[error("unsupported abstract syntax {}", uid.name())]
+    UnsupportedAbstractSyntax { uid: UIDRef },
 
     #[error("maximum pdu size exceeded, PDU is {0} bytes")]
     MaxPduSizeExceeded(usize),
@@ -161,6 +161,11 @@ impl AssocError {
     #[must_use]
     pub fn rsp(&self) -> &Option<AssocRsp> {
         &self.rsp
+    }
+
+    #[must_use]
+    pub fn err(&self) -> &DimseError {
+        &self.err
     }
 
     #[must_use]
