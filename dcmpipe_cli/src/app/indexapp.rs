@@ -219,7 +219,7 @@ impl IndexApp {
             }
         };
 
-        for dicom_doc in Self::query_docs(dicom_coll, Some(query))? {
+        for dicom_doc in Self::query_docs(dicom_coll, query)? {
             if let Some(existing) = uid_to_doc.get_mut(&dicom_doc.key) {
                 existing.id = dicom_doc.id;
             }
@@ -242,14 +242,14 @@ impl IndexApp {
 
         if !inserts.is_empty() {
             println!("Inserting {} records", inserts.len());
-            dicom_coll.insert_many(inserts, None)?;
+            dicom_coll.insert_many(inserts).run()?;
         }
 
         // There's no API for mass replacing documents, so do one-by-one.
         println!("Updating {} records", updates.len());
         for (id, doc) in updates {
             let query: Document = doc! { MONGO_ID_KEY: id };
-            dicom_coll.replace_one(query, doc, None)?;
+            dicom_coll.replace_one(query, doc).run()?;
         }
 
         Ok(())
@@ -261,7 +261,7 @@ impl IndexApp {
         let mut record_count: usize = 0;
         let mut updated_records: Vec<Document> = Vec::new();
         let mut missing_records: Vec<Document> = Vec::new();
-        for mut dicom_doc in Self::query_docs(&dicom_coll, None)? {
+        for mut dicom_doc in Self::query_docs(&dicom_coll, Document::new())? {
             record_count += 1;
             let metadata_doc = dicom_doc
                 .doc
@@ -297,7 +297,7 @@ impl IndexApp {
 
         println!("Updating {} records", updated_records.len());
         if !updated_records.is_empty() {
-            dicom_coll.insert_many(updated_records, None)?;
+            dicom_coll.insert_many(updated_records).run()?;
         }
 
         println!("Removing {} records", missing_records.len());
@@ -313,7 +313,7 @@ impl IndexApp {
                     "$in": ids
                 }
             };
-            dicom_coll.delete_many(query, None)?;
+            dicom_coll.delete_many(query).run()?;
         }
 
         Ok(())
@@ -330,10 +330,11 @@ impl IndexApp {
     /// I/O errors may occur communicating with mongodb.
     pub fn query_docs(
         dicom_coll: &Collection<Document>,
-        query: Option<Document>,
+        query: Document,
     ) -> Result<impl Iterator<Item = DicomDoc>> {
         let all_dicom_docs: Cursor<Document> = dicom_coll
-            .find(query, None)
+            .find(query)
+            .run()
             .with_context(|| format!("Invalid database: {dicom_coll:?}"))?;
 
         let doc_iter = all_dicom_docs.filter_map(|doc_res| {

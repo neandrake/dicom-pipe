@@ -53,7 +53,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{block::Title, Block, Borders, Cell, Row, Table, TableState},
+    widgets::{Block, Borders, Cell, Row, Table, TableState},
     Frame, Terminal,
 };
 
@@ -432,30 +432,30 @@ impl<'app> BrowseApp {
             )
             .block(
                 Block::default()
-                    .title(
-                        Title::from(Line::from(Span::styled(
+                    .title_top(
+                        Line::from(Span::styled(
                             "[DICOM Browser]".to_string(),
                             Style::default().add_modifier(Modifier::BOLD),
-                        )))
+                        ))
                         .alignment(Alignment::Left),
                     )
-                    .title(
-                        Title::from(Line::from(Span::styled(
+                    .title_top(
+                        Line::from(Span::styled(
                             format!("[{}]", &view_state.dataset_title),
                             Style::default()
                                 .fg(Color::LightBlue)
                                 .add_modifier(Modifier::BOLD),
-                        )))
+                        ))
                         .alignment(Alignment::Right),
                     )
                     .borders(Borders::all()),
             )
-            .highlight_style(Style::default().bg(Color::Rgb(64, 64, 64)));
+            .row_highlight_style(Style::default().bg(Color::Rgb(64, 64, 64)));
 
         let sections = Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([Constraint::Min(1), Constraint::Length(1)])
-            .split(frame.size());
+            .split(frame.area());
 
         frame.render_stateful_widget(table, sections[0], &mut view_state.table_state);
     }

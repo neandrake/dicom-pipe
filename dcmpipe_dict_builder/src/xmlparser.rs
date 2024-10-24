@@ -147,7 +147,8 @@ fn parse_text_bytes_as_u32(data: &BytesText<'_>) -> Option<u32> {
 impl<R: BufRead> XmlDicomDefinitionIterator<R> {
     pub fn new(xml: R) -> XmlDicomDefinitionIterator<R> {
         let mut reader = Reader::from_reader(xml);
-        reader.expand_empty_elements(true).trim_text(true);
+        reader.config_mut().expand_empty_elements = true;
+        reader.config_mut().trim_text(true);
         XmlDicomDefinitionIterator {
             parser: reader,
             state: XmlDicomReadingState::OutsideTable,

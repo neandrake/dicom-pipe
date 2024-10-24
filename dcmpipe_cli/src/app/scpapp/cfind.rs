@@ -186,7 +186,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             .map_err(|e| AssocError::ab_failure(DimseError::ApplicationError(e.into())))?;
         let mongo_query = Self::convert_dcm_query_to_mongo_query(dcm_query)?;
 
-        let query_results = IndexApp::query_docs(&coll, Some(mongo_query.query.clone()))
+        let query_results = IndexApp::query_docs(&coll, mongo_query.query.clone())
             .map_err(|e| AssocError::ab_failure(DimseError::ApplicationError(e.into())))?;
 
         // XXX: Stream results from mongo to avoid pulling all into memory?
