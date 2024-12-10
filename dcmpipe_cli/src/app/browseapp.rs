@@ -94,7 +94,7 @@ struct DisplayOpts {
 }
 
 impl DisplayOpts {
-    fn for_obj<'app>(&'app self, obj: &'app DicomObject) -> FormattedElement {
+    fn for_obj<'app>(&'app self, obj: &'app DicomObject) -> FormattedElement<'app> {
         FormattedElement::new(obj.element())
             .with_multiline(self.multiline)
             .with_max_items(self.max_items)

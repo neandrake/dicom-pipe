@@ -22,13 +22,12 @@ use crate::core::defn::uid::UIDRef;
 
 pub type TSRef = &'static TransferSyntax;
 
-/// Transfer Syntax Definition
-
 // TransferSyntaxes are defined at compile-time and never instantiated at runtime. Since these
 // boolean values are only ever read by the use of this API, the boolean fields are more ergonomic
 // to use compared to converting to enums.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Eq)]
+/// Transfer Syntax Definition
 pub struct TransferSyntax {
     /// Identifier or name which can be used with a `DicomDictionary`.
     pub uid: UIDRef,

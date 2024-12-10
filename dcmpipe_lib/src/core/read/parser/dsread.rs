@@ -52,7 +52,7 @@ use crate::core::{
     },
 };
 
-impl<'d, R: Read> Parser<'d, R> {
+impl<R: Read> Parser<'_, R> {
     /// Reads a tag attribute from the dataset, unless `self.partial_tag` is `Some`.
     pub(super) fn read_tag(&mut self, ts: TSRef) -> ParseResult<u32> {
         let tag: u32 = if let Some(partial_tag) = self.partial_tag {

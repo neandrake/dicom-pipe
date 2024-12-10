@@ -170,7 +170,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for RawValue<'e> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<Attribute> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<Attribute> {
     type Error = ParseError;
 
     /// Parses the value for this element as an attribute (aka a tag)
@@ -192,7 +192,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<Attribute> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for String {
+impl TryFrom<&ElementWithVr<'_>> for String {
     type Error = ParseError;
 
     /// Parses the value of this element as a string using the element's encoding and the specified
@@ -223,7 +223,7 @@ impl TryFrom<&DicomElement> for Vec<String> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<String> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<String> {
     type Error = ParseError;
 
     /// Parses the value of this element as a list of strings using the element's encoding and the
@@ -377,7 +377,7 @@ where
     Ok(result)
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for i16 {
+impl TryFrom<&ElementWithVr<'_>> for i16 {
     type Error = ParseError;
 
     /// Parses the value for this element as a signed 16bit integer
@@ -391,7 +391,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for i16 {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i16> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<i16> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 16bit integer values
@@ -418,7 +418,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i16> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for u16 {
+impl TryFrom<&ElementWithVr<'_>> for u16 {
     type Error = ParseError;
 
     /// Parses the value for this element as an unsigned 16bit integer
@@ -432,7 +432,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for u16 {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u16> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<u16> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 16bit integer values
@@ -460,7 +460,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u16> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for i32 {
+impl TryFrom<&ElementWithVr<'_>> for i32 {
     type Error = ParseError;
 
     /// Parses the value for this element as a signed 32bit integer
@@ -474,7 +474,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for i32 {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i32> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<i32> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 32bit integer values
@@ -502,7 +502,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i32> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for u32 {
+impl TryFrom<&ElementWithVr<'_>> for u32 {
     type Error = ParseError;
 
     /// Parses the value for this element as an unsigned 32bit integer
@@ -516,7 +516,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for u32 {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u32> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<u32> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 32bit integer values
@@ -544,7 +544,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u32> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i64> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<i64> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of signed 64bit integer values
@@ -572,7 +572,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<i64> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u64> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<u64> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of unsigned 64bit integer values
@@ -600,7 +600,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<u64> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for f32 {
+impl TryFrom<&ElementWithVr<'_>> for f32 {
     type Error = ParseError;
 
     /// Parses the value for this element as a 32bit floating point
@@ -614,7 +614,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for f32 {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<f32> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<f32> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of 32bit floating point values
@@ -642,7 +642,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<f32> {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for f64 {
+impl TryFrom<&ElementWithVr<'_>> for f64 {
     type Error = ParseError;
 
     /// Parses the value for this element as a 64bit floating point
@@ -656,7 +656,7 @@ impl<'e> TryFrom<&ElementWithVr<'e>> for f64 {
     }
 }
 
-impl<'e> TryFrom<&ElementWithVr<'e>> for Vec<f64> {
+impl TryFrom<&ElementWithVr<'_>> for Vec<f64> {
     type Error = ParseError;
 
     /// Parses the value for this element as a list of 64bit floating point values

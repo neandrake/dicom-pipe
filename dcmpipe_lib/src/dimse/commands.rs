@@ -214,7 +214,7 @@ impl From<&CommandPriority> for u16 {
     }
 }
 
-impl<'e> From<&CommandPriority> for RawValue<'e> {
+impl From<&CommandPriority> for RawValue<'_> {
     fn from(value: &CommandPriority) -> Self {
         RawValue::of_ushort(u16::from(value))
     }
@@ -430,7 +430,7 @@ impl CommandStatus {
     }
 }
 
-impl<'e> From<&CommandStatus> for RawValue<'e> {
+impl From<&CommandStatus> for RawValue<'_> {
     fn from(value: &CommandStatus) -> Self {
         match value {
             CommandStatus::Success(c)

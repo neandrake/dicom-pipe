@@ -35,7 +35,7 @@ use crate::core::{
     DICOM_PREFIX, DICOM_PREFIX_LENGTH, FILE_PREAMBLE_LENGTH,
 };
 
-impl<'d, R: Read> Parser<'d, R> {
+impl<R: Read> Parser<'_, R> {
     /// Performs the `ParserState::Preamble` iteration
     pub(super) fn iterate_preamble(&mut self) -> ParseResult<()> {
         let mut file_preamble: [u8; FILE_PREAMBLE_LENGTH] = [0; FILE_PREAMBLE_LENGTH];

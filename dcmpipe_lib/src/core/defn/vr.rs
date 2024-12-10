@@ -35,16 +35,15 @@ pub const NULL_PADDING: u8 = 0x00;
 
 pub type VRRef = &'static VR;
 
-/// Value Representation Definition
-///
-/// The Value Representation of a Data Element describes the data type and format of that Data
-/// Element's Value(s).
-
 // VRs are defined at compile-time and never instantiated at runtime. Since these boolean values
 // are only ever read by the use of this API, the boolean fields are more ergonomic to use compared
 // to converting to enums.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Eq)]
+/// Value Representation Definition
+///
+/// The Value Representation of a Data Element describes the data type and format of that Data
+/// Element's Value(s).
 pub struct VR {
     /// The two-letter identifer, "AE", "IS", etc.
     pub ident: &'static str,

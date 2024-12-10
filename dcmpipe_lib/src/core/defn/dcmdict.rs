@@ -59,7 +59,7 @@ impl<'d> MultiDicomDictionary<'d> {
     }
 }
 
-impl<'d> DicomDictionary for MultiDicomDictionary<'d> {
+impl DicomDictionary for MultiDicomDictionary<'_> {
     fn get_ts_by_name(&self, name: &str) -> Option<TSRef> {
         self.dicts.iter().find_map(|d| d.get_ts_by_name(name))
     }

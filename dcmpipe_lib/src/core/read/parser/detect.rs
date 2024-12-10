@@ -50,7 +50,11 @@ use crate::core::{
 
 const MAX_VALUE_LENGTH_IN_DETECT: u32 = 100;
 
-impl<'d, R: Read> Parser<'d, R> {
+impl<R: Read> Parser<'_, R> {
+    // This function is knowingly pretty lengthy. Attempting to break down into smaller functions
+    // may be possible, though I have not found a way to do so without also splitting the
+    // contextual logic which would make reading this logic more difficult.
+    #[allow(clippy::too_many_lines)]
     /// Performs the `ParserState::DetectTransferSyntax` iteration.
     /// Detects little-vs-big endian and implicit-vs-explicit VR. This strategy is not fully
     /// complete however it does cover a wide variety of cases. It does not cover scenarios where
@@ -74,11 +78,6 @@ impl<'d, R: Read> Parser<'d, R> {
     ///    library also uses this same value comparison.
     /// 4. Otherwise it's assumed the start of the file is proprietary file preamble. These bytes
     ///    are then skipped and detection begins again.
-
-    // This function is knowingly pretty lengthy. Attempting to break down into smaller functions
-    // may be possible, though I have not found a way to do so without also splitting the
-    // contextual logic which would make reading this logic more difficult.
-    #[allow(clippy::too_many_lines)]
     pub(super) fn iterate_detect_state(&mut self) -> ParseResult<()> {
         // Start off assuming EVRLE, the default for File-Meta.
         let mut ts: TSRef = &ExplicitVRLittleEndian;

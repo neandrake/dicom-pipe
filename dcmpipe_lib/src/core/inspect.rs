@@ -331,7 +331,7 @@ impl<'e> FormattedElement<'e> {
     }
 }
 
-impl<'e> fmt::Display for FormattedElement<'e> {
+impl fmt::Display for FormattedElement<'_> {
     /// Renders an element on a single line, includes indentation based on depth in sequences. If the
     /// standard dicom dictionary feature is enabled then the tag name will attempt to be resolved
     /// using it.

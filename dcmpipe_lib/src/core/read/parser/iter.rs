@@ -25,7 +25,7 @@ use crate::core::{
 };
 
 /// The implementation for `Parser` which is the core iteration loop.
-impl<'d, R: Read> Iterator for Parser<'d, R> {
+impl<R: Read> Iterator for Parser<'_, R> {
     type Item = ParseResult<DicomElement>;
 
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
