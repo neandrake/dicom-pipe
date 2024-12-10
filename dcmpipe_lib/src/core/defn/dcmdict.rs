@@ -16,7 +16,7 @@
 
 use crate::core::defn::{tag::TagRef, ts::TSRef, uid::UIDRef};
 
-/// A DICOM dictionary enables looking up transer syntaxes, tags, and uids by
+/// A DICOM dictionary enables looking up transfer syntaxes, tags, and uids by
 /// their name or number (as defined in the standard), or by their UID.
 pub trait DicomDictionary {
     /// Look up a `TransferSyntax` definition by its name, case-insensitive.

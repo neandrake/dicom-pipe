@@ -195,7 +195,7 @@ impl<R: Read> Parser<'_, R> {
             Ok((vr, _)) => {
                 self.partial_vr = Some(vr);
                 if vr.has_explicit_2byte_pad {
-                    // If explict & padded then the padding was read-in already and we have to read
+                    // If explicit & padded then the padding was read-in already and we have to read
                     // in the next 4 bytes for the value length.
                     self.dataset.read_exact(&mut buf)?;
                     if !already_read_preamble {

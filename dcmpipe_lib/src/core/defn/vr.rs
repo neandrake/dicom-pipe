@@ -45,7 +45,7 @@ pub type VRRef = &'static VR;
 /// The Value Representation of a Data Element describes the data type and format of that Data
 /// Element's Value(s).
 pub struct VR {
-    /// The two-letter identifer, "AE", "IS", etc.
+    /// The two-letter identifier, "AE", "IS", etc.
     pub ident: &'static str,
 
     /// A display name, e.g. `"Application Entity"` for `VR::AE`.
@@ -708,7 +708,7 @@ pub static OF: VR = VR {
 /// N/A
 ///
 /// ## Length of Value
-/// see Transfer Syntax definiton
+/// see Transfer Syntax definition
 pub static OL: VR = VR {
     ident: "OL",
     name: "Other Long",

@@ -344,7 +344,7 @@ impl SvcUserApp {
             )?;
             let msg_id = cmd.msg_id();
 
-            // When issuing a C-GET requets the SCP will respond with a C-STORE request.
+            // When issuing a C-GET requests the SCP will respond with a C-STORE request.
             if cmd.cmd_type() == &CommandType::CStoreReq {
                 // SCP will respond with individual C-STORE requests for each SOP.
                 Self::process_cstore_req(&cmd, assoc, reader, writer)?;

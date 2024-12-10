@@ -44,7 +44,7 @@ that IODs are structured appropriately, e.g. that all necessary DICOM elements
 are present for a CT, MR, etc.
 
 While this design puts the burden on the API user to create well-formed DICOM
-structures, it allso allows for working with existing malformed DICOM datasets.
+structures, it also allows for working with existing malformed DICOM datasets.
 
 This library includes tags, transfer syntaxes, UIDs, etc. from the DICOM
 standard, available as a crate feature. The core of parsing and writing DICOM

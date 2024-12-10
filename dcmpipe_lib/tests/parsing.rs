@@ -1444,7 +1444,7 @@ mod parsing_tests {
         test_kodak_compressed_icon(false)
     }
 
-    /// This dataset has a pixel data inside `IconImageSqeuence` - the pixel data itself having 2 items.
+    /// This dataset has a pixel data inside `IconImageSequence` - the pixel data itself having 2 items.
     /// This pixel data is undefined length and its items are defined so do not have item delimiters,
     /// but does have a sequence delimiter which should pop off the inner item.
     fn test_kodak_compressed_icon(with_std: bool) -> ParseResult<()> {
@@ -1489,7 +1489,7 @@ mod parsing_tests {
         // - fixtures\gdcm\gdcmData\ExplicitVRforPublicElementsImplicitVRforShadowElements.dcm
         //   | jumbled bytes? last read tag is (0C00,0D00).
         // - fixtures\gdcm\gdcmData\gdcm-JPEG-LossLess3a.dcm
-        //   | no delimeter between frames in PixelData, instead reading (B00C,0EB6).
+        //   | no delimiter between frames in PixelData, instead reading (B00C,0EB6).
         // - fixtures\gdcm\gdcmData\GE_GENESIS-16-MONO2-WrongLengthItem.dcm
         //   | (0810,0000) has too big ValueLength (GenericGroupLength).
         // - fixtures\gdcm\gdcmData\IM-0001-0066.dcm
