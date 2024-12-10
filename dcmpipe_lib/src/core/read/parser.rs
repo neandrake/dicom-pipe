@@ -126,7 +126,7 @@ pub struct Parser<'d, R: Read> {
     pub(super) vl_last_used: Option<ValueLength>,
 
     /// This is the transfer syntax used for the last tag successfully read from the dataset,
-    /// regardless of whether the element it's for sucessfully finished parsing.
+    /// regardless of whether the element it's for successfully finished parsing.
     pub(super) ts_last_used: Option<TSRef>,
 
     /// This is the element tag currently being read from the dataset. It will be `Some` once the
@@ -145,7 +145,7 @@ pub struct Parser<'d, R: Read> {
     pub(super) partial_vr: Option<VRRef>,
 
     /// This is the element's value length read from the dataset when in `ParseState::DetectState`.
-    /// This wll only ever be used once in this regard. Since bytes need to be parsed from the
+    /// This will only ever be used once in this regard. Since bytes need to be parsed from the
     /// dataset in order to detect the transfer syntax, if the file preamble is missing then this
     /// will be set as the value length parsed from the dataset of the first valid dicom element.
     pub(super) partial_vl: Option<ValueLength>,
@@ -168,12 +168,12 @@ pub struct Parser<'d, R: Read> {
     pub(super) dataset_ts: Option<TSRef>,
 
     /// The specific character set used for this dataset. This defaults to the dicom default which
-    /// is `WINDOWS_1252` but is changed after having successully parsed the specific character set
+    /// is `WINDOWS_1252` but is changed after having successfully parsed the specific character set
     /// element.
     pub(super) cs: CSRef,
 
     /// The current sequence stack. Whenever an SQ element is parsed a new `SequenceElement` is
-    /// appened to this stack. The last element is popped of when the sequence ends (via byte
+    /// appended to this stack. The last element is popped of when the sequence ends (via byte
     /// position or `SequenceDelimitationItem`). This also tracks the current `Item` within a
     /// sequence. Whenever an `Item` element is read the last element in this list has its item
     /// count initialized/incremented. Every element parsed from the dataset clones this stack.

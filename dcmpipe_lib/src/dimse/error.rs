@@ -117,7 +117,7 @@ pub enum DimseError {
     #[error("unknown abstract syntax: {0}")]
     UnknownAbstractSyntax(String),
 
-    #[error("unknown mesage id: {0}")]
+    #[error("unknown message id: {0}")]
     UnknownMessageID(u16),
 
     #[error("unespected command type: {0:?}")]

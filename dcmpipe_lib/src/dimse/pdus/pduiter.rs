@@ -251,7 +251,7 @@ where
     /// Create a new iterator to wrap the given iterator over elements.
     ///
     /// # Params
-    /// `ctx_id` - The `ctx_id` that each resulting `PresentationDataItem` will be assocaited with.
+    /// `ctx_id` - The `ctx_id` that each resulting `PresentationDataItem` will be associated with.
     /// `max_pdu_size` - The maximum size of each `PresentationDataItem`, in bytes. This should be
     ///                  either zero to indicate no maximum, or a value greater than the sum of the
     ///                  PDI and PDV header sizes.

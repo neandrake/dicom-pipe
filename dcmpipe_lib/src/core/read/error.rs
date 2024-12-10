@@ -75,7 +75,7 @@ pub enum ParseError {
     #[error("file/stream ended between dicom elements")]
     ExpectedEOF,
 
-    /// Wraper around `crate::core::charset::CSError`.
+    /// Wrapper around `crate::core::charset::CSError`.
     #[error("charset decoding error")]
     CharsetError {
         #[source]

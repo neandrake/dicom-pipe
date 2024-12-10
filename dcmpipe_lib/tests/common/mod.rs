@@ -69,7 +69,7 @@ pub mod common_stddicom {
     }
 
     /// Parses through all dicom files in the `fixtures` folder. The `use_std_dict` argument specifies
-    /// whether the standard dicom dictionary should be reigstered with the parser.
+    /// whether the standard dicom dictionary should be registered with the parser.
     pub fn parse_all_dicom_files(with_std: bool) -> ParseResult<usize> {
         let dict: &dyn DicomDictionary = if with_std {
             &STANDARD_DICOM_DICTIONARY

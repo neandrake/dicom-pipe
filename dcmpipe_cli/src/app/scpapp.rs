@@ -69,7 +69,7 @@ impl SvcProviderApp {
 impl CommandApplication for SvcProviderApp {
     fn run(&mut self) -> Result<()> {
         // XXX: This enforces max associations with a thread pool, but will fail to send a response
-        //      indicating that max assocations has been reached.
+        //      indicating that max associations has been reached.
         let pool = ThreadPool::new(self.args.max_assoc);
         let listener = TcpListener::bind(&self.args.host)?;
         println!(

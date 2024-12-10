@@ -302,7 +302,7 @@ impl CommonAssoc {
     /// Parse the next message, either a Command, DICOM Dataset, release/abort, or unexpected PDU.
     ///
     /// # Errors
-    /// - I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
+    /// - I/O errors may occur attempting to read PDU from the reader, or write an appropriate
     ///   disconnect response to the writer.
     pub fn next_msg<R: Read, W: Write>(
         reader: &mut R,
@@ -324,7 +324,7 @@ impl CommonAssoc {
     /// # Errors
     /// - `DimseError` if the message was a DICOM Dataset or unexpected PDU.
     /// - `DimseError` if the connection should be closed.
-    /// - I/O errors may occcur attempting to read PDU from the reader, or write an appropriate
+    /// - I/O errors may occur attempting to read PDU from the reader, or write an appropriate
     ///   disconnect response to the writer.
     pub fn next_cmd<R: Read, W: Write>(
         reader: &mut R,
@@ -577,7 +577,7 @@ impl CommonAssoc {
     ///
     /// # Errors
     /// - I/O errors may occur while using the reader/writer.
-    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
+    /// - `DimseError` may occur if no associated negotiated presentation context can be found.
     pub fn send_cfind_req<W: Write>(
         &mut self,
         mut writer: W,
@@ -606,7 +606,7 @@ impl CommonAssoc {
     ///
     /// # Errors
     /// - I/O errors may occur while using the reader/writer.
-    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
+    /// - `DimseError` may occur if no associated negotiated presentation context can be found.
     pub fn c_get_req<W: Write>(
         &mut self,
         mut writer: W,
@@ -635,7 +635,7 @@ impl CommonAssoc {
     ///
     /// # Errors
     /// - I/O errors may occur while using the reader/writer.
-    /// - `DimseError` may occur if no associated negotatiated presentation context can be found.
+    /// - `DimseError` may occur if no associated negotiated presentation context can be found.
     pub fn c_store_req<PR: Read, R: Read, W: Write>(
         &mut self,
         mut _reader: R,

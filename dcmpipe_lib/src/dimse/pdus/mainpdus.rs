@@ -495,7 +495,7 @@ impl AssocRJ {
     ///     - 2: Application Context Name not supported.
     ///     - 3: Calling AE Title not recognized.
     ///     - 4-6: Reserved.
-    ///     - 7: Called AE Title not recoginzed.
+    ///     - 7: Called AE Title not recognized.
     ///     - 8-10: Reserved.
     ///   - If `source` is 2,
     ///     - 1: No reason given.
@@ -558,7 +558,7 @@ impl AssocRJ {
     ///   - 2: Application Context Name not supported.
     ///   - 3: Calling AE Title not recognized.
     ///   - 4-6: Reserved.
-    ///   - 7: Called AE Title not recoginzed.
+    ///   - 7: Called AE Title not recognized.
     ///   - 8-10: Reserved.
     /// - If `source` is 2,
     ///   - 1: No reason given.
@@ -1280,7 +1280,7 @@ impl PresentationDataItemPartial {
     /// The total number of bytes that this PDU will require to write to a dataset.
     ///
     /// # Notes
-    /// Unline the `read()` and `write()` functions, this value _DOES_ include the length of the
+    /// Unlike the `read()` and `write()` functions, this value _DOES_ include the length of the
     /// value fields, as it must be known ahead of time when preparing to write this PDU to a
     /// dataset.
     #[must_use]

@@ -108,7 +108,7 @@ impl IndexApp {
         IndexApp { args }
     }
 
-    /// Formats the tag to a hexidecimal representation to be used as keys in mongo documents.
+    /// Formats the tag to a hexadecimal representation to be used as keys in mongo documents.
     pub fn tag_to_key(tag: u32) -> String {
         let tag_group: u32 = tag >> 16;
         let tag_elem: u32 = tag & 0x0000_FFFF;
