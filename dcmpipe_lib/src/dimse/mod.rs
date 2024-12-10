@@ -16,6 +16,8 @@
 
 #![allow(clippy::module_name_repetitions)]
 
+use pdus::mainpdus::PresentationDataItem;
+
 use crate::{core::charset::CSRef, dimse::error::DimseError};
 
 pub mod assoc;
@@ -77,3 +79,5 @@ impl<'s> TryFrom<&'s Syntax<'s>> for String {
             .map_err(DimseError::CharsetError)
     }
 }
+
+pub type PDIResult = Result<PresentationDataItem, DimseError>;

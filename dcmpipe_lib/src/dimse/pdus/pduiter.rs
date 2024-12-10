@@ -41,7 +41,7 @@ use crate::{
             mainpdus::{PresentationDataItem, PresentationDataValue},
             msg_header, Pdu,
         },
-        DimseError,
+        DimseError, PDIResult,
     },
 };
 
@@ -322,7 +322,7 @@ where
     B: Borrow<DicomElement>,
     I: Iterator<Item = B>,
 {
-    type Item = Result<PresentationDataItem, DimseError>;
+    type Item = PDIResult;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {

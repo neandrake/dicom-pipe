@@ -43,9 +43,11 @@ use crate::{
         assoc::{CommonAssoc, DimseMsg, QueryLevel},
         commands::{messages::CommandMessage, CommandPriority},
         error::{AssocError, DimseError},
-        pdus::{mainpdus::PresentationDataItem, pduiter::PresDataIter},
+        pdus::pduiter::PresDataIter,
     },
 };
+
+use super::PDIResult;
 
 pub enum AssocUserOp {
     Echo(EchoUserOp),
@@ -244,13 +246,7 @@ impl StoreUserOp {
         store_msg_id: u16,
         origin_ae: &str,
         orig_msg_id: u16,
-    ) -> Result<
-        (
-            CommandMessage,
-            Box<dyn Iterator<Item = Result<PresentationDataItem, DimseError>> + 'p>,
-        ),
-        AssocError,
-    > {
+    ) -> Result<(CommandMessage, Box<dyn Iterator<Item = PDIResult> + 'p>), AssocError> {
         let mut parser = parser
             .filter_map(Result::ok)
             // Do not transfer any beginning FileMeta elements.
