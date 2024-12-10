@@ -20,7 +20,7 @@ dimse = ["stddicom"]
 encoding_rs = "0.8"
 libflate = { version = "2.1", optional = true }
 phf = { version = "0.11", optional = true }
-thiserror = "1.0"
+thiserror = "2.0"
 
 [dev-dependencies]
 walkdir = "2.5"
