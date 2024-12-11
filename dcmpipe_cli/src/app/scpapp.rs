@@ -235,7 +235,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                     println!("[warn <-]: Received dataset out of request handler, discarding.");
                     continue;
                 }
-                other => return Ok(other),
+                DimseMsg::CloseMsg(cmd) => return Ok(DimseMsg::CloseMsg(cmd)),
             };
             println!("[info <-]: {:?}", cmd.cmd_type());
 

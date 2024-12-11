@@ -200,8 +200,7 @@ impl AssocError {
     #[must_use]
     pub fn unhandled_close(close_msg: CloseMsg) -> Self {
         let rsp = match close_msg {
-            CloseMsg::ReleaseRQ => None,
-            CloseMsg::ReleaseRP => None,
+            CloseMsg::ReleaseRQ | CloseMsg::ReleaseRP => None,
             CloseMsg::Reject(ref rj) => Some(AssocRsp::RJ(rj.clone())),
             CloseMsg::Abort(ref ab) => Some(AssocRsp::AB(ab.clone())),
         };

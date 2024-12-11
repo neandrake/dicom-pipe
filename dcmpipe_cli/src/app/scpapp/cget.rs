@@ -101,7 +101,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 if let Some(AssocUserOp::Store(store_op)) =
                     self.assoc.common_mut().get_user_op(store_msg_id)
                 {
-                    store_op.process_rsp(&store_rsp);
+                    store_op.process_rsp(&store_rsp)?;
                     if store_op.is_complete() {
                         self.assoc.common_mut().remove_user_op(store_msg_id);
                     }

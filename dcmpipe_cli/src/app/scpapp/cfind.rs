@@ -158,13 +158,8 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             &query_results.group_map,
         )?;
 
-        for result in dcm_results.iter() {
-            op.write_response(
-                &mut self.writer,
-                pdu_max_snd_size,
-                result,
-                &CommandStatus::pending(),
-            )?;
+        for result in &dcm_results {
+            op.write_response(&mut self.writer, pdu_max_snd_size, result)?;
         }
         op.end_response(
             &mut self.writer,

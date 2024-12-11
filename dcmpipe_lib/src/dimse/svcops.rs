@@ -35,6 +35,7 @@ pub enum AssocSvcOp {
     Cancel(CancelSvcOp),
 }
 
+/// A C-ECHO operation to be managed by an SCP.
 pub struct EchoSvcOp {
     msg_id: u16,
     is_complete: bool,
@@ -59,6 +60,10 @@ impl EchoSvcOp {
         self.is_complete
     }
 
+    /// Process the C-ECHO-RQ request returning an appropriate C-ECHO-RP command indicating success.
+    ///
+    /// # Errors
+    /// - If the request does not contain `AffectedSOPClassUID`.
     pub fn process_req(&mut self, cmd: &CommandMessage) -> Result<CommandMessage, AssocError> {
         let aff_sop_class = cmd
             .get_string(&AffectedSOPClassUID)
@@ -74,6 +79,10 @@ impl EchoSvcOp {
         Ok(cmd)
     }
 
+    /// Write the given C-ECHO-RP response, mark this operation as completed.
+    ///
+    /// # Errors
+    /// - If there is an I/O error writing the response to the given `writer`.
     pub fn end_response<W: Write>(
         &mut self,
         rsp: &CommandMessage,
@@ -86,6 +95,7 @@ impl EchoSvcOp {
     }
 }
 
+/// A C-FIND operation to be managed by an SCP.
 pub struct FindSvcOp {
     msg_id: u16,
     ctx_id: u8,
@@ -124,6 +134,12 @@ impl FindSvcOp {
         self.is_complete
     }
 
+    /// Process the C-FIND-RQ request returning parsed dataset of the request, representing the
+    /// query.
+    ///
+    /// # Errors
+    /// - If the presentation context is not present for this message.
+    /// - I/O errors parsing the dicom dataset from the request.
     pub fn process_req<R: Read, W: Write>(
         &mut self,
         cmd: &CommandMessage,
@@ -141,20 +157,33 @@ impl FindSvcOp {
         Ok(dcm_query)
     }
 
+    /// Write the DICOM object as a C-FIND-RP. This is to be used for sending individual results,
+    /// with a status of pending. To finish the response with success/failure use `end_response`.
+    ///
+    /// # Errors
+    /// - I/O errors writing the command or dataset.
     pub fn write_response<W: Write>(
         &mut self,
         mut writer: &mut W,
         pdu_max_snd_size: usize,
         dcm_result: &DicomRoot,
-        status: &CommandStatus,
     ) -> Result<(), AssocError> {
-        let cmd = CommandMessage::c_find_rsp(self.ctx_id, self.msg_id, &self.aff_sop_class, status);
+        let cmd = CommandMessage::c_find_rsp(
+            self.ctx_id,
+            self.msg_id,
+            &self.aff_sop_class,
+            &CommandStatus::pending(),
+        );
         CommonAssoc::write_command(&cmd, &mut writer, pdu_max_snd_size)?;
         CommonAssoc::write_dataset(self.ctx_id, dcm_result, &mut writer, pdu_max_snd_size)?;
 
         Ok(())
     }
 
+    /// Writes a final response, marking this operation as completed.
+    ///
+    /// # Errors
+    /// - I/O errors writing the command result.
     pub fn end_response<W: Write>(
         &mut self,
         mut writer: &mut W,
@@ -163,11 +192,12 @@ impl FindSvcOp {
     ) -> Result<(), AssocError> {
         let cmd = CommandMessage::c_find_rsp(self.ctx_id, self.msg_id, &self.aff_sop_class, status);
         CommonAssoc::write_command(&cmd, &mut writer, pdu_max_snd_size)?;
-        self.is_complete = !status.is_pending();
+        self.is_complete = true;
         Ok(())
     }
 }
 
+/// A C-GET operation to be managed by an SCP.
 pub struct GetSvcOp {
     msg_id: u16,
     ctx_id: u8,
@@ -213,6 +243,12 @@ impl GetSvcOp {
         self.is_complete
     }
 
+    /// Process a C-GET-RQ request, returning the parsed DICOM object representing the query for
+    /// the request.
+    ///
+    /// # Errors
+    /// - If the request does not contain `AffectedSOPClassUID`.
+    /// - I/O errors reading the DICOM query dataset.
     pub fn process_req<R: Read, W: Write>(
         &mut self,
         cmd: &CommandMessage,
@@ -232,6 +268,12 @@ impl GetSvcOp {
         Ok(dcm_query)
     }
 
+    /// Write a C-GET-RP response, which is a progress indicator as C-GET invokes a C-STORE
+    /// sub-operation to send the DICOM datasets matching the query. If the status is not pending
+    /// then this operation is marked as completed.
+    ///
+    /// # Errors
+    /// - I/O errors writing the response.
     pub fn write_response<W: Write>(
         &mut self,
         mut writer: &mut W,
@@ -254,6 +296,7 @@ impl GetSvcOp {
     }
 }
 
+/// A C-MOVE operation to be managed by an SCP.
 pub struct MoveSvcOp {
     msg_id: u16,
     ctx_id: u8,
@@ -299,6 +342,12 @@ impl MoveSvcOp {
         self.is_complete
     }
 
+    /// Process a C-MOVE-RQ request returning the DICOM dataset representing the query for the
+    /// operation.
+    ///
+    /// # Errors
+    /// - If the request has no `AffectedSOPClassUID` or `MoveDestination`.
+    /// - I/O errors reading or parsing the DICOM dataset representing the query.
     pub fn process_req<R: Read, W: Write>(
         &mut self,
         cmd: &CommandMessage,
@@ -320,6 +369,12 @@ impl MoveSvcOp {
         Ok(dcm_query)
     }
 
+    /// Write a C-MOVE-RP response, which is just a progress indicator as the C-MOVE invokes a
+    /// C-STORE sub-operation to do the actual move. If the status is not pending then this
+    /// operation is marked as completed.
+    ///
+    /// # Errors
+    /// - I/O errors writing the response.
     pub fn write_response<W: Write>(
         &mut self,
         mut writer: &mut W,
@@ -343,6 +398,7 @@ impl MoveSvcOp {
     }
 }
 
+/// A C-STORE operation to be managed by an SCP.
 pub struct StoreSvcOp {
     msg_id: u16,
     ctx_id: u8,
@@ -371,8 +427,13 @@ impl StoreSvcOp {
         self.is_complete
     }
 
-    /// Initial processing of the request. After calling this the dataset can be read directly from
-    /// the reader stream.
+    /// Process a C-STORE-RQ request. After this is called the DICOM dataset payload should be read
+    /// directly from the reader stream. This processing does not read the DICOM dataset as C-STORE
+    /// payloads may be large in size and it is desireable for the caller of this operation to
+    /// manage the payload in an efficient way, and not read it entirely into memory.
+    ///
+    /// # Errors
+    /// - If there is no `AffectedSOPClassUID`.
     pub fn process_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
         self.ctx_id = cmd.ctx_id();
         self.aff_sop_class = cmd
@@ -382,6 +443,11 @@ impl StoreSvcOp {
         Ok(())
     }
 
+    /// Write a response, which is a progress indicator. If the status is not pending then this
+    /// operation is marked as completed.
+    ///
+    /// # Errors
+    /// - I/O errors writing the response.
     pub fn write_response<W: Write>(
         &mut self,
         mut writer: &mut W,
@@ -393,11 +459,11 @@ impl StoreSvcOp {
         CommonAssoc::write_command(&cmd, &mut writer, pdu_max_snd_size)?;
 
         self.is_complete = !status.is_pending();
-
         Ok(())
     }
 }
 
+/// A C-CANCEL request for stopping an SCP's active operation.
 pub struct CancelSvcOp {
     msg_id: u16,
     ctx_id: u8,
@@ -424,6 +490,10 @@ impl CancelSvcOp {
         self.is_complete
     }
 
+    /// Process the C-CANCEL-RQ request.
+    ///
+    /// # Errors
+    /// - None, this returns a result for consistency with the other operation implementations.
     pub fn process_req(&mut self, cmd: &CommandMessage) -> Result<(), AssocError> {
         self.ctx_id = cmd.ctx_id();
         Ok(())

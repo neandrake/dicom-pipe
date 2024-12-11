@@ -380,7 +380,7 @@ impl SvcUserApp {
                     op.is_complete()
                 }
                 AssocUserOp::Store(op) => {
-                    op.process_rsp(&cmd);
+                    op.process_rsp(&cmd)?;
                     Self::print_progress(&cmd, "C-STORE");
                     op.is_complete()
                 }

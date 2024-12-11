@@ -446,12 +446,12 @@ impl From<&CommandStatus> for RawValue<'_> {
 impl From<&CommandStatus> for u16 {
     fn from(value: &CommandStatus) -> Self {
         match value {
-            CommandStatus::Success(code) => *code,
-            CommandStatus::Warning(code) => *code,
-            CommandStatus::Failure(code) => *code,
-            CommandStatus::Cancel(code) => *code,
-            CommandStatus::Pending(code) => *code,
-            CommandStatus::INVALID(code) => *code,
+            CommandStatus::Success(code)
+            | CommandStatus::Warning(code)
+            | CommandStatus::Failure(code)
+            | CommandStatus::Cancel(code)
+            | CommandStatus::Pending(code)
+            | CommandStatus::INVALID(code) => *code,
         }
     }
 }

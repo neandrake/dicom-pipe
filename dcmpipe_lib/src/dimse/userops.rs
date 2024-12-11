@@ -57,6 +57,7 @@ pub enum AssocUserOp {
     Store(StoreUserOp),
 }
 
+/// A C-ECHO operation to be managed by an SCU.
 pub struct EchoUserOp {
     msg_id: u16,
     is_complete: bool,
@@ -81,6 +82,11 @@ impl EchoUserOp {
         self.is_complete
     }
 
+    /// Create a C-ECHO-RQ request.
+    ///
+    /// # Errors
+    /// - If no presentation context is present for the association, indicating this operation is
+    ///   not supported.
     pub fn create_req(&self, assoc: &CommonAssoc) -> Result<CommandMessage, AssocError> {
         let (pres_ctx, _ts) = assoc.get_rq_pres_ctx_and_ts_by_ab(&VerificationSOPClass)?;
         let ctx_id = pres_ctx.ctx_id();
@@ -91,6 +97,10 @@ impl EchoUserOp {
         ))
     }
 
+    /// Process a C-ECHO-RP response, marking this operation as completed.
+    ///
+    /// # Errors
+    /// - If the status of the response is not successful.
     pub fn process_rsp<R: Read, W: Write>(
         &mut self,
         _reader: R,
@@ -107,6 +117,7 @@ impl EchoUserOp {
     }
 }
 
+/// A C-FIND operation to be managed by an SCU.
 pub struct FindUserOp {
     msg_id: u16,
     max_pdu_rcv_size: usize,
@@ -135,6 +146,10 @@ impl FindUserOp {
         self.is_complete
     }
 
+    /// Create a C-FIND-RQ request.
+    ///
+    /// # Errors
+    /// - If the query level specified is not supported by the association.
     pub fn create_req(
         &mut self,
         assoc: &CommonAssoc,
@@ -159,6 +174,12 @@ impl FindUserOp {
         Ok((cmd, dcm_query))
     }
 
+    /// Process a C-FIND-RP response, marking the operation as completed if the status is not
+    /// pending, or no dataset is present for the command. Returns the parsed DICOM object
+    /// representing a C-FIND result.
+    ///
+    /// # Errors
+    /// - I/O errors reading from the stream or parsing the DICOM result.
     pub fn process_rsp<R: Read, W: Write>(
         &mut self,
         mut reader: R,
@@ -170,6 +191,8 @@ impl FindUserOp {
             return Ok(None);
         }
 
+        // Continually loop reading messages appending the result to a buffer, as the result may
+        // exceed this association's max PDU size.
         let mut buf = Vec::<u8>::with_capacity(self.max_pdu_rcv_size);
         loop {
             let next_msg = CommonAssoc::next_msg(&mut reader, &mut writer, self.max_pdu_rcv_size);
@@ -194,25 +217,26 @@ impl FindUserOp {
             }
         }
 
-        if !buf.is_empty() {
-            let mut buf = Cursor::new(buf);
-            let mut parser = ParserBuilder::default()
-                .state(ParserState::ReadElement)
-                .dataset_ts(self.ts)
-                .build(&mut buf, &STANDARD_DICOM_DICTIONARY);
-            match DicomRoot::parse(&mut parser) {
-                Ok(Some(dcm_root)) => Ok(Some(dcm_root)),
-                Ok(None) => Err(AssocError::ab_failure(DimseError::ParseError(
-                    ParseError::GeneralDecodeError("Failed parsing dicom dataset".to_owned()),
-                ))),
-                Err(err) => Err(AssocError::ab_failure(DimseError::from(err))),
-            }
-        } else {
-            Ok(None)
+        if buf.is_empty() {
+            return Ok(None);
+        }
+
+        let mut buf = Cursor::new(buf);
+        let mut parser = ParserBuilder::default()
+            .state(ParserState::ReadElement)
+            .dataset_ts(self.ts)
+            .build(&mut buf, &STANDARD_DICOM_DICTIONARY);
+        match DicomRoot::parse(&mut parser) {
+            Ok(Some(dcm_root)) => Ok(Some(dcm_root)),
+            Ok(None) => Err(AssocError::ab_failure(DimseError::ParseError(
+                ParseError::GeneralDecodeError("Failed parsing dicom dataset".to_owned()),
+            ))),
+            Err(err) => Err(AssocError::ab_failure(DimseError::from(err))),
         }
     }
 }
 
+/// A C-STORE operation to be managed by an SCU.
 pub struct StoreUserOp {
     msg_id: u16,
     max_pdu_snd_size: usize,
@@ -239,6 +263,13 @@ impl StoreUserOp {
         self.is_complete
     }
 
+    /// Create a C-STORE-RQ request. Returns the command message to send, followed by an iterator
+    /// that will produce PDIs of appropriate size from the DICOM SOP payload.
+    ///
+    /// # Errors
+    /// - Any required elements are missing: `SpecificCharacterSet`, `SOPClassUID`, or
+    ///   `SOPInstanceUID`.
+    /// - I/O errors reading from the parser.
     pub fn create_req<'p, PR: Read + 'p>(
         &self,
         assoc: &CommonAssoc,
@@ -252,6 +283,8 @@ impl StoreUserOp {
             // Do not transfer any beginning FileMeta elements.
             .skip_while(|e| e.tag() <= FILE_META_GROUP_END);
 
+        // Pull out all necessary early tags for processing the remaining DICOM elements of this
+        // SOP.
         let mut spec_char_set: Option<String> = None;
         let mut sop_class_uid: Option<String> = None;
         let mut sop_inst_uid: Option<String> = None;
@@ -282,6 +315,8 @@ impl StoreUserOp {
                 break;
             }
         }
+
+        // Chain the header elements parsed above with the parser to reconstitute the DICOM SOP.
         let stitched_elems = header_elems.into_iter().chain(parser);
 
         let spec_char_set = spec_char_set
@@ -325,11 +360,18 @@ impl StoreUserOp {
         Ok((cmd, pdi_iter))
     }
 
-    pub fn process_rsp(&mut self, msg: &CommandMessage) {
+    /// Process a C-STORE-RP response, marking this operation as completed if the status is not
+    /// pending.
+    ///
+    /// # Errors
+    /// - None, this returns a `Result` for consistency with other operations.
+    pub fn process_rsp(&mut self, msg: &CommandMessage) -> Result<(), AssocError> {
         self.is_complete |= !msg.status().is_pending();
+        Ok(())
     }
 }
 
+/// A C-GET operation to be managed by an SCU.
 pub struct GetUserOp {
     msg_id: u16,
     is_complete: bool,
@@ -354,6 +396,10 @@ impl GetUserOp {
         self.is_complete
     }
 
+    /// Createa a C-GET-RQ request. Returns the command and dataset to be sent.
+    ///
+    /// # Errors
+    /// - If the association has no matching support for the query level specified.
     pub fn create_req(
         &mut self,
         assoc: &CommonAssoc,
@@ -378,6 +424,11 @@ impl GetUserOp {
         Ok((cmd, dcm_query))
     }
 
+    /// Process a C-GET-RP response. If the status is not pending then this operation will be
+    /// marked as completed.
+    ///
+    /// # Errors
+    /// - None, this returns a `Result` for consistency with other operations.
     pub fn process_rsp<R: Read, W: Write>(
         &mut self,
         mut _reader: R,
@@ -389,6 +440,7 @@ impl GetUserOp {
     }
 }
 
+/// A C-MOVE operation to be managed by an SCU.
 pub struct MoveUserOp {
     msg_id: u16,
     is_complete: bool,
@@ -413,6 +465,10 @@ impl MoveUserOp {
         self.is_complete
     }
 
+    /// Create a C-MOVE-RQ request. Returns the command and query to be sent.
+    ///
+    /// # Errors
+    /// - If the association does not support the query level for this move operation.
     pub fn create_req(
         &mut self,
         assoc: &CommonAssoc,
@@ -439,6 +495,11 @@ impl MoveUserOp {
         Ok((cmd, dcm_root))
     }
 
+    /// Process a C-MOVE-RP response. If the status is not pending then this operation will be
+    /// marked as completed.
+    ///
+    /// # Errors
+    /// - None, this returns a `Result` for consistency with other operations.
     pub fn process_rsp<R: Read, W: Write>(
         &mut self,
         mut _reader: R,
