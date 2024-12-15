@@ -25,7 +25,7 @@ use crate::app::scpapp::AssociationDevice;
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_echo_req(
         &mut self,
-        mut op: EchoSvcOp,
+        op: &mut EchoSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
         let pdu_max_snd_size = self.assoc.common().get_pdu_max_snd_size();

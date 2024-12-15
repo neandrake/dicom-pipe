@@ -28,7 +28,7 @@ use crate::app::scpapp::AssociationDevice;
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_store_req(
         &mut self,
-        mut op: StoreSvcOp,
+        op: &mut StoreSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
         op.process_req(cmd)?;

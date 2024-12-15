@@ -127,27 +127,21 @@ pub mod common_stddicom {
     /// Checks that the first 132 bytes are 128 0's followed by 'DICM'.
     /// DICOM files do not need to abide by this format to be valid, but it's standard.
     pub fn is_standard_dcm_file<R: Read>(parser: &Parser<'_, R>) -> bool {
-        match parser.file_preamble() {
-            Some(file_preamble) => {
-                for b in file_preamble.iter().take(FILE_PREAMBLE_LENGTH) {
-                    if *b != 0 {
-                        eprintln!("BAD PREAMBLE??");
-                        return false;
-                    }
+        if let Some(file_preamble) = parser.file_preamble() {
+            for b in file_preamble.iter().take(FILE_PREAMBLE_LENGTH) {
+                if *b != 0 {
+                    eprintln!("BAD PREAMBLE??");
+                    return false;
                 }
             }
-            None => {}
         }
 
-        match parser.dicom_prefix() {
-            Some(prefix) => {
-                for i in 0..DICOM_PREFIX_LENGTH {
-                    if prefix[i] != DICOM_PREFIX[i] {
-                        return false;
-                    }
+        if let Some(prefix) = parser.dicom_prefix() {
+            for i in 0..DICOM_PREFIX_LENGTH {
+                if prefix[i] != DICOM_PREFIX[i] {
+                    return false;
                 }
             }
-            None => {}
         }
         true
     }

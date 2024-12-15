@@ -143,7 +143,7 @@ pub(crate) struct QueryResults {
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_find_req(
         &mut self,
-        mut op: FindSvcOp,
+        op: &mut FindSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
         let pdu_max_snd_size = self.assoc.common().get_pdu_max_snd_size();

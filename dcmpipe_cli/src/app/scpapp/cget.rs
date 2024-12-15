@@ -36,7 +36,7 @@ use crate::app::scpapp::{fail, prog, AssociationDevice, Stat, StatusMsgBuilder};
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_get_req(
         &mut self,
-        mut op: GetSvcOp,
+        op: &mut GetSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
         let dcm_query =

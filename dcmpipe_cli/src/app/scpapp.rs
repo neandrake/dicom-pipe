@@ -246,35 +246,36 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 continue;
             }
 
-            let Some(op) = CommonAssoc::recv_req(&cmd)? else {
+            let Some(mut op) = CommonAssoc::recv_req(&cmd)? else {
                 continue;
             };
 
             match op {
-                AssocSvcOp::Echo(op) => {
+                AssocSvcOp::Echo(ref mut op) => {
                     self.handle_c_echo_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CEchoRsp);
                 }
-                AssocSvcOp::Find(op) => {
+                AssocSvcOp::Find(ref mut op) => {
                     self.handle_c_find_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CFindRsp);
                 }
-                AssocSvcOp::Get(op) => {
+                AssocSvcOp::Get(ref mut op) => {
                     self.handle_c_get_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CGetRsp);
                 }
-                AssocSvcOp::Move(op) => {
+                AssocSvcOp::Move(ref mut op) => {
                     self.handle_c_move_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CMoveRsp);
                 }
-                AssocSvcOp::Store(op) => {
+                AssocSvcOp::Store(ref mut op) => {
                     self.handle_c_store_req(op, &cmd)?;
                     println!("[info ->]: {:?}", CommandType::CStoreRsp);
                 }
-                AssocSvcOp::Cancel(op) => {
+                AssocSvcOp::Cancel(ref op) => {
                     self.assoc.common_mut().remove_svc_op(op.msg_id());
                 }
             }
+            self.assoc.common_mut().add_svc_op(cmd.msg_id(), op);
         }
     }
 

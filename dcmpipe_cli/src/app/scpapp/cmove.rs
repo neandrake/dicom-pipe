@@ -39,7 +39,7 @@ use crate::app::scpapp::{fail, prog, AssociationDevice, Stat, StatusMsgBuilder};
 impl<R: Read, W: Write> AssociationDevice<R, W> {
     pub(crate) fn handle_c_move_req(
         &mut self,
-        mut op: MoveSvcOp,
+        op: &mut MoveSvcOp,
         cmd: &CommandMessage,
     ) -> Result<(), AssocError> {
         let statter = StatusMsgBuilder::new(
