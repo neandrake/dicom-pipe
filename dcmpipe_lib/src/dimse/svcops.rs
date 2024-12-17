@@ -21,7 +21,7 @@ use crate::{
     dict::tags::{AffectedSOPClassUID, MoveDestination},
     dimse::{
         assoc::CommonAssoc,
-        commands::{messages::CommandMessage, CommandStatus, SubOpProgress},
+        commands::{messages::CommandMessage, CommandStatus, CommandType, SubOpProgress},
         error::AssocError,
     },
 };
@@ -33,6 +33,25 @@ pub enum AssocSvcOp {
     Move(MoveSvcOp),
     Store(StoreSvcOp),
     Cancel(CancelSvcOp),
+}
+
+impl AssocSvcOp {
+    /// Creates a new `AssocSvcOp` based on the `CommandType`, with the message ID.
+    ///
+    /// # Return
+    /// The `AssocSvcOp` which can be used for further processing. If the request is any N- request
+    /// then `None` will be returned.
+    pub fn new_from_cmd(cmd: &CommandMessage) -> Option<AssocSvcOp> {
+        match cmd.cmd_type() {
+            CommandType::CEchoReq => Some(AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id()))),
+            CommandType::CFindReq => Some(AssocSvcOp::Find(FindSvcOp::new(cmd.msg_id()))),
+            CommandType::CGetReq => Some(AssocSvcOp::Get(GetSvcOp::new(cmd.msg_id()))),
+            CommandType::CMoveReq => Some(AssocSvcOp::Move(MoveSvcOp::new(cmd.msg_id()))),
+            CommandType::CStoreReq => Some(AssocSvcOp::Store(StoreSvcOp::new(cmd.msg_id()))),
+            CommandType::CCancelReq => Some(AssocSvcOp::Cancel(CancelSvcOp::new(cmd.msg_id()))),
+            _ => None,
+        }
+    }
 }
 
 /// A C-ECHO operation to be managed by an SCP.

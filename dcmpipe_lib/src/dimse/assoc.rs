@@ -30,7 +30,7 @@ use crate::{
     },
     dict::{stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian},
     dimse::{
-        commands::{messages::CommandMessage, CommandType},
+        commands::messages::CommandMessage,
         error::{AssocError, DimseError},
         pdus::{
             mainpdus::{
@@ -40,7 +40,7 @@ use crate::{
             userpdus::{AsyncOperationsWindowItem, MaxLengthItem},
             Pdu, UserPdu,
         },
-        svcops::{AssocSvcOp, CancelSvcOp, EchoSvcOp, FindSvcOp, GetSvcOp, MoveSvcOp, StoreSvcOp},
+        svcops::AssocSvcOp,
         userops::{AssocUserOp, EchoUserOp, FindUserOp, GetUserOp, MoveUserOp, StoreUserOp},
         Syntax,
     },
@@ -523,27 +523,6 @@ impl CommonAssoc {
 
     pub fn remove_svc_op(&mut self, msg_id: u16) {
         self.active_svc_ops.remove(&msg_id);
-    }
-
-    /// Registers a `CommandMessage` request.
-    ///
-    /// # Return
-    /// The `AssocSvcOp` which can be used for further processing. If the request is a C-CANCEL or
-    /// any N- request then `None` will be returned.
-    ///
-    /// # Errors
-    /// - `AssocError` will be returned if an existing operation with the same message ID is
-    ///   already active.
-    pub fn recv_req(cmd: &CommandMessage) -> Result<Option<AssocSvcOp>, AssocError> {
-        match cmd.cmd_type() {
-            CommandType::CEchoReq => Ok(Some(AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id())))),
-            CommandType::CFindReq => Ok(Some(AssocSvcOp::Find(FindSvcOp::new(cmd.msg_id())))),
-            CommandType::CGetReq => Ok(Some(AssocSvcOp::Get(GetSvcOp::new(cmd.msg_id())))),
-            CommandType::CMoveReq => Ok(Some(AssocSvcOp::Move(MoveSvcOp::new(cmd.msg_id())))),
-            CommandType::CStoreReq => Ok(Some(AssocSvcOp::Store(StoreSvcOp::new(cmd.msg_id())))),
-            CommandType::CCancelReq => Ok(Some(AssocSvcOp::Cancel(CancelSvcOp::new(cmd.msg_id())))),
-            _ => Ok(None),
-        }
     }
 
     /// Issue a C-ECHO request.

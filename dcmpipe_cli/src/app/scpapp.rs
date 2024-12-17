@@ -239,14 +239,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
             };
             println!("[info <-]: {:?}", cmd.cmd_type());
 
-            if cmd.cmd_type() == &CommandType::CCancelReq {
-                // TODO: After implementing async PDU handling this should cancel in-flight
-                // operations.
-                println!("[warn <-]: {:?}", CommandType::CCancelReq);
-                continue;
-            }
-
-            let Some(mut op) = CommonAssoc::recv_req(&cmd)? else {
+            let Some(mut op) = AssocSvcOp::new_from_cmd(&cmd) else {
                 continue;
             };
 
@@ -273,6 +266,7 @@ impl<R: Read, W: Write> AssociationDevice<R, W> {
                 }
                 AssocSvcOp::Cancel(ref op) => {
                     self.assoc.common_mut().remove_svc_op(op.msg_id());
+                    println!("[info ->]: {:?}", CommandType::CCancelReq);
                 }
             }
             self.assoc.common_mut().add_svc_op(cmd.msg_id(), op);
