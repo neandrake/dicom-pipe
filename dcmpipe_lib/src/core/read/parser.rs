@@ -362,7 +362,7 @@ impl<'d, R: Read> Parser<'d, R> {
         let ts_str = if self.dataset_ts == self.ts_last_used {
             "dataset_ts"
         } else if let Some(ts) = self.ts_last_used {
-            ts.uid.ident
+            ts.uid().ident()
         } else {
             "N/A"
         };

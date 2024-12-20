@@ -53,7 +53,7 @@ impl CommandApplication for PrintApp {
         stdout.write_all(format!(
             "\n# Dicom-File-Format File: {:#?}\n\n# Dicom-Meta-Information-Header\n# Used TransferSyntax: {}\n",
             path,
-            parser.ts().uid.ident).as_ref()
+            parser.ts().uid().ident()).as_ref()
         )?;
 
         let mut prev_was_file_meta: bool = true;
@@ -65,7 +65,7 @@ impl CommandApplication for PrintApp {
                 stdout.write_all(
                     format!(
                         "\n# Dicom-Data-Set\n# Used TransferSyntax: {}\n",
-                        parser.ts().uid.ident
+                        parser.ts().uid().ident()
                     )
                     .as_ref(),
                 )?;

@@ -38,24 +38,42 @@ pub type TagRef = &'static Tag;
 #[derive(Debug, Eq)]
 pub struct Tag {
     /// Identifier or name which can be used with a `DicomDictionary`.
-    pub ident: &'static str,
+    ident: &'static str,
 
     /// The tag number.
-    pub tag: u32,
+    tag: u32,
 
     /// The default value representation which should be used to read this tag when parsing
     /// `ImplicitVR` transfer syntaxes. Some tags may support multiple possible implicit VRs,
     /// however this is not currently supported.
-    pub implicit_vr: Option<VRRef>,
+    implicit_vr: Option<VRRef>,
 
     /// The value multiplicity indicating how many values might be encoded in the element.
-    pub vm: VMRef,
+    vm: VMRef,
 
     /// A longer name or description of the tag.
-    pub desc: &'static str,
+    desc: &'static str,
 }
 
 impl Tag {
+    /// Create a new tag.
+    #[must_use]
+    pub const fn new(
+        ident: &'static str,
+        tag: u32,
+        implicit_vr: Option<VRRef>,
+        vm: VMRef,
+        desc: &'static str,
+    ) -> Self {
+        Self {
+            ident,
+            tag,
+            implicit_vr,
+            vm,
+            desc,
+        }
+    }
+
     /// Get the tag's identifier.
     #[must_use]
     pub fn ident(&self) -> &'static str {
@@ -78,6 +96,12 @@ impl Tag {
     #[must_use]
     pub fn vm(&self) -> VMRef {
         self.vm
+    }
+
+    /// Get the description of the tag.
+    #[must_use]
+    pub fn desc(&self) -> &'static str {
+        self.desc
     }
 
     #[must_use]

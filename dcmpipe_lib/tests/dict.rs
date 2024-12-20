@@ -25,9 +25,16 @@ mod dict_tests {
             },
             tags::{FilesetID, PixelData, TransferSyntaxUID},
             transfer_syntaxes::{ExplicitVRLittleEndian, ImplicitVRLittleEndian},
-            uids::CTImageStorage,
+            uids::{CTImageStorage, MRImageStorage},
         },
     };
+
+    #[test]
+    pub fn test_equality() {
+        assert_eq!(MRImageStorage.ident(), "MRImageStorage");
+        assert_eq!(MRImageStorage.uid(), "1.2.840.10008.5.1.4.1.1.4");
+        assert_eq!(MRImageStorage.name(), "MR Image Storage");
+    }
 
     /// These tests are using the lookup maps directly rather than using a `DicomDictionary`, and must
     /// account for the maps using lowercased keys.
@@ -84,11 +91,11 @@ mod dict_tests {
         assert_eq!(&ImplicitVRLittleEndian, ivrle_by_id);
 
         let ivrle_by_uid: &TransferSyntax = TS_BY_UID
-            .get(ImplicitVRLittleEndian.uid.uid)
+            .get(ImplicitVRLittleEndian.uid().uid())
             .unwrap_or_else(|| {
                 panic!(
                     "TransferSyntax {}, not found",
-                    ImplicitVRLittleEndian.uid.uid
+                    ImplicitVRLittleEndian.uid().uid()
                 )
             });
         assert_eq!(&ImplicitVRLittleEndian, ivrle_by_uid);
@@ -104,11 +111,11 @@ mod dict_tests {
         assert_eq!(&ExplicitVRLittleEndian, evrle_by_id);
 
         let evrle_by_uid: &TransferSyntax = TS_BY_UID
-            .get(ExplicitVRLittleEndian.uid.uid)
+            .get(ExplicitVRLittleEndian.uid().uid())
             .unwrap_or_else(|| {
                 panic!(
                     "TransferSyntax {}, not found",
-                    ExplicitVRLittleEndian.uid.uid
+                    ExplicitVRLittleEndian.uid().uid()
                 )
             });
         assert_eq!(&ExplicitVRLittleEndian, evrle_by_uid);
@@ -133,68 +140,68 @@ mod dict_tests {
     #[test]
     fn test_ts_name_vs_properties() {
         for (_, ts) in TS_BY_IDENT.entries() {
-            let contains_little: bool = ts.uid.ident().contains("LittleEndian");
-            let contains_big: bool = ts.uid.ident().contains("BigEndian");
-            let contains_explicit: bool = ts.uid.ident().contains("ExplicitVR");
-            let contains_implicit: bool = ts.uid.ident().contains("ImplicitVR");
-            let contains_deflate: bool = ts.uid.ident().contains("Deflate");
-            let contains_encapsulated: bool = ts.uid.ident().contains("Encapsulated");
+            let contains_little: bool = ts.uid().ident().contains("LittleEndian");
+            let contains_big: bool = ts.uid().ident().contains("BigEndian");
+            let contains_explicit: bool = ts.uid().ident().contains("ExplicitVR");
+            let contains_implicit: bool = ts.uid().ident().contains("ImplicitVR");
+            let contains_deflate: bool = ts.uid().ident().contains("Deflate");
+            let contains_encapsulated: bool = ts.uid().ident().contains("Encapsulated");
 
             if contains_little {
                 assert!(
-                    !ts.big_endian,
+                    !ts.big_endian(),
                     "Name contains \"LittleEndian\" but is big_endian: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             } else if contains_big {
                 assert!(
-                    ts.big_endian,
+                    ts.big_endian(),
                     "Name contains \"BigEndian\" but is not big_endian: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             } else {
                 // Defined/known TS's without "big/little" in the name are assumed little endian
                 assert!(
-                    !ts.big_endian,
+                    !ts.big_endian(),
                     "Name contains no endian but is not big_endian: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             }
 
             if contains_explicit {
                 assert!(
-                    ts.explicit_vr,
+                    ts.explicit_vr(),
                     "Name contains \"ExplicitVR\" but is not explicit_vr: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             } else if contains_implicit {
                 assert!(
-                    !ts.explicit_vr,
+                    !ts.explicit_vr(),
                     "Name contains \"ImplicitVR\" but is explicit_vr: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             } else {
                 // Transfer syntaxes without "implicit/explicit" in name assumed to be explicit vr
                 assert!(
-                    ts.explicit_vr,
+                    ts.explicit_vr(),
                     "Name contains no vr but is not explicit_vr: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             }
 
             if contains_deflate {
                 assert!(
-                    ts.deflated,
+                    ts.deflated(),
                     "Name contains \"Deflate\" but is not deflated: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             }
 
             if contains_encapsulated {
                 assert!(
-                    ts.encapsulated,
+                    ts.encapsulated(),
                     "Name contains \"Encapsulated\" but is not encapsulated: {:?}",
-                    ts.uid
+                    ts.uid()
                 );
             }
         }

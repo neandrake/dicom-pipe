@@ -142,11 +142,11 @@ macro_rules! uid_definition {
 ///
 /// - **UID:** {}
 /// - **UID Type:** {}
-pub static {}: UID = UID {{
-    ident: \"{}\",
-    uid: \"{}\",
-    name: \"{}\",
-}};
+pub static {}: UID = UID::new(
+    \"{}\",
+    \"{}\",
+    \"{}\",
+);
 
 ", $($args)*)
     };
@@ -158,13 +158,13 @@ macro_rules! transfer_syntax_definition {
 "/// {}
 ///
 /// - **UID:** {}
-pub static {}: TransferSyntax = TransferSyntax {{
-    uid: {},
-    explicit_vr: {},
-    big_endian: {},
-    deflated: {},
-    encapsulated: {},
-}};
+pub static {}: TransferSyntax = TransferSyntax::new(
+    {},
+    {},
+    {},
+    {},
+    {},
+);
 
 ", $($args)*)
     };
@@ -178,13 +178,13 @@ macro_rules! dicom_element_definition {
 /// - **Tag:** {}
 /// - **VR:** {}
 /// - **VM:** {}
-pub static {}: Tag = Tag {{
-    ident: \"{}\",
-    tag: 0x{:04X}_{:04X},
-    implicit_vr: {},
-    vm: {},
-    desc: \"{}\",
-}};
+pub static {}: Tag = Tag::new(
+    \"{}\",
+    0x{:04X}_{:04X},
+    {},
+    {},
+    \"{}\",
+);
 
 ", $($args)*)
     };

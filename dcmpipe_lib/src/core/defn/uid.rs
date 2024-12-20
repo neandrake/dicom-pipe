@@ -24,19 +24,20 @@ pub type UIDRef = &'static UID;
 #[derive(Debug, Eq)]
 pub struct UID {
     /// Identifier or name which can be used with a `DicomDictionary`.
-    pub ident: &'static str,
+    ident: &'static str,
 
     /// The string representation of the UID.
-    pub uid: &'static str,
+    uid: &'static str,
 
     /// A longer name or description of the UID.
-    pub name: &'static str,
+    name: &'static str,
 }
 
 impl UID {
+    /// Create a new UID.
     #[must_use]
-    pub fn new(uid: &'static str, ident: &'static str, name: &'static str) -> UID {
-        UID { ident, uid, name }
+    pub const fn new(ident: &'static str, uid: &'static str, name: &'static str) -> Self {
+        Self { ident, uid, name }
     }
 
     /// Get the identifier or name for this UID.

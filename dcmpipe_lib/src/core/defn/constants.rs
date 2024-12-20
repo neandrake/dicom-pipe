@@ -45,57 +45,57 @@ pub mod ts {
     /// Implicit VR Little Endian: Default Transfer Syntax for DICOM
     ///
     /// - **UID:** 1.2.840.10008.1.2
-    pub static ImplicitVRLittleEndian: TransferSyntax = TransferSyntax {
-        uid: &super::uids::ImplicitVRLittleEndian,
-        explicit_vr: false,
-        big_endian: false,
-        deflated: false,
-        encapsulated: false,
-    };
+    pub static ImplicitVRLittleEndian: TransferSyntax = TransferSyntax::new(
+        &super::uids::ImplicitVRLittleEndian,
+        false,
+        false,
+        false,
+        false,
+    );
 
     /// Explicit VR Little Endian
     ///
     /// - **UID:** 1.2.840.10008.1.2.1
-    pub static ExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
-        uid: &super::uids::ExplicitVRLittleEndian,
-        explicit_vr: true,
-        big_endian: false,
-        deflated: false,
-        encapsulated: false,
-    };
+    pub static ExplicitVRLittleEndian: TransferSyntax = TransferSyntax::new(
+        &super::uids::ExplicitVRLittleEndian,
+        true,
+        false,
+        false,
+        false,
+    );
 
     /// Explicit VR Big Endian (Retired)
     ///
     /// - **UID:** 1.2.840.10008.1.2.2
-    pub static ExplicitVRBigEndian: TransferSyntax = TransferSyntax {
-        uid: &super::uids::ExplicitVRBigEndian,
-        explicit_vr: true,
-        big_endian: true,
-        deflated: false,
-        encapsulated: false,
-    };
+    pub static ExplicitVRBigEndian: TransferSyntax = TransferSyntax::new(
+        &super::uids::ExplicitVRBigEndian,
+        true,
+        true,
+        false,
+        false,
+    );
 
     /// Implicit VR Big Endian (Virtual)
     ///
     /// - **UID:**
-    pub static ImplicitVRBigEndian: TransferSyntax = TransferSyntax {
-        uid: &super::uids::ImplicitVRBigEndian,
-        explicit_vr: false,
-        big_endian: true,
-        deflated: false,
-        encapsulated: false,
-    };
+    pub static ImplicitVRBigEndian: TransferSyntax = TransferSyntax::new(
+        &super::uids::ImplicitVRBigEndian,
+        false,
+        true,
+        false,
+        false,
+    );
 
     /// Deflated Explicit VR Little Endian
     ///
     /// - **UID:** 1.2.840.10008.1.2.1.99
-    pub static DeflatedExplicitVRLittleEndian: TransferSyntax = TransferSyntax {
-        uid: &super::uids::DeflatedExplicitVRLittleEndian,
-        explicit_vr: true,
-        big_endian: false,
-        deflated: true,
-        encapsulated: false,
-    };
+    pub static DeflatedExplicitVRLittleEndian: TransferSyntax = TransferSyntax::new(
+        &super::uids::DeflatedExplicitVRLittleEndian,
+        true,
+        false,
+        true,
+        false,
+    );
 }
 
 /// The minimal set of UIDs needed when parsing a DICOM dataset.
@@ -108,51 +108,51 @@ pub mod uids {
     ///
     /// - **UID:** 1.2.840.10008.1.2
     /// - **UID Type:** Transfer Syntax
-    pub static ImplicitVRLittleEndian: UID = UID {
-        ident: "ImplicitVRLittleEndian",
-        uid: "1.2.840.10008.1.2",
-        name: "Implicit VR Little Endian: Default Transfer Syntax for DICOM",
-    };
+    pub static ImplicitVRLittleEndian: UID = UID::new(
+        "ImplicitVRLittleEndian",
+        "1.2.840.10008.1.2",
+        "Implicit VR Little Endian: Default Transfer Syntax for DICOM",
+    );
 
     /// Explicit VR Little Endian
     ///
     /// - **UID:** 1.2.840.10008.1.2.1
     /// - **UID Type:** Transfer Syntax
-    pub static ExplicitVRLittleEndian: UID = UID {
-        ident: "ExplicitVRLittleEndian",
-        uid: "1.2.840.10008.1.2.1",
-        name: "Explicit VR Little Endian",
-    };
+    pub static ExplicitVRLittleEndian: UID = UID::new(
+        "ExplicitVRLittleEndian",
+        "1.2.840.10008.1.2.1",
+        "Explicit VR Little Endian",
+    );
 
     /// Deflated Explicit VR Little Endian
     ///
     /// - **UID:** 1.2.840.10008.1.2.1.99
     /// - **UID Type:** Transfer Syntax
-    pub static DeflatedExplicitVRLittleEndian: UID = UID {
-        ident: "DeflatedExplicitVRLittleEndian",
-        uid: "1.2.840.10008.1.2.1.99",
-        name: "Deflated Explicit VR Little Endian",
-    };
+    pub static DeflatedExplicitVRLittleEndian: UID = UID::new(
+        "DeflatedExplicitVRLittleEndian",
+        "1.2.840.10008.1.2.1.99",
+        "Deflated Explicit VR Little Endian",
+    );
 
     /// Explicit VR Big Endian (Retired)
     ///
     /// - **UID:** 1.2.840.10008.1.2.2
     /// - **UID Type:** Transfer Syntax
-    pub static ExplicitVRBigEndian: UID = UID {
-        ident: "ExplicitVRBigEndian",
-        uid: "1.2.840.10008.1.2.2",
-        name: "Explicit VR Big Endian (Retired)",
-    };
+    pub static ExplicitVRBigEndian: UID = UID::new(
+        "ExplicitVRBigEndian",
+        "1.2.840.10008.1.2.2",
+        "Explicit VR Big Endian (Retired)",
+    );
 
     /// Implicit VR Big Endian (Virtual)
     ///
     /// - **UID:**
     /// - **UID Type:** Transfer Syntax
-    pub static ImplicitVRBigEndian: UID = UID {
-        ident: "ImplicitVRBigEndian",
-        uid: "",
-        name: "Implicit VR Big Endian (Virtual)",
-    };
+    pub static ImplicitVRBigEndian: UID = UID::new(
+        "ImplicitVRBigEndian",
+        "",
+        "Implicit VR Big Endian (Virtual)",
+    );
 }
 
 /// The transfer syntax lookup for parsing a DICOM dataset.
@@ -174,13 +174,13 @@ pub mod lookup {
         }
 
         fn get_ts_by_uid(&self, uid: &str) -> Option<TSRef> {
-            if uid == uids::ImplicitVRLittleEndian.uid {
+            if uid == uids::ImplicitVRLittleEndian.uid() {
                 Some(&ts::ImplicitVRLittleEndian)
-            } else if uid == uids::ExplicitVRLittleEndian.uid {
+            } else if uid == uids::ExplicitVRLittleEndian.uid() {
                 Some(&ts::ExplicitVRLittleEndian)
-            } else if uid == uids::DeflatedExplicitVRLittleEndian.uid {
+            } else if uid == uids::DeflatedExplicitVRLittleEndian.uid() {
                 Some(&ts::DeflatedExplicitVRLittleEndian)
-            } else if uid == uids::ExplicitVRBigEndian.uid {
+            } else if uid == uids::ExplicitVRBigEndian.uid() {
                 Some(&ts::ExplicitVRBigEndian)
             } else {
                 None

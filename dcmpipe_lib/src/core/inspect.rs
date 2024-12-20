@@ -218,7 +218,7 @@ impl<'e> FormattedElement<'e> {
             FormattedTagType::GroupLength(self.elem.tag())
         } else {
             if let Some(tag) = self.dict.get_tag_by_number(self.elem.tag()) {
-                return FormattedTagType::Known(tag.tag, tag.ident.to_string());
+                return FormattedTagType::Known(tag.tag(), tag.ident().to_string());
             }
 
             FormattedTagType::Unknown(self.elem.tag())
@@ -255,11 +255,11 @@ impl<'e> FormattedElement<'e> {
                 let uid_lookup = self.dict.get_uid_by_uid(&uid_str);
                 match uid_lookup {
                     Some(found_uid) => {
-                        let uid_name = if let Some((name, _detail)) = found_uid.name.split_once(':')
+                        let uid_name = if let Some((name, _detail)) = found_uid.name().split_once(':')
                         {
                             name
                         } else {
-                            found_uid.name
+                            found_uid.name()
                         };
                         return FormattedTagValue::Uid(uid_str.to_string(), uid_name.to_string());
                     }

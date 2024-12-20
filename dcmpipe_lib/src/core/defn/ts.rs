@@ -30,24 +30,24 @@ pub type TSRef = &'static TransferSyntax;
 /// Transfer Syntax Definition
 pub struct TransferSyntax {
     /// Identifier or name which can be used with a `DicomDictionary`.
-    pub uid: UIDRef,
+    uid: UIDRef,
 
     /// If Native Encoding, whether this encodes with `ExplicitVR` or `ImplicitVR`. The majority of
     /// transfer syntaxes are explicit VR.
-    pub explicit_vr: bool,
+    explicit_vr: bool,
 
     /// If Native Encoding, whether this encodes using `BigEndian` or `LittleEndian`. The majority of
     /// transfer syntaxes are little endian.
-    pub big_endian: bool,
+    big_endian: bool,
 
     /// A few transfer syntaxes are deflated which means all contents after the file meta segment
     /// are compressed using RFC 1951, including the dicom encodings.
-    pub deflated: bool,
+    deflated: bool,
 
     /// Encapsulated transfer syntaxes (basically anything that isn't the handful of
     /// implicit/explicit big/little endian), including all jpeg - the content of the `PixelData`
     /// segment is encoded in a different format from the rest of the dicom elements.
-    pub encapsulated: bool,
+    encapsulated: bool,
 }
 
 impl PartialEq for TransferSyntax {
@@ -63,6 +63,24 @@ impl Hash for TransferSyntax {
 }
 
 impl TransferSyntax {
+    /// Create a new TransferSyntax.
+    #[must_use]
+    pub const fn new(
+        uid: UIDRef,
+        explicit_vr: bool,
+        big_endian: bool,
+        deflated: bool,
+        encapsulated: bool,
+    ) -> Self {
+        Self {
+            uid,
+            explicit_vr,
+            big_endian,
+            deflated,
+            encapsulated,
+        }
+    }
+
     /// Get the transfer syntax's UID.
     #[must_use]
     pub fn uid(&self) -> UIDRef {

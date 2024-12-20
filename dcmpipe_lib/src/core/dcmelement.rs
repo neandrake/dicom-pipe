@@ -205,7 +205,13 @@ impl DicomElement {
     /// Returns if this element is a `SQ` or if it should be parsed as though it were a sequence.
     #[must_use]
     pub fn is_sq_like(&self) -> bool {
-        self.vr == &SQ || is_non_standard_sq(self.tag, self.vr, self.vl)
+        self.vr == &SQ || self.has_fragments()
+    }
+
+    /// Returns if this element's value is encoded in fragments.
+    #[must_use]
+    pub fn has_fragments(&self) -> bool {
+        is_non_standard_sq(self.tag, self.vr, self.vl)
     }
 
     /// Returns if this element is a sequence delimiter element.

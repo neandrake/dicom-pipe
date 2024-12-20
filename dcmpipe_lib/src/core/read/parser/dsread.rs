@@ -86,7 +86,7 @@ impl<R: Read> Parser<'_, R> {
             elem_ts
         };
 
-        let vr: VRRef = if ts.explicit_vr {
+        let vr: VRRef = if ts.explicit_vr() {
             // The `partial_vr` may be populated as part of initial dataset parsing when attempting
             // to detect the transfer syntax. The UnknownExplicitVR error used here is only
             // transient error to transition to the `self.read_vr()`.
