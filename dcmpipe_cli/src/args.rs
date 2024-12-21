@@ -31,6 +31,9 @@ pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
     Print(PrintArgs),
 
+    /// Encodes PixelData into a standard image format.
+    Image(ImageArgs),
+
     /// Browse a DICOM dataset in a text-based user interface.
     Browse(BrowseArgs),
 
@@ -59,6 +62,15 @@ pub enum Command {
 pub struct PrintArgs {
     /// The file to process as a DICOM dataset.
     pub file: PathBuf,
+}
+
+#[derive(Args, Debug)]
+pub struct ImageArgs {
+    /// The DICOM file to extract image data from.
+    pub file: PathBuf,
+
+    /// The output file to save the encoded image.
+    pub output: PathBuf,
 }
 
 #[derive(Args, Debug)]
