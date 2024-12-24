@@ -119,7 +119,7 @@ impl BitsAllocated {
 }
 
 #[derive(Debug)]
-struct DcmImageInfo {
+struct PixelDataInfo {
     modality: Modality,
     bytes_in_word: u8,
     signed: bool,
@@ -140,7 +140,7 @@ struct DcmImageInfo {
     window_labels: Vec<String>,
 }
 
-impl Default for DcmImageInfo {
+impl Default for PixelDataInfo {
     fn default() -> Self {
         Self {
             modality: Modality::Unsupported(String::new()),
@@ -165,7 +165,7 @@ impl Default for DcmImageInfo {
     }
 }
 
-impl DcmImageInfo {
+impl PixelDataInfo {
     /// Parses relevant DICOM element values into this structure.
     fn parse_elem(&mut self, elem: &DicomElement) -> Result<()> {
         // The order of the tag checks here are the order they will appear in a DICOM protocol.
@@ -299,7 +299,7 @@ impl DcmImageInfo {
 }
 
 #[allow(dead_code)]
-enum DcmImageBuffer {
+enum PixelDataBuffer {
     I8 {
         buffer: Vec<i8>,
         min: i8,
@@ -332,7 +332,7 @@ enum DcmImageBuffer {
     },
 }
 
-impl std::fmt::Debug for DcmImageBuffer {
+impl std::fmt::Debug for PixelDataBuffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::I8 { buffer, min, max } => f
@@ -375,25 +375,25 @@ impl std::fmt::Debug for DcmImageBuffer {
     }
 }
 
-impl DcmImageBuffer {
-    fn parse(image_info: &DcmImageInfo, bytes: &mut ByteBuffer) -> Result<Self> {
-        let len = Into::<usize>::into(image_info.rows) * Into::<usize>::into(image_info.cols);
-        match image_info.bits_allocated {
+impl PixelDataBuffer {
+    fn parse(pixdata_info: &PixelDataInfo, bytes: &mut ByteBuffer) -> Result<Self> {
+        let len = Into::<usize>::into(pixdata_info.rows) * Into::<usize>::into(pixdata_info.cols);
+        match pixdata_info.bits_allocated {
             BitsAllocated::Unspecified(_) => Err(anyhow!(
                 "Unsupported BitsAllocated: {}",
-                image_info.bits_allocated
+                pixdata_info.bits_allocated
             )),
             BitsAllocated::Eight => {
-                if image_info.signed {
+                if pixdata_info.signed {
                     let mut buffer: Vec<i8> =
-                        Vec::with_capacity(len * image_info.samples_per_pixel as usize);
+                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
                     let mut min: i8 = i8::MAX;
                     let mut max: i8 = i8::MIN;
-                    let pixel_pad_val = image_info
+                    let pixel_pad_val = pixdata_info
                         .pixel_padding_val
                         .and_then(|pad_val| TryInto::<i8>::try_into(pad_val).ok());
                     for _i in 0..len {
-                        for _j in 0..image_info.samples_per_pixel {
+                        for _j in 0..pixdata_info.samples_per_pixel {
                             let val = bytes.read_i8()?;
                             buffer.push(val);
                             if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
@@ -406,17 +406,17 @@ impl DcmImageBuffer {
                             }
                         }
                     }
-                    Ok(DcmImageBuffer::I8 { buffer, min, max })
+                    Ok(PixelDataBuffer::I8 { buffer, min, max })
                 } else {
                     let mut buffer: Vec<u8> =
-                        Vec::with_capacity(len * image_info.samples_per_pixel as usize);
+                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
                     let mut min: u8 = u8::MAX;
                     let mut max: u8 = u8::MIN;
-                    let pixel_pad_val = image_info
+                    let pixel_pad_val = pixdata_info
                         .pixel_padding_val
                         .and_then(|pad_val| TryInto::<u8>::try_into(pad_val).ok());
                     for _i in 0..len {
-                        for _j in 0..image_info.samples_per_pixel {
+                        for _j in 0..pixdata_info.samples_per_pixel {
                             let val = bytes.read_u8()?;
                             buffer.push(val);
                             if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
@@ -429,20 +429,20 @@ impl DcmImageBuffer {
                             }
                         }
                     }
-                    Ok(DcmImageBuffer::U8 { buffer, min, max })
+                    Ok(PixelDataBuffer::U8 { buffer, min, max })
                 }
             }
             BitsAllocated::Sixteen => {
-                if image_info.signed {
+                if pixdata_info.signed {
                     let mut buffer: Vec<i16> =
-                        Vec::with_capacity(len * image_info.samples_per_pixel as usize);
+                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
                     let mut min: i16 = i16::MAX;
                     let mut max: i16 = i16::MIN;
-                    let pixel_pad_val = image_info
+                    let pixel_pad_val = pixdata_info
                         .pixel_padding_val
                         .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
                     for _i in 0..len {
-                        for _j in 0..image_info.samples_per_pixel {
+                        for _j in 0..pixdata_info.samples_per_pixel {
                             let val = bytes.read_i16()?;
                             buffer.push(val);
                             if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
@@ -455,17 +455,17 @@ impl DcmImageBuffer {
                             }
                         }
                     }
-                    Ok(DcmImageBuffer::I16 { buffer, min, max })
+                    Ok(PixelDataBuffer::I16 { buffer, min, max })
                 } else {
                     let mut buffer: Vec<u16> =
-                        Vec::with_capacity(len * image_info.samples_per_pixel as usize);
+                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
                     let mut min: u16 = u16::MAX;
                     let mut max: u16 = u16::MIN;
                     for _i in 0..len {
-                        for _j in 0..image_info.samples_per_pixel {
+                        for _j in 0..pixdata_info.samples_per_pixel {
                             let val = bytes.read_u16()?;
                             buffer.push(val);
-                            if image_info
+                            if pixdata_info
                                 .pixel_padding_val
                                 .is_none_or(|pad_val| val != pad_val)
                             {
@@ -478,18 +478,18 @@ impl DcmImageBuffer {
                             }
                         }
                     }
-                    Ok(DcmImageBuffer::U16 { buffer, min, max })
+                    Ok(PixelDataBuffer::U16 { buffer, min, max })
                 }
             }
             BitsAllocated::ThirtyTwo => {
-                if image_info.signed {
+                if pixdata_info.signed {
                     let mut buffer: Vec<i32> =
-                        Vec::with_capacity(len * image_info.samples_per_pixel as usize);
+                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
                     let mut min: i32 = i32::MAX;
                     let mut max: i32 = i32::MIN;
-                    let pixel_pad_val = image_info.pixel_padding_val.map(Into::<i32>::into);
+                    let pixel_pad_val = pixdata_info.pixel_padding_val.map(Into::<i32>::into);
                     for _i in 0..len {
-                        for _j in 0..image_info.samples_per_pixel {
+                        for _j in 0..pixdata_info.samples_per_pixel {
                             let val = bytes.read_i32()?;
                             buffer.push(val);
                             if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
@@ -502,15 +502,15 @@ impl DcmImageBuffer {
                             }
                         }
                     }
-                    Ok(DcmImageBuffer::I32 { buffer, min, max })
+                    Ok(PixelDataBuffer::I32 { buffer, min, max })
                 } else {
                     let mut buffer: Vec<u32> =
-                        Vec::with_capacity(len * image_info.samples_per_pixel as usize);
+                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
                     let mut min: u32 = u32::MAX;
                     let mut max: u32 = u32::MIN;
-                    let pixel_pad_val = image_info.pixel_padding_val.map(Into::<u32>::into);
+                    let pixel_pad_val = pixdata_info.pixel_padding_val.map(Into::<u32>::into);
                     for _i in 0..len {
-                        for _j in 0..image_info.samples_per_pixel {
+                        for _j in 0..pixdata_info.samples_per_pixel {
                             let val = bytes.read_u32()?;
                             buffer.push(val);
                             if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
@@ -523,7 +523,7 @@ impl DcmImageBuffer {
                             }
                         }
                     }
-                    Ok(DcmImageBuffer::U32 { buffer, min, max })
+                    Ok(PixelDataBuffer::U32 { buffer, min, max })
                 }
             }
         }
@@ -560,7 +560,7 @@ impl CommandApplication for ImageApp {
 
         let big_endian = parser.ts().big_endian();
 
-        let mut image_info: DcmImageInfo = DcmImageInfo::default();
+        let mut pixdata_info: PixelDataInfo = PixelDataInfo::default();
         let mut pixel_data: Option<DicomElement> = None;
         let mut in_pixel_data: bool = false;
         let mut fragmented_data: Vec<u8> = Vec::with_capacity(0);
@@ -574,7 +574,7 @@ impl CommandApplication for ImageApp {
             } else if in_pixel_data {
                 fragmented_data.extend_from_slice(elem.data());
             } else {
-                image_info.parse_elem(&elem)?;
+                pixdata_info.parse_elem(&elem)?;
             }
         }
 
@@ -582,9 +582,9 @@ impl CommandApplication for ImageApp {
             return Err(anyhow!("Missing PixelData"));
         };
 
-        image_info.validate(&pixel_data)?;
+        pixdata_info.validate(&pixel_data)?;
 
-        dbg!(&image_info);
+        dbg!(&pixdata_info);
 
         let mut bytes = if !fragmented_data.is_empty() {
             ByteBuffer::from_vec(fragmented_data)
@@ -595,40 +595,40 @@ impl CommandApplication for ImageApp {
 
         dbg!(bytes.len());
 
-        let dcm_image_buffer = DcmImageBuffer::parse(&image_info, &mut bytes)?;
+        let pixdata_buffer = PixelDataBuffer::parse(&pixdata_info, &mut bytes)?;
 
-        dbg!(&dcm_image_buffer);
+        dbg!(&pixdata_buffer);
 
-        match dcm_image_buffer {
-            DcmImageBuffer::I8 { buffer, min, max } => {
+        match pixdata_buffer {
+            PixelDataBuffer::I8 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
-                    ImageBuffer::new(image_info.rows.into(), image_info.cols.into());
+                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
                 let range = max - min;
                 let mut i = 0;
                 let mut loc = 0;
                 while i < buffer.len() {
-                    if image_info
+                    if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "RGB")
-                        && image_info.samples_per_pixel == 3
-                        && image_info.planar_config == 0
+                        && pixdata_info.samples_per_pixel == 3
+                        && pixdata_info.planar_config == 0
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let r = buffer[i] as u8;
                         let g = buffer[i + 1] as u8;
                         let b = buffer[i + 2] as u8;
                         image.put_pixel(x, y, Rgb([r, g, b]));
                         i += 3;
-                    } else if image_info
+                    } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "MONOCHROME1" || pi == "MONOCHROME2")
-                        && image_info.samples_per_pixel == 1
+                        && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let val = buffer[i];
                         let val = ((val as f32 / range as f32) * i8::MAX as f32) as u8;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -638,35 +638,35 @@ impl CommandApplication for ImageApp {
                 }
                 image.save(output_path_buf)?;
             }
-            DcmImageBuffer::U8 { buffer, min, max } => {
+            PixelDataBuffer::U8 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
-                    ImageBuffer::new(image_info.rows.into(), image_info.cols.into());
+                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
                 let range = max - min;
                 let mut i = 0;
                 let mut loc: usize = 0;
                 while i < buffer.len() {
-                    if image_info
+                    if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "RGB")
-                        && image_info.samples_per_pixel == 3
-                        && image_info.planar_config == 0
+                        && pixdata_info.samples_per_pixel == 3
+                        && pixdata_info.planar_config == 0
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let r = buffer[i];
                         let g = buffer[i + 1];
                         let b = buffer[i + 2];
                         image.put_pixel(x, y, Rgb([r, g, b]));
                         i += 3;
-                    } else if image_info
+                    } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "MONOCHROME1" || pi == "MONOCHROME2")
-                        && image_info.samples_per_pixel == 1
+                        && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let val = buffer[i];
                         let val = ((val as f32 / range as f32) * u8::MAX as f32) as u8;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -676,35 +676,35 @@ impl CommandApplication for ImageApp {
                 }
                 image.save(output_path_buf)?;
             }
-            DcmImageBuffer::I16 { buffer, min, max } => {
+            PixelDataBuffer::I16 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(image_info.rows.into(), image_info.cols.into());
+                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
                 let range = max - min;
                 let mut i = 0;
                 let mut loc = 0;
                 while i < buffer.len() {
-                    if image_info
+                    if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "RGB")
-                        && image_info.samples_per_pixel == 3
-                        && image_info.planar_config == 0
+                        && pixdata_info.samples_per_pixel == 3
+                        && pixdata_info.planar_config == 0
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let r = buffer[i] as u16;
                         let g = buffer[i + 1] as u16;
                         let b = buffer[i + 2] as u16;
                         image.put_pixel(x, y, Rgb([r, g, b]));
                         i += 3;
-                    } else if image_info
+                    } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "MONOCHROME1" || pi == "MONOCHROME2")
-                        && image_info.samples_per_pixel == 1
+                        && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let val = buffer[i];
                         let val = ((val as f32 / range as f32) * i16::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -714,35 +714,35 @@ impl CommandApplication for ImageApp {
                 }
                 image.save(output_path_buf)?;
             }
-            DcmImageBuffer::U16 { buffer, min, max } => {
+            PixelDataBuffer::U16 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(image_info.rows.into(), image_info.cols.into());
+                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
                 let range = max - min;
                 let mut i = 0;
                 let mut loc = 0;
                 while i < buffer.len() {
-                    if image_info
+                    if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "RGB")
-                        && image_info.samples_per_pixel == 3
-                        && image_info.planar_config == 0
+                        && pixdata_info.samples_per_pixel == 3
+                        && pixdata_info.planar_config == 0
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let r = buffer[i];
                         let g = buffer[i + 1];
                         let b = buffer[i + 2];
                         image.put_pixel(x, y, Rgb([r, g, b]));
                         i += 3;
-                    } else if image_info
+                    } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "MONOCHROME1" || pi == "MONOCHROME2")
-                        && image_info.samples_per_pixel == 1
+                        && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let val = buffer[i];
                         let val = ((val as f32 / range as f32) * u16::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -752,35 +752,35 @@ impl CommandApplication for ImageApp {
                 }
                 image.save(output_path_buf)?;
             }
-            DcmImageBuffer::I32 { buffer, min, max } => {
+            PixelDataBuffer::I32 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(image_info.rows.into(), image_info.cols.into());
+                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
                 let range = max - min;
                 let mut i = 0;
                 let mut loc = 0;
                 while i < buffer.len() {
-                    if image_info
+                    if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "RGB")
-                        && image_info.samples_per_pixel == 3
-                        && image_info.planar_config == 0
+                        && pixdata_info.samples_per_pixel == 3
+                        && pixdata_info.planar_config == 0
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let r = buffer[i] as u16;
                         let g = buffer[i + 1] as u16;
                         let b = buffer[i + 2] as u16;
                         image.put_pixel(x, y, Rgb([r, g, b]));
                         i += 3;
-                    } else if image_info
+                    } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "MONOCHROME1" || pi == "MONOCHROME2")
-                        && image_info.samples_per_pixel == 1
+                        && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let val = buffer[i];
                         let val = ((val as f32 / range as f32) * i32::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -790,35 +790,35 @@ impl CommandApplication for ImageApp {
                 }
                 image.save(output_path_buf)?;
             }
-            DcmImageBuffer::U32 { buffer, min, max } => {
+            PixelDataBuffer::U32 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(image_info.rows.into(), image_info.cols.into());
+                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
                 let range = max - min;
                 let mut i = 0;
                 let mut loc = 0;
                 while i < buffer.len() {
-                    if image_info
+                    if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "RGB")
-                        && image_info.samples_per_pixel == 3
-                        && image_info.planar_config == 0
+                        && pixdata_info.samples_per_pixel == 3
+                        && pixdata_info.planar_config == 0
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let r = buffer[i] as u16;
                         let g = buffer[i + 1] as u16;
                         let b = buffer[i + 2] as u16;
                         image.put_pixel(x, y, Rgb([r, g, b]));
                         i += 3;
-                    } else if image_info
+                    } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(|pi| pi == "MONOCHROME1" || pi == "MONOCHROME2")
-                        && image_info.samples_per_pixel == 1
+                        && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (loc as u32) % (image_info.rows as u32);
-                        let y = (loc as u32) / (image_info.rows as u32);
+                        let x = (loc as u32) % (pixdata_info.rows as u32);
+                        let y = (loc as u32) / (pixdata_info.rows as u32);
                         let val = buffer[i];
                         let val = ((val as f32 / range as f32) * u32::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
