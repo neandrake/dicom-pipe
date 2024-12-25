@@ -332,30 +332,15 @@ impl PixelDataInfo {
 
 #[allow(dead_code)]
 enum PixelDataBuffer {
-    I8 {
-        buffer: Vec<i8>,
-        min: i8,
-        max: i8,
-    },
     U8 {
         buffer: Vec<u8>,
         min: u8,
         max: u8,
     },
-    I16 {
-        buffer: Vec<i16>,
-        min: i16,
-        max: i16,
-    },
     U16 {
         buffer: Vec<u16>,
         min: u16,
         max: u16,
-    },
-    I32 {
-        buffer: Vec<i32>,
-        min: i32,
-        max: i32,
     },
     U32 {
         buffer: Vec<u32>,
@@ -365,6 +350,21 @@ enum PixelDataBuffer {
 }
 
 impl PixelDataBuffer {
+    /// Shift an i8 value into u8 space.
+    fn shift_i8(val: i8) -> u8 {
+        ((val as i16) + (i8::MAX as i16)) as u8
+    }
+
+    /// Shift an i16 value into u16 space.
+    fn shift_i16(val: i16) -> u16 {
+        ((val as i32) + (i16::MAX as i32)) as u16
+    }
+
+    /// Shift an i32 value into u32 space.
+    fn shift_i32(val: i32) -> u32 {
+        ((val as i64) + (i32::MAX as i64)) as u32
+    }
+
     fn parse(pixdata_info: &PixelDataInfo, bytes: &mut ByteBuffer) -> Result<Self> {
         let len = Into::<usize>::into(pixdata_info.cols) * Into::<usize>::into(pixdata_info.rows);
         match pixdata_info.bits_allocated {
@@ -373,147 +373,86 @@ impl PixelDataBuffer {
                 pixdata_info.bits_allocated
             )),
             BitsAllocated::Eight => {
-                if pixdata_info.signed {
-                    let mut buffer: Vec<i8> =
-                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
-                    let mut min: i8 = i8::MAX;
-                    let mut max: i8 = i8::MIN;
-                    let pixel_pad_val = pixdata_info
-                        .pixel_padding_val
-                        .and_then(|pad_val| TryInto::<i8>::try_into(pad_val).ok());
-                    for _i in 0..len {
-                        for _j in 0..pixdata_info.samples_per_pixel {
-                            let val = bytes.read_i8()?;
-                            buffer.push(val);
-                            if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                                if val < min {
-                                    min = val;
-                                }
-                                if val > max {
-                                    max = val;
-                                }
+                let mut buffer: Vec<u8> =
+                    Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
+                let mut min: u8 = u8::MAX;
+                let mut max: u8 = u8::MIN;
+                let pixel_pad_val = pixdata_info
+                    .pixel_padding_val
+                    .and_then(|pad_val| TryInto::<u8>::try_into(pad_val).ok());
+                for _i in 0..len {
+                    for _j in 0..pixdata_info.samples_per_pixel {
+                        let val = if pixdata_info.signed {
+                            Self::shift_i8(bytes.read_i8()?)
+                        } else {
+                            bytes.read_u8()?
+                        };
+                        buffer.push(val);
+                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
+                            if val < min {
+                                min = val;
+                            }
+                            if val > max {
+                                max = val;
                             }
                         }
                     }
-                    Ok(PixelDataBuffer::I8 { buffer, min, max })
-                } else {
-                    let mut buffer: Vec<u8> =
-                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
-                    let mut min: u8 = u8::MAX;
-                    let mut max: u8 = u8::MIN;
-                    let pixel_pad_val = pixdata_info
-                        .pixel_padding_val
-                        .and_then(|pad_val| TryInto::<u8>::try_into(pad_val).ok());
-                    for _i in 0..len {
-                        for _j in 0..pixdata_info.samples_per_pixel {
-                            let val = bytes.read_u8()?;
-                            buffer.push(val);
-                            if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                                if val < min {
-                                    min = val;
-                                }
-                                if val > max {
-                                    max = val;
-                                }
-                            }
-                        }
-                    }
-                    Ok(PixelDataBuffer::U8 { buffer, min, max })
                 }
+                Ok(PixelDataBuffer::U8 { buffer, min, max })
             }
             BitsAllocated::Sixteen => {
-                if pixdata_info.signed {
-                    let mut buffer: Vec<i16> =
-                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
-                    let mut min: i16 = i16::MAX;
-                    let mut max: i16 = i16::MIN;
-                    let pixel_pad_val = pixdata_info
-                        .pixel_padding_val
-                        .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
-                    for _i in 0..len {
-                        for _j in 0..pixdata_info.samples_per_pixel {
-                            let val = bytes.read_i16()?;
-                            buffer.push(val);
-                            if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                                if val < min {
-                                    min = val;
-                                }
-                                if val > max {
-                                    max = val;
-                                }
+                let mut buffer: Vec<u16> =
+                    Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
+                let mut min: u16 = u16::MAX;
+                let mut max: u16 = u16::MIN;
+                for _i in 0..len {
+                    for _j in 0..pixdata_info.samples_per_pixel {
+                        let val = if pixdata_info.signed {
+                            Self::shift_i16(bytes.read_i16()?)
+                        } else {
+                            bytes.read_u16()?
+                        };
+                        buffer.push(val);
+                        if pixdata_info
+                            .pixel_padding_val
+                            .is_none_or(|pad_val| val != pad_val)
+                        {
+                            if val < min {
+                                min = val;
+                            }
+                            if val > max {
+                                max = val;
                             }
                         }
                     }
-                    Ok(PixelDataBuffer::I16 { buffer, min, max })
-                } else {
-                    let mut buffer: Vec<u16> =
-                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
-                    let mut min: u16 = u16::MAX;
-                    let mut max: u16 = u16::MIN;
-                    for _i in 0..len {
-                        for _j in 0..pixdata_info.samples_per_pixel {
-                            let val = bytes.read_u16()?;
-                            buffer.push(val);
-                            if pixdata_info
-                                .pixel_padding_val
-                                .is_none_or(|pad_val| val != pad_val)
-                            {
-                                if val < min {
-                                    min = val;
-                                }
-                                if val > max {
-                                    max = val;
-                                }
-                            }
-                        }
-                    }
-                    Ok(PixelDataBuffer::U16 { buffer, min, max })
                 }
+                Ok(PixelDataBuffer::U16 { buffer, min, max })
             }
             BitsAllocated::ThirtyTwo => {
-                if pixdata_info.signed {
-                    let mut buffer: Vec<i32> =
-                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
-                    let mut min: i32 = i32::MAX;
-                    let mut max: i32 = i32::MIN;
-                    let pixel_pad_val = pixdata_info.pixel_padding_val.map(Into::<i32>::into);
-                    for _i in 0..len {
-                        for _j in 0..pixdata_info.samples_per_pixel {
-                            let val = bytes.read_i32()?;
-                            buffer.push(val);
-                            if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                                if val < min {
-                                    min = val;
-                                }
-                                if val > max {
-                                    max = val;
-                                }
+                let mut buffer: Vec<u32> =
+                    Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
+                let mut min: u32 = u32::MAX;
+                let mut max: u32 = u32::MIN;
+                let pixel_pad_val = pixdata_info.pixel_padding_val.map(Into::<u32>::into);
+                for _i in 0..len {
+                    for _j in 0..pixdata_info.samples_per_pixel {
+                        let val = if pixdata_info.signed {
+                            Self::shift_i32(bytes.read_i32()?)
+                        } else {
+                            bytes.read_u32()?
+                        };
+                        buffer.push(val);
+                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
+                            if val < min {
+                                min = val;
+                            }
+                            if val > max {
+                                max = val;
                             }
                         }
                     }
-                    Ok(PixelDataBuffer::I32 { buffer, min, max })
-                } else {
-                    let mut buffer: Vec<u32> =
-                        Vec::with_capacity(len * pixdata_info.samples_per_pixel as usize);
-                    let mut min: u32 = u32::MAX;
-                    let mut max: u32 = u32::MIN;
-                    let pixel_pad_val = pixdata_info.pixel_padding_val.map(Into::<u32>::into);
-                    for _i in 0..len {
-                        for _j in 0..pixdata_info.samples_per_pixel {
-                            let val = bytes.read_u32()?;
-                            buffer.push(val);
-                            if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                                if val < min {
-                                    min = val;
-                                }
-                                if val > max {
-                                    max = val;
-                                }
-                            }
-                        }
-                    }
-                    Ok(PixelDataBuffer::U32 { buffer, min, max })
                 }
+                Ok(PixelDataBuffer::U32 { buffer, min, max })
             }
         }
     }
@@ -522,32 +461,14 @@ impl PixelDataBuffer {
 impl std::fmt::Debug for PixelDataBuffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::I8 { buffer, min, max } => f
-                .debug_struct("I8")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
             Self::U8 { buffer, min, max } => f
                 .debug_struct("U8")
                 .field("buffer_size", &(buffer.len()))
                 .field("min", min)
                 .field("max", max)
                 .finish(),
-            Self::I16 { buffer, min, max } => f
-                .debug_struct("I16")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
             Self::U16 { buffer, min, max } => f
                 .debug_struct("U16")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
-            Self::I32 { buffer, min, max } => f
-                .debug_struct("I32")
                 .field("buffer_size", &(buffer.len()))
                 .field("min", min)
                 .field("max", max)
@@ -630,51 +551,6 @@ impl CommandApplication for ImageApp {
         dbg!(&pixdata_buffer);
 
         match pixdata_buffer {
-            PixelDataBuffer::I8 { buffer, min, max } => {
-                let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
-                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
-                let range = max - min;
-                let stride = if pixdata_info.planar_config == 0 {
-                    1
-                } else {
-                    buffer.len() / pixdata_info.samples_per_pixel as usize
-                };
-                let mut src_byte_index = 0;
-                let mut dst_pixel_index = 0;
-                while src_byte_index < buffer.len() {
-                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
-                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
-                    if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_rgb)
-                        && pixdata_info.samples_per_pixel == 3
-                        && pixdata_info.planar_config == 0
-                    {
-                        let r = buffer[src_byte_index] as u8;
-                        let g = buffer[src_byte_index + stride] as u8;
-                        let b = buffer[src_byte_index + stride * 2] as u8;
-                        image.put_pixel(x, y, Rgb([r, g, b]));
-                        if pixdata_info.planar_config == 0 {
-                            src_byte_index += pixdata_info.samples_per_pixel as usize;
-                        } else {
-                            src_byte_index += 1;
-                        }
-                    } else if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_monochrome)
-                        && pixdata_info.samples_per_pixel == 1
-                    {
-                        let val = buffer[src_byte_index];
-                        let val = ((val as f32 / range as f32) * i8::MAX as f32) as u8;
-                        image.put_pixel(x, y, Rgb([val, val, val]));
-                        src_byte_index += 1;
-                    }
-                    dst_pixel_index += 1;
-                }
-                image.save(output_path_buf)?;
-            }
             PixelDataBuffer::U8 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
                     ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
@@ -712,51 +588,6 @@ impl CommandApplication for ImageApp {
                     {
                         let val = buffer[src_byte_index];
                         let val = ((val as f32 / range as f32) * u8::MAX as f32) as u8;
-                        image.put_pixel(x, y, Rgb([val, val, val]));
-                        src_byte_index += 1;
-                    }
-                    dst_pixel_index += 1;
-                }
-                image.save(output_path_buf)?;
-            }
-            PixelDataBuffer::I16 { buffer, min, max } => {
-                let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
-                let range = max - min;
-                let stride = if pixdata_info.planar_config == 0 {
-                    1
-                } else {
-                    buffer.len() / pixdata_info.samples_per_pixel as usize
-                };
-                let mut src_byte_index = 0;
-                let mut dst_pixel_index = 0;
-                while src_byte_index < buffer.len() {
-                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
-                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
-                    if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_rgb)
-                        && pixdata_info.samples_per_pixel == 3
-                        && pixdata_info.planar_config == 0
-                    {
-                        let r = buffer[src_byte_index] as u16;
-                        let g = buffer[src_byte_index + stride] as u16;
-                        let b = buffer[src_byte_index + stride * 2] as u16;
-                        image.put_pixel(x, y, Rgb([r, g, b]));
-                        if pixdata_info.planar_config == 0 {
-                            src_byte_index += pixdata_info.samples_per_pixel as usize;
-                        } else {
-                            src_byte_index += 1;
-                        }
-                    } else if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_monochrome)
-                        && pixdata_info.samples_per_pixel == 1
-                    {
-                        let val = buffer[src_byte_index];
-                        let val = ((val as f32 / range as f32) * i16::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
                         src_byte_index += 1;
                     }
@@ -802,51 +633,6 @@ impl CommandApplication for ImageApp {
                     {
                         let val = buffer[src_byte_index];
                         let val = ((val as f32 / range as f32) * u16::MAX as f32) as u16;
-                        image.put_pixel(x, y, Rgb([val, val, val]));
-                        src_byte_index += 1;
-                    }
-                    dst_pixel_index += 1;
-                }
-                image.save(output_path_buf)?;
-            }
-            PixelDataBuffer::I32 { buffer, min, max } => {
-                let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
-                let range = max - min;
-                let stride = if pixdata_info.planar_config == 0 {
-                    1
-                } else {
-                    buffer.len() / pixdata_info.samples_per_pixel as usize
-                };
-                let mut src_byte_index = 0;
-                let mut dst_pixel_index = 0;
-                while src_byte_index < buffer.len() {
-                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
-                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
-                    if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_rgb)
-                        && pixdata_info.samples_per_pixel == 3
-                        && pixdata_info.planar_config == 0
-                    {
-                        let r = buffer[src_byte_index] as u16;
-                        let g = buffer[src_byte_index + stride] as u16;
-                        let b = buffer[src_byte_index + stride * 2] as u16;
-                        image.put_pixel(x, y, Rgb([r, g, b]));
-                        if pixdata_info.planar_config == 0 {
-                            src_byte_index += pixdata_info.samples_per_pixel as usize;
-                        } else {
-                            src_byte_index += 1;
-                        }
-                    } else if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_monochrome)
-                        && pixdata_info.samples_per_pixel == 1
-                    {
-                        let val = buffer[src_byte_index];
-                        let val = ((val as f32 / range as f32) * i32::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
                         src_byte_index += 1;
                     }
