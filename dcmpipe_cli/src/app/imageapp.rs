@@ -364,49 +364,6 @@ enum PixelDataBuffer {
     },
 }
 
-impl std::fmt::Debug for PixelDataBuffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::I8 { buffer, min, max } => f
-                .debug_struct("I8")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
-            Self::U8 { buffer, min, max } => f
-                .debug_struct("U8")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
-            Self::I16 { buffer, min, max } => f
-                .debug_struct("I16")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
-            Self::U16 { buffer, min, max } => f
-                .debug_struct("U16")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
-            Self::I32 { buffer, min, max } => f
-                .debug_struct("I32")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
-            Self::U32 { buffer, min, max } => f
-                .debug_struct("U32")
-                .field("buffer_size", &(buffer.len()))
-                .field("min", min)
-                .field("max", max)
-                .finish(),
-        }
-    }
-}
-
 impl PixelDataBuffer {
     fn parse(pixdata_info: &PixelDataInfo, bytes: &mut ByteBuffer) -> Result<Self> {
         let len = Into::<usize>::into(pixdata_info.cols) * Into::<usize>::into(pixdata_info.rows);
@@ -562,6 +519,49 @@ impl PixelDataBuffer {
     }
 }
 
+impl std::fmt::Debug for PixelDataBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::I8 { buffer, min, max } => f
+                .debug_struct("I8")
+                .field("buffer_size", &(buffer.len()))
+                .field("min", min)
+                .field("max", max)
+                .finish(),
+            Self::U8 { buffer, min, max } => f
+                .debug_struct("U8")
+                .field("buffer_size", &(buffer.len()))
+                .field("min", min)
+                .field("max", max)
+                .finish(),
+            Self::I16 { buffer, min, max } => f
+                .debug_struct("I16")
+                .field("buffer_size", &(buffer.len()))
+                .field("min", min)
+                .field("max", max)
+                .finish(),
+            Self::U16 { buffer, min, max } => f
+                .debug_struct("U16")
+                .field("buffer_size", &(buffer.len()))
+                .field("min", min)
+                .field("max", max)
+                .finish(),
+            Self::I32 { buffer, min, max } => f
+                .debug_struct("I32")
+                .field("buffer_size", &(buffer.len()))
+                .field("min", min)
+                .field("max", max)
+                .finish(),
+            Self::U32 { buffer, min, max } => f
+                .debug_struct("U32")
+                .field("buffer_size", &(buffer.len()))
+                .field("min", min)
+                .field("max", max)
+                .finish(),
+        }
+    }
+}
+
 pub struct ImageApp {
     args: ImageArgs,
 }
@@ -632,11 +632,18 @@ impl CommandApplication for ImageApp {
         match pixdata_buffer {
             PixelDataBuffer::I8 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
-                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
+                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
                 let range = max - min;
+                let stride = if pixdata_info.planar_config == 0 {
+                    1
+                } else {
+                    buffer.len() / pixdata_info.samples_per_pixel as usize
+                };
                 let mut src_byte_index = 0;
                 let mut dst_pixel_index = 0;
                 while src_byte_index < buffer.len() {
+                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
+                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
                     if pixdata_info
                         .photo_interp
                         .as_ref()
@@ -644,53 +651,9 @@ impl CommandApplication for ImageApp {
                         && pixdata_info.samples_per_pixel == 3
                         && pixdata_info.planar_config == 0
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let r = buffer[src_byte_index] as u8;
-                        let g = buffer[src_byte_index + 1] as u8;
-                        let b = buffer[src_byte_index + 2] as u8;
-                        image.put_pixel(x, y, Rgb([r, g, b]));
-                        src_byte_index += 3;
-                    } else if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_monochrome)
-                        && pixdata_info.samples_per_pixel == 1
-                    {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
-                        let val = buffer[src_byte_index];
-                        let val = ((val as f32 / range as f32) * i8::MAX as f32) as u8;
-                        image.put_pixel(x, y, Rgb([val, val, val]));
-                        src_byte_index += 1;
-                    }
-                    dst_pixel_index += 1;
-                }
-                image.save(output_path_buf)?;
-            }
-            PixelDataBuffer::U8 { buffer, min, max } => {
-                let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
-                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
-                let range = max - min;
-                let mut src_byte_index = 0;
-                let mut dst_pixel_index: usize = 0;
-                let sample_stride = if pixdata_info.planar_config == 0 {
-                    1
-                } else {
-                    buffer.len() / pixdata_info.samples_per_pixel as usize
-                };
-                while src_byte_index < buffer.len() {
-                    if pixdata_info
-                        .photo_interp
-                        .as_ref()
-                        .is_some_and(PhotoInterp::is_rgb)
-                        && pixdata_info.samples_per_pixel == 3
-                    {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
-                        let r = buffer[src_byte_index];
-                        let g = buffer[src_byte_index + sample_stride];
-                        let b = buffer[src_byte_index + sample_stride * 2];
+                        let g = buffer[src_byte_index + stride] as u8;
+                        let b = buffer[src_byte_index + stride * 2] as u8;
                         image.put_pixel(x, y, Rgb([r, g, b]));
                         if pixdata_info.planar_config == 0 {
                             src_byte_index += pixdata_info.samples_per_pixel as usize;
@@ -703,8 +666,50 @@ impl CommandApplication for ImageApp {
                         .is_some_and(PhotoInterp::is_monochrome)
                         && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
+                        let val = buffer[src_byte_index];
+                        let val = ((val as f32 / range as f32) * i8::MAX as f32) as u8;
+                        image.put_pixel(x, y, Rgb([val, val, val]));
+                        src_byte_index += 1;
+                    }
+                    dst_pixel_index += 1;
+                }
+                image.save(output_path_buf)?;
+            }
+            PixelDataBuffer::U8 { buffer, min, max } => {
+                let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
+                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
+                let range = max - min;
+                let stride = if pixdata_info.planar_config == 0 {
+                    1
+                } else {
+                    buffer.len() / pixdata_info.samples_per_pixel as usize
+                };
+                let mut src_byte_index = 0;
+                let mut dst_pixel_index: usize = 0;
+                while src_byte_index < buffer.len() {
+                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
+                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
+                    if pixdata_info
+                        .photo_interp
+                        .as_ref()
+                        .is_some_and(PhotoInterp::is_rgb)
+                        && pixdata_info.samples_per_pixel == 3
+                    {
+                        let r = buffer[src_byte_index];
+                        let g = buffer[src_byte_index + stride];
+                        let b = buffer[src_byte_index + stride * 2];
+                        image.put_pixel(x, y, Rgb([r, g, b]));
+                        if pixdata_info.planar_config == 0 {
+                            src_byte_index += pixdata_info.samples_per_pixel as usize;
+                        } else {
+                            src_byte_index += 1;
+                        }
+                    } else if pixdata_info
+                        .photo_interp
+                        .as_ref()
+                        .is_some_and(PhotoInterp::is_monochrome)
+                        && pixdata_info.samples_per_pixel == 1
+                    {
                         let val = buffer[src_byte_index];
                         let val = ((val as f32 / range as f32) * u8::MAX as f32) as u8;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -716,11 +721,18 @@ impl CommandApplication for ImageApp {
             }
             PixelDataBuffer::I16 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
+                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
                 let range = max - min;
+                let stride = if pixdata_info.planar_config == 0 {
+                    1
+                } else {
+                    buffer.len() / pixdata_info.samples_per_pixel as usize
+                };
                 let mut src_byte_index = 0;
                 let mut dst_pixel_index = 0;
                 while src_byte_index < buffer.len() {
+                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
+                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
                     if pixdata_info
                         .photo_interp
                         .as_ref()
@@ -728,21 +740,21 @@ impl CommandApplication for ImageApp {
                         && pixdata_info.samples_per_pixel == 3
                         && pixdata_info.planar_config == 0
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let r = buffer[src_byte_index] as u16;
-                        let g = buffer[src_byte_index + 1] as u16;
-                        let b = buffer[src_byte_index + 2] as u16;
+                        let g = buffer[src_byte_index + stride] as u16;
+                        let b = buffer[src_byte_index + stride * 2] as u16;
                         image.put_pixel(x, y, Rgb([r, g, b]));
-                        src_byte_index += 3;
+                        if pixdata_info.planar_config == 0 {
+                            src_byte_index += pixdata_info.samples_per_pixel as usize;
+                        } else {
+                            src_byte_index += 1;
+                        }
                     } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(PhotoInterp::is_monochrome)
                         && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let val = buffer[src_byte_index];
                         let val = ((val as f32 / range as f32) * i16::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -754,11 +766,18 @@ impl CommandApplication for ImageApp {
             }
             PixelDataBuffer::U16 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
+                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
                 let range = max - min;
+                let stride = if pixdata_info.planar_config == 0 {
+                    1
+                } else {
+                    buffer.len() / pixdata_info.samples_per_pixel as usize
+                };
                 let mut src_byte_index = 0;
                 let mut dst_pixel_index = 0;
                 while src_byte_index < buffer.len() {
+                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
+                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
                     if pixdata_info
                         .photo_interp
                         .as_ref()
@@ -766,21 +785,21 @@ impl CommandApplication for ImageApp {
                         && pixdata_info.samples_per_pixel == 3
                         && pixdata_info.planar_config == 0
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let r = buffer[src_byte_index];
-                        let g = buffer[src_byte_index + 1];
-                        let b = buffer[src_byte_index + 2];
+                        let g = buffer[src_byte_index + stride];
+                        let b = buffer[src_byte_index + stride * 2];
                         image.put_pixel(x, y, Rgb([r, g, b]));
-                        src_byte_index += 3;
+                        if pixdata_info.planar_config == 0 {
+                            src_byte_index += pixdata_info.samples_per_pixel as usize;
+                        } else {
+                            src_byte_index += 1;
+                        }
                     } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(PhotoInterp::is_monochrome)
                         && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let val = buffer[src_byte_index];
                         let val = ((val as f32 / range as f32) * u16::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -792,11 +811,18 @@ impl CommandApplication for ImageApp {
             }
             PixelDataBuffer::I32 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
+                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
                 let range = max - min;
+                let stride = if pixdata_info.planar_config == 0 {
+                    1
+                } else {
+                    buffer.len() / pixdata_info.samples_per_pixel as usize
+                };
                 let mut src_byte_index = 0;
                 let mut dst_pixel_index = 0;
                 while src_byte_index < buffer.len() {
+                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
+                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
                     if pixdata_info
                         .photo_interp
                         .as_ref()
@@ -804,21 +830,21 @@ impl CommandApplication for ImageApp {
                         && pixdata_info.samples_per_pixel == 3
                         && pixdata_info.planar_config == 0
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let r = buffer[src_byte_index] as u16;
-                        let g = buffer[src_byte_index + 1] as u16;
-                        let b = buffer[src_byte_index + 2] as u16;
+                        let g = buffer[src_byte_index + stride] as u16;
+                        let b = buffer[src_byte_index + stride * 2] as u16;
                         image.put_pixel(x, y, Rgb([r, g, b]));
-                        src_byte_index += 3;
+                        if pixdata_info.planar_config == 0 {
+                            src_byte_index += pixdata_info.samples_per_pixel as usize;
+                        } else {
+                            src_byte_index += 1;
+                        }
                     } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(PhotoInterp::is_monochrome)
                         && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let val = buffer[src_byte_index];
                         let val = ((val as f32 / range as f32) * i32::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
@@ -830,11 +856,18 @@ impl CommandApplication for ImageApp {
             }
             PixelDataBuffer::U32 { buffer, min, max } => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pixdata_info.rows.into(), pixdata_info.cols.into());
+                    ImageBuffer::new(pixdata_info.cols.into(), pixdata_info.rows.into());
                 let range = max - min;
+                let stride = if pixdata_info.planar_config == 0 {
+                    1
+                } else {
+                    buffer.len() / pixdata_info.samples_per_pixel as usize
+                };
                 let mut src_byte_index = 0;
                 let mut dst_pixel_index = 0;
                 while src_byte_index < buffer.len() {
+                    let x = (dst_pixel_index as u32) % (pixdata_info.cols as u32);
+                    let y = (dst_pixel_index as u32) / (pixdata_info.cols as u32);
                     if pixdata_info
                         .photo_interp
                         .as_ref()
@@ -842,21 +875,21 @@ impl CommandApplication for ImageApp {
                         && pixdata_info.samples_per_pixel == 3
                         && pixdata_info.planar_config == 0
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let r = buffer[src_byte_index] as u16;
-                        let g = buffer[src_byte_index + 1] as u16;
-                        let b = buffer[src_byte_index + 2] as u16;
+                        let g = buffer[src_byte_index + stride] as u16;
+                        let b = buffer[src_byte_index + stride * 2] as u16;
                         image.put_pixel(x, y, Rgb([r, g, b]));
-                        src_byte_index += 3;
+                        if pixdata_info.planar_config == 0 {
+                            src_byte_index += pixdata_info.samples_per_pixel as usize;
+                        } else {
+                            src_byte_index += 1;
+                        }
                     } else if pixdata_info
                         .photo_interp
                         .as_ref()
                         .is_some_and(PhotoInterp::is_monochrome)
                         && pixdata_info.samples_per_pixel == 1
                     {
-                        let x = (dst_pixel_index as u32) % (pixdata_info.rows as u32);
-                        let y = (dst_pixel_index as u32) / (pixdata_info.rows as u32);
                         let val = buffer[src_byte_index];
                         let val = ((val as f32 / range as f32) * u32::MAX as f32) as u16;
                         image.put_pixel(x, y, Rgb([val, val, val]));
