@@ -22,74 +22,23 @@ use dcmpipe_lib::{
     core::{
         dcmelement::DicomElement,
         defn::{
-            dcmdict::DicomDictionary,
             ts::TSRef,
             vr::{self, VRRef},
         },
         read::Parser,
         RawValue,
     },
-    dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{self},
-        uids,
-    },
+    dict::tags::{self},
 };
 use image::{ImageBuffer, Rgb};
 use std::{
-    fmt::Display,
-    fs::File,
-    io::BufReader,
+    io::Read,
     path::{Path, PathBuf},
 };
 
 use crate::{app::parse_file, args::ImageArgs, CommandApplication};
 
-#[derive(PartialEq, Eq, Debug)]
-enum Modality {
-    CR,
-    CT,
-    MR,
-    NM,
-    PT,
-    SC,
-    Unsupported(String),
-}
-
-impl Modality {
-    fn from_uid(uid: &str) -> Modality {
-        if uids::ComputedRadiographyImageStorage.uid() == uid {
-            Modality::CR
-        } else if uids::CTImageStorage.uid() == uid {
-            Modality::CT
-        } else if uids::MRImageStorage.uid() == uid {
-            Modality::MR
-        } else if uids::NuclearMedicineImageStorage.uid() == uid {
-            Modality::NM
-        } else if uids::PositronEmissionTomographyImageStorage.uid() == uid {
-            Modality::PT
-        } else if uids::SecondaryCaptureImageStorage.uid() == uid {
-            Modality::SC
-        } else {
-            Modality::Unsupported(uid.to_owned())
-        }
-    }
-}
-
-impl Display for Modality {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Modality::CR => write!(f, "CR"),
-            Modality::CT => write!(f, "CT"),
-            Modality::MR => write!(f, "MR"),
-            Modality::NM => write!(f, "NM"),
-            Modality::PT => write!(f, "PT"),
-            Modality::SC => write!(f, "SC"),
-            Modality::Unsupported(uid) => write!(f, "{uid}"),
-        }
-    }
-}
-
+/// Supported values of Photometric Interpretation.
 #[derive(PartialEq, Eq, Debug)]
 enum PhotoInterp {
     Unsupported(String),
@@ -99,16 +48,22 @@ enum PhotoInterp {
 }
 
 impl PhotoInterp {
+    /// Whether this `PhotoInterp` is `RGB`.
+    #[must_use]
     fn is_rgb(&self) -> bool {
         *self == PhotoInterp::Rgb
     }
 
+    /// Whether this `PhotoInterp` is one of the supported monochrome values.
+    #[must_use]
     fn is_monochrome(&self) -> bool {
         *self == PhotoInterp::Monochrome1 || *self == PhotoInterp::Monochrome2
     }
 }
 
 impl From<&str> for PhotoInterp {
+    /// Parse Photometric Interpretation from its DICOM element value.
+    #[must_use]
     fn from(value: &str) -> Self {
         if value == "RGB" {
             Self::Rgb
@@ -122,38 +77,48 @@ impl From<&str> for PhotoInterp {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
-enum BitsAllocated {
-    Unspecified(u16),
+/// Supported values of Bits Allocated.
+#[derive(PartialEq, Eq)]
+enum BitsAlloc {
+    Unsupported(u16),
     Eight,
     Sixteen,
     ThirtyTwo,
 }
 
-impl Display for BitsAllocated {
+impl std::fmt::Display for BitsAlloc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl std::fmt::Debug for BitsAlloc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BitsAllocated::Unspecified(val) => write!(f, "Unspecified({val})"),
-            BitsAllocated::Eight => write!(f, "Bits(8)"),
-            BitsAllocated::Sixteen => write!(f, "Bits(16)"),
-            BitsAllocated::ThirtyTwo => write!(f, "Bits(32)"),
+            Self::Unsupported(other) => write!(f, "BitsAlloc(Unsupported:{other})"),
+            Self::Eight => write!(f, "BitsAlloc(8)"),
+            Self::Sixteen => write!(f, "BitsAlloc(16)"),
+            Self::ThirtyTwo => write!(f, "BitsAlloc(32)"),
         }
     }
 }
 
-impl BitsAllocated {
+impl BitsAlloc {
+    /// Parse Bits Allocated from its DICOM value.
+    #[must_use]
     fn from_val(val: u16) -> Self {
         match val {
-            8 => BitsAllocated::Eight,
-            16 => BitsAllocated::Sixteen,
-            32 => BitsAllocated::ThirtyTwo,
-            other => BitsAllocated::Unspecified(other),
+            8 => BitsAlloc::Eight,
+            16 => BitsAlloc::Sixteen,
+            32 => BitsAlloc::ThirtyTwo,
+            other => BitsAlloc::Unsupported(other),
         }
     }
 
+    #[must_use]
     fn val(&self) -> u16 {
         match self {
-            Self::Unspecified(val) => *val,
+            Self::Unsupported(val) => *val,
             Self::Eight => 8,
             Self::Sixteen => 16,
             Self::ThirtyTwo => 32,
@@ -161,9 +126,9 @@ impl BitsAllocated {
     }
 }
 
+/// Parsed tag values relevant to interpreting Pixel Data.
 struct PixelDataInfo {
     big_endian: bool,
-    modality: Modality,
     vr: VRRef,
     samples_per_pixel: u16,
     photo_interp: Option<PhotoInterp>,
@@ -171,7 +136,7 @@ struct PixelDataInfo {
     cols: u16,
     rows: u16,
     pixel_padding_val: Option<u16>,
-    bits_alloc: BitsAllocated,
+    bits_alloc: BitsAlloc,
     bits_stored: u16,
     high_bit: u16,
     slope: f64,
@@ -188,7 +153,6 @@ impl Default for PixelDataInfo {
     fn default() -> Self {
         Self {
             big_endian: false,
-            modality: Modality::Unsupported(String::new()),
             vr: &vr::OB,
             samples_per_pixel: 0,
             photo_interp: None,
@@ -196,7 +160,7 @@ impl Default for PixelDataInfo {
             cols: 0,
             rows: 0,
             pixel_padding_val: None,
-            bits_alloc: BitsAllocated::Unspecified(0),
+            bits_alloc: BitsAlloc::Unsupported(0),
             bits_stored: 0,
             high_bit: 0,
             pixel_rep: 0,
@@ -216,7 +180,6 @@ impl std::fmt::Debug for PixelDataInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PixelDataInfo")
             .field("big_endian", &self.big_endian)
-            .field("modality", &self.modality)
             .field("vr", &self.vr)
             .field("samples_per_pixel", &self.samples_per_pixel)
             .field("photo_interp", &self.photo_interp)
@@ -240,6 +203,8 @@ impl std::fmt::Debug for PixelDataInfo {
 }
 
 impl PixelDataInfo {
+    /// Whether the byte values in Pixel Data are signed or unsigned values.
+    #[must_use]
     fn is_signed(&self) -> bool {
         self.pixel_rep != 0
     }
@@ -247,7 +212,7 @@ impl PixelDataInfo {
     /// Loads the pixel data bytes into a `ByteBuffer`. This will mutate self to swap ownership of
     /// self.pd_bytes so as not to duplicate the bytes in memory. Because of the ownership swap,
     /// calling this function again after the first time will return an empty `ByteBuffer`.
-    fn bytes(&mut self) -> Result<ByteBuffer> {
+    fn bytes(&mut self) -> ByteBuffer {
         let bytes = std::mem::replace(&mut self.pd_bytes, Vec::with_capacity(0));
         let mut bb = ByteBuffer::from_vec(bytes);
         bb.set_endian(if self.big_endian {
@@ -255,24 +220,18 @@ impl PixelDataInfo {
         } else {
             LittleEndian
         });
-        Ok(bb)
+        bb
     }
 
     /// After all relevant elements have been parsed, this will validate the result of this
     /// structure.
+    ///
+    /// # Errors
+    /// - This function returns errors in the validation of values parsed from DICOM elements via
+    ///   `PixelDataInfo::process_dcm_parser`.
     fn validate(&mut self) -> Result<()> {
         if self.pd_bytes.is_empty() {
             return Err(anyhow!("Missing PixelData"));
-        }
-
-        if let Modality::Unsupported(ref uid) = self.modality {
-            return Err(anyhow!(
-                "Unsupported Modality: {uid} {}",
-                STANDARD_DICOM_DICTIONARY
-                    .get_uid_by_uid(uid)
-                    .map(|uid| uid.name())
-                    .unwrap_or("unknown")
-            ));
         }
 
         if self.cols == 0 || self.rows == 0 {
@@ -280,26 +239,31 @@ impl PixelDataInfo {
         }
 
         if self.vr != &vr::OB && self.vr != &vr::OW {
-            return Err(anyhow!("Unsupported PixelData VR"));
+            return Err(anyhow!("Unsupported PixelData VR: {:?}", self.vr));
         };
 
-        if let BitsAllocated::Unspecified(val) = self.bits_alloc {
-            return Err(anyhow!("Invalid BitsAllocated: {val}"));
+        if let BitsAlloc::Unsupported(val) = self.bits_alloc {
+            return Err(anyhow!("Unsupported BitsAllocated: {val}"));
         }
+
+        // BitsStored will generally be the same value as BitsAllocated.
         if self.bits_stored > self.bits_alloc.val() || self.bits_stored == 0 {
             self.bits_stored = self.bits_alloc.val();
         }
+        // HighBit will generally be (BitsStored - 1).
         if self.high_bit > self.bits_alloc.val() - 1 || self.high_bit < self.bits_stored - 1 {
             self.high_bit = self.bits_stored - 1;
         }
 
         if let Some(pi) = &self.photo_interp {
             if pi.is_rgb() && self.samples_per_pixel != 3 {
+                // RGB must use 3 Samples Per Pixel.
                 return Err(anyhow!(
                     "RGB image does not have 3 samples-per-pixel: {}",
                     self.samples_per_pixel
                 ));
             } else if pi.is_monochrome() && self.samples_per_pixel != 1 {
+                // MONOCHROME1/2 must use 1 Sample Per Pixel.
                 return Err(anyhow!(
                     "MONOCHROME image does not have 1 samples-per-pixel: {}",
                     self.samples_per_pixel
@@ -311,14 +275,19 @@ impl PixelDataInfo {
     }
 
     /// Loads the pixel data bytes into `PixelDataBuffer`.
+    ///
+    /// # Errors
+    /// - If BitsAllocated is unsupported (though this should already be caught by
+    ///   `PixelDataInfo::validate()`.
+    /// - Reading byte/word values from the Pixel Data bytes.
     fn load_pixel_data(&mut self) -> Result<PixelDataBuffer> {
-        let mut bytes = self.bytes()?;
+        let mut bytes = self.bytes();
         let len = Into::<usize>::into(self.cols) * Into::<usize>::into(self.rows);
         match self.bits_alloc {
-            BitsAllocated::Unspecified(_) => {
+            BitsAlloc::Unsupported(_) => {
                 Err(anyhow!("Unsupported BitsAllocated: {}", self.bits_alloc))
             }
-            BitsAllocated::Eight => {
+            BitsAlloc::Eight => {
                 let mut buffer: Vec<u8> = Vec::with_capacity(len * self.samples_per_pixel as usize);
                 let mut min: u8 = u8::MAX;
                 let mut max: u8 = u8::MIN;
@@ -345,7 +314,7 @@ impl PixelDataInfo {
                 }
                 Ok(PixelDataBuffer::U8 { buffer, min, max })
             }
-            BitsAllocated::Sixteen => {
+            BitsAlloc::Sixteen => {
                 let mut buffer: Vec<u16> =
                     Vec::with_capacity(len * self.samples_per_pixel as usize);
                 let mut min: u16 = u16::MAX;
@@ -370,7 +339,7 @@ impl PixelDataInfo {
                 }
                 Ok(PixelDataBuffer::U16 { buffer, min, max })
             }
-            BitsAllocated::ThirtyTwo => {
+            BitsAlloc::ThirtyTwo => {
                 let mut buffer: Vec<u32> =
                     Vec::with_capacity(len * self.samples_per_pixel as usize);
                 let mut min: u32 = u32::MAX;
@@ -399,25 +368,32 @@ impl PixelDataInfo {
         }
     }
 
-    fn process_dcm_parser(parser: Parser<'_, BufReader<File>>) -> Result<PixelDataInfo> {
+    /// Processes a DICOM SOP via a `Parser` into a `PixelDataInfo`.
+    ///
+    /// # Errors
+    /// - I/O errors parsing values out of DICOM elements.
+    fn process_dcm_parser<R: Read>(parser: Parser<'_, R>) -> Result<PixelDataInfo> {
         let mut pixdata_info: PixelDataInfo = PixelDataInfo {
             big_endian: parser.ts().big_endian(),
             ..Default::default()
         };
         for elem in parser {
-            Self::process_element(&mut pixdata_info, elem?)?;
+            let mut elem = elem?;
+            Self::process_element(&mut pixdata_info, &elem)?;
+            if elem.is_pixel_data() || elem.is_within_pixel_data() {
+                Self::process_pixdata_element(&mut pixdata_info, &mut elem);
+            }
         }
         Ok(pixdata_info)
     }
 
-    /// Process relevant DICOM elements into this structure.
-    fn process_element(pixdata_info: &mut PixelDataInfo, mut elem: DicomElement) -> Result<()> {
+    /// Process relevant DICOM elements into the `PixelDataInfo` structure.
+    ///
+    /// # Errors
+    /// - I/O errors parsing values out of DICOM elements.
+    fn process_element(pixdata_info: &mut PixelDataInfo, elem: &DicomElement) -> Result<()> {
         // The order of the tag checks here are the order they will appear in a DICOM protocol.
-        if elem.tag() == tags::SOPClassUID.tag() {
-            if let Some(val) = elem.parse_value()?.string() {
-                pixdata_info.modality = Modality::from_uid(val);
-            }
-        } else if elem.tag() == tags::SamplesperPixel.tag() {
+        if elem.tag() == tags::SamplesperPixel.tag() {
             if let Some(val) = elem.parse_value()?.ushort() {
                 pixdata_info.samples_per_pixel = val;
             }
@@ -439,7 +415,7 @@ impl PixelDataInfo {
             }
         } else if elem.tag() == tags::BitsAllocated.tag() {
             if let Some(val) = elem.parse_value()?.ushort() {
-                pixdata_info.bits_alloc = BitsAllocated::from_val(val);
+                pixdata_info.bits_alloc = BitsAlloc::from_val(val);
             }
         } else if elem.tag() == tags::BitsStored.tag() {
             if let Some(val) = elem.parse_value()?.ushort() {
@@ -484,22 +460,21 @@ impl PixelDataInfo {
             if let RawValue::Strings(vals) = elem.parse_value()? {
                 pixdata_info.window_labels = vals;
             }
-        } else if elem.is_pixel_data() {
-            // Transfer ownership of the PixelData bytes to a local to copy into pixdata_info.pd_bytes.
-            // If PixelData is fragmented then this slice will be empty.
-            let data = std::mem::replace(elem.mut_data(), Vec::with_capacity(0));
-            pixdata_info.pd_bytes.extend_from_slice(&data);
-        } else if elem.is_within_pixel_data() {
-            // Transfer ownership of the fragment's bytes to a local to copy into pixdata_info.pd_bytes.
-            let data = std::mem::replace(elem.mut_data(), Vec::with_capacity(0));
-            pixdata_info.pd_bytes.extend_from_slice(&data);
         }
 
         Ok(())
     }
+
+    /// Process the relevant PixelData element/fragments by copying the data/bytes into the
+    /// `PixelDataInfo::pd_bytes` field, replacing the element's data/bytes with an empty vec.
+    fn process_pixdata_element(pixdata_info: &mut PixelDataInfo, elem: &mut DicomElement) {
+        // Transfer ownership of the fragment's bytes to a local to copy into pixdata_info.pd_bytes.
+        let data = std::mem::replace(elem.mut_data(), Vec::with_capacity(0));
+        pixdata_info.pd_bytes.extend_from_slice(&data);
+    }
 }
 
-#[allow(dead_code)]
+/// Container for the raw pixel values parsed from the DICOM binary data.
 enum PixelDataBuffer {
     U8 {
         buffer: Vec<u8>,
@@ -519,20 +494,21 @@ enum PixelDataBuffer {
 }
 
 impl PixelDataBuffer {
-    /// Shift an i8 value into u8 space.
+    /// Shift an i8 value into u8 space, so i8::MIN -> u8::MIN.
     fn shift_i8(val: i8) -> u8 {
-        ((val as i16) + (i8::MAX as i16)) as u8
+        ((val as i16).saturating_add(1) + (i8::MAX as i16)) as u8
     }
 
-    /// Shift an i16 value into u16 space.
+    /// Shift an i16 value into u16 space, so i16::MIN -> u16::MIN.
     fn shift_i16(val: i16) -> u16 {
-        ((val as i32) + (i16::MAX as i32)) as u16
+        ((val as i32).saturating_add(1) + (i16::MAX as i32)) as u16
     }
 
-    /// Shift an i32 value into u32 space.
+    /// Shift an i32 value into u32 space, so i32::MIN -> u32::MIN.
     fn shift_i32(val: i32) -> u32 {
-        ((val as i64) + (i32::MAX as i64)) as u32
+        ((val as i64).saturating_add(1) + (i32::MAX as i64)) as u32
     }
+
 }
 
 impl std::fmt::Debug for PixelDataBuffer {
@@ -734,5 +710,43 @@ impl CommandApplication for ImageApp {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::app::imageapp::PixelDataBuffer;
+
+    #[test]
+    pub fn test_shift_i8() {
+        assert_eq!(0u8, PixelDataBuffer::shift_i8(i8::MIN));
+        assert_eq!(1u8, PixelDataBuffer::shift_i8(i8::MIN + 1));
+        assert_eq!(127u8, PixelDataBuffer::shift_i8(-1));
+        assert_eq!(128u8, PixelDataBuffer::shift_i8(0));
+        assert_eq!(129u8, PixelDataBuffer::shift_i8(1));
+        assert_eq!(254u8, PixelDataBuffer::shift_i8(i8::MAX - 1));
+        assert_eq!(255u8, PixelDataBuffer::shift_i8(i8::MAX));
+    }
+
+    #[test]
+    pub fn test_shift_i16() {
+        assert_eq!(0u16, PixelDataBuffer::shift_i16(i16::MIN));
+        assert_eq!(1u16, PixelDataBuffer::shift_i16(i16::MIN + 1));
+        assert_eq!(32767u16, PixelDataBuffer::shift_i16(-1));
+        assert_eq!(32768u16, PixelDataBuffer::shift_i16(0));
+        assert_eq!(32769u16, PixelDataBuffer::shift_i16(1));
+        assert_eq!(65534u16, PixelDataBuffer::shift_i16(i16::MAX - 1));
+        assert_eq!(65535u16, PixelDataBuffer::shift_i16(i16::MAX));
+    }
+
+    #[test]
+    pub fn test_shift_i32() {
+        assert_eq!(0u32, PixelDataBuffer::shift_i32(i32::MIN));
+        assert_eq!(1u32, PixelDataBuffer::shift_i32(i32::MIN + 1));
+        assert_eq!(2147483647u32, PixelDataBuffer::shift_i32(-1));
+        assert_eq!(2147483648u32, PixelDataBuffer::shift_i32(0));
+        assert_eq!(2147483649u32, PixelDataBuffer::shift_i32(1));
+        assert_eq!(4294967294u32, PixelDataBuffer::shift_i32(i32::MAX - 1));
+        assert_eq!(4294967295u32, PixelDataBuffer::shift_i32(i32::MAX));
     }
 }
