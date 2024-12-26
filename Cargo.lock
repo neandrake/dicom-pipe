@@ -293,15 +293,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
-name = "bytebuffer"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2618ff1f07e000264e355904bff5c0527091fcbad883ff7f71383c5428915f4b"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "bytemuck"
 version = "1.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -604,7 +595,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bson",
- "bytebuffer",
  "clap",
  "crossterm",
  "dcmpipe_lib",
