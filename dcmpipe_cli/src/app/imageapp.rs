@@ -20,8 +20,8 @@ use anyhow::{anyhow, Result};
 use dcmpipe_lib::core::{
     defn::ts::TSRef,
     pixeldata::{
-        pdbuf::{PixelDataBuffer, PixelU16, PixelU32, PixelU8},
-        pdinfo::PixelDataInfo,
+        pdbuf::PixelDataBuffer, pdinfo::PixelDataInfo, pixel_i16::PixelI16, pixel_i32::PixelI32,
+        pixel_i8::PixelI8, pixel_u16::PixelU16, pixel_u32::PixelU32, pixel_u8::PixelU8,
     },
 };
 use image::{ImageBuffer, Rgb};
@@ -57,35 +57,96 @@ impl CommandApplication for ImageApp {
             ));
         }
 
-        let pixdata_buffer = PixelDataInfo::process_dcm_parser(parser)?.load_pixel_data()?;
+        let pixdata_info = PixelDataInfo::process_dcm_parser(parser)?;
+        let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
+            ImageBuffer::new(pixdata_info.cols().into(), pixdata_info.rows().into());
+
+        let pixdata_buffer = pixdata_info.load_pixel_data()?;
         dbg!(&pixdata_buffer);
 
         match pixdata_buffer {
-            PixelDataBuffer::U8(pdbuf) => {
-                let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
-                    ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
-                for PixelU8 { x, y, r, g, b } in pdbuf.pixel_iter() {
+            PixelDataBuffer::I8(pdbuf) => {
+                for PixelU16 { x, y, r, g, b } in
+                    pdbuf
+                        .pixel_iter()
+                        .map(|PixelI8 { x, y, r, g, b }| PixelU16 {
+                            x,
+                            y,
+                            r: PixelDataBuffer::shift_i16(r as i16),
+                            g: PixelDataBuffer::shift_i16(g as i16),
+                            b: PixelDataBuffer::shift_i16(b as i16),
+                        })
+                {
                     image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
                 }
-                image.save(output_path_buf)?;
+            }
+            PixelDataBuffer::U8(pdbuf) => {
+                for PixelU16 { x, y, r, g, b } in
+                    pdbuf
+                        .pixel_iter()
+                        .map(|PixelU8 { x, y, r, g, b }| PixelU16 {
+                            x,
+                            y,
+                            r: r as u16,
+                            g: g as u16,
+                            b: b as u16,
+                        })
+                {
+                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
+                }
+            }
+            PixelDataBuffer::I16(pdbuf) => {
+                for PixelU16 { x, y, r, g, b } in
+                    pdbuf
+                        .pixel_iter()
+                        .map(|PixelI16 { x, y, r, g, b }| PixelU16 {
+                            x,
+                            y,
+                            r: PixelDataBuffer::shift_i16(r),
+                            g: PixelDataBuffer::shift_i16(g),
+                            b: PixelDataBuffer::shift_i16(b),
+                        })
+                {
+                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
+                }
             }
             PixelDataBuffer::U16(pdbuf) => {
-                let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
                 for PixelU16 { x, y, r, g, b } in pdbuf.pixel_iter() {
                     image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
                 }
-                image.save(output_path_buf)?;
+            }
+            PixelDataBuffer::I32(pdbuf) => {
+                for PixelU16 { x, y, r, g, b } in
+                    pdbuf
+                        .pixel_iter()
+                        .map(|PixelI32 { x, y, r, g, b }| PixelU16 {
+                            x,
+                            y,
+                            r: PixelDataBuffer::shift_i32(r) as u16,
+                            g: PixelDataBuffer::shift_i32(g) as u16,
+                            b: PixelDataBuffer::shift_i32(b) as u16,
+                        })
+                {
+                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
+                }
             }
             PixelDataBuffer::U32(pdbuf) => {
-                let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
-                for PixelU32 { x, y, r, g, b } in pdbuf.pixel_iter() {
-                    image.put_pixel(x as u32, y as u32, Rgb([r as u16, g as u16, b as u16]));
+                for PixelU16 { x, y, r, g, b } in
+                    pdbuf
+                        .pixel_iter()
+                        .map(|PixelU32 { x, y, r, g, b }| PixelU16 {
+                            x,
+                            y,
+                            r: r as u16,
+                            g: g as u16,
+                            b: b as u16,
+                        })
+                {
+                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
                 }
-                image.save(output_path_buf)?;
             }
         }
+        image.save(output_path_buf)?;
 
         Ok(())
     }

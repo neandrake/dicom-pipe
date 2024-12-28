@@ -20,6 +20,12 @@ use crate::core::{defn::vr::VRRef, read::ParseError};
 
 pub mod pdbuf;
 pub mod pdinfo;
+pub mod pixel_i16;
+pub mod pixel_i32;
+pub mod pixel_i8;
+pub mod pixel_u16;
+pub mod pixel_u32;
+pub mod pixel_u8;
 
 #[derive(Error, Debug)]
 pub enum PixelDataError {
@@ -94,7 +100,7 @@ impl From<&str> for PhotoInterp {
 }
 
 /// Supported values of Bits Allocated.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum BitsAlloc {
     Unsupported(u16),
     Eight,
