@@ -38,6 +38,7 @@ use dcmpipe_lib::{
 
 pub(crate) mod archiveapp;
 pub(crate) mod browseapp;
+pub(crate) mod imageapp;
 #[cfg(feature = "index")]
 pub(crate) mod indexapp;
 pub(crate) mod printapp;

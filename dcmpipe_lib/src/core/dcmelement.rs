@@ -161,6 +161,11 @@ impl DicomElement {
     }
 
     #[must_use]
+    pub fn mut_data(&mut self) -> &mut Vec<u8> {
+        &mut self.data
+    }
+
+    #[must_use]
     pub fn sq_path(&self) -> &Vec<SequenceElement> {
         &self.sq_path
     }
@@ -224,6 +229,12 @@ impl DicomElement {
     #[must_use]
     pub fn is_pixel_data(&self) -> bool {
         self.tag == PIXEL_DATA || self.tag == FLOAT_PIXEL_DATA || self.tag == DOUBLE_PIXEL_DATA
+    }
+
+    /// Returns if this element is within a PixelData element (via `is_pixel_data()`).
+    #[must_use]
+    pub fn is_within_pixel_data(&self) -> bool {
+        !self.is_pixel_data() && self.sq_path.iter().any(SequenceElement::is_pixel_data)
     }
 
     /// Returns whether the the size of the value field for this element is zero.

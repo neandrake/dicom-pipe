@@ -26,6 +26,7 @@ pub mod dcmobject;
 pub mod dcmsqelem;
 pub mod defn;
 pub mod inspect;
+pub mod pixeldata;
 pub mod read;
 pub mod values;
 pub mod write;
