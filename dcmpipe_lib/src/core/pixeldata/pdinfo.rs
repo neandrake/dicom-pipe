@@ -30,6 +30,10 @@ use crate::{
     dict::tags,
 };
 
+const U8_SIZE: usize = size_of::<u8>();
+const U16_SIZE: usize = size_of::<u16>();
+const U32_SIZE: usize = size_of::<u32>();
+
 /// Parsed tag values relevant to interpreting Pixel Data, including the raw `PixelData` bytes.
 pub struct PixelDataInfo {
     big_endian: bool,
@@ -43,9 +47,9 @@ pub struct PixelDataInfo {
     bits_alloc: BitsAlloc,
     bits_stored: u16,
     high_bit: u16,
-    slope: f64,
     pixel_rep: u16,
-    intercept: f64,
+    slope: Option<f64>,
+    intercept: Option<f64>,
     unit: String,
     window_centers: Vec<f32>,
     window_widths: Vec<f32>,
@@ -68,8 +72,8 @@ impl Default for PixelDataInfo {
             bits_stored: 0,
             high_bit: 0,
             pixel_rep: 0,
-            slope: 0.0,
-            intercept: 0.0,
+            slope: None,
+            intercept: None,
             unit: String::new(),
             window_centers: Vec::with_capacity(0),
             window_widths: Vec::with_capacity(0),
@@ -163,17 +167,17 @@ impl PixelDataInfo {
     }
 
     #[must_use]
-    pub fn slope(&self) -> f64 {
-        self.slope
-    }
-
-    #[must_use]
     pub fn pixel_rep(&self) -> u16 {
         self.pixel_rep
     }
 
     #[must_use]
-    pub fn intercept(&self) -> f64 {
+    pub fn slope(&self) -> Option<f64> {
+        self.slope
+    }
+
+    #[must_use]
+    pub fn intercept(&self) -> Option<f64> {
         self.intercept
     }
 
@@ -272,11 +276,23 @@ impl PixelDataInfo {
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
                         let val = if self.is_signed() {
-                            PixelDataBuffer::shift_i8(self.pd_bytes[in_pos] as i8)
+                            let mut val = self.pd_bytes[in_pos] as i8;
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as i8;
+                                }
+                            }
+                            PixelDataBuffer::shift_i8(val)
                         } else {
-                            self.pd_bytes[in_pos]
+                            let mut val = self.pd_bytes[in_pos];
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as u8;
+                                }
+                            }
+                            val
                         };
-                        in_pos += 1;
+                        in_pos += U8_SIZE;
                         buffer.push(val);
                         if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
                             if val < min {
@@ -300,18 +316,43 @@ impl PixelDataInfo {
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
                         let val = if self.is_signed() {
-                            let val = if self.big_endian {
-                                i16::from_be_bytes(self.pd_bytes[in_pos..in_pos + 2].try_into()?)
+                            let mut val = if self.big_endian {
+                                i16::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
+                                )
                             } else {
-                                i16::from_le_bytes(self.pd_bytes[in_pos..in_pos + 2].try_into()?)
+                                i16::from_le_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
+                                )
                             };
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as i16;
+                                }
+                            }
                             PixelDataBuffer::shift_i16(val)
                         } else if self.big_endian {
-                            u16::from_be_bytes(self.pd_bytes[in_pos..in_pos + 2].try_into()?)
+                            let mut val = u16::from_be_bytes(
+                                self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
+                            );
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as u16;
+                                }
+                            }
+                            val
                         } else {
-                            u16::from_le_bytes(self.pd_bytes[in_pos..in_pos + 2].try_into()?)
+                            let mut val = u16::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
+                            );
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as u16;
+                                }
+                            }
+                            val
                         };
-                        in_pos += 2;
+                        in_pos += U16_SIZE;
                         buffer.push(val);
                         if self.pixel_padding_val.is_none_or(|pad_val| val != pad_val) {
                             if val < min {
@@ -336,18 +377,43 @@ impl PixelDataInfo {
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
                         let val = if self.is_signed() {
-                            let val = if self.big_endian {
-                                i32::from_be_bytes(self.pd_bytes[in_pos..in_pos + 4].try_into()?)
+                            let mut val = if self.big_endian {
+                                i32::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                                )
                             } else {
-                                i32::from_le_bytes(self.pd_bytes[in_pos..in_pos + 4].try_into()?)
+                                i32::from_le_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                                )
                             };
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as i32;
+                                }
+                            }
                             PixelDataBuffer::shift_i32(val)
                         } else if self.big_endian {
-                            u32::from_be_bytes(self.pd_bytes[in_pos..in_pos + 4].try_into()?)
+                            let mut val = u32::from_be_bytes(
+                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                            );
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as u32;
+                                }
+                            }
+                            val
                         } else {
-                            u32::from_le_bytes(self.pd_bytes[in_pos..in_pos + 4].try_into()?)
+                            let mut val = u32::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                            );
+                            if let Some(slope) = self.slope {
+                                if let Some(intercept) = self.intercept {
+                                    val = (val as f64 * slope + intercept) as u32;
+                                }
+                            }
+                            val
                         };
-                        in_pos += 4;
+                        in_pos += U32_SIZE;
                         buffer.push(val);
                         if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
                             if val < min {
@@ -446,11 +512,11 @@ impl PixelDataInfo {
             }
         } else if elem.tag() == tags::RescaleIntercept.tag() {
             if let Some(val) = elem.parse_value()?.double() {
-                pixdata_info.intercept = val;
+                pixdata_info.intercept = Some(val);
             }
         } else if elem.tag() == tags::RescaleSlope.tag() {
             if let Some(val) = elem.parse_value()?.double() {
-                pixdata_info.slope = val;
+                pixdata_info.slope = Some(val);
             }
         } else if elem.tag() == tags::RescaleType.tag() || elem.tag() == tags::Units.tag() {
             if let Some(val) = elem.parse_value()?.string() {

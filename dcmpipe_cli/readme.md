@@ -48,6 +48,21 @@ Options:
   -h, --help  Print help
 ```
 
+## Image
+```lang=console
+$ ./dcmpipe_cli help image
+Encodes PixelData into a standard image format
+
+Usage: dcmpipe_cli.exe image <FILE> <OUTPUT>
+
+Arguments:
+  <FILE>    The DICOM file to extract image data from
+  <OUTPUT>  The output file to save the encoded image
+
+Options:
+  -h, --help  Print help
+```
+
 ## Index
 ```lang=console
 $ ./dcmpipe_cli help index
