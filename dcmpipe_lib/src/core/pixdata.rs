@@ -45,6 +45,9 @@ pub enum PixelDataError {
     #[error("Invalid Photometric Interpretation and Samples per Pixel combo: {0:?}, {1}")]
     InvalidPhotoInterpSamples(PhotoInterp, u16),
 
+    #[error("Invalid source location to interpret pixel data: {0}")]
+    InvalidPixelSource(usize),
+
     #[error("Error parsing DICOM")]
     ParseError {
         #[from]
@@ -404,12 +407,9 @@ impl PixelDataInfo {
                         }
                     }
                 }
-                Ok(PixelDataBuffer::U8(PixelDataBufferU8 {
-                    info: self,
-                    buffer,
-                    min,
-                    max,
-                }))
+                Ok(PixelDataBuffer::U8(PixelDataBufferU8::new(
+                    self, buffer, min, max,
+                )))
             }
             BitsAlloc::Sixteen => {
                 let mut buffer: Vec<u16> =
@@ -442,12 +442,9 @@ impl PixelDataInfo {
                         }
                     }
                 }
-                Ok(PixelDataBuffer::U16(PixelDataBufferU16 {
-                    info: self,
-                    buffer,
-                    min,
-                    max,
-                }))
+                Ok(PixelDataBuffer::U16(PixelDataBufferU16::new(
+                    self, buffer, min, max,
+                )))
             }
             BitsAlloc::ThirtyTwo => {
                 let mut buffer: Vec<u32> =
@@ -481,12 +478,9 @@ impl PixelDataInfo {
                         }
                     }
                 }
-                Ok(PixelDataBuffer::U32(PixelDataBufferU32 {
-                    info: self,
-                    buffer,
-                    min,
-                    max,
-                }))
+                Ok(PixelDataBuffer::U32(PixelDataBufferU32::new(
+                    self, buffer, min, max,
+                )))
             }
         }
     }
@@ -615,6 +609,9 @@ pub struct PixelDataBufferU8 {
     buffer: Vec<u8>,
     min: u8,
     max: u8,
+
+    stride: usize,
+    interp_as_rgb: bool,
 }
 
 impl std::fmt::Debug for PixelDataBufferU8 {
@@ -630,6 +627,25 @@ impl std::fmt::Debug for PixelDataBufferU8 {
 }
 
 impl PixelDataBufferU8 {
+    pub fn new(info: PixelDataInfo, buffer: Vec<u8>, min: u8, max: u8) -> Self {
+        let stride = if info.planar_config() == 0 {
+            1
+        } else {
+            buffer.len() / info.samples_per_pixel() as usize
+        };
+        let interp_as_rgb =
+            info.photo_interp().is_some_and(PhotoInterp::is_rgb) && info.samples_per_pixel() == 3;
+
+        Self {
+            info,
+            buffer,
+            min,
+            max,
+            stride,
+            interp_as_rgb,
+        }
+    }
+
     pub fn info(&self) -> &PixelDataInfo {
         &self.info
     }
@@ -638,78 +654,89 @@ impl PixelDataBufferU8 {
         &self.buffer
     }
 
-    pub fn range(&self) -> u8 {
-        self.max - self.min
+    pub fn stride(&self) -> usize {
+        self.stride
+    }
+
+    pub fn normalize(&self, val: u8) -> u8 {
+        let range: f32 = (self.max - self.min) as f32;
+        let valz: f32 = (val - self.min) as f32;
+        let val = (valz / range * (u8::MAX as f32)) as u8;
+        if self
+            .info()
+            .photo_interp()
+            .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
+        {
+            !val
+        } else {
+            val
+        }
+    }
+
+    pub fn get_pixel(&self, src_byte_index: usize) -> Result<PixelU8, PixelDataError> {
+        if src_byte_index >= self.buffer().len()
+            || (self.info().planar_config() == 0
+                && src_byte_index % self.info().samples_per_pixel() as usize != 0)
+            || (self.info().planar_config() != 0
+                && src_byte_index >= self.buffer().len() / self.info().samples_per_pixel() as usize)
+        {
+            return Err(PixelDataError::InvalidPixelSource(src_byte_index));
+        }
+
+        let mut dst_pixel_index: usize = src_byte_index;
+        if self.interp_as_rgb && self.info().planar_config() == 0 {
+            dst_pixel_index /= self.info().samples_per_pixel() as usize;
+        }
+
+        let x = (dst_pixel_index as u32) % (self.info().cols() as u32);
+        let y = (dst_pixel_index as u32) / (self.info().cols() as u32);
+
+        let stride = self.stride();
+        let (r, g, b) = if self.interp_as_rgb {
+            let r = self.buffer()[src_byte_index];
+            let g = self.buffer()[src_byte_index + stride];
+            let b = self.buffer()[src_byte_index + stride * 2];
+            (r, g, b)
+        } else {
+            let val = self.normalize(self.buffer()[src_byte_index]);
+            (val, val, val)
+        };
+
+        Ok(PixelU8 { x, y, r, g, b })
     }
 
     pub fn pixel_iter(&self) -> PixelDataBufferU8Iter {
-        let stride = if self.info().planar_config() == 0 {
-            1
-        } else {
-            self.buffer.len() / self.info().samples_per_pixel() as usize
-        };
         PixelDataBufferU8Iter {
             pdbuf: self,
-            stride,
             src_byte_index: 0,
-            dst_pixel_index: 0,
         }
     }
 }
 
 pub struct PixelDataBufferU8Iter<'buf> {
     pdbuf: &'buf PixelDataBufferU8,
-    stride: usize,
     src_byte_index: usize,
-    dst_pixel_index: usize,
 }
 
 impl Iterator for PixelDataBufferU8Iter<'_> {
     type Item = PixelU8;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.src_byte_index >= self.pdbuf.buffer().len() {
-            return None;
-        }
-        let x = (self.dst_pixel_index as u32) % (self.pdbuf.info().cols() as u32);
-        let y = (self.dst_pixel_index as u32) / (self.pdbuf.info().cols() as u32);
-        self.dst_pixel_index += 1;
-        if self
-            .pdbuf
-            .info()
-            .photo_interp()
-            .is_some_and(PhotoInterp::is_rgb)
-            && self.pdbuf.info().samples_per_pixel() == 3
-        {
-            let r = self.pdbuf.buffer()[self.src_byte_index];
-            let g = self.pdbuf.buffer()[self.src_byte_index + self.stride];
-            let b = self.pdbuf.buffer()[self.src_byte_index + self.stride * 2];
-            if self.pdbuf.info().planar_config() == 0 {
-                self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
-            } else {
-                self.src_byte_index += 1;
-            }
-            Some(PixelU8 { x, y, r, g, b })
-        } else if self
-            .pdbuf
-            .info()
-            .photo_interp()
-            .is_some_and(PhotoInterp::is_monochrome)
-            && self.pdbuf.info().samples_per_pixel() == 1
-        {
-            let val = self.pdbuf.buffer()[self.src_byte_index];
-            let val = ((val as f32 / self.pdbuf.range() as f32) * u8::MAX as f32) as u8;
-            let r = val;
-            let g = val;
-            let b = val;
-            self.src_byte_index += 1;
-            Some(PixelU8 { x, y, r, g, b })
+        let pixel = self.pdbuf.get_pixel(self.src_byte_index);
+
+        if self.pdbuf.interp_as_rgb && self.pdbuf.info().planar_config() == 0 {
+            self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
         } else {
-            None
+            // If planar config indicates that all R's are stored followed by all G's then all
+            // B's, then next R pixel is the next element.
+            self.src_byte_index += 1;
         }
+
+        pixel.ok()
     }
 }
 
+#[derive(Debug)]
 pub struct PixelU16 {
     pub x: u32,
     pub y: u32,
@@ -723,6 +750,9 @@ pub struct PixelDataBufferU16 {
     buffer: Vec<u16>,
     min: u16,
     max: u16,
+
+    stride: usize,
+    interp_as_rgb: bool,
 }
 
 impl std::fmt::Debug for PixelDataBufferU16 {
@@ -738,6 +768,25 @@ impl std::fmt::Debug for PixelDataBufferU16 {
 }
 
 impl PixelDataBufferU16 {
+    pub fn new(info: PixelDataInfo, buffer: Vec<u16>, min: u16, max: u16) -> Self {
+        let stride = if info.planar_config() == 0 {
+            1
+        } else {
+            buffer.len() / info.samples_per_pixel() as usize
+        };
+        let interp_as_rgb =
+            info.photo_interp().is_some_and(PhotoInterp::is_rgb) && info.samples_per_pixel() == 3;
+
+        Self {
+            info,
+            buffer,
+            min,
+            max,
+            stride,
+            interp_as_rgb,
+        }
+    }
+
     pub fn info(&self) -> &PixelDataInfo {
         &self.info
     }
@@ -746,75 +795,85 @@ impl PixelDataBufferU16 {
         &self.buffer
     }
 
-    pub fn range(&self) -> u16 {
-        self.max - self.min
+    pub fn stride(&self) -> usize {
+        self.stride
+    }
+
+    pub fn normalize(&self, val: u16) -> u16 {
+        let range: f32 = (self.max - self.min) as f32;
+        let valz: f32 = (val - self.min) as f32;
+        let val = (valz / range * (u16::MAX as f32)) as u16;
+        if self
+            .info()
+            .photo_interp()
+            .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
+        {
+            !val
+        } else {
+            val
+        }
+    }
+
+    pub fn get_pixel(&self, src_byte_index: usize) -> Result<PixelU16, PixelDataError> {
+        if src_byte_index >= self.buffer().len()
+            || (self.info().planar_config() == 0
+                && src_byte_index % self.info().samples_per_pixel() as usize != 0)
+            || (self.info().planar_config() != 0
+                && src_byte_index >= self.buffer().len() / self.info().samples_per_pixel() as usize)
+        {
+            return Err(PixelDataError::InvalidPixelSource(src_byte_index));
+        }
+
+        let mut dst_pixel_index: usize = src_byte_index;
+        if self.interp_as_rgb && self.info().planar_config() == 0 {
+            dst_pixel_index /= self.info().samples_per_pixel() as usize;
+        }
+
+        let x = (dst_pixel_index as u32) % (self.info().cols() as u32);
+        let y = (dst_pixel_index as u32) / (self.info().cols() as u32);
+
+        let stride = self.stride();
+        let (r, g, b) = if self.interp_as_rgb {
+            let r = self.buffer()[src_byte_index];
+            let g = self.buffer()[src_byte_index + stride];
+            let b = self.buffer()[src_byte_index + stride * 2];
+            (r, g, b)
+        } else {
+            let val = self.normalize(self.buffer()[src_byte_index]);
+            (val, val, val)
+        };
+
+        Ok(PixelU16 { x, y, r, g, b })
     }
 
     pub fn pixel_iter(&self) -> PixelDataBufferU16Iter {
-        let stride = if self.info().planar_config() == 0 {
-            1
-        } else {
-            self.buffer.len() / self.info().samples_per_pixel() as usize
-        };
         PixelDataBufferU16Iter {
             pdbuf: self,
-            stride,
             src_byte_index: 0,
-            dst_pixel_index: 0,
         }
     }
 }
 
 pub struct PixelDataBufferU16Iter<'buf> {
     pdbuf: &'buf PixelDataBufferU16,
-    stride: usize,
     src_byte_index: usize,
-    dst_pixel_index: usize,
 }
 
 impl Iterator for PixelDataBufferU16Iter<'_> {
     type Item = PixelU16;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.src_byte_index >= self.pdbuf.buffer().len() {
-            return None;
-        }
-        let x = (self.dst_pixel_index as u32) % (self.pdbuf.info().cols() as u32);
-        let y = (self.dst_pixel_index as u32) / (self.pdbuf.info().cols() as u32);
-        self.dst_pixel_index += 1;
-        if self
-            .pdbuf
-            .info()
-            .photo_interp()
-            .is_some_and(PhotoInterp::is_rgb)
-            && self.pdbuf.info().samples_per_pixel() == 3
-        {
-            let r = self.pdbuf.buffer()[self.src_byte_index];
-            let g = self.pdbuf.buffer()[self.src_byte_index + self.stride];
-            let b = self.pdbuf.buffer()[self.src_byte_index + self.stride * 2];
-            if self.pdbuf.info().planar_config() == 0 {
-                self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
-            } else {
-                self.src_byte_index += 1;
-            }
-            Some(PixelU16 { x, y, r, g, b })
-        } else if self
-            .pdbuf
-            .info()
-            .photo_interp()
-            .is_some_and(PhotoInterp::is_monochrome)
-            && self.pdbuf.info().samples_per_pixel() == 1
-        {
-            let val = self.pdbuf.buffer()[self.src_byte_index];
-            let val = ((val as f32 / self.pdbuf.range() as f32) * u16::MAX as f32) as u16;
-            let r = val;
-            let g = val;
-            let b = val;
-            self.src_byte_index += 1;
-            Some(PixelU16 { x, y, r, g, b })
+        let pixel = self.pdbuf.get_pixel(self.src_byte_index);
+
+        if self.pdbuf.interp_as_rgb && self.pdbuf.info().planar_config() == 0 {
+            self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
         } else {
-            None
+            // If planar config indicates that all R's are stored followed by all G's then all
+            // B's, then next R pixel is the next element.
+            self.src_byte_index += 1;
         }
+
+        pixel.ok()
     }
 }
 
@@ -831,6 +890,9 @@ pub struct PixelDataBufferU32 {
     buffer: Vec<u32>,
     min: u32,
     max: u32,
+
+    stride: usize,
+    interp_as_rgb: bool,
 }
 
 impl std::fmt::Debug for PixelDataBufferU32 {
@@ -846,6 +908,25 @@ impl std::fmt::Debug for PixelDataBufferU32 {
 }
 
 impl PixelDataBufferU32 {
+    pub fn new(info: PixelDataInfo, buffer: Vec<u32>, min: u32, max: u32) -> Self {
+        let stride = if info.planar_config() == 0 {
+            1
+        } else {
+            buffer.len() / info.samples_per_pixel() as usize
+        };
+        let interp_as_rgb =
+            info.photo_interp().is_some_and(PhotoInterp::is_rgb) && info.samples_per_pixel() == 3;
+
+        Self {
+            info,
+            buffer,
+            min,
+            max,
+            stride,
+            interp_as_rgb,
+        }
+    }
+
     pub fn info(&self) -> &PixelDataInfo {
         &self.info
     }
@@ -854,75 +935,85 @@ impl PixelDataBufferU32 {
         &self.buffer
     }
 
-    pub fn range(&self) -> u32 {
-        self.max - self.min
+    pub fn stride(&self) -> usize {
+        self.stride
+    }
+
+    pub fn normalize(&self, val: u32) -> u32 {
+        let range: f32 = (self.max - self.min) as f32;
+        let valz: f32 = (val - self.min) as f32;
+        let val = (valz / range * (u32::MAX as f32)) as u32;
+        if self
+            .info()
+            .photo_interp()
+            .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
+        {
+            !val
+        } else {
+            val
+        }
+    }
+
+    pub fn get_pixel(&self, src_byte_index: usize) -> Result<PixelU32, PixelDataError> {
+        if src_byte_index >= self.buffer().len()
+            || (self.info().planar_config() == 0
+                && src_byte_index % self.info().samples_per_pixel() as usize != 0)
+            || (self.info().planar_config() != 0
+                && src_byte_index >= self.buffer().len() / self.info().samples_per_pixel() as usize)
+        {
+            return Err(PixelDataError::InvalidPixelSource(src_byte_index));
+        }
+
+        let mut dst_pixel_index: usize = src_byte_index;
+        if self.interp_as_rgb && self.info().planar_config() == 0 {
+            dst_pixel_index /= self.info().samples_per_pixel() as usize;
+        }
+
+        let x = (dst_pixel_index as u32) % (self.info().cols() as u32);
+        let y = (dst_pixel_index as u32) / (self.info().cols() as u32);
+
+        let stride = self.stride();
+        let (r, g, b) = if self.interp_as_rgb {
+            let r = self.buffer()[src_byte_index];
+            let g = self.buffer()[src_byte_index + stride];
+            let b = self.buffer()[src_byte_index + stride * 2];
+            (r, g, b)
+        } else {
+            let val = self.normalize(self.buffer()[src_byte_index]);
+            (val, val, val)
+        };
+
+        Ok(PixelU32 { x, y, r, g, b })
     }
 
     pub fn pixel_iter(&self) -> PixelDataBufferU32Iter {
-        let stride = if self.info().planar_config() == 0 {
-            1
-        } else {
-            self.buffer.len() / self.info().samples_per_pixel() as usize
-        };
         PixelDataBufferU32Iter {
             pdbuf: self,
-            stride,
             src_byte_index: 0,
-            dst_pixel_index: 0,
         }
     }
 }
 
 pub struct PixelDataBufferU32Iter<'buf> {
     pdbuf: &'buf PixelDataBufferU32,
-    stride: usize,
     src_byte_index: usize,
-    dst_pixel_index: usize,
 }
 
 impl Iterator for PixelDataBufferU32Iter<'_> {
     type Item = PixelU32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.src_byte_index >= self.pdbuf.buffer().len() {
-            return None;
-        }
-        let x = (self.dst_pixel_index as u32) % (self.pdbuf.info().cols() as u32);
-        let y = (self.dst_pixel_index as u32) / (self.pdbuf.info().cols() as u32);
-        self.dst_pixel_index += 1;
-        if self
-            .pdbuf
-            .info()
-            .photo_interp()
-            .is_some_and(PhotoInterp::is_rgb)
-            && self.pdbuf.info().samples_per_pixel() == 3
-        {
-            let r = self.pdbuf.buffer()[self.src_byte_index];
-            let g = self.pdbuf.buffer()[self.src_byte_index + self.stride];
-            let b = self.pdbuf.buffer()[self.src_byte_index + self.stride * 2];
-            if self.pdbuf.info().planar_config() == 0 {
-                self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
-            } else {
-                self.src_byte_index += 1;
-            }
-            Some(PixelU32 { x, y, r, g, b })
-        } else if self
-            .pdbuf
-            .info()
-            .photo_interp()
-            .is_some_and(PhotoInterp::is_monochrome)
-            && self.pdbuf.info().samples_per_pixel() == 1
-        {
-            let val = self.pdbuf.buffer()[self.src_byte_index];
-            let val = ((val as f32 / self.pdbuf.range() as f32) * u32::MAX as f32) as u32;
-            let r = val;
-            let g = val;
-            let b = val;
-            self.src_byte_index += 1;
-            Some(PixelU32 { x, y, r, g, b })
+        let pixel = self.pdbuf.get_pixel(self.src_byte_index);
+
+        if self.pdbuf.interp_as_rgb && self.pdbuf.info().planar_config() == 0 {
+            self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
         } else {
-            None
+            // If planar config indicates that all R's are stored followed by all G's then all
+            // B's, then next R pixel is the next element.
+            self.src_byte_index += 1;
         }
+
+        pixel.ok()
     }
 }
 
