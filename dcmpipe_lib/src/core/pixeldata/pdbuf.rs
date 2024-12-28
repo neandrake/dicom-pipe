@@ -17,8 +17,8 @@
 use crate::core::pixeldata::{pdinfo::PixelDataInfo, PhotoInterp, PixelDataError};
 
 pub struct PixelU8 {
-    pub x: u32,
-    pub y: u32,
+    pub x: usize,
+    pub y: usize,
     pub r: u8,
     pub g: u8,
     pub b: u8,
@@ -108,8 +108,8 @@ impl PixelDataBufferU8 {
             dst_pixel_index /= self.info().samples_per_pixel() as usize;
         }
 
-        let x = (dst_pixel_index as u32) % (self.info().cols() as u32);
-        let y = (dst_pixel_index as u32) / (self.info().cols() as u32);
+        let x = dst_pixel_index % (self.info().cols() as usize);
+        let y = dst_pixel_index / (self.info().cols() as usize);
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
@@ -158,8 +158,8 @@ impl Iterator for PixelDataBufferU8Iter<'_> {
 
 #[derive(Debug)]
 pub struct PixelU16 {
-    pub x: u32,
-    pub y: u32,
+    pub x: usize,
+    pub y: usize,
     pub r: u16,
     pub g: u16,
     pub b: u16,
@@ -249,8 +249,8 @@ impl PixelDataBufferU16 {
             dst_pixel_index /= self.info().samples_per_pixel() as usize;
         }
 
-        let x = (dst_pixel_index as u32) % (self.info().cols() as u32);
-        let y = (dst_pixel_index as u32) / (self.info().cols() as u32);
+        let x = dst_pixel_index % (self.info().cols() as usize);
+        let y = dst_pixel_index / (self.info().cols() as usize);
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
@@ -298,8 +298,8 @@ impl Iterator for PixelDataBufferU16Iter<'_> {
 }
 
 pub struct PixelU32 {
-    pub x: u32,
-    pub y: u32,
+    pub x: usize,
+    pub y: usize,
     pub r: u32,
     pub g: u32,
     pub b: u32,
@@ -389,8 +389,8 @@ impl PixelDataBufferU32 {
             dst_pixel_index /= self.info().samples_per_pixel() as usize;
         }
 
-        let x = (dst_pixel_index as u32) % (self.info().cols() as u32);
-        let y = (dst_pixel_index as u32) / (self.info().cols() as u32);
+        let x = dst_pixel_index % (self.info().cols() as usize);
+        let y = dst_pixel_index / (self.info().cols() as usize);
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {

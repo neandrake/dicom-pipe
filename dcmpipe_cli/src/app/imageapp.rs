@@ -65,7 +65,7 @@ impl CommandApplication for ImageApp {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
                     ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
                 for PixelU8 { x, y, r, g, b } in pdbuf.pixel_iter() {
-                    image.put_pixel(x, y, Rgb([r, g, b]));
+                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
                 }
                 image.save(output_path_buf)?;
             }
@@ -73,7 +73,7 @@ impl CommandApplication for ImageApp {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
                     ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
                 for PixelU16 { x, y, r, g, b } in pdbuf.pixel_iter() {
-                    image.put_pixel(x, y, Rgb([r, g, b]));
+                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
                 }
                 image.save(output_path_buf)?;
             }
@@ -81,7 +81,7 @@ impl CommandApplication for ImageApp {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
                     ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
                 for PixelU32 { x, y, r, g, b } in pdbuf.pixel_iter() {
-                    image.put_pixel(x, y, Rgb([r as u16, g as u16, b as u16]));
+                    image.put_pixel(x as u32, y as u32, Rgb([r as u16, g as u16, b as u16]));
                 }
                 image.save(output_path_buf)?;
             }
