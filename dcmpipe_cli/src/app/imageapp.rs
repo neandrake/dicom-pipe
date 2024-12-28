@@ -19,7 +19,10 @@
 use anyhow::{anyhow, Result};
 use dcmpipe_lib::core::{
     defn::ts::TSRef,
-    pixdata::{PixelDataBuffer, PixelDataInfo, PixelU16, PixelU32, PixelU8},
+    pixeldata::{
+        pdbuf::{PixelDataBuffer, PixelU16, PixelU32, PixelU8},
+        pdinfo::PixelDataInfo,
+    },
 };
 use image::{ImageBuffer, Rgb};
 use std::path::{Path, PathBuf};
