@@ -36,14 +36,26 @@ impl PixelDataBuffer {
         ((val as i16).saturating_add(1) + (i8::MAX as i16)) as u8
     }
 
+    pub fn unshift_u8(val: u8) -> i8 {
+        ((val as i16).saturating_sub(1) - (i8::MAX as i16)) as i8
+    }
+
     /// Shift an i16 value into u16 space, so i16::MIN -> u16::MIN.
     pub fn shift_i16(val: i16) -> u16 {
         ((val as i32).saturating_add(1) + (i16::MAX as i32)) as u16
     }
 
+    pub fn unshift_u16(val: u16) -> i16 {
+        ((val as i32).saturating_sub(1) - (i16::MAX as i32)) as i16
+    }
+
     /// Shift an i32 value into u32 space, so i32::MIN -> u32::MIN.
     pub fn shift_i32(val: i32) -> u32 {
         ((val as i64).saturating_add(1) + (i32::MAX as i64)) as u32
+    }
+
+    pub fn ushift_u32(val: u32) -> i32 {
+        ((val as i64).saturating_sub(1) - (i32::MAX as i64)) as i32
     }
 }
 

@@ -313,6 +313,9 @@ impl PixelDataInfo {
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
                         let mut val = self.pd_bytes[in_pos];
+                        // TODO: Intercept can move the value into the negative. For unsigned values
+                        //       with negative slope/intercept this will need to return signed
+                        //       values.
                         if let Some(slope) = self.slope {
                             if let Some(intercept) = self.intercept {
                                 val = (val as f64 * slope + intercept) as u8;
@@ -381,6 +384,9 @@ impl PixelDataInfo {
                             let mut val = u16::from_be_bytes(
                                 self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
                             );
+                            // TODO: Intercept can move the value into the negative. For unsigned
+                            //       values with negative slope/intercept this will need to return
+                            //       signed values.
                             if let Some(slope) = self.slope {
                                 if let Some(intercept) = self.intercept {
                                     val = (val as f64 * slope + intercept) as u16;
@@ -391,6 +397,9 @@ impl PixelDataInfo {
                             let mut val = u16::from_le_bytes(
                                 self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
                             );
+                            // TODO: Intercept can move the value into the negative. For unsigned
+                            //       values with negative slope/intercept this will need to return
+                            //       signed values.
                             if let Some(slope) = self.slope {
                                 if let Some(intercept) = self.intercept {
                                     val = (val as f64 * slope + intercept) as u16;
@@ -460,6 +469,9 @@ impl PixelDataInfo {
                             let mut val = u32::from_be_bytes(
                                 self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
                             );
+                            // TODO: Intercept can move the value into the negative. For unsigned
+                            //       values with negative slope/intercept this will need to return
+                            //       signed values.
                             if let Some(slope) = self.slope {
                                 if let Some(intercept) = self.intercept {
                                     val = (val as f64 * slope + intercept) as u32;
@@ -470,6 +482,9 @@ impl PixelDataInfo {
                             let mut val = u32::from_le_bytes(
                                 self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
                             );
+                            // TODO: Intercept can move the value into the negative. For unsigned
+                            //       values with negative slope/intercept this will need to return
+                            //       signed values.
                             if let Some(slope) = self.slope {
                                 if let Some(intercept) = self.intercept {
                                     val = (val as f64 * slope + intercept) as u32;
