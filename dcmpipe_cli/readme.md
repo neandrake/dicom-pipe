@@ -1,6 +1,7 @@
 # dcmpipe_cli #
 
-A set of command-line tool examples developed to test out the `dcmpipe_lib` library, both functionality and ergonomics of the API.
+A set of command-line tool examples developed to test out the `dcmpipe_lib`
+library, both the functionality and the ergonomics of its API.
 
 ```lang=console
 $ ./dcmpipe_cli
@@ -10,10 +11,12 @@ Usage: dcmpipe_cli <COMMAND>
 
 Commands:
   print    Parses a single file and prints the DICOM elements to stdout
+  image    Encodes PixelData into a standard image format
   browse   Browse a DICOM dataset in a text-based user interface
   index    Manage a database index of DICOM on disk
   archive  Archives DICOM datasets from a source folder into a destination folder
   scp      Starts an SCP service
+  scu      Issue commands as an SCU
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -53,7 +56,7 @@ Options:
 $ ./dcmpipe_cli help image
 Encodes PixelData into a standard image format
 
-Usage: dcmpipe_cli.exe image <FILE> <OUTPUT>
+Usage: dcmpipe_cli image <FILE> <OUTPUT>
 
 Arguments:
   <FILE>    The DICOM file to extract image data from

@@ -40,7 +40,9 @@ let parser: Parser<'_, File> = ParserBuidler::default()
 let pixeldata_buffer = PixelDataInfo::process_dcm_parser(parser)?
     .load_pixel_data()?;
 
-// There are U8, U16, and U32 variants, depending on the DICOM's encoded values.
+// There are U8, U16, U32, I8, I16, and I32 variants, depending on the DICOM's
+// encoded values. See the comment on `PixelDataBuffer::load_pixel_data()` for
+// details on when to expect which variants.
 if let PixelDataBuffer::U16(pdbuf) = pixeldata_buffer {
     let (width, height) = (pdbuf.info().cols(), pdbuf.info().rows());
 
@@ -101,6 +103,6 @@ The API is also focused on enabling efficient operations:
   for more information.
 - `dcmpipe_dict_builder`: Parses the DICOM Standard XML files for producing the
   standard DICOM dictionary. This is intended to be used by `build.rs` scripts.
-- `dcmpipe_lib`: The core API for reading and writing DICOM, and optional
-  support for the DICOM Message Exchange network protocol.
+- `dcmpipe_lib`: The core API for reading and writing DICOM, decoding images,and
+  optional support for the DICOM Message Exchange network protocol.
 
