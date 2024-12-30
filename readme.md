@@ -12,46 +12,75 @@ the library:
 
 ## Quick Examples ##
 
+### Parse through DICOM elements of a file.
 ```rust
-// Set up a parser for a DICOM file.
+// 1. Set up a parser for a DICOM file.
 let parser: Parser<'_, File> = ParserBuilder::default()
-    // Stops parsing once the PixelData element is seen.
+    // Stops parsing once the PixelData element is seen to avoid loading it into
+    // memory.
     .stop(TagStop::BeforeTagValue(&PixelData))
     // The dictionary is used during parsing for Implicit VR transfer syntaxes,
     // and associates the resolved VR to the resulting elements for parsing the
     // element values.
     .build(file, &STANDARD_DICOM_DICTIONARY);
 
-// The parser is an iterator over elements.
+// 2. Use the parser as an iterator over the elements.
 for element_res in parser {
     let element = element_res?;
-    let value = element.parse_value()
-        // Parsing returns a Result<RawValue>
-        .ok()
-        // RawValue::string() returns Option<String>
-        .and_then(|v| v.string())
-        .unwrap();
+    // 3. Parse/interpret the value of an element. The `parse_value()` funtion
+    //    will parse as the explicit/implicit VR. Use `parse_value_as()` to
+    //    parse the value as a different VR.
+    //    The `string()` function will attempt to interpret the parsed value as
+    //    a single string, the first occurring string, returning `None` if
+    //    inapplicable. There are variants for other common types for ease of
+    //    parsing, `ushort()`, `int()`, etc. To handle multiple values use the
+    //    `RawValue` result from `parse_value()` or `parse_value_as()`.
+    if let Some(value) = element.parse_value()?.string() {
+        println!("Value is {value}");
+    }
 }
 ```
 
+### Decode PixelData for a DICOM SOP Instance.
 ```rust
+// 1. Set up a parser for a DICOM file.
 let parser: Parser<'_, File> = ParserBuidler::default()
     .build(file, &STANDARD_DICOM_DICTIONARY);
+
+// 2. Process and load the PixelData into memory.
 let pixeldata_buffer = PixelDataInfo::process_dcm_parser(parser)?
     .load_pixel_data()?;
 
-// There are U8, U16, U32, I8, I16, and I32 variants, depending on the DICOM's
-// encoded values. See the comment on `PixelDataBuffer::load_pixel_data()` for
-// details on when to expect which variants.
-if let PixelDataBuffer::U16(pdbuf) = pixeldata_buffer {
-    let (width, height) = (pdbuf.info().cols(), pdbuf.info().rows());
+// 3. Use the loaded PixelData values.
+match pixeldata_buffer {
+    // The U8 variant will be common for most RGB image data and pixel_iter()
+    // provides an iterator over the raw pixel values.
+    PixelDataBuffer::U8(pdbuf) => {
+        let (width, height) = (pdbuf.info().cols(), pdbuf.info().rows());
 
-    // pixel_iter() provides an iterator over pixels converted for display.
-    for PixelU16 { x, y, r, g, b } in pdbuf.pixel_iter() {
-        // The x, y are usize, within the width and height of the image.
-        // RGB: r, g, b are the respective components of the pixel color.
-        // MONOCHROME1/2: r, g, b are the same value.
+        for PixelU8 { x, y, r, g, b } in pdbuf.pixel_iter() {
+            // The x, y are usize, within the width and height of the image.
+            // The r, g, b are u8, represents the respective pixel color
+            // component.
+        }
     }
+
+    // The I16 variant will be common for most monochrome image data and
+    // pixel_iter() provides an iterator over pixels values normalized to I16
+    // and rescale applied.
+    PixelDataBuffer::I16(pdbuf) => {
+        let (width, height) = (pdbuf.info().cols(), pdbuf.info().rows());
+
+        for PixelI16 { x, y, r, g, b } in pdbuf.pixel_iter() {
+            // The x, y are usize, within the width and height of the image.
+            // The r, g, b are i16, and the same value for monochrome.
+        }
+    }
+
+    // There are U8, U16, U32, I8, I16, and I32 variants, depending on the
+    // DICOM's encoded values. See `PixelDataBuffer::load_pixel_data()` for
+    // details on when to expect which variants.
+    _ => {}
 }
 ```
 
