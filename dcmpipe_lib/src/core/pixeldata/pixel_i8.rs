@@ -81,17 +81,24 @@ impl PixelDataBufferI8 {
     }
 
     pub fn normalize(&self, val: i8) -> i8 {
-        let range: f32 = (self.max - self.min) as f32;
-        let valz: f32 = (val - self.min) as f32;
-        let val = (valz / range * (i8::MAX as f32)) as i8;
+        let range: f32 = self.max as f32 - self.min as f32;
+        let normalized: f32 = (val as f32 - self.min as f32) / range;
+        let range: f32 = i8::MAX as f32 - i8::MIN as f32;
+        let mut denormalized: f32 = normalized * range + i8::MIN as f32;
+        if let Some(slope) = self.info().slope() {
+            if let Some(intercept) = self.info().intercept() {
+                denormalized = (denormalized as f64 * slope + intercept) as f32;
+            }
+        }
+        let denormalized = denormalized as i8;
         if self
             .info()
             .photo_interp()
             .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
         {
-            !val
+            !denormalized
         } else {
-            val
+            denormalized
         }
     }
 

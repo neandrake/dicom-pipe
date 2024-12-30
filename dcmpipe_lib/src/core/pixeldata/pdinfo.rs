@@ -22,14 +22,16 @@ use crate::{
         defn::vr::{self, VRRef},
         pixeldata::{
             pdbuf::PixelDataBuffer, pixel_i16::PixelDataBufferI16, pixel_i32::PixelDataBufferI32,
-            pixel_i8::PixelDataBufferI8, pixel_u16::PixelDataBufferU16,
-            pixel_u32::PixelDataBufferU32, pixel_u8::PixelDataBufferU8, BitsAlloc, PhotoInterp,
-            PixelDataError,
+            BitsAlloc, PhotoInterp, PixelDataError,
         },
         read::Parser,
         RawValue,
     },
     dict::tags,
+};
+
+use super::{
+    pixel_u16::PixelDataBufferU16, pixel_u32::PixelDataBufferU32, pixel_u8::PixelDataBufferU8,
 };
 
 const I8_SIZE: usize = size_of::<i8>();
@@ -259,85 +261,48 @@ impl PixelDataInfo {
         Ok(())
     }
 
-    /// Loads the pixel data bytes into `PixelDataBuffer`.
+    /// Loads the pixel data raw bytes into values in a `PixelDataBuffer`.
+    ///
+    /// # Notes
+    /// The type of buffer returned depends on the photometric interpretation and bits allocated.
+    /// - PhotometricInterpretation == RGB always returns unsigned variant.
+    ///   - BitsAlloc = 8, `PixelDataBuffer::U8`.
+    ///   - BitsAlloc = 16, `PixelDataBuffer::U16`.
+    ///   - BitsAlloc = 32, `PixelDataBuffer::U32`.
+    /// - PhotometricInterpretation == MONOCHROME1/MONOCHROME2 always returns a signed variant.
+    ///   While values may be encoded as unsigned, applying the rescale slope/intercept may result
+    ///   in negative values.
+    ///   - BitsAlloc = 8, `PixelDataBuffer::I16` (values are cast from i8/u8 to i16).
+    ///   - BitsAlloc = 16, `PixelDataBuffer::I16` (u16 values are cast to i16).
+    ///   - BitsAlloc = 32, `PixelDataBuffer::I32` (u32 values are cast to i32).
     ///
     /// # Errors
-    /// - If BitsAllocated is unsupported (though this should already be caught by
-    ///   `PixelDataInfo::validate()`.
+    /// - If BitsAllocated is unsupported.
     /// - Reading byte/word values from the Pixel Data bytes.
     pub fn load_pixel_data(mut self) -> Result<PixelDataBuffer, PixelDataError> {
         self.validate()?;
-        let is_signed = self.is_signed();
-        let mut in_pos: usize = 0;
         let len = Into::<usize>::into(self.cols) * Into::<usize>::into(self.rows);
-        match (self.bits_alloc, is_signed) {
+        let is_rgb = self.photo_interp().is_some_and(PhotoInterp::is_rgb);
+        let mut in_pos: usize = 0;
+        match (self.bits_alloc, is_rgb) {
             (BitsAlloc::Unsupported(val), _) => Err(PixelDataError::InvalidBitsAlloc(val)),
             (BitsAlloc::Eight, true) => {
-                let mut buffer: Vec<i8> = Vec::with_capacity(len * self.samples_per_pixel as usize);
-                let mut min: i8 = i8::MAX;
-                let mut max: i8 = i8::MIN;
-                let pixel_pad_val = self
-                    .pixel_padding_val
-                    .and_then(|pad_val| TryInto::<i8>::try_into(pad_val).ok());
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let mut val = self.pd_bytes[in_pos] as i8;
-                        if let Some(slope) = self.slope {
-                            if let Some(intercept) = self.intercept {
-                                val = (val as f64 * slope + intercept) as i8;
-                            }
-                        }
-                        in_pos += I8_SIZE;
-                        buffer.push(val);
-                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                            if val < min {
-                                min = val;
-                            }
-                            if val > max {
-                                max = val;
-                            }
-                        }
-                    }
-                }
-                Ok(PixelDataBuffer::I8(PixelDataBufferI8::new(
-                    self, buffer, min, max,
-                )))
-            }
-            (BitsAlloc::Eight, false) => {
                 let mut buffer: Vec<u8> = Vec::with_capacity(len * self.samples_per_pixel as usize);
-                let mut min: u8 = u8::MAX;
-                let mut max: u8 = u8::MIN;
-                let pixel_pad_val = self
-                    .pixel_padding_val
-                    .and_then(|pad_val| TryInto::<u8>::try_into(pad_val).ok());
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
-                        let mut val = self.pd_bytes[in_pos];
-                        // TODO: Intercept can move the value into the negative. For unsigned values
-                        //       with negative slope/intercept this will need to return signed
-                        //       values.
-                        if let Some(slope) = self.slope {
-                            if let Some(intercept) = self.intercept {
-                                val = (val as f64 * slope + intercept) as u8;
-                            }
-                        }
+                        let val = self.pd_bytes[in_pos];
                         in_pos += U8_SIZE;
                         buffer.push(val);
-                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                            if val < min {
-                                min = val;
-                            }
-                            if val > max {
-                                max = val;
-                            }
-                        }
                     }
                 }
                 Ok(PixelDataBuffer::U8(PixelDataBufferU8::new(
-                    self, buffer, min, max,
+                    self,
+                    buffer,
+                    u8::MIN,
+                    u8::MAX,
                 )))
             }
-            (BitsAlloc::Sixteen, true) => {
+            (BitsAlloc::Eight, false) => {
                 let mut buffer: Vec<i16> =
                     Vec::with_capacity(len * self.samples_per_pixel as usize);
                 let mut min: i16 = i16::MAX;
@@ -347,17 +312,8 @@ impl PixelDataInfo {
                     .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
-                        let mut val = if self.big_endian {
-                            i16::from_be_bytes(self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?)
-                        } else {
-                            i16::from_le_bytes(self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?)
-                        };
-                        if let Some(slope) = self.slope {
-                            if let Some(intercept) = self.intercept {
-                                val = (val as f64 * slope + intercept) as i16;
-                            }
-                        }
-                        in_pos += I16_SIZE;
+                        let val = self.pd_bytes[in_pos] as i16;
+                        in_pos += I8_SIZE;
                         buffer.push(val);
                         if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
                             if val < min {
@@ -373,43 +329,87 @@ impl PixelDataInfo {
                     self, buffer, min, max,
                 )))
             }
-            (BitsAlloc::Sixteen, false) => {
+            (BitsAlloc::Sixteen, true) => {
                 let mut buffer: Vec<u16> =
                     Vec::with_capacity(len * self.samples_per_pixel as usize);
-                let mut min: u16 = u16::MAX;
-                let mut max: u16 = u16::MIN;
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
                         let val = if self.big_endian {
-                            let mut val = u16::from_be_bytes(
-                                self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
-                            );
-                            // TODO: Intercept can move the value into the negative. For unsigned
-                            //       values with negative slope/intercept this will need to return
-                            //       signed values.
-                            if let Some(slope) = self.slope {
-                                if let Some(intercept) = self.intercept {
-                                    val = (val as f64 * slope + intercept) as u16;
-                                }
+                            if self.is_signed() {
+                                let val = PixelDataBuffer::shift_i16(i16::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
+                                ));
+                                in_pos += I16_SIZE;
+                                val
+                            } else {
+                                let val = u16::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
+                                );
+                                in_pos += U16_SIZE;
+                                val
                             }
+                        } else if self.is_signed() {
+                            let val = PixelDataBuffer::shift_i16(i16::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
+                            ));
+                            in_pos += I16_SIZE;
                             val
                         } else {
-                            let mut val = u16::from_le_bytes(
+                            let val = u16::from_le_bytes(
                                 self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
                             );
-                            // TODO: Intercept can move the value into the negative. For unsigned
-                            //       values with negative slope/intercept this will need to return
-                            //       signed values.
-                            if let Some(slope) = self.slope {
-                                if let Some(intercept) = self.intercept {
-                                    val = (val as f64 * slope + intercept) as u16;
-                                }
-                            }
+                            in_pos += U16_SIZE;
                             val
                         };
-                        in_pos += U16_SIZE;
                         buffer.push(val);
-                        if self.pixel_padding_val.is_none_or(|pad_val| val != pad_val) {
+                    }
+                }
+                Ok(PixelDataBuffer::U16(PixelDataBufferU16::new(
+                    self,
+                    buffer,
+                    u16::MIN,
+                    u16::MAX,
+                )))
+            }
+            (BitsAlloc::Sixteen, false) => {
+                let mut buffer: Vec<i16> =
+                    Vec::with_capacity(len * self.samples_per_pixel as usize);
+                let mut min: i16 = i16::MAX;
+                let mut max: i16 = i16::MIN;
+                let pixel_pad_val = self
+                    .pixel_padding_val
+                    .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
+                for _i in 0..len {
+                    for _j in 0..self.samples_per_pixel {
+                        let val = if self.big_endian {
+                            if self.is_signed() {
+                                let val = i16::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
+                                );
+                                in_pos += I16_SIZE;
+                                val
+                            } else {
+                                let val = u16::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
+                                ) as i16;
+                                in_pos += U16_SIZE;
+                                val
+                            }
+                        } else if self.is_signed() {
+                            let val = i16::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
+                            );
+                            in_pos += I16_SIZE;
+                            val
+                        } else {
+                            let val = u16::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
+                            ) as i16;
+                            in_pos += U16_SIZE;
+                            val
+                        };
+                        buffer.push(val);
+                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
                             if val < min {
                                 min = val;
                             }
@@ -419,11 +419,53 @@ impl PixelDataInfo {
                         }
                     }
                 }
-                Ok(PixelDataBuffer::U16(PixelDataBufferU16::new(
+                Ok(PixelDataBuffer::I16(PixelDataBufferI16::new(
                     self, buffer, min, max,
                 )))
             }
             (BitsAlloc::ThirtyTwo, true) => {
+                let mut buffer: Vec<u32> =
+                    Vec::with_capacity(len * self.samples_per_pixel as usize);
+                for _i in 0..len {
+                    for _j in 0..self.samples_per_pixel {
+                        let val = if self.big_endian {
+                            if self.is_signed() {
+                                let val = PixelDataBuffer::shift_i32(i32::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
+                                ));
+                                in_pos += I32_SIZE;
+                                val
+                            } else {
+                                let val = u32::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                                );
+                                in_pos += U32_SIZE;
+                                val
+                            }
+                        } else if self.is_signed() {
+                            let val = PixelDataBuffer::shift_i32(i32::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
+                            ));
+                            in_pos += I32_SIZE;
+                            val
+                        } else {
+                            let val = u32::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                            );
+                            in_pos += U32_SIZE;
+                            val
+                        };
+                        buffer.push(val);
+                    }
+                }
+                Ok(PixelDataBuffer::U32(PixelDataBufferU32::new(
+                    self,
+                    buffer,
+                    u32::MIN,
+                    u32::MAX,
+                )))
+            }
+            (BitsAlloc::ThirtyTwo, false) => {
                 let mut buffer: Vec<i32> =
                     Vec::with_capacity(len * self.samples_per_pixel as usize);
                 let mut min: i32 = i32::MAX;
@@ -431,17 +473,33 @@ impl PixelDataInfo {
                 let pixel_pad_val = self.pixel_padding_val.map(Into::<i32>::into);
                 for _i in 0..len {
                     for _j in 0..self.samples_per_pixel {
-                        let mut val = if self.big_endian {
-                            i32::from_be_bytes(self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?)
-                        } else {
-                            i32::from_le_bytes(self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?)
-                        };
-                        if let Some(slope) = self.slope {
-                            if let Some(intercept) = self.intercept {
-                                val = (val as f64 * slope + intercept) as i32;
+                        let val = if self.big_endian {
+                            if self.is_signed() {
+                                let val = i32::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
+                                );
+                                in_pos += I32_SIZE;
+                                val
+                            } else {
+                                let val = u32::from_be_bytes(
+                                    self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                                ) as i32;
+                                in_pos += U32_SIZE;
+                                val
                             }
-                        }
-                        in_pos += I32_SIZE;
+                        } else if self.is_signed() {
+                            let val = i32::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
+                            );
+                            in_pos += I32_SIZE;
+                            val
+                        } else {
+                            let val = u32::from_le_bytes(
+                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
+                            ) as i32;
+                            in_pos += U32_SIZE;
+                            val
+                        };
                         buffer.push(val);
                         if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
                             if val < min {
@@ -454,57 +512,6 @@ impl PixelDataInfo {
                     }
                 }
                 Ok(PixelDataBuffer::I32(PixelDataBufferI32::new(
-                    self, buffer, min, max,
-                )))
-            }
-            (BitsAlloc::ThirtyTwo, false) => {
-                let mut buffer: Vec<u32> =
-                    Vec::with_capacity(len * self.samples_per_pixel as usize);
-                let mut min: u32 = u32::MAX;
-                let mut max: u32 = u32::MIN;
-                let pixel_pad_val = self.pixel_padding_val.map(Into::<u32>::into);
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let val = if self.big_endian {
-                            let mut val = u32::from_be_bytes(
-                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
-                            );
-                            // TODO: Intercept can move the value into the negative. For unsigned
-                            //       values with negative slope/intercept this will need to return
-                            //       signed values.
-                            if let Some(slope) = self.slope {
-                                if let Some(intercept) = self.intercept {
-                                    val = (val as f64 * slope + intercept) as u32;
-                                }
-                            }
-                            val
-                        } else {
-                            let mut val = u32::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
-                            );
-                            // TODO: Intercept can move the value into the negative. For unsigned
-                            //       values with negative slope/intercept this will need to return
-                            //       signed values.
-                            if let Some(slope) = self.slope {
-                                if let Some(intercept) = self.intercept {
-                                    val = (val as f64 * slope + intercept) as u32;
-                                }
-                            }
-                            val
-                        };
-                        in_pos += U32_SIZE;
-                        buffer.push(val);
-                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                            if val < min {
-                                min = val;
-                            }
-                            if val > max {
-                                max = val;
-                            }
-                        }
-                    }
-                }
-                Ok(PixelDataBuffer::U32(PixelDataBufferU32::new(
                     self, buffer, min, max,
                 )))
             }
@@ -599,7 +606,7 @@ impl PixelDataInfo {
             }
         } else if elem.tag() == tags::RescaleType.tag() || elem.tag() == tags::Units.tag() {
             if let Some(val) = elem.parse_value()?.string() {
-                // Only use Units if RescaleType wasn't present.
+                // Only use Units if RescaleType wasn't present. RescaleType occurs prior to Units.
                 if pixdata_info.unit.is_empty() {
                     pixdata_info.unit = val.to_owned();
                 }

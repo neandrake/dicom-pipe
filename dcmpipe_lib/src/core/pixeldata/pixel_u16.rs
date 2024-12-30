@@ -80,17 +80,24 @@ impl PixelDataBufferU16 {
     }
 
     pub fn normalize(&self, val: u16) -> u16 {
-        let range: f32 = (self.max - self.min) as f32;
-        let valz: f32 = (val - self.min) as f32;
-        let val = (valz / range * (u16::MAX as f32)) as u16;
+        let range: f32 = self.max as f32 - self.min as f32;
+        let normalized: f32 = (val as f32 - self.min as f32) / range;
+        let range: f32 = u16::MAX as f32 - u16::MIN as f32;
+        let mut denormalized: f32 = normalized * range + u16::MIN as f32;
+        if let Some(slope) = self.info().slope() {
+            if let Some(intercept) = self.info().intercept() {
+                denormalized = (denormalized as f64 * slope + intercept) as f32;
+            }
+        }
+        let denormalized = denormalized as u16;
         if self
             .info()
             .photo_interp()
             .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
         {
-            !val
+            !denormalized
         } else {
-            val
+            denormalized
         }
     }
 
