@@ -14,7 +14,10 @@
    limitations under the License.
 */
 
-use crate::core::pixeldata::{pdinfo::PixelDataInfo, PhotoInterp, PixelDataError};
+use crate::core::pixeldata::{
+    pdinfo::{PixelDataInfo, U8_SIZE},
+    PhotoInterp, PixelDataError,
+};
 
 #[derive(Debug)]
 pub struct PixelU8 {
@@ -25,7 +28,7 @@ pub struct PixelU8 {
     pub b: u8,
 }
 
-pub struct PixelDataBufferU8 {
+pub struct PixelDataSliceU8 {
     info: PixelDataInfo,
     buffer: Vec<u8>,
     min: u8,
@@ -35,7 +38,7 @@ pub struct PixelDataBufferU8 {
     interp_as_rgb: bool,
 }
 
-impl std::fmt::Debug for PixelDataBufferU8 {
+impl std::fmt::Debug for PixelDataSliceU8 {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PixelDataBufferU8")
@@ -47,7 +50,21 @@ impl std::fmt::Debug for PixelDataBufferU8 {
     }
 }
 
-impl PixelDataBufferU8 {
+impl PixelDataSliceU8 {
+    pub fn from_rgb_8bit(pdinfo: PixelDataInfo) -> Self {
+        let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
+        let mut in_pos: usize = 0;
+        let mut buffer: Vec<u8> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
+        for _i in 0..len {
+            for _j in 0..pdinfo.samples_per_pixel() {
+                let val = pdinfo.bytes()[in_pos];
+                in_pos += U8_SIZE;
+                buffer.push(val);
+            }
+        }
+        PixelDataSliceU8::new(pdinfo, buffer, u8::MIN, u8::MAX)
+    }
+
     pub fn new(info: PixelDataInfo, buffer: Vec<u8>, min: u8, max: u8) -> Self {
         let stride = if info.planar_config() == 0 {
             1
@@ -101,7 +118,11 @@ impl PixelDataBufferU8 {
         }
     }
 
-    pub fn get_pixel(&self, src_byte_index: usize) -> Result<PixelU8, PixelDataError> {
+    pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelU8, PixelDataError> {
+        let cols = self.info().cols() as usize;
+        let rows = self.info().rows() as usize;
+
+        let src_byte_index = x * rows + y;
         if src_byte_index >= self.buffer().len()
             || (self.info().planar_config() == 0
                 && src_byte_index % self.info().samples_per_pixel() as usize != 0)
@@ -116,8 +137,8 @@ impl PixelDataBufferU8 {
             dst_pixel_index /= self.info().samples_per_pixel() as usize;
         }
 
-        let x = dst_pixel_index % (self.info().cols() as usize);
-        let y = dst_pixel_index / (self.info().cols() as usize);
+        let x = dst_pixel_index % cols;
+        let y = dst_pixel_index / cols;
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
@@ -133,27 +154,29 @@ impl PixelDataBufferU8 {
         Ok(PixelU8 { x, y, r, g, b })
     }
 
-    pub fn pixel_iter(&self) -> PixelDataBufferU8Iter {
-        PixelDataBufferU8Iter {
-            pdbuf: self,
+    pub fn pixel_iter(&self) -> SlicePixelU8Iter {
+        SlicePixelU8Iter {
+            slice: self,
             src_byte_index: 0,
         }
     }
 }
 
-pub struct PixelDataBufferU8Iter<'buf> {
-    pdbuf: &'buf PixelDataBufferU8,
+pub struct SlicePixelU8Iter<'buf> {
+    slice: &'buf PixelDataSliceU8,
     src_byte_index: usize,
 }
 
-impl Iterator for PixelDataBufferU8Iter<'_> {
+impl Iterator for SlicePixelU8Iter<'_> {
     type Item = PixelU8;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let pixel = self.pdbuf.get_pixel(self.src_byte_index);
+        let x = self.src_byte_index / self.slice.info().cols() as usize;
+        let y = self.src_byte_index % self.slice.info().cols() as usize;
+        let pixel = self.slice.get_pixel(x, y);
 
-        if self.pdbuf.interp_as_rgb && self.pdbuf.info().planar_config() == 0 {
-            self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
+        if self.slice.interp_as_rgb && self.slice.info().planar_config() == 0 {
+            self.src_byte_index += self.slice.info().samples_per_pixel() as usize;
         } else {
             // If planar config indicates that all R's are stored followed by all G's then all
             // B's, then next R pixel is the next element.

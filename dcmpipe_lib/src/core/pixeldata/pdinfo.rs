@@ -21,7 +21,7 @@ use crate::{
         dcmelement::DicomElement,
         defn::vr::{self, VRRef},
         pixeldata::{
-            pdbuf::PixelDataBuffer, pixel_i16::PixelDataBufferI16, pixel_i32::PixelDataBufferI32,
+            pdslice::PixelDataSlice, pixel_i16::PixelDataSliceI16, pixel_i32::PixelDataSliceI32,
             BitsAlloc, PhotoInterp, PixelDataError,
         },
         read::Parser,
@@ -31,15 +31,15 @@ use crate::{
 };
 
 use super::{
-    pixel_u16::PixelDataBufferU16, pixel_u32::PixelDataBufferU32, pixel_u8::PixelDataBufferU8,
+    pixel_u16::PixelDataSliceU16, pixel_u32::PixelDataSliceU32, pixel_u8::PixelDataSliceU8,
 };
 
-const I8_SIZE: usize = size_of::<i8>();
-const I16_SIZE: usize = size_of::<i16>();
-const I32_SIZE: usize = size_of::<i32>();
-const U8_SIZE: usize = size_of::<u8>();
-const U16_SIZE: usize = size_of::<u16>();
-const U32_SIZE: usize = size_of::<u32>();
+pub const I8_SIZE: usize = size_of::<i8>();
+pub const I16_SIZE: usize = size_of::<i16>();
+pub const I32_SIZE: usize = size_of::<i32>();
+pub const U8_SIZE: usize = size_of::<u8>();
+pub const U16_SIZE: usize = size_of::<u16>();
+pub const U32_SIZE: usize = size_of::<u32>();
 
 /// Parsed tag values relevant to interpreting Pixel Data, including the raw `PixelData` bytes.
 pub struct PixelDataInfo {
@@ -207,6 +207,12 @@ impl PixelDataInfo {
     pub fn window_labels(&self) -> &[String] {
         &self.window_labels
     }
+
+    #[must_use]
+    pub fn bytes(&self) -> &[u8] {
+        &self.pd_bytes
+    }
+
     /// Whether the byte values in Pixel Data are signed or unsigned values.
     #[must_use]
     pub fn is_signed(&self) -> bool {
@@ -279,241 +285,28 @@ impl PixelDataInfo {
     /// # Errors
     /// - If BitsAllocated is unsupported.
     /// - Reading byte/word values from the Pixel Data bytes.
-    pub fn load_pixel_data(mut self) -> Result<PixelDataBuffer, PixelDataError> {
+    pub fn load_pixel_data(mut self) -> Result<PixelDataSlice, PixelDataError> {
         self.validate()?;
-        let len = Into::<usize>::into(self.cols) * Into::<usize>::into(self.rows);
         let is_rgb = self.photo_interp().is_some_and(PhotoInterp::is_rgb);
-        let mut in_pos: usize = 0;
         match (self.bits_alloc, is_rgb) {
             (BitsAlloc::Unsupported(val), _) => Err(PixelDataError::InvalidBitsAlloc(val)),
             (BitsAlloc::Eight, true) => {
-                let mut buffer: Vec<u8> = Vec::with_capacity(len * self.samples_per_pixel as usize);
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let val = self.pd_bytes[in_pos];
-                        in_pos += U8_SIZE;
-                        buffer.push(val);
-                    }
-                }
-                Ok(PixelDataBuffer::U8(PixelDataBufferU8::new(
-                    self,
-                    buffer,
-                    u8::MIN,
-                    u8::MAX,
-                )))
+                Ok(PixelDataSlice::U8(PixelDataSliceU8::from_rgb_8bit(self)))
             }
-            (BitsAlloc::Eight, false) => {
-                let mut buffer: Vec<i16> =
-                    Vec::with_capacity(len * self.samples_per_pixel as usize);
-                let mut min: i16 = i16::MAX;
-                let mut max: i16 = i16::MIN;
-                let pixel_pad_val = self
-                    .pixel_padding_val
-                    .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let val = self.pd_bytes[in_pos] as i16;
-                        in_pos += I8_SIZE;
-                        buffer.push(val);
-                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                            if val < min {
-                                min = val;
-                            }
-                            if val > max {
-                                max = val;
-                            }
-                        }
-                    }
-                }
-                Ok(PixelDataBuffer::I16(PixelDataBufferI16::new(
-                    self, buffer, min, max,
-                )))
-            }
+            (BitsAlloc::Eight, false) => Ok(PixelDataSlice::I16(
+                PixelDataSliceI16::from_mono_8bit(self),
+            )),
             (BitsAlloc::Sixteen, true) => {
-                let mut buffer: Vec<u16> =
-                    Vec::with_capacity(len * self.samples_per_pixel as usize);
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let val = if self.big_endian {
-                            if self.is_signed() {
-                                let val = PixelDataBuffer::shift_i16(i16::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
-                                ));
-                                in_pos += I16_SIZE;
-                                val
-                            } else {
-                                let val = u16::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
-                                );
-                                in_pos += U16_SIZE;
-                                val
-                            }
-                        } else if self.is_signed() {
-                            let val = PixelDataBuffer::shift_i16(i16::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
-                            ));
-                            in_pos += I16_SIZE;
-                            val
-                        } else {
-                            let val = u16::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
-                            );
-                            in_pos += U16_SIZE;
-                            val
-                        };
-                        buffer.push(val);
-                    }
-                }
-                Ok(PixelDataBuffer::U16(PixelDataBufferU16::new(
-                    self,
-                    buffer,
-                    u16::MIN,
-                    u16::MAX,
-                )))
+                PixelDataSliceU16::from_mono_16bit(self).map(PixelDataSlice::U16)
             }
             (BitsAlloc::Sixteen, false) => {
-                let mut buffer: Vec<i16> =
-                    Vec::with_capacity(len * self.samples_per_pixel as usize);
-                let mut min: i16 = i16::MAX;
-                let mut max: i16 = i16::MIN;
-                let pixel_pad_val = self
-                    .pixel_padding_val
-                    .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let val = if self.big_endian {
-                            if self.is_signed() {
-                                let val = i16::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
-                                );
-                                in_pos += I16_SIZE;
-                                val
-                            } else {
-                                let val = u16::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
-                                ) as i16;
-                                in_pos += U16_SIZE;
-                                val
-                            }
-                        } else if self.is_signed() {
-                            let val = i16::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + I16_SIZE].try_into()?,
-                            );
-                            in_pos += I16_SIZE;
-                            val
-                        } else {
-                            let val = u16::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + U16_SIZE].try_into()?,
-                            ) as i16;
-                            in_pos += U16_SIZE;
-                            val
-                        };
-                        buffer.push(val);
-                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                            if val < min {
-                                min = val;
-                            }
-                            if val > max {
-                                max = val;
-                            }
-                        }
-                    }
-                }
-                Ok(PixelDataBuffer::I16(PixelDataBufferI16::new(
-                    self, buffer, min, max,
-                )))
+                PixelDataSliceI16::from_mono_16bit(self).map(PixelDataSlice::I16)
             }
             (BitsAlloc::ThirtyTwo, true) => {
-                let mut buffer: Vec<u32> =
-                    Vec::with_capacity(len * self.samples_per_pixel as usize);
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let val = if self.big_endian {
-                            if self.is_signed() {
-                                let val = PixelDataBuffer::shift_i32(i32::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
-                                ));
-                                in_pos += I32_SIZE;
-                                val
-                            } else {
-                                let val = u32::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
-                                );
-                                in_pos += U32_SIZE;
-                                val
-                            }
-                        } else if self.is_signed() {
-                            let val = PixelDataBuffer::shift_i32(i32::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
-                            ));
-                            in_pos += I32_SIZE;
-                            val
-                        } else {
-                            let val = u32::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
-                            );
-                            in_pos += U32_SIZE;
-                            val
-                        };
-                        buffer.push(val);
-                    }
-                }
-                Ok(PixelDataBuffer::U32(PixelDataBufferU32::new(
-                    self,
-                    buffer,
-                    u32::MIN,
-                    u32::MAX,
-                )))
+                PixelDataSliceU32::from_rgb_32bit(self).map(PixelDataSlice::U32)
             }
             (BitsAlloc::ThirtyTwo, false) => {
-                let mut buffer: Vec<i32> =
-                    Vec::with_capacity(len * self.samples_per_pixel as usize);
-                let mut min: i32 = i32::MAX;
-                let mut max: i32 = i32::MIN;
-                let pixel_pad_val = self.pixel_padding_val.map(Into::<i32>::into);
-                for _i in 0..len {
-                    for _j in 0..self.samples_per_pixel {
-                        let val = if self.big_endian {
-                            if self.is_signed() {
-                                let val = i32::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
-                                );
-                                in_pos += I32_SIZE;
-                                val
-                            } else {
-                                let val = u32::from_be_bytes(
-                                    self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
-                                ) as i32;
-                                in_pos += U32_SIZE;
-                                val
-                            }
-                        } else if self.is_signed() {
-                            let val = i32::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + I32_SIZE].try_into()?,
-                            );
-                            in_pos += I32_SIZE;
-                            val
-                        } else {
-                            let val = u32::from_le_bytes(
-                                self.pd_bytes[in_pos..in_pos + U32_SIZE].try_into()?,
-                            ) as i32;
-                            in_pos += U32_SIZE;
-                            val
-                        };
-                        buffer.push(val);
-                        if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
-                            if val < min {
-                                min = val;
-                            }
-                            if val > max {
-                                max = val;
-                            }
-                        }
-                    }
-                }
-                Ok(PixelDataBuffer::I32(PixelDataBufferI32::new(
-                    self, buffer, min, max,
-                )))
+                PixelDataSliceI32::from_mono_32bit(self).map(PixelDataSlice::I32)
             }
         }
     }

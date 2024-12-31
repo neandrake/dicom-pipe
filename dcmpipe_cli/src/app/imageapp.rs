@@ -20,7 +20,7 @@ use anyhow::{anyhow, Result};
 use dcmpipe_lib::core::{
     defn::ts::TSRef,
     pixeldata::{
-        pdbuf::PixelDataBuffer, pdinfo::PixelDataInfo, pixel_i16::PixelI16, pixel_u16::PixelU16,
+        pdslice::PixelDataSlice, pdinfo::PixelDataInfo, pixel_i16::PixelI16, pixel_u16::PixelU16,
         pixel_u8::PixelU8,
     },
 };
@@ -62,31 +62,31 @@ impl CommandApplication for ImageApp {
         dbg!(&pixdata_buffer);
 
         match pixdata_buffer {
-            PixelDataBuffer::U8(pdbuf) => {
+            PixelDataSlice::U8(pdslice) => {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
-                    ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
-                for PixelU8 { x, y, r, g, b } in pdbuf.pixel_iter() {
+                    ImageBuffer::new(pdslice.info().cols().into(), pdslice.info().rows().into());
+                for PixelU8 { x, y, r, g, b } in pdslice.pixel_iter() {
                     image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
                 }
                 image.save(output_path_buf)?;
             }
-            PixelDataBuffer::U16(pdbuf) => {
+            PixelDataSlice::U16(pdslice) => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
-                for PixelU16 { x, y, r, g, b } in pdbuf.pixel_iter() {
+                    ImageBuffer::new(pdslice.info().cols().into(), pdslice.info().rows().into());
+                for PixelU16 { x, y, r, g, b } in pdslice.pixel_iter() {
                     image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
                 }
                 image.save(output_path_buf)?;
             }
-            PixelDataBuffer::I16(pdbuf) => {
+            PixelDataSlice::I16(pdslice) => {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
-                    ImageBuffer::new(pdbuf.info().cols().into(), pdbuf.info().rows().into());
+                    ImageBuffer::new(pdslice.info().cols().into(), pdslice.info().rows().into());
                 for PixelU16 { x, y, r, g, b } in
                     // The "image" crate does not support i16 pixel values.
-                    pdbuf.pixel_iter().map(|PixelI16 { x, y, r, g, b }| {
-                            let r = PixelDataBuffer::shift_i16(r);
-                            let g = PixelDataBuffer::shift_i16(g);
-                            let b = PixelDataBuffer::shift_i16(b);
+                    pdslice.pixel_iter().map(|PixelI16 { x, y, r, g, b }| {
+                            let r = PixelDataSlice::shift_i16(r);
+                            let g = PixelDataSlice::shift_i16(g);
+                            let b = PixelDataSlice::shift_i16(b);
                             PixelU16 { x, y, r, g, b }
                         })
                 {

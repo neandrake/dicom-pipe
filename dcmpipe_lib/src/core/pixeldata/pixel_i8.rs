@@ -1,4 +1,3 @@
-
 /*
    Copyright 2024 Christopher Speck
 
@@ -26,7 +25,7 @@ pub struct PixelI8 {
     pub b: i8,
 }
 
-pub struct PixelDataBufferI8 {
+pub struct PixelDataSliceI8 {
     info: PixelDataInfo,
     buffer: Vec<i8>,
     min: i8,
@@ -36,7 +35,7 @@ pub struct PixelDataBufferI8 {
     interp_as_rgb: bool,
 }
 
-impl std::fmt::Debug for PixelDataBufferI8 {
+impl std::fmt::Debug for PixelDataSliceI8 {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PixelDataBufferI8")
@@ -48,7 +47,7 @@ impl std::fmt::Debug for PixelDataBufferI8 {
     }
 }
 
-impl PixelDataBufferI8 {
+impl PixelDataSliceI8 {
     pub fn new(info: PixelDataInfo, buffer: Vec<i8>, min: i8, max: i8) -> Self {
         let stride = if info.planar_config() == 0 {
             1
@@ -102,7 +101,11 @@ impl PixelDataBufferI8 {
         }
     }
 
-    pub fn get_pixel(&self, src_byte_index: usize) -> Result<PixelI8, PixelDataError> {
+    pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelI8, PixelDataError> {
+        let cols = self.info().cols() as usize;
+        let rows = self.info().rows() as usize;
+
+        let src_byte_index = x * rows + y;
         if src_byte_index >= self.buffer().len()
             || (self.info().planar_config() == 0
                 && src_byte_index % self.info().samples_per_pixel() as usize != 0)
@@ -117,8 +120,8 @@ impl PixelDataBufferI8 {
             dst_pixel_index /= self.info().samples_per_pixel() as usize;
         }
 
-        let x = dst_pixel_index % (self.info().cols() as usize);
-        let y = dst_pixel_index / (self.info().cols() as usize);
+        let x = dst_pixel_index % cols;
+        let y = dst_pixel_index / cols;
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
@@ -134,27 +137,29 @@ impl PixelDataBufferI8 {
         Ok(PixelI8 { x, y, r, g, b })
     }
 
-    pub fn pixel_iter(&self) -> PixelDataBufferI8Iter {
-        PixelDataBufferI8Iter {
-            pdbuf: self,
+    pub fn pixel_iter(&self) -> SlicePixelI8Iter {
+        SlicePixelI8Iter {
+            slice: self,
             src_byte_index: 0,
         }
     }
 }
 
-pub struct PixelDataBufferI8Iter<'buf> {
-    pdbuf: &'buf PixelDataBufferI8,
+pub struct SlicePixelI8Iter<'buf> {
+    slice: &'buf PixelDataSliceI8,
     src_byte_index: usize,
 }
 
-impl Iterator for PixelDataBufferI8Iter<'_> {
+impl Iterator for SlicePixelI8Iter<'_> {
     type Item = PixelI8;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let pixel = self.pdbuf.get_pixel(self.src_byte_index);
+        let x = self.src_byte_index / self.slice.info().cols() as usize;
+        let y = self.src_byte_index % self.slice.info().cols() as usize;
+        let pixel = self.slice.get_pixel(x, y);
 
-        if self.pdbuf.interp_as_rgb && self.pdbuf.info().planar_config() == 0 {
-            self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
+        if self.slice.interp_as_rgb && self.slice.info().planar_config() == 0 {
+            self.src_byte_index += self.slice.info().samples_per_pixel() as usize;
         } else {
             // If planar config indicates that all R's are stored followed by all G's then all
             // B's, then next R pixel is the next element.

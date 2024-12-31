@@ -14,7 +14,10 @@
    limitations under the License.
 */
 
-use crate::core::pixeldata::{pdinfo::PixelDataInfo, PhotoInterp, PixelDataError};
+use crate::core::pixeldata::{
+    pdinfo::{PixelDataInfo, I16_SIZE, I8_SIZE, U16_SIZE},
+    PhotoInterp, PixelDataError,
+};
 
 #[derive(Debug)]
 pub struct PixelI16 {
@@ -25,7 +28,7 @@ pub struct PixelI16 {
     pub b: i16,
 }
 
-pub struct PixelDataBufferI16 {
+pub struct PixelDataSliceI16 {
     info: PixelDataInfo,
     buffer: Vec<i16>,
     min: i16,
@@ -35,7 +38,7 @@ pub struct PixelDataBufferI16 {
     interp_as_rgb: bool,
 }
 
-impl std::fmt::Debug for PixelDataBufferI16 {
+impl std::fmt::Debug for PixelDataSliceI16 {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PixelDataBufferI16")
@@ -47,7 +50,85 @@ impl std::fmt::Debug for PixelDataBufferI16 {
     }
 }
 
-impl PixelDataBufferI16 {
+impl PixelDataSliceI16 {
+    pub fn from_mono_8bit(pdinfo: PixelDataInfo) -> Self {
+        let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
+        let mut in_pos: usize = 0;
+        let mut buffer: Vec<i16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
+        let mut min: i16 = i16::MAX;
+        let mut max: i16 = i16::MIN;
+        let pixel_pad_val = pdinfo
+            .pixel_padding_val()
+            .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
+        for _i in 0..len {
+            for _j in 0..pdinfo.samples_per_pixel() {
+                let val = pdinfo.bytes()[in_pos] as i16;
+                in_pos += I8_SIZE;
+                buffer.push(val);
+                if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
+                    if val < min {
+                        min = val;
+                    }
+                    if val > max {
+                        max = val;
+                    }
+                }
+            }
+        }
+        Self::new(pdinfo, buffer, min, max)
+    }
+
+    pub fn from_mono_16bit(pdinfo: PixelDataInfo) -> Result<Self, PixelDataError> {
+        let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
+        let mut in_pos: usize = 0;
+        let mut buffer: Vec<i16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
+        let mut min: i16 = i16::MAX;
+        let mut max: i16 = i16::MIN;
+        let pixel_pad_val = pdinfo
+            .pixel_padding_val()
+            .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
+        for _i in 0..len {
+            for _j in 0..pdinfo.samples_per_pixel() {
+                let val = if pdinfo.big_endian() {
+                    if pdinfo.is_signed() {
+                        let val = i16::from_be_bytes(
+                            pdinfo.bytes()[in_pos..in_pos + I16_SIZE].try_into()?,
+                        );
+                        in_pos += I16_SIZE;
+                        val
+                    } else {
+                        let val = u16::from_be_bytes(
+                            pdinfo.bytes()[in_pos..in_pos + U16_SIZE].try_into()?,
+                        ) as i16;
+                        in_pos += U16_SIZE;
+                        val
+                    }
+                } else if pdinfo.is_signed() {
+                    let val =
+                        i16::from_le_bytes(pdinfo.bytes()[in_pos..in_pos + I16_SIZE].try_into()?);
+                    in_pos += I16_SIZE;
+                    val
+                } else {
+                    let val =
+                        u16::from_le_bytes(pdinfo.bytes()[in_pos..in_pos + U16_SIZE].try_into()?)
+                            as i16;
+                    in_pos += U16_SIZE;
+                    val
+                };
+                buffer.push(val);
+                if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
+                    if val < min {
+                        min = val;
+                    }
+                    if val > max {
+                        max = val;
+                    }
+                }
+            }
+        }
+        Ok(PixelDataSliceI16::new(pdinfo, buffer, min, max))
+    }
+
     pub fn new(info: PixelDataInfo, buffer: Vec<i16>, min: i16, max: i16) -> Self {
         let stride = if info.planar_config() == 0 {
             1
@@ -101,7 +182,11 @@ impl PixelDataBufferI16 {
         }
     }
 
-    pub fn get_pixel(&self, src_byte_index: usize) -> Result<PixelI16, PixelDataError> {
+    pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelI16, PixelDataError> {
+        let cols = self.info().cols() as usize;
+        let rows = self.info().rows() as usize;
+
+        let src_byte_index = x * rows + y;
         if src_byte_index >= self.buffer().len()
             || (self.info().planar_config() == 0
                 && src_byte_index % self.info().samples_per_pixel() as usize != 0)
@@ -116,8 +201,8 @@ impl PixelDataBufferI16 {
             dst_pixel_index /= self.info().samples_per_pixel() as usize;
         }
 
-        let x = dst_pixel_index % (self.info().cols() as usize);
-        let y = dst_pixel_index / (self.info().cols() as usize);
+        let x = dst_pixel_index % cols;
+        let y = dst_pixel_index / cols;
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
@@ -133,27 +218,29 @@ impl PixelDataBufferI16 {
         Ok(PixelI16 { x, y, r, g, b })
     }
 
-    pub fn pixel_iter(&self) -> PixelDataBufferI16Iter {
-        PixelDataBufferI16Iter {
-            pdbuf: self,
+    pub fn pixel_iter(&self) -> SlicePixelI16Iter {
+        SlicePixelI16Iter {
+            slice: self,
             src_byte_index: 0,
         }
     }
 }
 
-pub struct PixelDataBufferI16Iter<'buf> {
-    pdbuf: &'buf PixelDataBufferI16,
+pub struct SlicePixelI16Iter<'buf> {
+    slice: &'buf PixelDataSliceI16,
     src_byte_index: usize,
 }
 
-impl Iterator for PixelDataBufferI16Iter<'_> {
+impl Iterator for SlicePixelI16Iter<'_> {
     type Item = PixelI16;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let pixel = self.pdbuf.get_pixel(self.src_byte_index);
+        let x = self.src_byte_index / self.slice.info().cols() as usize;
+        let y = self.src_byte_index % self.slice.info().cols() as usize;
+        let pixel = self.slice.get_pixel(x, y);
 
-        if self.pdbuf.interp_as_rgb && self.pdbuf.info().planar_config() == 0 {
-            self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
+        if self.slice.interp_as_rgb && self.slice.info().planar_config() == 0 {
+            self.src_byte_index += self.slice.info().samples_per_pixel() as usize;
         } else {
             // If planar config indicates that all R's are stored followed by all G's then all
             // B's, then next R pixel is the next element.

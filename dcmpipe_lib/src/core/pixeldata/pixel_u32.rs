@@ -14,7 +14,11 @@
    limitations under the License.
 */
 
-use crate::core::pixeldata::{pdinfo::PixelDataInfo, PhotoInterp, PixelDataError};
+use crate::core::pixeldata::{
+    pdslice::PixelDataSlice,
+    pdinfo::{PixelDataInfo, I32_SIZE, U32_SIZE},
+    PhotoInterp, PixelDataError,
+};
 
 #[derive(Debug)]
 pub struct PixelU32 {
@@ -25,7 +29,7 @@ pub struct PixelU32 {
     pub b: u32,
 }
 
-pub struct PixelDataBufferU32 {
+pub struct PixelDataSliceU32 {
     info: PixelDataInfo,
     buffer: Vec<u32>,
     min: u32,
@@ -35,7 +39,7 @@ pub struct PixelDataBufferU32 {
     interp_as_rgb: bool,
 }
 
-impl std::fmt::Debug for PixelDataBufferU32 {
+impl std::fmt::Debug for PixelDataSliceU32 {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PixelDataBufferU32")
@@ -47,7 +51,45 @@ impl std::fmt::Debug for PixelDataBufferU32 {
     }
 }
 
-impl PixelDataBufferU32 {
+impl PixelDataSliceU32 {
+    pub fn from_rgb_32bit(pdinfo: PixelDataInfo) -> Result<Self, PixelDataError> {
+        let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
+        let mut in_pos: usize = 0;
+        let mut buffer: Vec<u32> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
+        for _i in 0..len {
+            for _j in 0..pdinfo.samples_per_pixel() {
+                let val = if pdinfo.big_endian() {
+                    if pdinfo.is_signed() {
+                        let val = PixelDataSlice::shift_i32(i32::from_be_bytes(
+                            pdinfo.bytes()[in_pos..in_pos + I32_SIZE].try_into()?,
+                        ));
+                        in_pos += I32_SIZE;
+                        val
+                    } else {
+                        let val = u32::from_be_bytes(
+                            pdinfo.bytes()[in_pos..in_pos + U32_SIZE].try_into()?,
+                        );
+                        in_pos += U32_SIZE;
+                        val
+                    }
+                } else if pdinfo.is_signed() {
+                    let val = PixelDataSlice::shift_i32(i32::from_le_bytes(
+                        pdinfo.bytes()[in_pos..in_pos + I32_SIZE].try_into()?,
+                    ));
+                    in_pos += I32_SIZE;
+                    val
+                } else {
+                    let val =
+                        u32::from_le_bytes(pdinfo.bytes()[in_pos..in_pos + U32_SIZE].try_into()?);
+                    in_pos += U32_SIZE;
+                    val
+                };
+                buffer.push(val);
+            }
+        }
+        Ok(PixelDataSliceU32::new(pdinfo, buffer, u32::MIN, u32::MAX))
+    }
+
     pub fn new(info: PixelDataInfo, buffer: Vec<u32>, min: u32, max: u32) -> Self {
         let stride = if info.planar_config() == 0 {
             1
@@ -101,7 +143,11 @@ impl PixelDataBufferU32 {
         }
     }
 
-    pub fn get_pixel(&self, src_byte_index: usize) -> Result<PixelU32, PixelDataError> {
+    pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelU32, PixelDataError> {
+        let cols = self.info().cols() as usize;
+        let rows = self.info().rows() as usize;
+
+        let src_byte_index = x * rows + y;
         if src_byte_index >= self.buffer().len()
             || (self.info().planar_config() == 0
                 && src_byte_index % self.info().samples_per_pixel() as usize != 0)
@@ -116,8 +162,8 @@ impl PixelDataBufferU32 {
             dst_pixel_index /= self.info().samples_per_pixel() as usize;
         }
 
-        let x = dst_pixel_index % (self.info().cols() as usize);
-        let y = dst_pixel_index / (self.info().cols() as usize);
+        let x = dst_pixel_index % cols;
+        let y = dst_pixel_index / cols;
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
@@ -133,27 +179,29 @@ impl PixelDataBufferU32 {
         Ok(PixelU32 { x, y, r, g, b })
     }
 
-    pub fn pixel_iter(&self) -> PixelDataBufferU32Iter {
-        PixelDataBufferU32Iter {
-            pdbuf: self,
+    pub fn pixel_iter(&self) -> SlicePixelU32Iter {
+        SlicePixelU32Iter {
+            slice: self,
             src_byte_index: 0,
         }
     }
 }
 
-pub struct PixelDataBufferU32Iter<'buf> {
-    pdbuf: &'buf PixelDataBufferU32,
+pub struct SlicePixelU32Iter<'buf> {
+    slice: &'buf PixelDataSliceU32,
     src_byte_index: usize,
 }
 
-impl Iterator for PixelDataBufferU32Iter<'_> {
+impl Iterator for SlicePixelU32Iter<'_> {
     type Item = PixelU32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let pixel = self.pdbuf.get_pixel(self.src_byte_index);
+        let x = self.src_byte_index / self.slice.info().cols() as usize;
+        let y = self.src_byte_index % self.slice.info().cols() as usize;
+        let pixel = self.slice.get_pixel(x, y);
 
-        if self.pdbuf.interp_as_rgb && self.pdbuf.info().planar_config() == 0 {
-            self.src_byte_index += self.pdbuf.info().samples_per_pixel() as usize;
+        if self.slice.interp_as_rgb && self.slice.info().planar_config() == 0 {
+            self.src_byte_index += self.slice.info().samples_per_pixel() as usize;
         } else {
             // If planar config indicates that all R's are stored followed by all G's then all
             // B's, then next R pixel is the next element.

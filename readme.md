@@ -48,17 +48,17 @@ let parser: Parser<'_, File> = ParserBuidler::default()
     .build(file, &STANDARD_DICOM_DICTIONARY);
 
 // 2. Process and load the PixelData into memory.
-let pixeldata_buffer = PixelDataInfo::process_dcm_parser(parser)?
+let pixeldata_slice = PixelDataInfo::process_dcm_parser(parser)?
     .load_pixel_data()?;
 
 // 3. Use the loaded PixelData values.
-match pixeldata_buffer {
-    // The U8 variant will be common for most RGB image data and pixel_iter()
+match pixeldata_slice {
+    // The U8 variant will be common for most RGB image data and `pixel_iter()`
     // provides an iterator over the raw pixel values.
-    PixelDataBuffer::U8(pdbuf) => {
-        let (width, height) = (pdbuf.info().cols(), pdbuf.info().rows());
+    PixelDataSlice::U8(pdslice) => {
+        let (width, height) = (pdslice.info().cols(), pdslice.info().rows());
 
-        for PixelU8 { x, y, r, g, b } in pdbuf.pixel_iter() {
+        for PixelU8 { x, y, r, g, b } in pdslice.pixel_iter() {
             // The x, y are usize, within the width and height of the image.
             // The r, g, b are u8, represents the respective pixel color
             // component.
@@ -66,19 +66,19 @@ match pixeldata_buffer {
     }
 
     // The I16 variant will be common for most monochrome image data and
-    // pixel_iter() provides an iterator over pixels values normalized to I16
+    // `pixel_iter()` provides an iterator over pixels values normalized to I16
     // and rescale applied.
-    PixelDataBuffer::I16(pdbuf) => {
-        let (width, height) = (pdbuf.info().cols(), pdbuf.info().rows());
+    PixelDataBuffer::I16(pdslice) => {
+        let (width, height) = (pdslice.info().cols(), pdslice.info().rows());
 
-        for PixelI16 { x, y, r, g, b } in pdbuf.pixel_iter() {
+        for PixelI16 { x, y, r, g, b } in pdslice.pixel_iter() {
             // The x, y are usize, within the width and height of the image.
             // The r, g, b are i16, and the same value for monochrome.
         }
     }
 
     // There are U8, U16, U32, I8, I16, and I32 variants, depending on the
-    // DICOM's encoded values. See `PixelDataBuffer::load_pixel_data()` for
+    // DICOM's encoded values. See `PixelDataSlice::load_pixel_data()` for
     // details on when to expect which variants.
     _ => {}
 }
