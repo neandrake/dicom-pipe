@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-use crate::core::pixeldata::{pdinfo::PixelDataInfo, PhotoInterp, PixelDataError};
+use crate::core::pixeldata::{pdinfo::PixelDataSliceInfo, PhotoInterp, PixelDataError};
 
 #[derive(Debug)]
 pub struct PixelI8 {
@@ -26,7 +26,7 @@ pub struct PixelI8 {
 }
 
 pub struct PixelDataSliceI8 {
-    info: PixelDataInfo,
+    info: PixelDataSliceInfo,
     buffer: Vec<i8>,
     min: i8,
     max: i8,
@@ -48,7 +48,7 @@ impl std::fmt::Debug for PixelDataSliceI8 {
 }
 
 impl PixelDataSliceI8 {
-    pub fn new(info: PixelDataInfo, buffer: Vec<i8>, min: i8, max: i8) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<i8>, min: i8, max: i8) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -67,7 +67,7 @@ impl PixelDataSliceI8 {
         }
     }
 
-    pub fn info(&self) -> &PixelDataInfo {
+    pub fn info(&self) -> &PixelDataSliceInfo {
         &self.info
     }
 

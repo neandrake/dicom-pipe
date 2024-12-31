@@ -22,16 +22,13 @@ use crate::{
         defn::vr::{self, VRRef},
         pixeldata::{
             pdslice::PixelDataSlice, pixel_i16::PixelDataSliceI16, pixel_i32::PixelDataSliceI32,
+            pixel_u16::PixelDataSliceU16, pixel_u32::PixelDataSliceU32, pixel_u8::PixelDataSliceU8,
             BitsAlloc, PhotoInterp, PixelDataError,
         },
         read::Parser,
         RawValue,
     },
     dict::tags,
-};
-
-use super::{
-    pixel_u16::PixelDataSliceU16, pixel_u32::PixelDataSliceU32, pixel_u8::PixelDataSliceU8,
 };
 
 pub const I8_SIZE: usize = size_of::<i8>();
@@ -42,7 +39,7 @@ pub const U16_SIZE: usize = size_of::<u16>();
 pub const U32_SIZE: usize = size_of::<u32>();
 
 /// Parsed tag values relevant to interpreting Pixel Data, including the raw `PixelData` bytes.
-pub struct PixelDataInfo {
+pub struct PixelDataSliceInfo {
     big_endian: bool,
     vr: VRRef,
     samples_per_pixel: u16,
@@ -64,7 +61,7 @@ pub struct PixelDataInfo {
     pd_bytes: Vec<u8>,
 }
 
-impl Default for PixelDataInfo {
+impl Default for PixelDataSliceInfo {
     fn default() -> Self {
         Self {
             big_endian: false,
@@ -90,7 +87,7 @@ impl Default for PixelDataInfo {
     }
 }
 
-impl std::fmt::Debug for PixelDataInfo {
+impl std::fmt::Debug for PixelDataSliceInfo {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PixelDataInfo")
@@ -117,7 +114,7 @@ impl std::fmt::Debug for PixelDataInfo {
     }
 }
 
-impl PixelDataInfo {
+impl PixelDataSliceInfo {
     #[must_use]
     pub fn big_endian(&self) -> bool {
         self.big_endian
@@ -293,9 +290,9 @@ impl PixelDataInfo {
             (BitsAlloc::Eight, true) => {
                 Ok(PixelDataSlice::U8(PixelDataSliceU8::from_rgb_8bit(self)))
             }
-            (BitsAlloc::Eight, false) => Ok(PixelDataSlice::I16(
-                PixelDataSliceI16::from_mono_8bit(self),
-            )),
+            (BitsAlloc::Eight, false) => {
+                Ok(PixelDataSlice::I16(PixelDataSliceI16::from_mono_8bit(self)))
+            }
             (BitsAlloc::Sixteen, true) => {
                 PixelDataSliceU16::from_mono_16bit(self).map(PixelDataSlice::U16)
             }
@@ -317,8 +314,8 @@ impl PixelDataInfo {
     /// - I/O errors parsing values out of DICOM elements.
     pub fn process_dcm_parser<R: Read>(
         parser: Parser<'_, R>,
-    ) -> Result<PixelDataInfo, PixelDataError> {
-        let mut pixdata_info: PixelDataInfo = PixelDataInfo {
+    ) -> Result<PixelDataSliceInfo, PixelDataError> {
+        let mut pixdata_info: PixelDataSliceInfo = PixelDataSliceInfo {
             big_endian: parser.ts().big_endian(),
             ..Default::default()
         };
@@ -337,7 +334,7 @@ impl PixelDataInfo {
     /// # Errors
     /// - I/O errors parsing values out of DICOM elements.
     fn process_element(
-        pixdata_info: &mut PixelDataInfo,
+        pixdata_info: &mut PixelDataSliceInfo,
         elem: &DicomElement,
     ) -> Result<(), PixelDataError> {
         // The order of the tag checks here are the order they will appear in a DICOM protocol.
@@ -415,7 +412,7 @@ impl PixelDataInfo {
 
     /// Process the relevant PixelData element/fragments by copying the data/bytes into the
     /// `PixelDataInfo::pd_bytes` field, replacing the element's data/bytes with an empty vec.
-    fn process_pixdata_element(pixdata_info: &mut PixelDataInfo, elem: &mut DicomElement) {
+    fn process_pixdata_element(pixdata_info: &mut PixelDataSliceInfo, elem: &mut DicomElement) {
         // Transfer ownership of the fragment's bytes to a local to copy into pixdata_info.pd_bytes.
         let data = std::mem::replace(elem.mut_data(), Vec::with_capacity(0));
         pixdata_info.pd_bytes.extend_from_slice(&data);

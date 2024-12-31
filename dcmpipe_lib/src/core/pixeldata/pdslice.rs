@@ -49,7 +49,7 @@ impl PixelDataSlice {
 
 #[cfg(test)]
 mod tests {
-    use super::PixelDataSlice;
+    use crate::core::pixeldata::pdslice::PixelDataSlice;
 
     #[test]
     pub fn test_shift_i8() {

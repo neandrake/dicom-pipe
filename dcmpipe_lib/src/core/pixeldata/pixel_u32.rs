@@ -16,7 +16,7 @@
 
 use crate::core::pixeldata::{
     pdslice::PixelDataSlice,
-    pdinfo::{PixelDataInfo, I32_SIZE, U32_SIZE},
+    pdinfo::{PixelDataSliceInfo, I32_SIZE, U32_SIZE},
     PhotoInterp, PixelDataError,
 };
 
@@ -30,7 +30,7 @@ pub struct PixelU32 {
 }
 
 pub struct PixelDataSliceU32 {
-    info: PixelDataInfo,
+    info: PixelDataSliceInfo,
     buffer: Vec<u32>,
     min: u32,
     max: u32,
@@ -52,7 +52,7 @@ impl std::fmt::Debug for PixelDataSliceU32 {
 }
 
 impl PixelDataSliceU32 {
-    pub fn from_rgb_32bit(pdinfo: PixelDataInfo) -> Result<Self, PixelDataError> {
+    pub fn from_rgb_32bit(pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
         let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
         let mut in_pos: usize = 0;
         let mut buffer: Vec<u32> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
@@ -90,7 +90,7 @@ impl PixelDataSliceU32 {
         Ok(PixelDataSliceU32::new(pdinfo, buffer, u32::MIN, u32::MAX))
     }
 
-    pub fn new(info: PixelDataInfo, buffer: Vec<u32>, min: u32, max: u32) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<u32>, min: u32, max: u32) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -109,7 +109,7 @@ impl PixelDataSliceU32 {
         }
     }
 
-    pub fn info(&self) -> &PixelDataInfo {
+    pub fn info(&self) -> &PixelDataSliceInfo {
         &self.info
     }
 

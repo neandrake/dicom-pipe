@@ -20,7 +20,7 @@ use anyhow::{anyhow, Result};
 use dcmpipe_lib::core::{
     defn::ts::TSRef,
     pixeldata::{
-        pdslice::PixelDataSlice, pdinfo::PixelDataInfo, pixel_i16::PixelI16, pixel_u16::PixelU16,
+        pdslice::PixelDataSlice, pdinfo::PixelDataSliceInfo, pixel_i16::PixelI16, pixel_u16::PixelU16,
         pixel_u8::PixelU8,
     },
 };
@@ -57,7 +57,7 @@ impl CommandApplication for ImageApp {
             ));
         }
 
-        let pixdata_info = PixelDataInfo::process_dcm_parser(parser)?;
+        let pixdata_info = PixelDataSliceInfo::process_dcm_parser(parser)?;
         let pixdata_buffer = pixdata_info.load_pixel_data()?;
         dbg!(&pixdata_buffer);
 

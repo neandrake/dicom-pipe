@@ -15,7 +15,7 @@
 */
 
 use crate::core::pixeldata::{
-    pdinfo::{PixelDataInfo, U8_SIZE},
+    pdinfo::{PixelDataSliceInfo, U8_SIZE},
     PhotoInterp, PixelDataError,
 };
 
@@ -29,7 +29,7 @@ pub struct PixelU8 {
 }
 
 pub struct PixelDataSliceU8 {
-    info: PixelDataInfo,
+    info: PixelDataSliceInfo,
     buffer: Vec<u8>,
     min: u8,
     max: u8,
@@ -51,7 +51,7 @@ impl std::fmt::Debug for PixelDataSliceU8 {
 }
 
 impl PixelDataSliceU8 {
-    pub fn from_rgb_8bit(pdinfo: PixelDataInfo) -> Self {
+    pub fn from_rgb_8bit(pdinfo: PixelDataSliceInfo) -> Self {
         let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
         let mut in_pos: usize = 0;
         let mut buffer: Vec<u8> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
@@ -65,7 +65,7 @@ impl PixelDataSliceU8 {
         PixelDataSliceU8::new(pdinfo, buffer, u8::MIN, u8::MAX)
     }
 
-    pub fn new(info: PixelDataInfo, buffer: Vec<u8>, min: u8, max: u8) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<u8>, min: u8, max: u8) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -84,7 +84,7 @@ impl PixelDataSliceU8 {
         }
     }
 
-    pub fn info(&self) -> &PixelDataInfo {
+    pub fn info(&self) -> &PixelDataSliceInfo {
         &self.info
     }
 

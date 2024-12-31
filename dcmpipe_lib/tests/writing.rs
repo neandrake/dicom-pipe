@@ -60,7 +60,7 @@ mod writing_tests {
         },
     };
 
-    use super::common::{
+    use crate::common::{
         common_stddicom::{fixture, get_dicom_file_paths},
         mockdata,
     };

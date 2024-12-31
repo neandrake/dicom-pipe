@@ -546,15 +546,17 @@ impl From<&[SequenceElement]> for TagPath {
 #[cfg(test)]
 #[cfg(feature = "stddicom")]
 mod tests {
-    use crate::dict::{
-        stdlookup::STANDARD_DICOM_DICTIONARY,
-        tags::{
-            ContourImageSequence, PatientID, RTReferencedSeriesSequence, RTReferencedStudySequence,
-            ReferencedFrameofReferenceSequence, ReferencedSOPInstanceUID,
+    use crate::{
+        core::defn::tag::{TagNode, TagPath},
+        dict::{
+            stdlookup::STANDARD_DICOM_DICTIONARY,
+            tags::{
+                ContourImageSequence, PatientID, RTReferencedSeriesSequence,
+                RTReferencedStudySequence, ReferencedFrameofReferenceSequence,
+                ReferencedSOPInstanceUID,
+            },
         },
     };
-
-    use super::{TagNode, TagPath};
 
     #[test]
     fn test_parse_tagnode() {

@@ -14,11 +14,10 @@
    limitations under the License.
 */
 
-use crate::core::pixeldata::{pdinfo::PixelDataInfo, PhotoInterp, PixelDataError};
-
-use super::{
+use crate::core::pixeldata::{
+    pdinfo::{PixelDataSliceInfo, I16_SIZE, U16_SIZE},
     pdslice::PixelDataSlice,
-    pdinfo::{I16_SIZE, U16_SIZE},
+    PhotoInterp, PixelDataError,
 };
 
 #[derive(Debug)]
@@ -31,7 +30,7 @@ pub struct PixelU16 {
 }
 
 pub struct PixelDataSliceU16 {
-    info: PixelDataInfo,
+    info: PixelDataSliceInfo,
     buffer: Vec<u16>,
     min: u16,
     max: u16,
@@ -53,7 +52,7 @@ impl std::fmt::Debug for PixelDataSliceU16 {
 }
 
 impl PixelDataSliceU16 {
-    pub fn from_mono_16bit(pdinfo: PixelDataInfo) -> Result<Self, PixelDataError> {
+    pub fn from_mono_16bit(pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
         let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
         let mut in_pos: usize = 0;
         let mut buffer: Vec<u16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
@@ -91,7 +90,7 @@ impl PixelDataSliceU16 {
         Ok(Self::new(pdinfo, buffer, u16::MIN, u16::MAX))
     }
 
-    pub fn new(info: PixelDataInfo, buffer: Vec<u16>, min: u16, max: u16) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<u16>, min: u16, max: u16) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -110,7 +109,7 @@ impl PixelDataSliceU16 {
         }
     }
 
-    pub fn info(&self) -> &PixelDataInfo {
+    pub fn info(&self) -> &PixelDataSliceInfo {
         &self.info
     }
 

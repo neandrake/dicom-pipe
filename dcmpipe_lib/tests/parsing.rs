@@ -54,7 +54,7 @@ mod parsing_tests {
         },
     };
 
-    use super::common::{
+    use crate::common::{
         common_stddicom::{
             fixture, is_standard_dcm_file, parse_all_dcmroot_values, parse_all_dicom_files,
             parse_file,

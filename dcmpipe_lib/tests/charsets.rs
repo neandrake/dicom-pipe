@@ -33,7 +33,7 @@ mod charsets_tests {
         },
     };
 
-    use super::common::common_stddicom::{fixture, parse_file};
+    use crate::common::common_stddicom::{fixture, parse_file};
 
     /// This DICOMDIR has sequences with nested elements that change charsets
     #[test]

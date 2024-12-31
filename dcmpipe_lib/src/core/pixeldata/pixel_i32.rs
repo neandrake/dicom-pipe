@@ -15,7 +15,7 @@
 */
 
 use crate::core::pixeldata::{
-    pdinfo::{PixelDataInfo, I32_SIZE, U32_SIZE},
+    pdinfo::{PixelDataSliceInfo, I32_SIZE, U32_SIZE},
     PhotoInterp, PixelDataError,
 };
 
@@ -29,7 +29,7 @@ pub struct PixelI32 {
 }
 
 pub struct PixelDataSliceI32 {
-    info: PixelDataInfo,
+    info: PixelDataSliceInfo,
     buffer: Vec<i32>,
     min: i32,
     max: i32,
@@ -51,7 +51,7 @@ impl std::fmt::Debug for PixelDataSliceI32 {
 }
 
 impl PixelDataSliceI32 {
-    pub fn from_mono_32bit(pdinfo: PixelDataInfo) -> Result<Self, PixelDataError> {
+    pub fn from_mono_32bit(pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
         let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
         let mut in_pos: usize = 0;
         let mut buffer: Vec<i32> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
@@ -100,7 +100,7 @@ impl PixelDataSliceI32 {
         Ok(PixelDataSliceI32::new(pdinfo, buffer, min, max))
     }
 
-    pub fn new(info: PixelDataInfo, buffer: Vec<i32>, min: i32, max: i32) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<i32>, min: i32, max: i32) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -119,7 +119,7 @@ impl PixelDataSliceI32 {
         }
     }
 
-    pub fn info(&self) -> &PixelDataInfo {
+    pub fn info(&self) -> &PixelDataSliceInfo {
         &self.info
     }
 

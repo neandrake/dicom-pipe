@@ -44,10 +44,9 @@ use crate::{
         commands::{messages::CommandMessage, CommandPriority},
         error::{AssocError, DimseError},
         pdus::pduiter::PresDataIter,
+        PDIResult,
     },
 };
-
-use super::PDIResult;
 
 pub enum AssocUserOp {
     Echo(EchoUserOp),

@@ -67,24 +67,14 @@ pub mod ts {
     /// Explicit VR Big Endian (Retired)
     ///
     /// - **UID:** 1.2.840.10008.1.2.2
-    pub static ExplicitVRBigEndian: TransferSyntax = TransferSyntax::new(
-        &super::uids::ExplicitVRBigEndian,
-        true,
-        true,
-        false,
-        false,
-    );
+    pub static ExplicitVRBigEndian: TransferSyntax =
+        TransferSyntax::new(&super::uids::ExplicitVRBigEndian, true, true, false, false);
 
     /// Implicit VR Big Endian (Virtual)
     ///
     /// - **UID:**
-    pub static ImplicitVRBigEndian: TransferSyntax = TransferSyntax::new(
-        &super::uids::ImplicitVRBigEndian,
-        false,
-        true,
-        false,
-        false,
-    );
+    pub static ImplicitVRBigEndian: TransferSyntax =
+        TransferSyntax::new(&super::uids::ImplicitVRBigEndian, false, true, false, false);
 
     /// Deflated Explicit VR Little Endian
     ///
@@ -157,9 +147,13 @@ pub mod uids {
 
 /// The transfer syntax lookup for parsing a DICOM dataset.
 pub mod lookup {
-    use crate::core::defn::{dcmdict::DicomDictionary, tag::TagRef, ts::TSRef, uid::UIDRef};
-
-    use super::{ts, uids};
+    use crate::core::defn::{
+        constants::{ts, uids},
+        dcmdict::DicomDictionary,
+        tag::TagRef,
+        ts::TSRef,
+        uid::UIDRef,
+    };
 
     /// A minimal `DicomDictionary` necessary for parsing through a dicom dataset. Only implements a
     /// minimal set of `get_ts_by_uid`, all other functions return `None`.
