@@ -34,19 +34,19 @@ impl PixelDataSlice {
     /// Shift an `i8` value into `u8` space, so `i8::MIN` -> `u8::MIN`.
     #[must_use]
     pub fn shift_i8(val: i8) -> u8 {
-        ((val as i16).saturating_add(1) + (i8::MAX as i16)) as u8
+        (i16::from(val).saturating_add(1) + i16::from(i8::MAX)) as u8
     }
 
     /// Shift an `i16` value into `u16` space, so `i16::MIN` -> `u16::MIN`.
     #[must_use]
     pub fn shift_i16(val: i16) -> u16 {
-        ((val as i32).saturating_add(1) + (i16::MAX as i32)) as u16
+        (i32::from(val).saturating_add(1) + i32::from(i16::MAX)) as u16
     }
 
     /// Shift an `i32` value into `u32` space, so `i32::MIN` -> `u32::MIN`.
     #[must_use]
     pub fn shift_i32(val: i32) -> u32 {
-        ((val as i64).saturating_add(1) + (i32::MAX as i64)) as u32
+        (i64::from(val).saturating_add(1) + i64::from(i32::MAX)) as u32
     }
 }
 

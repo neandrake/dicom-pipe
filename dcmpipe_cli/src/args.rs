@@ -31,7 +31,7 @@ pub enum Command {
     /// Parses a single file and prints the DICOM elements to stdout.
     Print(PrintArgs),
 
-    /// Encodes PixelData into a standard image format.
+    /// Encodes Pixel Data into a standard image format.
     Image(ImageArgs),
 
     /// Browse a DICOM dataset in a text-based user interface.

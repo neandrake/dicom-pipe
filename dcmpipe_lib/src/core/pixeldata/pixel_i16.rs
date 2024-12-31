@@ -46,15 +46,19 @@ impl std::fmt::Debug for PixelDataSliceI16 {
             .field("buffer.len", &self.buffer.len())
             .field("min", &self.min)
             .field("max", &self.max)
+            .field("stride", &self.stride)
+            .field("interp_as_rgb", &self.interp_as_rgb)
             .finish()
     }
 }
 
 impl PixelDataSliceI16 {
+    #[must_use]
     pub fn from_mono_8bit(pdinfo: PixelDataSliceInfo) -> Self {
-        let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
+        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows());
         let mut in_pos: usize = 0;
-        let mut buffer: Vec<i16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
+        let mut buffer: Vec<i16> =
+            Vec::with_capacity(len * usize::from(pdinfo.samples_per_pixel()));
         let mut min: i16 = i16::MAX;
         let mut max: i16 = i16::MIN;
         let pixel_pad = pdinfo
@@ -62,7 +66,7 @@ impl PixelDataSliceI16 {
             .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
         for _i in 0..len {
             for _j in 0..pdinfo.samples_per_pixel() {
-                let val = pdinfo.bytes()[in_pos] as i16;
+                let val = i16::from(pdinfo.bytes()[in_pos]);
                 in_pos += I8_SIZE;
                 buffer.push(val);
                 if pixel_pad.is_none_or(|pad_val| val != pad_val) {
@@ -79,9 +83,10 @@ impl PixelDataSliceI16 {
     }
 
     pub fn from_mono_16bit(pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
-        let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
+        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows());
         let mut in_pos: usize = 0;
-        let mut buffer: Vec<i16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
+        let mut buffer: Vec<i16> =
+            Vec::with_capacity(len * usize::from(pdinfo.samples_per_pixel()));
         let mut min: i16 = i16::MAX;
         let mut max: i16 = i16::MIN;
         let pixel_pad = pdinfo
@@ -99,7 +104,8 @@ impl PixelDataSliceI16 {
                     } else {
                         let val = u16::from_be_bytes(
                             pdinfo.bytes()[in_pos..in_pos + U16_SIZE].try_into()?,
-                        ) as i16;
+                        )
+                        .min(i16::MAX as u16) as i16;
                         in_pos += U16_SIZE;
                         val
                     }
@@ -111,7 +117,7 @@ impl PixelDataSliceI16 {
                 } else {
                     let val =
                         u16::from_le_bytes(pdinfo.bytes()[in_pos..in_pos + U16_SIZE].try_into()?)
-                            as i16;
+                            .min(i16::MAX as u16) as i16;
                     in_pos += U16_SIZE;
                     val
                 };
@@ -129,6 +135,7 @@ impl PixelDataSliceI16 {
         Ok(PixelDataSliceI16::new(pdinfo, buffer, min, max))
     }
 
+    #[must_use]
     pub fn new(info: PixelDataSliceInfo, buffer: Vec<i16>, min: i16, max: i16) -> Self {
         let stride = if info.planar_config() == 0 {
             1
@@ -148,29 +155,35 @@ impl PixelDataSliceI16 {
         }
     }
 
+    #[must_use]
     pub fn info(&self) -> &PixelDataSliceInfo {
         &self.info
     }
 
+    #[must_use]
     pub fn buffer(&self) -> &[i16] {
         &self.buffer
     }
 
+    #[must_use]
     pub fn stride(&self) -> usize {
         self.stride
     }
 
+    #[must_use]
     pub fn normalize(&self, val: i16) -> i16 {
-        let range: f32 = self.max as f32 - self.min as f32;
-        let normalized: f32 = (val as f32 - self.min as f32) / range;
-        let range: f32 = i16::MAX as f32 - i16::MIN as f32;
-        let mut denormalized: f32 = normalized * range + i16::MIN as f32;
+        let range: f64 = f64::from(self.max) - f64::from(self.min);
+        let normalized: f64 = (f64::from(val) - f64::from(self.min)) / range;
+        let range: f64 = f64::from(i16::MAX) - f64::from(i16::MIN);
+        let mut denormalized: f64 = normalized * range + f64::from(i16::MIN);
         if let Some(slope) = self.info().slope() {
             if let Some(intercept) = self.info().intercept() {
-                denormalized = (denormalized as f64 * slope + intercept) as f32;
+                denormalized = denormalized * slope + intercept;
             }
         }
-        let denormalized = denormalized as i16;
+        let denormalized = denormalized
+            .min(f64::from(i16::MAX))
+            .max(f64::from(i16::MIN)) as i16;
         if self
             .info()
             .photo_interp()
@@ -182,29 +195,24 @@ impl PixelDataSliceI16 {
         }
     }
 
+    /// Gets the pixel at the given x,y coordinate.
+    ///
+    /// # Errors
+    /// - If the x,y coordinate is invalid, either by being outside the image dimensions, or if the
+    ///   Planar Configuration and Samples per Pixel are set up such that beginning of RGB values
+    ///   must occur at specific indices.
     pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelI16, PixelDataError> {
-        let cols = self.info().cols() as usize;
-        let rows = self.info().rows() as usize;
+        let cols = usize::from(self.info().cols());
+        let samples = usize::from(self.info().samples_per_pixel());
+        let stride = self.stride();
 
-        let src_byte_index = x * rows + y;
+        let src_byte_index = (x * samples) + (y * samples) * cols;
         if src_byte_index >= self.buffer().len()
-            || (self.info().planar_config() == 0
-                && src_byte_index % self.info().samples_per_pixel() as usize != 0)
-            || (self.info().planar_config() != 0
-                && src_byte_index >= self.buffer().len() / self.info().samples_per_pixel() as usize)
+            || (self.interp_as_rgb && src_byte_index + stride * 2 >= self.buffer().len())
         {
             return Err(PixelDataError::InvalidPixelSource(src_byte_index));
         }
 
-        let mut dst_pixel_index: usize = src_byte_index;
-        if self.interp_as_rgb && self.info().planar_config() == 0 {
-            dst_pixel_index /= self.info().samples_per_pixel() as usize;
-        }
-
-        let x = dst_pixel_index % cols;
-        let y = dst_pixel_index / cols;
-
-        let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
             let red = self.buffer()[src_byte_index];
             let green = self.buffer()[src_byte_index + stride];
@@ -218,6 +226,7 @@ impl PixelDataSliceI16 {
         Ok(PixelI16 { x, y, r, g, b })
     }
 
+    #[must_use]
     pub fn pixel_iter(&self) -> SlicePixelI16Iter {
         SlicePixelI16Iter {
             slice: self,
@@ -235,18 +244,11 @@ impl Iterator for SlicePixelI16Iter<'_> {
     type Item = PixelI16;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let x = self.src_byte_index / self.slice.info().cols() as usize;
-        let y = self.src_byte_index % self.slice.info().cols() as usize;
+        let cols = usize::from(self.slice.info().cols());
+        let x = self.src_byte_index % cols;
+        let y = self.src_byte_index / cols;
         let pixel = self.slice.get_pixel(x, y);
-
-        if self.slice.interp_as_rgb && self.slice.info().planar_config() == 0 {
-            self.src_byte_index += self.slice.info().samples_per_pixel() as usize;
-        } else {
-            // If planar config indicates that all R's are stored followed by all G's then all
-            // B's, then next R pixel is the next element.
-            self.src_byte_index += 1;
-        }
-
+        self.src_byte_index += 1;
         pixel.ok()
     }
 }

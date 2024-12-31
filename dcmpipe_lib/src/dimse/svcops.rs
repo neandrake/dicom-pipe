@@ -41,6 +41,7 @@ impl AssocSvcOp {
     /// # Return
     /// The `AssocSvcOp` which can be used for further processing. If the request is any N- request
     /// then `None` will be returned.
+    #[must_use]
     pub fn new_from_cmd(cmd: &CommandMessage) -> Option<AssocSvcOp> {
         match cmd.cmd_type() {
             CommandType::CEchoReq => Some(AssocSvcOp::Echo(EchoSvcOp::new(cmd.msg_id()))),

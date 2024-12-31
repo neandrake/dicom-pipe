@@ -66,7 +66,7 @@ impl CommandApplication for ImageApp {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> =
                     ImageBuffer::new(pdslice.info().cols().into(), pdslice.info().rows().into());
                 for PixelU8 { x, y, r, g, b } in pdslice.pixel_iter() {
-                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
+                    image.put_pixel(u32::try_from(x)?, u32::try_from(y)?, Rgb([r, g, b]));
                 }
                 image.save(output_path_buf)?;
             }
@@ -74,7 +74,7 @@ impl CommandApplication for ImageApp {
                 let mut image: ImageBuffer<Rgb<u16>, Vec<u16>> =
                     ImageBuffer::new(pdslice.info().cols().into(), pdslice.info().rows().into());
                 for PixelU16 { x, y, r, g, b } in pdslice.pixel_iter() {
-                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
+                    image.put_pixel(u32::try_from(x)?, u32::try_from(y)?, Rgb([r, g, b]));
                 }
                 image.save(output_path_buf)?;
             }
@@ -90,7 +90,7 @@ impl CommandApplication for ImageApp {
                             PixelU16 { x, y, r, g, b }
                         })
                 {
-                    image.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
+                    image.put_pixel(u32::try_from(x)?, u32::try_from(y)?, Rgb([r, g, b]));
                 }
                 image.save(output_path_buf)?;
             }
