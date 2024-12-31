@@ -38,9 +38,9 @@ pub struct PixelDataSliceI8 {
 impl std::fmt::Debug for PixelDataSliceI8 {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PixelDataBufferI8")
+        f.debug_struct("PixelDataSliceI8")
             .field("info", &self.info)
-            .field("buffer_len", &self.buffer.len())
+            .field("buffer.len", &self.buffer.len())
             .field("min", &self.min)
             .field("max", &self.max)
             .finish()

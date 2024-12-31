@@ -43,7 +43,7 @@ impl std::fmt::Debug for PixelDataSliceI32 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PixelDataBufferI32")
             .field("info", &self.info)
-            .field("buffer_len", &self.buffer.len())
+            .field("buffer.len", &self.buffer.len())
             .field("min", &self.min)
             .field("max", &self.max)
             .finish()
@@ -57,7 +57,7 @@ impl PixelDataSliceI32 {
         let mut buffer: Vec<i32> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
         let mut min: i32 = i32::MAX;
         let mut max: i32 = i32::MIN;
-        let pixel_pad_val = pdinfo.pixel_padding_val().map(Into::<i32>::into);
+        let pixel_pad = pdinfo.pixel_pad().map(Into::<i32>::into);
         for _i in 0..len {
             for _j in 0..pdinfo.samples_per_pixel() {
                 let val = if pdinfo.big_endian() {
@@ -87,7 +87,7 @@ impl PixelDataSliceI32 {
                     val
                 };
                 buffer.push(val);
-                if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
+                if pixel_pad.is_none_or(|pad_val| val != pad_val) {
                     if val < min {
                         min = val;
                     }

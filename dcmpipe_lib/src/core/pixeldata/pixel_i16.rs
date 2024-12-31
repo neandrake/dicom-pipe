@@ -41,9 +41,9 @@ pub struct PixelDataSliceI16 {
 impl std::fmt::Debug for PixelDataSliceI16 {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PixelDataBufferI16")
+        f.debug_struct("PixelDataSliceI16")
             .field("info", &self.info)
-            .field("buffer_len", &self.buffer.len())
+            .field("buffer.len", &self.buffer.len())
             .field("min", &self.min)
             .field("max", &self.max)
             .finish()
@@ -57,15 +57,15 @@ impl PixelDataSliceI16 {
         let mut buffer: Vec<i16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
         let mut min: i16 = i16::MAX;
         let mut max: i16 = i16::MIN;
-        let pixel_pad_val = pdinfo
-            .pixel_padding_val()
+        let pixel_pad = pdinfo
+            .pixel_pad()
             .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
         for _i in 0..len {
             for _j in 0..pdinfo.samples_per_pixel() {
                 let val = pdinfo.bytes()[in_pos] as i16;
                 in_pos += I8_SIZE;
                 buffer.push(val);
-                if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
+                if pixel_pad.is_none_or(|pad_val| val != pad_val) {
                     if val < min {
                         min = val;
                     }
@@ -84,8 +84,8 @@ impl PixelDataSliceI16 {
         let mut buffer: Vec<i16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
         let mut min: i16 = i16::MAX;
         let mut max: i16 = i16::MIN;
-        let pixel_pad_val = pdinfo
-            .pixel_padding_val()
+        let pixel_pad = pdinfo
+            .pixel_pad()
             .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
         for _i in 0..len {
             for _j in 0..pdinfo.samples_per_pixel() {
@@ -116,7 +116,7 @@ impl PixelDataSliceI16 {
                     val
                 };
                 buffer.push(val);
-                if pixel_pad_val.is_none_or(|pad_val| val != pad_val) {
+                if pixel_pad.is_none_or(|pad_val| val != pad_val) {
                     if val < min {
                         min = val;
                     }

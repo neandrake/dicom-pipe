@@ -47,7 +47,7 @@ pub struct PixelDataSliceInfo {
     planar_config: u16,
     cols: u16,
     rows: u16,
-    pixel_padding_val: Option<u16>,
+    pixel_pad: Option<u16>,
     bits_alloc: BitsAlloc,
     bits_stored: u16,
     high_bit: u16,
@@ -71,7 +71,7 @@ impl Default for PixelDataSliceInfo {
             planar_config: 0,
             cols: 0,
             rows: 0,
-            pixel_padding_val: None,
+            pixel_pad: None,
             bits_alloc: BitsAlloc::Unsupported(0),
             bits_stored: 0,
             high_bit: 0,
@@ -90,7 +90,7 @@ impl Default for PixelDataSliceInfo {
 impl std::fmt::Debug for PixelDataSliceInfo {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PixelDataInfo")
+        f.debug_struct("PixelDataSliceInfo")
             .field("big_endian", &self.big_endian)
             .field("vr", &self.vr)
             .field("samples_per_pixel", &self.samples_per_pixel)
@@ -98,7 +98,7 @@ impl std::fmt::Debug for PixelDataSliceInfo {
             .field("planar_config", &self.planar_config)
             .field("cols", &self.cols)
             .field("rows", &self.rows)
-            .field("pixel_padding_val", &self.pixel_padding_val)
+            .field("pixel_pad", &self.pixel_pad)
             .field("bits_alloc", &self.bits_alloc)
             .field("bits_stored", &self.bits_stored)
             .field("high_bit", &self.high_bit)
@@ -151,8 +151,8 @@ impl PixelDataSliceInfo {
     }
 
     #[must_use]
-    pub fn pixel_padding_val(&self) -> Option<u16> {
-        self.pixel_padding_val
+    pub fn pixel_pad(&self) -> Option<u16> {
+        self.pixel_pad
     }
 
     #[must_use]
@@ -294,7 +294,7 @@ impl PixelDataSliceInfo {
                 Ok(PixelDataSlice::I16(PixelDataSliceI16::from_mono_8bit(self)))
             }
             (BitsAlloc::Sixteen, true) => {
-                PixelDataSliceU16::from_mono_16bit(self).map(PixelDataSlice::U16)
+                PixelDataSliceU16::from_rgb_16bit(self).map(PixelDataSlice::U16)
             }
             (BitsAlloc::Sixteen, false) => {
                 PixelDataSliceI16::from_mono_16bit(self).map(PixelDataSlice::I16)
@@ -376,7 +376,7 @@ impl PixelDataSliceInfo {
             }
         } else if elem.tag() == tags::PixelPaddingValue.tag() {
             if let Some(val) = elem.parse_value()?.ushort() {
-                pixdata_info.pixel_padding_val = Some(val);
+                pixdata_info.pixel_pad = Some(val);
             }
         } else if elem.tag() == tags::WindowCenter.tag() {
             if let RawValue::Floats(vals) = elem.parse_value()? {

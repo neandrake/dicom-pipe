@@ -42,9 +42,9 @@ pub struct PixelDataSliceU16 {
 impl std::fmt::Debug for PixelDataSliceU16 {
     // Default Debug implementation but don't print all bytes, just the length.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PixelDataBufferU16")
+        f.debug_struct("PixelDataSliceU16")
             .field("info", &self.info)
-            .field("buffer_len", &self.buffer.len())
+            .field("buffer.len", &self.buffer.len())
             .field("min", &self.min)
             .field("max", &self.max)
             .finish()
@@ -52,7 +52,7 @@ impl std::fmt::Debug for PixelDataSliceU16 {
 }
 
 impl PixelDataSliceU16 {
-    pub fn from_mono_16bit(pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
+    pub fn from_rgb_16bit(pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
         let len = Into::<usize>::into(pdinfo.cols()) * Into::<usize>::into(pdinfo.rows());
         let mut in_pos: usize = 0;
         let mut buffer: Vec<u16> = Vec::with_capacity(len * pdinfo.samples_per_pixel() as usize);
