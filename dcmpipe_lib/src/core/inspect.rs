@@ -255,12 +255,12 @@ impl<'e> FormattedElement<'e> {
                 let uid_lookup = self.dict.get_uid_by_uid(&uid_str);
                 match uid_lookup {
                     Some(found_uid) => {
-                        let uid_name = if let Some((name, _detail)) = found_uid.name().split_once(':')
-                        {
-                            name
-                        } else {
-                            found_uid.name()
-                        };
+                        let uid_name =
+                            if let Some((name, _detail)) = found_uid.name().split_once(':') {
+                                name
+                            } else {
+                                found_uid.name()
+                            };
                         return FormattedTagValue::Uid(uid_str.to_string(), uid_name.to_string());
                     }
                     None => return FormattedTagValue::Uid(uid_str.to_string(), String::new()),

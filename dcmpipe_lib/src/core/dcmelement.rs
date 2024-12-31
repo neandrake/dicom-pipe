@@ -231,7 +231,7 @@ impl DicomElement {
         self.tag == PIXEL_DATA || self.tag == FLOAT_PIXEL_DATA || self.tag == DOUBLE_PIXEL_DATA
     }
 
-    /// Returns if this element is within a PixelData element (via `is_pixel_data()`).
+    /// Returns if this element is within a `PixelData` element (via `is_pixel_data()`).
     #[must_use]
     pub fn is_within_pixel_data(&self) -> bool {
         !self.is_pixel_data() && self.sq_path.iter().any(SequenceElement::is_pixel_data)

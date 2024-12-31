@@ -167,10 +167,10 @@ impl PixelDataSliceU16 {
 
         let stride = self.stride();
         let (r, g, b) = if self.interp_as_rgb {
-            let r = self.buffer()[src_byte_index];
-            let g = self.buffer()[src_byte_index + stride];
-            let b = self.buffer()[src_byte_index + stride * 2];
-            (r, g, b)
+            let red = self.buffer()[src_byte_index];
+            let green = self.buffer()[src_byte_index + stride];
+            let blue = self.buffer()[src_byte_index + stride * 2];
+            (red, green, blue)
         } else {
             let val = self.normalize(self.buffer()[src_byte_index]);
             (val, val, val)

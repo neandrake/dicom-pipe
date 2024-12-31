@@ -20,8 +20,8 @@ use anyhow::{anyhow, Result};
 use dcmpipe_lib::core::{
     defn::ts::TSRef,
     pixeldata::{
-        pdslice::PixelDataSlice, pdinfo::PixelDataSliceInfo, pixel_i16::PixelI16, pixel_u16::PixelU16,
-        pixel_u8::PixelU8,
+        pdinfo::PixelDataSliceInfo, pdslice::PixelDataSlice, pixel_i16::PixelI16,
+        pixel_u16::PixelU16, pixel_u8::PixelU8,
     },
 };
 use image::{ImageBuffer, Rgb};

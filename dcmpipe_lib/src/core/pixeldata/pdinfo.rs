@@ -268,20 +268,20 @@ impl PixelDataSliceInfo {
     ///
     /// # Notes
     /// The type of buffer returned depends on the photometric interpretation and bits allocated.
-    /// - PhotometricInterpretation == RGB always returns unsigned variant.
-    ///   - BitsAlloc = 8, `PixelDataBuffer::U8`.
-    ///   - BitsAlloc = 16, `PixelDataBuffer::U16`.
-    ///   - BitsAlloc = 32, `PixelDataBuffer::U32`.
-    /// - PhotometricInterpretation == MONOCHROME1/MONOCHROME2 always returns a signed variant.
+    /// - `PhotometricInterpretation` == RGB always returns unsigned variant.
+    ///   - `BitsAlloc` = 8, `PixelDataBuffer::U8`.
+    ///   - `BitsAlloc` = 16, `PixelDataBuffer::U16`.
+    ///   - `BitsAlloc` = 32, `PixelDataBuffer::U32`.
+    /// - `PhotometricInterpretation` == MONOCHROME1/MONOCHROME2 always returns a signed variant.
     ///   While values may be encoded as unsigned, applying the rescale slope/intercept may result
     ///   in negative values.
-    ///   - BitsAlloc = 8, `PixelDataBuffer::I16` (values are cast from i8/u8 to i16).
-    ///   - BitsAlloc = 16, `PixelDataBuffer::I16` (u16 values are cast to i16).
-    ///   - BitsAlloc = 32, `PixelDataBuffer::I32` (u32 values are cast to i32).
+    ///   - `BitsAlloc` = 8, `PixelDataBuffer::I16` (values are cast from i8/u8 to i16).
+    ///   - `BitsAlloc` = 16, `PixelDataBuffer::I16` (u16 values are cast to i16).
+    ///   - `BitsAlloc` = 32, `PixelDataBuffer::I32` (u32 values are cast to i32).
     ///
     /// # Errors
-    /// - If BitsAllocated is unsupported.
-    /// - Reading byte/word values from the Pixel Data bytes.
+    /// - If the value of `BitsAlloc` is unsupported.
+    /// - Reading byte/word values from the `PixelData` bytes.
     pub fn load_pixel_data(mut self) -> Result<PixelDataSlice, PixelDataError> {
         self.validate()?;
         let is_rgb = self.photo_interp().is_some_and(PhotoInterp::is_rgb);
@@ -398,7 +398,7 @@ impl PixelDataSliceInfo {
             if let Some(val) = elem.parse_value()?.string() {
                 // Only use Units if RescaleType wasn't present. RescaleType occurs prior to Units.
                 if pixdata_info.unit.is_empty() {
-                    pixdata_info.unit = val.to_owned();
+                    val.clone_into(&mut pixdata_info.unit);
                 }
             }
         } else if elem.tag() == tags::WindowCenter_and_WidthExplanation.tag() {
@@ -410,7 +410,7 @@ impl PixelDataSliceInfo {
         Ok(())
     }
 
-    /// Process the relevant PixelData element/fragments by copying the data/bytes into the
+    /// Process the relevant `PixelData` element/fragments by copying the data/bytes into the
     /// `PixelDataInfo::pd_bytes` field, replacing the element's data/bytes with an empty vec.
     fn process_pixdata_element(pixdata_info: &mut PixelDataSliceInfo, elem: &mut DicomElement) {
         // Transfer ownership of the fragment's bytes to a local to copy into pixdata_info.pd_bytes.

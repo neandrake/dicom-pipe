@@ -63,8 +63,9 @@ impl Hash for TransferSyntax {
 }
 
 impl TransferSyntax {
-    /// Create a new TransferSyntax.
+    /// Create a new `TransferSyntax`.
     #[must_use]
+    #[allow(clippy::fn_params_excessive_bools)]
     pub const fn new(
         uid: UIDRef,
         explicit_vr: bool,
