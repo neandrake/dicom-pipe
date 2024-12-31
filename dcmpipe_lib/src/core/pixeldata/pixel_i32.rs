@@ -140,16 +140,24 @@ impl PixelDataSliceI32 {
     }
 
     #[must_use]
-    pub fn normalize(&self, val: i32) -> i32 {
-        let range: f64 = f64::from(self.max) - f64::from(self.min);
-        let normalized: f64 = (f64::from(val) - f64::from(self.min)) / range;
-        let range: f64 = f64::from(i32::MAX) - f64::from(i32::MIN);
-        let mut denormalized: f64 = normalized * range + f64::from(i32::MIN);
+    pub fn rescale(&self, val: f64) -> f64 {
         if let Some(slope) = self.info().slope() {
             if let Some(intercept) = self.info().intercept() {
-                denormalized = denormalized * slope + intercept;
+                return val * slope + intercept;
             }
         }
+        val
+    }
+
+    #[must_use]
+    pub fn normalize(&self, val: i32) -> i32 {
+        let val: f64 = self.rescale(f64::from(val));
+        let min: f64 = self.rescale(f64::from(self.min));
+        let max: f64 = self.rescale(f64::from(self.max));
+        let range: f64 = max - min;
+        let normalized: f64 = (val - min) / range;
+        let range: f64 = f64::from(i32::MAX) - f64::from(i32::MIN);
+        let denormalized: f64 = normalized * range + f64::from(i32::MIN);
         let denormalized = denormalized
             .min(f64::from(i32::MAX))
             .max(f64::from(i32::MIN)) as i32;
