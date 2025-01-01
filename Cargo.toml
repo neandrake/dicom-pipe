@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "dcmpipe_cli",
-    "dcmpipe_dict_builder",
-    "dcmpipe_lib",
+    "medicom",
+    "medicom_dict",
+    "medicom_tools",
 ]
 resolver = "2"
 

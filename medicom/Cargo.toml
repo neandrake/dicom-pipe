@@ -1,0 +1,34 @@
+[package]
+name = "medicom"
+version = "0.1.0"
+authors = ["Christopher Speck <cspeckrun@gmail.com>"]
+description = "A library for reading and writing DICOM, the DIMSE network protocol, and decoding DICOM images."
+repository = "https://github.com/neandrake/medicom"
+license = "Apache-2.0"
+readme = "readme.md"
+edition = "2021"
+build = "build/build.rs"
+
+keywords = ["dicom", "dimse", "library"]
+categories = ["encoding", "multimedia::encoding", "network-programming", "parser-implementations", "science"]
+
+[lib]
+name="medicom"
+path="src/lib.rs"
+
+[features]
+compress = ["dep:libflate"]
+stddicom = ["dep:phf"]
+dimse = ["stddicom"]
+
+[dependencies]
+encoding_rs = "0.8"
+libflate = { version = "2.1", optional = true }
+phf = { version = "0.11", optional = true }
+thiserror = "2.0"
+
+[dev-dependencies]
+walkdir = "2.5"
+
+[build-dependencies]
+medicom_dict = { path = "../medicom_dict", version = "0.1" }
