@@ -32,7 +32,7 @@ use dcmpipe_lib::{
         },
         inspect::FormattedElement,
         read::{valdecode::StringAndVr, ParserBuilder},
-        RawValue,
+        values::RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,

@@ -26,7 +26,7 @@ use crate::{
             BitsAlloc, PhotoInterp, PixelDataError,
         },
         read::Parser,
-        RawValue,
+        values::RawValue,
     },
     dict::tags,
 };

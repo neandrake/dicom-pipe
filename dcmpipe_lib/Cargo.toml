@@ -1,13 +1,14 @@
 [package]
 name = "dcmpipe_lib"
 version = "0.1.0"
-authors = ["Christopher Speck <die.drachen@gmail.com>"]
-description = "A library for reading and writing the DICOM format."
+authors = ["Christopher Speck <cspeckrun@gmail.com>"]
+description = "A library for reading and writing DICOM, the DIMSE network protocol, and decoding DICOM images."
 repository = "https://github.com/neandrake/dicom-pipe"
 license = "Apache-2.0"
+license_file = "./LICENSE"
 readme = "readme.md"
-keywords = ["dicom", "dimse"]
-categories = ["encoding", "parser-implementations", "science"]
+keywords = ["dicom", "dimse", "library"]
+categories = ["encoding", "multimedia::encoding", "network-programming", "parser-implementations", "science"]
 build = "build/build.rs"
 edition = "2021"
 

@@ -32,7 +32,7 @@ use dcmpipe_lib::{
         dcmobject::DicomRoot,
         defn::vr::LT,
         read::{stop::ParseStop, ParserBuilder},
-        RawValue,
+        values::RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,

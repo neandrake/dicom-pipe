@@ -17,7 +17,7 @@
 //! Constants for DIMSE, DICOM Message Exchangy
 
 use crate::{
-    core::{defn::tag::Tag, RawValue},
+    core::{defn::tag::Tag, values::RawValue},
     dict::tags::{
         NumberofCompletedSuboperations, NumberofFailedSuboperations,
         NumberofRemainingSuboperations, NumberofWarningSuboperations,

@@ -26,7 +26,7 @@ use crate::{
         dcmobject::DicomRoot,
         defn::{dcmdict::DicomDictionary, tag::Tag, ts::TSRef, uid::UIDRef},
         read::{ParseError, Parser, ParserBuilder, ParserState},
-        RawValue,
+        values::RawValue,
     },
     dict::{stdlookup::STANDARD_DICOM_DICTIONARY, transfer_syntaxes::ImplicitVRLittleEndian},
     dimse::{

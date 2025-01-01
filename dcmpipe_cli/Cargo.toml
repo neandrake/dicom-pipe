@@ -1,7 +1,14 @@
 [package]
 name = "dcmpipe_cli"
 version = "0.1.0"
-authors = ["Christopher Speck <die.drachen@gmail.com>"]
+authors = ["Christopher Speck <cspeckrun@gmail.com>"]
+description = "A collection of command-line utilities for exploring DICOM, developed as examples for using the dcmpipe_lib crate."
+repository = "https://github.com/neandrake/dicom-pipe"
+license = "Apache-2.0"
+license_file = "./LICENSE"
+readme = "readme.md"
+keywords = ["dicom"]
+categories = ["command-line-utilities"]
 edition = "2021"
 
 [features]

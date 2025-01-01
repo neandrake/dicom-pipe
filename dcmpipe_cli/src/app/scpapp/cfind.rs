@@ -32,7 +32,7 @@ use dcmpipe_lib::{
             ts::TSRef,
             vr::UN,
         },
-        RawValue,
+        values::RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,

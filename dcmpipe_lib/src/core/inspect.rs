@@ -30,7 +30,7 @@ use crate::core::{
         dcmdict::{DicomDictionary, MultiDicomDictionary},
         tag::Tag,
     },
-    RawValue,
+    values::RawValue,
 };
 
 #[cfg(feature = "stddicom")]

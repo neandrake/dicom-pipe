@@ -25,7 +25,7 @@ use crate::{
             constants::tags::FILE_META_GROUP_END, dcmdict::DicomDictionary, tag::Tag, ts::TSRef,
         },
         read::{ParseError, Parser, ParserBuilder, ParserState},
-        RawValue,
+        values::RawValue,
     },
     dict::{
         stdlookup::STANDARD_DICOM_DICTIONARY,

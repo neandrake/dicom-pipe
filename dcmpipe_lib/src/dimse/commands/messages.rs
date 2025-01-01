@@ -19,7 +19,7 @@ use crate::{
         charset::CSRef,
         dcmobject::DicomRoot,
         defn::{constants::ts::ImplicitVRLittleEndian, tag::Tag, vr::US},
-        RawValue,
+        values::RawValue,
     },
     dict::tags::{
         AffectedSOPClassUID, AffectedSOPInstanceUID, CommandDataSetType, CommandField,
@@ -485,7 +485,7 @@ impl CommandMessage {
 #[cfg(test)]
 mod tests {
     use crate::{
-        core::{dcmobject::DicomObject, defn::tag::Tag, RawValue},
+        core::{dcmobject::DicomObject, defn::tag::Tag, values::RawValue},
         dict::{
             tags::{
                 AffectedSOPClassUID, CommandDataSetType, CommandField, CommandGroupLength,

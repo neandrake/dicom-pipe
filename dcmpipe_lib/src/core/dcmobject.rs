@@ -34,7 +34,7 @@ use crate::core::{
     },
     inspect::FormattedElement,
     read::{ParseError, Parser},
-    RawValue,
+    values::RawValue,
 };
 
 /// A root node of a DICOM dataset. This is the root object returned after parsing a dataset. It

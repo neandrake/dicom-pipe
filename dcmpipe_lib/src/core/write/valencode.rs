@@ -490,7 +490,7 @@ impl<'e> From<ElemAndQuadWords<'e>> for Vec<u8> {
 #[cfg(feature = "stddicom")]
 mod tests {
     use crate::{
-        core::{dcmelement::DicomElement, defn::vr::UI, RawValue},
+        core::{dcmelement::DicomElement, defn::vr::UI, values::RawValue},
         dict::{tags::AffectedSOPClassUID, transfer_syntaxes::ExplicitVRLittleEndian},
     };
 
@@ -500,7 +500,7 @@ mod tests {
         assert!(odd_len_uid.len() % 2 == 1, "uid should be odd length");
 
         let mut elem = DicomElement::new_empty(&AffectedSOPClassUID, &UI, &ExplicitVRLittleEndian);
-        elem.encode_val(crate::core::RawValue::of_uid(&odd_len_uid))
+        elem.encode_val(crate::core::values::RawValue::of_uid(&odd_len_uid))
             .expect("encode odd-length uid");
 
         let data = elem.data();

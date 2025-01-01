@@ -26,13 +26,14 @@ pub mod dcmobject;
 pub mod dcmsqelem;
 pub mod defn;
 pub mod inspect;
+#[cfg(feature = "stddicom")]
 pub mod pixeldata;
 pub mod read;
 pub mod values;
 pub mod write;
 
-pub use values::Attribute;
-pub use values::RawValue;
+//pub use values::Attribute;
+//pub use values::RawValue;
 
 /// The DICOM Prefix that should follow File Preambles.
 pub static DICOM_PREFIX: &[u8; DICOM_PREFIX_LENGTH] = b"DICM";
