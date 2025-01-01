@@ -1,14 +1,14 @@
-# dcmpipe #
+# medicom #
 
 ## About ##
-The `dcmpipe` library provides baseline functionality for managing DICOM,
+The `medicom` library provides baseline functionality for managing DICOM,
 including reading and writing DICOM files, decoding the PixelData element, and
 the DIMSE network protocol (C-ECHO, C-FIND, C-STORE, C-MOVE, C-GET).
 
-See the `dcmpipe_cli` sub-crate for example command-line utilities built using
+See the `medicom_tools` sub-crate for example command-line utilities built using
 the library:
 
-![Screenshot](mdassets/screenshot.png "Screenshot")
+![Screenshot](static_assets/screenshot.png "Screenshot")
 
 ## Quick Examples ##
 
@@ -84,8 +84,8 @@ match pixeldata_slice {
 }
 ```
 
-Refer to the `readme.md` in `dcmpipe_lib/` folder for further examples, and also
-the `dcmpipe_cli` sample applications.
+Refer to `medicom/readme.md` folder for further examples, and also the
+`medicom_tools` sample applications.
 
 ## Design Goals ##
 The APIs are not designed to encode the DICOM Information Object Definitions
@@ -127,11 +127,10 @@ The API is also focused on enabling efficient operations:
 
 ## Crates ##
 
-- `dcmpipe_cli`: Command-line tools utilizing the `dcmpipe` library to show the
-  usage of the `dcmpipe_lib` create. See the `readme.md` within that sub-folder
-  for more information.
-- `dcmpipe_dict_builder`: Parses the DICOM Standard XML files for producing the
-  standard DICOM dictionary. This is intended to be used by `build.rs` scripts.
-- `dcmpipe_lib`: The core API for reading and writing DICOM, decoding images,and
+- `medicom_tools`: Example command-line tools using the `medicom` library. See
+  the `readme.md` within that folder for more information.
+- `medicom`: The core API for reading and writing DICOM, decoding images,and
   optional support for the DICOM Message Exchange network protocol.
+- `medicom_dict`: Parses the DICOM Standard XML files for producing the
+  standard DICOM dictionary. This is intended to be used by `build.rs` scripts.
 

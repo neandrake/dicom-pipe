@@ -590,41 +590,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
-name = "dcmpipe_cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bson",
- "clap",
- "crossterm",
- "dcmpipe_lib",
- "image",
- "mongodb",
- "ratatui",
- "walkdir",
-]
-
-[[package]]
-name = "dcmpipe_dict_builder"
-version = "0.1.0"
-dependencies = [
- "phf_codegen",
- "quick-xml",
-]
-
-[[package]]
-name = "dcmpipe_lib"
-version = "0.1.0"
-dependencies = [
- "dcmpipe_dict_builder",
- "encoding_rs",
- "libflate",
- "phf",
- "thiserror 2.0.9",
- "walkdir",
-]
-
-[[package]]
 name = "deranged"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1476,6 +1441,41 @@ checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
 dependencies = [
  "cfg-if",
  "digest",
+]
+
+[[package]]
+name = "medicom"
+version = "0.1.0"
+dependencies = [
+ "encoding_rs",
+ "libflate",
+ "medicom_dict",
+ "phf",
+ "thiserror 2.0.9",
+ "walkdir",
+]
+
+[[package]]
+name = "medicom_dict"
+version = "0.1.0"
+dependencies = [
+ "phf_codegen",
+ "quick-xml",
+]
+
+[[package]]
+name = "medicom_tools"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bson",
+ "clap",
+ "crossterm",
+ "image",
+ "medicom",
+ "mongodb",
+ "ratatui",
+ "walkdir",
 ]
 
 [[package]]

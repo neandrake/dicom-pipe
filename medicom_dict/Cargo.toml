@@ -1,0 +1,20 @@
+[package]
+name = "medicom_dict"
+version = "0.1.0"
+authors = ["Christopher Speck <cspeckrun@gmail.com>"]
+description = "Build-time utilities for parsing and producing DICOM dictionaries."
+repository = "https://github.com/neandrake/medicom/medicom_dict"
+license = "Apache-2.0"
+readme = "readme.md"
+edition = "2021"
+
+keywords = ["dicom", "private", "dictionary"]
+categories = ["development-tools::build-utils"]
+
+[lib]
+name="medicom_dict"
+path="src/lib.rs"
+
+[dependencies]
+phf_codegen = "0.11"
+quick-xml = "0.36"
