@@ -27,17 +27,26 @@ let parser: Parser<'_, File> = ParserBuilder::default()
 // 2. Use the parser as an iterator over the elements.
 for element_res in parser {
     let element = element_res?;
-    // 3. Parse/interpret the value of an element. The `parse_value()` funtion
-    //    will parse as the explicit/implicit VR. Use `parse_value_as()` to
-    //    parse the value as a different VR.
+    // 3. Get a displayable name for the element, by looking it up in the
+    //    dictionary or formatting the number as (GGGG,EEEE).
+    let tag_name = STANDARD_DICOM_DICTIONARY.get_tag_by_number(elem.tag())
+        .map(|tag| tag.ident().to_string())
+        .unwrap_or_else(|| Tag::format_tag_to_display(elem.tag()));
+
+    // 4. Parse/interpret the value of an element. The `parse_value()` funtion
+    //    will parse as the explicit/implicit VR from the DICOM stream. Use
+    //    `parse_value_as()` to parse the value as a different VR.
+    //
     //    The `string()` function will attempt to interpret the parsed value as
     //    a single string, the first occurring string, returning `None` if
     //    inapplicable. There are variants for other common types for ease of
-    //    parsing, `ushort()`, `int()`, etc. To handle multiple values use the
-    //    `RawValue` result from `parse_value()` or `parse_value_as()`.
-    if let Some(value) = element.parse_value()?.string() {
-        println!("Value is {value}");
+    //    parsing, `ushort()`, `int()`, etc.
+    if let Some(tag_value) = element.parse_value()?.string() {
+        println!("{tag_name}: {tag_value}");
     }
+    
+    // Refer to the `core::inspect` module for utilities to assist with
+    // formatting DICOM element names and values.
 }
 ```
 
