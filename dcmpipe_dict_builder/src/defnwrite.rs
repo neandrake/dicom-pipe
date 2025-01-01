@@ -1,5 +1,5 @@
 /*
-   Copyright 2024 Christopher Speck
+   Copyright 2024-2025 Christopher Speck
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ use crate::xmlparser::{
 };
 
 static LOOKUP_PREAMBLE: &str = "/*
-   Copyright 2024 Christopher Speck
+   Copyright 2024-2025 Christopher Speck
 
    Licensed under the Apache License, Version 2.0 (the \"License\");
    you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ use crate::dict::{tags, transfer_syntaxes as ts, uids};
 ";
 
 static DICOM_ELEMENT_PREAMBLE: &str = "/*
-   Copyright 2024 Christopher Speck
+   Copyright 2024-2025 Christopher Speck
 
    Licensed under the Apache License, Version 2.0 (the \"License\");
    you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ use crate::core::defn::{tag::Tag, vm::VM, vr};
 ";
 
 static TRANSFER_SYNTAX_PREAMBLE: &str = "/*
-   Copyright 2024 Christopher Speck
+   Copyright 2024-2025 Christopher Speck
 
    Licensed under the Apache License, Version 2.0 (the \"License\");
    you may not use this file except in compliance with the License.
@@ -111,7 +111,7 @@ use crate::dict::uids;
 ";
 
 static UID_PREAMBLE: &str = "/*
-   Copyright 2024 Christopher Speck
+   Copyright 2024-2025 Christopher Speck
 
    Licensed under the Apache License, Version 2.0 (the \"License\");
    you may not use this file except in compliance with the License.

@@ -5,12 +5,16 @@ authors = ["Christopher Speck <cspeckrun@gmail.com>"]
 description = "A library for reading and writing DICOM, the DIMSE network protocol, and decoding DICOM images."
 repository = "https://github.com/neandrake/dicom-pipe"
 license = "Apache-2.0"
-license_file = "./LICENSE"
 readme = "readme.md"
+edition = "2021"
+build = "build/build.rs"
+
 keywords = ["dicom", "dimse", "library"]
 categories = ["encoding", "multimedia::encoding", "network-programming", "parser-implementations", "science"]
-build = "build/build.rs"
-edition = "2021"
+
+[lib]
+name="dcmpipe_lib"
+path="src/lib.rs"
 
 [features]
 compress = ["dep:libflate"]
@@ -28,7 +32,3 @@ walkdir = "2.5"
 
 [build-dependencies]
 dcmpipe_dict_builder = { path = "../dcmpipe_dict_builder", version = "0.1" }
-
-[lib]
-name="dcmpipe_lib"
-path="src/lib.rs"

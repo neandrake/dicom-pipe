@@ -5,16 +5,16 @@ authors = ["Christopher Speck <cspeckrun@gmail.com>"]
 description = "Build-time utilities for parsing and producing DICOM dictionaries."
 repository = "https://github.com/neandrake/dicom-pipe"
 license = "Apache-2.0"
-license_file = "./LICENSE"
 readme = "readme.md"
-keywords = ["dicom", "private", "dictionary"]
-categories = ["development-tools::build-utils"]
 edition = "2021"
 
-[dependencies]
-phf_codegen = "0.11"
-quick-xml = "0.36"
+keywords = ["dicom", "private", "dictionary"]
+categories = ["development-tools::build-utils"]
 
 [lib]
 name="dcmpipe_dict_builder"
 path="src/lib.rs"
+
+[dependencies]
+phf_codegen = "0.11"
+quick-xml = "0.36"
