@@ -1,6 +1,6 @@
 [package]
 name = "medicom"
-version = "0.1.0"
+version = "0.5.0"
 authors = ["Christopher Speck <cspeckrun@gmail.com>"]
 description = "A library for reading and writing DICOM, the DIMSE network protocol, and decoding DICOM images."
 repository = "https://github.com/neandrake/medicom"
@@ -31,4 +31,4 @@ thiserror = "2.0"
 walkdir = "2.5"
 
 [build-dependencies]
-medicom_dict = { path = "../medicom_dict", version = "0.1" }
+medicom_dict = { path = "../medicom_dict", version = "0.5" }
