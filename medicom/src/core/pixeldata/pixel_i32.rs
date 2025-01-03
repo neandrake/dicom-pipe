@@ -16,6 +16,7 @@
 
 use crate::core::pixeldata::{
     pdinfo::{PixelDataSliceInfo, I32_SIZE, U32_SIZE},
+    pdwinlevel::WindowLevel,
     PhotoInterp, PixelDataError,
 };
 
@@ -31,8 +32,6 @@ pub struct PixelI32 {
 pub struct PixelDataSliceI32 {
     info: PixelDataSliceInfo,
     buffer: Vec<i32>,
-    min: i32,
-    max: i32,
 
     stride: usize,
     interp_as_rgb: bool,
@@ -44,8 +43,6 @@ impl std::fmt::Debug for PixelDataSliceI32 {
         f.debug_struct("PixelDataBufferI32")
             .field("info", &self.info)
             .field("buffer.len", &self.buffer.len())
-            .field("min", &self.min)
-            .field("max", &self.max)
             .field("stride", &self.stride)
             .field("interp_as_rgb", &self.interp_as_rgb)
             .finish()
@@ -53,7 +50,7 @@ impl std::fmt::Debug for PixelDataSliceI32 {
 }
 
 impl PixelDataSliceI32 {
-    pub fn from_mono_32bit(pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
+    pub fn from_mono_32bit(mut pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
         let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows());
         let mut in_pos: usize = 0;
         let mut buffer: Vec<i32> =
@@ -101,11 +98,32 @@ impl PixelDataSliceI32 {
                 }
             }
         }
-        Ok(PixelDataSliceI32::new(pdinfo, buffer, min, max))
+
+        let minmax_center = (f64::from(max) - f64::from(min)) / 2_f64;
+        let minmax_width = f64::from(max) - f64::from(min);
+        let mut already_has_minmax = false;
+        for winlevel in pdinfo.win_levels_mut() {
+            winlevel.set_out_min(f64::from(i32::MIN));
+            winlevel.set_out_max(f64::from(i32::MAX));
+
+            if winlevel.center() == minmax_center && winlevel.width() == minmax_width {
+                already_has_minmax = true;
+            }
+        }
+        if !already_has_minmax {
+            pdinfo.win_levels_mut().push(WindowLevel::new(
+                "Min/Max".to_string(),
+                minmax_center,
+                minmax_width,
+                f64::from(i32::MIN),
+                f64::from(i32::MAX),
+            ));
+        }
+        Ok(PixelDataSliceI32::new(pdinfo, buffer))
     }
 
     #[must_use]
-    pub fn new(info: PixelDataSliceInfo, buffer: Vec<i32>, min: i32, max: i32) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<i32>) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -117,8 +135,6 @@ impl PixelDataSliceI32 {
         Self {
             info,
             buffer,
-            min,
-            max,
             stride,
             interp_as_rgb,
         }
@@ -149,29 +165,6 @@ impl PixelDataSliceI32 {
         val
     }
 
-    #[must_use]
-    pub fn normalize(&self, val: i32) -> i32 {
-        let val: f64 = self.rescale(f64::from(val));
-        let min: f64 = self.rescale(f64::from(self.min));
-        let max: f64 = self.rescale(f64::from(self.max));
-        let range: f64 = max - min;
-        let normalized: f64 = (val - min) / range;
-        let range: f64 = f64::from(i32::MAX) - f64::from(i32::MIN);
-        let denormalized: f64 = normalized * range + f64::from(i32::MIN);
-        let denormalized = denormalized
-            .min(f64::from(i32::MAX))
-            .max(f64::from(i32::MIN)) as i32;
-        if self
-            .info()
-            .photo_interp()
-            .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
-        {
-            !denormalized
-        } else {
-            denormalized
-        }
-    }
-
     /// Gets the pixel at the given x,y coordinate.
     ///
     /// # Errors
@@ -196,7 +189,39 @@ impl PixelDataSliceI32 {
             let blue = self.buffer()[src_byte_index + stride * 2];
             (red, green, blue)
         } else {
-            let val = self.normalize(self.buffer()[src_byte_index]);
+            let value = self
+                .buffer()
+                .get(src_byte_index)
+                .copied()
+                .map(f64::from)
+                .map(|v| self.rescale(v));
+
+            let applied_val = self
+                .info()
+                .win_levels()
+                .first()
+                .map(|winlevel| {
+                    WindowLevel::new(
+                        winlevel.name().to_string(),
+                        self.rescale(winlevel.center()),
+                        self.rescale(winlevel.width()),
+                        winlevel.out_min(),
+                        winlevel.out_max(),
+                    )
+                })
+                .and_then(|winlevel| value.map(|v| winlevel.apply(v) as i32))
+                .or(value.map(|v| v as i32))
+                .or(self.info().pixel_pad().map(|v| v as i32))
+                .unwrap_or_default();
+            let val = if self
+                .info()
+                .photo_interp()
+                .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
+            {
+                !applied_val
+            } else {
+                applied_val
+            };
             (val, val, val)
         };
 

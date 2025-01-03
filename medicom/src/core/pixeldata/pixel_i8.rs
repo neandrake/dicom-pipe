@@ -14,7 +14,9 @@
    limitations under the License.
 */
 
-use crate::core::pixeldata::{pdinfo::PixelDataSliceInfo, PhotoInterp, PixelDataError};
+use crate::core::pixeldata::{
+    pdinfo::PixelDataSliceInfo, pdwinlevel::WindowLevel, PhotoInterp, PixelDataError,
+};
 
 #[derive(Debug)]
 pub struct PixelI8 {
@@ -28,8 +30,6 @@ pub struct PixelI8 {
 pub struct PixelDataSliceI8 {
     info: PixelDataSliceInfo,
     buffer: Vec<i8>,
-    min: i8,
-    max: i8,
 
     stride: usize,
     interp_as_rgb: bool,
@@ -41,8 +41,6 @@ impl std::fmt::Debug for PixelDataSliceI8 {
         f.debug_struct("PixelDataSliceI8")
             .field("info", &self.info)
             .field("buffer.len", &self.buffer.len())
-            .field("min", &self.min)
-            .field("max", &self.max)
             .field("stride", &self.stride)
             .field("interp_as_rgb", &self.interp_as_rgb)
             .finish()
@@ -51,7 +49,7 @@ impl std::fmt::Debug for PixelDataSliceI8 {
 
 impl PixelDataSliceI8 {
     #[must_use]
-    pub fn new(info: PixelDataSliceInfo, buffer: Vec<i8>, min: i8, max: i8) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<i8>) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -63,8 +61,6 @@ impl PixelDataSliceI8 {
         Self {
             info,
             buffer,
-            min,
-            max,
             stride,
             interp_as_rgb,
         }
@@ -95,27 +91,6 @@ impl PixelDataSliceI8 {
         val
     }
 
-    #[must_use]
-    pub fn normalize(&self, val: i8) -> i8 {
-        let val: f64 = self.rescale(f64::from(val));
-        let min: f64 = self.rescale(f64::from(self.min));
-        let max: f64 = self.rescale(f64::from(self.max));
-        let range: f64 = max - min;
-        let normalized: f64 = (val - min) / range;
-        let range: f64 = f64::from(i8::MAX) - f64::from(i8::MIN);
-        let denormalized: f64 = normalized * range + f64::from(i8::MIN);
-        let denormalized = denormalized.min(f64::from(i8::MAX)).max(f64::from(i8::MIN)) as i8;
-        if self
-            .info()
-            .photo_interp()
-            .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
-        {
-            !denormalized
-        } else {
-            denormalized
-        }
-    }
-
     /// Gets the pixel at the given x,y coordinate.
     ///
     /// # Errors
@@ -140,7 +115,39 @@ impl PixelDataSliceI8 {
             let blue = self.buffer()[src_byte_index + stride * 2];
             (red, green, blue)
         } else {
-            let val = self.normalize(self.buffer()[src_byte_index]);
+            let value = self
+                .buffer()
+                .get(src_byte_index)
+                .copied()
+                .map(f64::from)
+                .map(|v| self.rescale(v));
+
+            let applied_val = self
+                .info()
+                .win_levels()
+                .first()
+                .map(|winlevel| {
+                    WindowLevel::new(
+                        winlevel.name().to_string(),
+                        self.rescale(winlevel.center()),
+                        self.rescale(winlevel.width()),
+                        winlevel.out_min(),
+                        winlevel.out_max(),
+                    )
+                })
+                .and_then(|winlevel| value.map(|v| winlevel.apply(v) as i8))
+                .or(value.map(|v| v as i8))
+                .or(self.info().pixel_pad().map(|v| v as i8))
+                .unwrap_or_default();
+            let val = if self
+                .info()
+                .photo_interp()
+                .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
+            {
+                !applied_val
+            } else {
+                applied_val
+            };
             (val, val, val)
         };
 

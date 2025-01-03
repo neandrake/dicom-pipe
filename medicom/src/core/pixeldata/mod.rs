@@ -20,6 +20,7 @@ use crate::core::{defn::vr::VRRef, read::ParseError};
 
 pub mod pdinfo;
 pub mod pdslice;
+pub mod pdwinlevel;
 pub mod pixel_i16;
 pub mod pixel_i32;
 pub mod pixel_i8;

@@ -21,9 +21,10 @@ use crate::{
         dcmelement::DicomElement,
         defn::vr::{self, VRRef},
         pixeldata::{
-            pdslice::PixelDataSlice, pixel_i16::PixelDataSliceI16, pixel_i32::PixelDataSliceI32,
-            pixel_u16::PixelDataSliceU16, pixel_u32::PixelDataSliceU32, pixel_u8::PixelDataSliceU8,
-            BitsAlloc, PhotoInterp, PixelDataError,
+            pdslice::PixelDataSlice, pdwinlevel::WindowLevel, pixel_i16::PixelDataSliceI16,
+            pixel_i32::PixelDataSliceI32, pixel_u16::PixelDataSliceU16,
+            pixel_u32::PixelDataSliceU32, pixel_u8::PixelDataSliceU8, BitsAlloc, PhotoInterp,
+            PixelDataError,
         },
         read::Parser,
         values::RawValue,
@@ -55,9 +56,7 @@ pub struct PixelDataSliceInfo {
     slope: Option<f64>,
     intercept: Option<f64>,
     unit: String,
-    window_centers: Vec<f32>,
-    window_widths: Vec<f32>,
-    window_labels: Vec<String>,
+    win_levels: Vec<WindowLevel>,
     pd_bytes: Vec<u8>,
 }
 
@@ -79,9 +78,7 @@ impl Default for PixelDataSliceInfo {
             slope: None,
             intercept: None,
             unit: String::new(),
-            window_centers: Vec::with_capacity(0),
-            window_widths: Vec::with_capacity(0),
-            window_labels: Vec::with_capacity(0),
+            win_levels: Vec::with_capacity(0),
             pd_bytes: Vec::with_capacity(0),
         }
     }
@@ -106,9 +103,7 @@ impl std::fmt::Debug for PixelDataSliceInfo {
             .field("slope", &self.slope)
             .field("intercept", &self.intercept)
             .field("unit", &self.unit)
-            .field("window_centers", &self.window_centers)
-            .field("window_widths", &self.window_widths)
-            .field("window_labels", &self.window_labels)
+            .field("win_levels", &self.win_levels)
             .field("pd_bytes", &self.pd_bytes.len())
             .finish()
     }
@@ -191,18 +186,13 @@ impl PixelDataSliceInfo {
     }
 
     #[must_use]
-    pub fn window_centers(&self) -> &[f32] {
-        &self.window_centers
+    pub fn win_levels(&self) -> &[WindowLevel] {
+        &self.win_levels
     }
 
     #[must_use]
-    pub fn window_widths(&self) -> &[f32] {
-        &self.window_widths
-    }
-
-    #[must_use]
-    pub fn window_labels(&self) -> &[String] {
-        &self.window_labels
+    pub fn win_levels_mut(&mut self) -> &mut Vec<WindowLevel> {
+        &mut self.win_levels
     }
 
     #[must_use]
@@ -379,12 +369,26 @@ impl PixelDataSliceInfo {
                 pixdata_info.pixel_pad = Some(val);
             }
         } else if elem.tag() == tags::WindowCenter.tag() {
-            if let RawValue::Floats(vals) = elem.parse_value()? {
-                pixdata_info.window_centers = vals;
+            if let RawValue::Doubles(vals) = elem.parse_value()? {
+                for (i, val) in vals.into_iter().enumerate() {
+                    if let Some(rescale) = pixdata_info.win_levels.get_mut(i) {
+                        rescale.set_center(val);
+                    } else {
+                        let rescale = WindowLevel::new(format!("winlevel_{i}"), val, 0.0f64, f64::MIN, f64::MAX);
+                        pixdata_info.win_levels.push(rescale);
+                    }
+                }
             }
         } else if elem.tag() == tags::WindowWidth.tag() {
-            if let RawValue::Floats(vals) = elem.parse_value()? {
-                pixdata_info.window_widths = vals;
+            if let RawValue::Doubles(vals) = elem.parse_value()? {
+                for (i, val) in vals.into_iter().enumerate() {
+                    if let Some(rescale) = pixdata_info.win_levels.get_mut(i) {
+                        rescale.set_width(val);
+                    } else {
+                        let rescale = WindowLevel::new(format!("winlevel_{i}"), 0.0f64, val, f64::MIN, f64::MAX);
+                        pixdata_info.win_levels.push(rescale);
+                    }
+                }
             }
         } else if elem.tag() == tags::RescaleIntercept.tag() {
             if let Some(val) = elem.parse_value()?.double() {
@@ -403,7 +407,14 @@ impl PixelDataSliceInfo {
             }
         } else if elem.tag() == tags::WindowCenter_and_WidthExplanation.tag() {
             if let RawValue::Strings(vals) = elem.parse_value()? {
-                pixdata_info.window_labels = vals;
+                for (i, val) in vals.into_iter().enumerate() {
+                    if let Some(rescale) = pixdata_info.win_levels.get_mut(i) {
+                        rescale.set_name(val);
+                    } else {
+                        let rescale = WindowLevel::new(val, 0.0f64, 0.0f64, f64::MIN, f64::MAX);
+                        pixdata_info.win_levels.push(rescale);
+                    }
+                }
             }
         }
 

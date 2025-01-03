@@ -17,6 +17,7 @@
 use crate::core::pixeldata::{
     pdinfo::{PixelDataSliceInfo, I32_SIZE, U32_SIZE},
     pdslice::PixelDataSlice,
+    pdwinlevel::WindowLevel,
     PhotoInterp, PixelDataError,
 };
 
@@ -32,8 +33,6 @@ pub struct PixelU32 {
 pub struct PixelDataSliceU32 {
     info: PixelDataSliceInfo,
     buffer: Vec<u32>,
-    min: u32,
-    max: u32,
 
     stride: usize,
     interp_as_rgb: bool,
@@ -45,8 +44,6 @@ impl std::fmt::Debug for PixelDataSliceU32 {
         f.debug_struct("PixelDataSliceU32")
             .field("info", &self.info)
             .field("buffer.len", &self.buffer.len())
-            .field("min", &self.min)
-            .field("max", &self.max)
             .field("stride", &self.stride)
             .field("interp_as_rgb", &self.interp_as_rgb)
             .finish()
@@ -92,11 +89,11 @@ impl PixelDataSliceU32 {
                 buffer.push(val);
             }
         }
-        Ok(PixelDataSliceU32::new(pdinfo, buffer, u32::MIN, u32::MAX))
+        Ok(PixelDataSliceU32::new(pdinfo, buffer))
     }
 
     #[must_use]
-    pub fn new(info: PixelDataSliceInfo, buffer: Vec<u32>, min: u32, max: u32) -> Self {
+    pub fn new(info: PixelDataSliceInfo, buffer: Vec<u32>) -> Self {
         let stride = if info.planar_config() == 0 {
             1
         } else {
@@ -108,8 +105,6 @@ impl PixelDataSliceU32 {
         Self {
             info,
             buffer,
-            min,
-            max,
             stride,
             interp_as_rgb,
         }
@@ -140,29 +135,6 @@ impl PixelDataSliceU32 {
         val
     }
 
-    #[must_use]
-    pub fn normalize(&self, val: u32) -> u32 {
-        let val: f64 = self.rescale(f64::from(val));
-        let min: f64 = self.rescale(f64::from(self.min));
-        let max: f64 = self.rescale(f64::from(self.max));
-        let range: f64 = max - min;
-        let normalized: f64 = (val - min) / range;
-        let range: f64 = f64::from(u32::MAX) - f64::from(u32::MIN);
-        let denormalized: f64 = normalized * range + f64::from(u32::MIN);
-        let denormalized = denormalized
-            .min(f64::from(u32::MAX))
-            .max(f64::from(u32::MIN)) as u32;
-        if self
-            .info()
-            .photo_interp()
-            .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
-        {
-            !denormalized
-        } else {
-            denormalized
-        }
-    }
-
     /// Gets the pixel at the given x,y coordinate.
     ///
     /// # Errors
@@ -187,7 +159,39 @@ impl PixelDataSliceU32 {
             let blue = self.buffer()[src_byte_index + stride * 2];
             (red, green, blue)
         } else {
-            let val = self.normalize(self.buffer()[src_byte_index]);
+            let value = self
+                .buffer()
+                .get(src_byte_index)
+                .copied()
+                .map(f64::from)
+                .map(|v| self.rescale(v));
+
+            let applied_val = self
+                .info()
+                .win_levels()
+                .first()
+                .map(|winlevel| {
+                    WindowLevel::new(
+                        winlevel.name().to_string(),
+                        self.rescale(winlevel.center()),
+                        self.rescale(winlevel.width()),
+                        winlevel.out_min(),
+                        winlevel.out_max(),
+                    )
+                })
+                .and_then(|winlevel| value.map(|v| winlevel.apply(v) as u32))
+                .or(value.map(|v| v as u32))
+                .or(self.info().pixel_pad().map(|v| v as u32))
+                .unwrap_or_default();
+            let val = if self
+                .info()
+                .photo_interp()
+                .is_some_and(|pi| *pi == PhotoInterp::Monochrome1)
+            {
+                !applied_val
+            } else {
+                applied_val
+            };
             (val, val, val)
         };
 
