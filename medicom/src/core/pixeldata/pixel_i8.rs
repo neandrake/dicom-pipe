@@ -22,6 +22,7 @@ use crate::core::pixeldata::{
 pub struct PixelI8 {
     pub x: usize,
     pub y: usize,
+    pub z: usize,
     pub r: i8,
     pub g: i8,
     pub b: i8,
@@ -97,12 +98,14 @@ impl PixelDataSliceI8 {
     /// - If the x,y coordinate is invalid, either by being outside the image dimensions, or if the
     ///   Planar Configuration and Samples per Pixel are set up such that beginning of RGB values
     ///   must occur at specific indices.
-    pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelI8, PixelDataError> {
+    pub fn get_pixel(&self, x: usize, y: usize, z: usize) -> Result<PixelI8, PixelDataError> {
         let cols = usize::from(self.info().cols());
+        let rows = usize::from(self.info().rows());
         let samples = usize::from(self.info().samples_per_pixel());
         let stride = self.stride();
 
-        let src_byte_index = (x * samples) + (y * samples) * cols;
+        let src_byte_index = x + y * cols + z * (rows * cols);
+        let src_byte_index = src_byte_index * samples;
         if src_byte_index >= self.buffer().len()
             || (self.interp_as_rgb && src_byte_index + stride * 2 >= self.buffer().len())
         {
@@ -151,7 +154,7 @@ impl PixelDataSliceI8 {
             (val, val, val)
         };
 
-        Ok(PixelI8 { x, y, r, g, b })
+        Ok(PixelI8 { x, y, z, r, g, b })
     }
 
     #[must_use]
@@ -173,9 +176,11 @@ impl Iterator for SlicePixelI8Iter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let cols = usize::from(self.slice.info().cols());
+        let rows = usize::from(self.slice.info().rows());
         let x = self.src_byte_index % cols;
-        let y = self.src_byte_index / cols;
-        let pixel = self.slice.get_pixel(x, y);
+        let y = (self.src_byte_index / cols) % rows;
+        let z = self.src_byte_index / (cols * rows);
+        let pixel = self.slice.get_pixel(x, y, z);
         self.src_byte_index += 1;
         pixel.ok()
     }

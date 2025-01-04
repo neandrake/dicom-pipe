@@ -24,6 +24,7 @@ use crate::core::pixeldata::{
 pub struct PixelI16 {
     pub x: usize,
     pub y: usize,
+    pub z: usize,
     pub r: i16,
     pub g: i16,
     pub b: i16,
@@ -52,17 +53,20 @@ impl std::fmt::Debug for PixelDataSliceI16 {
 impl PixelDataSliceI16 {
     #[must_use]
     pub fn from_mono_8bit(mut pdinfo: PixelDataSliceInfo) -> Self {
-        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows());
-        let mut in_pos: usize = 0;
-        let mut buffer: Vec<i16> =
-            Vec::with_capacity(len * usize::from(pdinfo.samples_per_pixel()));
-        let mut min: i16 = i16::MAX;
-        let mut max: i16 = i16::MIN;
+        let num_frames = usize::try_from(pdinfo.num_frames()).unwrap_or(1);
+        let samples = usize::from(pdinfo.samples_per_pixel());
+        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows()) * num_frames;
         let pixel_pad = pdinfo
             .pixel_pad()
             .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
+
+        let mut buffer: Vec<i16> = Vec::with_capacity(len * samples);
+        let mut in_pos: usize = 0;
+        let mut min: i16 = i16::MAX;
+        let mut max: i16 = i16::MIN;
+
         for _i in 0..len {
-            for _j in 0..pdinfo.samples_per_pixel() {
+            for _j in 0..samples {
                 let val = i16::from(pdinfo.bytes()[in_pos]);
                 in_pos += I8_SIZE;
                 buffer.push(val);
@@ -101,17 +105,19 @@ impl PixelDataSliceI16 {
     }
 
     pub fn from_mono_16bit(mut pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
-        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows());
-        let mut in_pos: usize = 0;
-        let mut buffer: Vec<i16> =
-            Vec::with_capacity(len * usize::from(pdinfo.samples_per_pixel()));
-        let mut min: i16 = i16::MAX;
-        let mut max: i16 = i16::MIN;
+        let num_frames = usize::try_from(pdinfo.num_frames()).unwrap_or(1);
+        let samples = usize::from(pdinfo.samples_per_pixel());
+        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows()) * num_frames;
         let pixel_pad = pdinfo
             .pixel_pad()
             .and_then(|pad_val| TryInto::<i16>::try_into(pad_val).ok());
+
+        let mut buffer: Vec<i16> = Vec::with_capacity(len * samples);
+        let mut in_pos: usize = 0;
+        let mut min: i16 = i16::MAX;
+        let mut max: i16 = i16::MIN;
         for _i in 0..len {
-            for _j in 0..pdinfo.samples_per_pixel() {
+            for _j in 0..samples {
                 let val = if pdinfo.big_endian() {
                     if pdinfo.is_signed() {
                         let val = i16::from_be_bytes(
@@ -223,12 +229,14 @@ impl PixelDataSliceI16 {
     /// - If the x,y coordinate is invalid, either by being outside the image dimensions, or if the
     ///   Planar Configuration and Samples per Pixel are set up such that beginning of RGB values
     ///   must occur at specific indices.
-    pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelI16, PixelDataError> {
+    pub fn get_pixel(&self, x: usize, y: usize, z: usize) -> Result<PixelI16, PixelDataError> {
         let cols = usize::from(self.info().cols());
+        let rows = usize::from(self.info().rows());
         let samples = usize::from(self.info().samples_per_pixel());
         let stride = self.stride();
 
-        let src_byte_index = (x * samples) + (y * samples) * cols;
+        let src_byte_index = x + y * cols + z * (rows * cols);
+        let src_byte_index = src_byte_index * samples;
         if src_byte_index >= self.buffer().len()
             || (self.interp_as_rgb && src_byte_index + stride * 2 >= self.buffer().len())
         {
@@ -283,7 +291,7 @@ impl PixelDataSliceI16 {
             (val, val, val)
         };
 
-        Ok(PixelI16 { x, y, r, g, b })
+        Ok(PixelI16 { x, y, z, r, g, b })
     }
 
     #[must_use]
@@ -305,9 +313,11 @@ impl Iterator for SlicePixelI16Iter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let cols = usize::from(self.slice.info().cols());
+        let rows = usize::from(self.slice.info().rows());
         let x = self.src_byte_index % cols;
-        let y = self.src_byte_index / cols;
-        let pixel = self.slice.get_pixel(x, y);
+        let y = (self.src_byte_index / cols) % rows;
+        let z = self.src_byte_index / (cols * rows);
+        let pixel = self.slice.get_pixel(x, y, z);
         self.src_byte_index += 1;
         pixel.ok()
     }

@@ -46,6 +46,7 @@ pub struct PixelDataSliceInfo {
     samples_per_pixel: u16,
     photo_interp: Option<PhotoInterp>,
     planar_config: u16,
+    num_frames: i32,
     cols: u16,
     rows: u16,
     pixel_pad: Option<u16>,
@@ -68,6 +69,7 @@ impl Default for PixelDataSliceInfo {
             samples_per_pixel: 0,
             photo_interp: None,
             planar_config: 0,
+            num_frames: 1,
             cols: 0,
             rows: 0,
             pixel_pad: None,
@@ -91,17 +93,42 @@ impl std::fmt::Debug for PixelDataSliceInfo {
             .field("big_endian", &self.big_endian)
             .field("vr", &self.vr)
             .field("samples_per_pixel", &self.samples_per_pixel)
-            .field("photo_interp", &self.photo_interp)
+            .field(
+                "photo_interp",
+                &self
+                    .photo_interp
+                    .as_ref()
+                    .unwrap_or(&PhotoInterp::Unsupported("None".to_string())),
+            )
             .field("planar_config", &self.planar_config)
+            .field("num_frames", &self.num_frames)
             .field("cols", &self.cols)
             .field("rows", &self.rows)
-            .field("pixel_pad", &self.pixel_pad)
+            .field(
+                "pixel_pad",
+                &self
+                    .pixel_pad
+                    .map(|v| v.to_string())
+                    .unwrap_or("None".to_string()),
+            )
             .field("bits_alloc", &self.bits_alloc)
             .field("bits_stored", &self.bits_stored)
             .field("high_bit", &self.high_bit)
             .field("pixel_rep", &self.pixel_rep)
-            .field("slope", &self.slope)
-            .field("intercept", &self.intercept)
+            .field(
+                "slope",
+                &self
+                    .slope
+                    .map(|v| v.to_string())
+                    .unwrap_or("None".to_string()),
+            )
+            .field(
+                "intercept",
+                &self
+                    .intercept
+                    .map(|v| v.to_string())
+                    .unwrap_or("None".to_string()),
+            )
             .field("unit", &self.unit)
             .field("win_levels", &self.win_levels)
             .field("pd_bytes", &self.pd_bytes.len())
@@ -133,6 +160,11 @@ impl PixelDataSliceInfo {
     #[must_use]
     pub fn planar_config(&self) -> u16 {
         self.planar_config
+    }
+
+    #[must_use]
+    pub fn num_frames(&self) -> i32 {
+        self.num_frames
     }
 
     #[must_use]
@@ -340,6 +372,10 @@ impl PixelDataSliceInfo {
             if let Some(val) = elem.parse_value()?.ushort() {
                 pixdata_info.planar_config = val;
             }
+        } else if elem.tag() == tags::NumberofFrames.tag() {
+            if let Some(val) = elem.parse_value()?.int() {
+                pixdata_info.num_frames = val;
+            }
         } else if elem.tag() == tags::Rows.tag() {
             if let Some(val) = elem.parse_value()?.ushort() {
                 pixdata_info.rows = val;
@@ -371,22 +407,32 @@ impl PixelDataSliceInfo {
         } else if elem.tag() == tags::WindowCenter.tag() {
             if let RawValue::Doubles(vals) = elem.parse_value()? {
                 for (i, val) in vals.into_iter().enumerate() {
-                    if let Some(rescale) = pixdata_info.win_levels.get_mut(i) {
-                        rescale.set_center(val);
+                    if let Some(winlevel) = pixdata_info.win_levels.get_mut(i) {
+                        winlevel.set_center(val);
                     } else {
-                        let rescale = WindowLevel::new(format!("winlevel_{i}"), val, 0.0f64, f64::MIN, f64::MAX);
-                        pixdata_info.win_levels.push(rescale);
+                        pixdata_info.win_levels.push(WindowLevel::new(
+                            format!("winlevel_{i}"),
+                            val,
+                            0.0f64,
+                            f64::MIN,
+                            f64::MAX,
+                        ));
                     }
                 }
             }
         } else if elem.tag() == tags::WindowWidth.tag() {
             if let RawValue::Doubles(vals) = elem.parse_value()? {
                 for (i, val) in vals.into_iter().enumerate() {
-                    if let Some(rescale) = pixdata_info.win_levels.get_mut(i) {
-                        rescale.set_width(val);
+                    if let Some(winlevel) = pixdata_info.win_levels.get_mut(i) {
+                        winlevel.set_width(val);
                     } else {
-                        let rescale = WindowLevel::new(format!("winlevel_{i}"), 0.0f64, val, f64::MIN, f64::MAX);
-                        pixdata_info.win_levels.push(rescale);
+                        pixdata_info.win_levels.push(WindowLevel::new(
+                            format!("winlevel_{i}"),
+                            0.0f64,
+                            val,
+                            f64::MIN,
+                            f64::MAX,
+                        ));
                     }
                 }
             }
@@ -408,11 +454,16 @@ impl PixelDataSliceInfo {
         } else if elem.tag() == tags::WindowCenter_and_WidthExplanation.tag() {
             if let RawValue::Strings(vals) = elem.parse_value()? {
                 for (i, val) in vals.into_iter().enumerate() {
-                    if let Some(rescale) = pixdata_info.win_levels.get_mut(i) {
-                        rescale.set_name(val);
+                    if let Some(winlevel) = pixdata_info.win_levels.get_mut(i) {
+                        winlevel.set_name(val);
                     } else {
-                        let rescale = WindowLevel::new(val, 0.0f64, 0.0f64, f64::MIN, f64::MAX);
-                        pixdata_info.win_levels.push(rescale);
+                        pixdata_info.win_levels.push(WindowLevel::new(
+                            val,
+                            0.0f64,
+                            0.0f64,
+                            f64::MIN,
+                            f64::MAX,
+                        ));
                     }
                 }
             }

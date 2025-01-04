@@ -24,6 +24,7 @@ use crate::core::pixeldata::{
 pub struct PixelI32 {
     pub x: usize,
     pub y: usize,
+    pub z: usize,
     pub r: i32,
     pub g: i32,
     pub b: i32,
@@ -51,15 +52,17 @@ impl std::fmt::Debug for PixelDataSliceI32 {
 
 impl PixelDataSliceI32 {
     pub fn from_mono_32bit(mut pdinfo: PixelDataSliceInfo) -> Result<Self, PixelDataError> {
-        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows());
+        let num_frames = usize::try_from(pdinfo.num_frames()).unwrap_or(1);
+        let samples = usize::from(pdinfo.samples_per_pixel());
+        let len = usize::from(pdinfo.cols()) * usize::from(pdinfo.rows()) * num_frames;
+        let pixel_pad = pdinfo.pixel_pad().map(Into::<i32>::into);
+
+        let mut buffer: Vec<i32> = Vec::with_capacity(len * samples);
         let mut in_pos: usize = 0;
-        let mut buffer: Vec<i32> =
-            Vec::with_capacity(len * usize::from(pdinfo.samples_per_pixel()));
         let mut min: i32 = i32::MAX;
         let mut max: i32 = i32::MIN;
-        let pixel_pad = pdinfo.pixel_pad().map(Into::<i32>::into);
         for _i in 0..len {
-            for _j in 0..pdinfo.samples_per_pixel() {
+            for _j in 0..samples {
                 let val = if pdinfo.big_endian() {
                     if pdinfo.is_signed() {
                         let val = i32::from_be_bytes(
@@ -171,12 +174,14 @@ impl PixelDataSliceI32 {
     /// - If the x,y coordinate is invalid, either by being outside the image dimensions, or if the
     ///   Planar Configuration and Samples per Pixel are set up such that beginning of RGB values
     ///   must occur at specific indices.
-    pub fn get_pixel(&self, x: usize, y: usize) -> Result<PixelI32, PixelDataError> {
+    pub fn get_pixel(&self, x: usize, y: usize, z: usize) -> Result<PixelI32, PixelDataError> {
         let cols = usize::from(self.info().cols());
+        let rows = usize::from(self.info().rows());
         let samples = usize::from(self.info().samples_per_pixel());
         let stride = self.stride();
 
-        let src_byte_index = (x * samples) + (y * samples) * cols;
+        let src_byte_index = x + y * cols + z * (rows * cols);
+        let src_byte_index = src_byte_index * samples;
         if src_byte_index >= self.buffer().len()
             || (self.interp_as_rgb && src_byte_index + stride * 2 >= self.buffer().len())
         {
@@ -225,7 +230,7 @@ impl PixelDataSliceI32 {
             (val, val, val)
         };
 
-        Ok(PixelI32 { x, y, r, g, b })
+        Ok(PixelI32 { x, y, z, r, g, b })
     }
 
     #[must_use]
@@ -247,9 +252,11 @@ impl Iterator for SlicePixelI32Iter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let cols = usize::from(self.slice.info().cols());
+        let rows = usize::from(self.slice.info().rows());
         let x = self.src_byte_index % cols;
-        let y = self.src_byte_index / cols;
-        let pixel = self.slice.get_pixel(x, y);
+        let y = (self.src_byte_index / cols) % rows;
+        let z = self.src_byte_index / (cols * rows);
+        let pixel = self.slice.get_pixel(x, y, z);
         self.src_byte_index += 1;
         pixel.ok()
     }

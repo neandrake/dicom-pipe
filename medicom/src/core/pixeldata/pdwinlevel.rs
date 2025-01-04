@@ -14,6 +14,8 @@
    limitations under the License.
 */
 
+/// Represents a Window/Level that can be applied to adjust values from one scale to another.
+/// Referto Part 3, Section C.11.2, specifically C.11.2.1.2 Window Center and Window Width.
 #[derive(Debug)]
 pub struct WindowLevel {
     name: String,
@@ -34,6 +36,7 @@ impl WindowLevel {
         }
     }
 
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -42,6 +45,7 @@ impl WindowLevel {
         self.name = name;
     }
 
+    #[must_use]
     pub fn center(&self) -> f64 {
         self.center
     }
@@ -50,6 +54,7 @@ impl WindowLevel {
         self.center = center;
     }
 
+    #[must_use]
     pub fn width(&self) -> f64 {
         self.width
     }
@@ -58,6 +63,7 @@ impl WindowLevel {
         self.width = width;
     }
 
+    #[must_use]
     pub fn out_min(&self) -> f64 {
         self.out_min
     }
@@ -66,6 +72,7 @@ impl WindowLevel {
         self.out_min = out_min;
     }
 
+    #[must_use]
     pub fn out_max(&self) -> f64 {
         self.out_max
     }
@@ -74,6 +81,8 @@ impl WindowLevel {
         self.out_max = out_max;
     }
 
+    /// Converts the given value to this window/level, per Part 3, Section C.11.2.1.2.1.
+    #[must_use]
     pub fn apply(&self, value: f64) -> f64 {
         let center = self.center - 0.5_f64;
         let width = self.width - 1_f64;
